@@ -1,0 +1,9 @@
+# Rzeczy, które bot zbiera ze zwłok. W linii nazwa albo ID przedmiotu (# komentarz).
+# ID (pewniejsze): "3031 # gold coin". Znane nazwy -> ID są w loot.py (NAZWA_ID):
+#   gold coin 3031, cheese 3607, meat 3577, rope 3003.
+# ID podejrzysz komendą {"cmd":"kontenery"} (zapytaj.py) albo w ikony/nieznane/id_<ID>.png.
+# Sama nazwa bez znanego ID działa obrazkiem: zobacz ikony/nieznane/, zmień nazwę pliku na nazwę
+# przedmiotu, przenieś go do ikony/ i dopisz nazwę tutaj (bot sam nauczy się ID i podpowie w logu).
+gold coin
+meat
+3054 # silver amulet

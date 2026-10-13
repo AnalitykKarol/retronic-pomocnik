@@ -1,0 +1,7 @@
+{
+ "_opis": "Przystanki wyprawy po zapasy (wyprawa.py). Trasa bazowa do Gorna (troll_do_miasta / thais_kanaly_do_miasta) jest nagrana; stąd do NPC idzie A* po mapie. Uzupełnij JEDNO z: 'stoi' [x,y,z] (pole, na którym stoisz przy NPC), 'npc_poz' [x,y,z] (pole NPC; bot sam wybierze pole obok) albo przejdź obok NPC z działającym botem (pozycja zapisze się w wyprawa_npc.json). 'dojscie' = opcjonalna nagrana lista punktów od poprzedniego przystanku (zastępuje A*). 'powrot' = opcjonalna lista punktów od ostatniego przystanku do początku z_miasta (stoisko Gorna). Zweryfikowane=true dopiero po udanym żywym zakupie.",
+ "przystanki": {
+  "frodo": {"npc": "Frodo", "jedzenie": "ham", "stoi": null, "npc_poz": null, "dojscie": null, "powrot": null, "slowa": {}, "zweryfikowane": false},
+  "xodet": {"npc": "Xodet", "stoi": null, "npc_poz": null, "dojscie": null, "powrot": null, "slowa": {"blank": "blank rune"}, "zweryfikowane": false}
+ }
+}

@@ -1,0 +1,336 @@
+"""Pokrętła na żywo: pomocnik/na_zywo.json czytany przez cavebota co tick (hot-reload po mtime).
+Tylko klucze z ZAKRESY i tylko wartości w twardych granicach; reszta jest odrzucana z logiem.
+Wartość = nadpisanie stałej modułu cavebot (klucz = nazwa stałej). Brak klucza w pliku = domyślna.
+Auto-cofnięcie: zmiana z analityka jest oceniana po COFNIECIE_S wg zabić/min i odpuszczeń/min."""
+import json
+import time
+from pathlib import Path
+
+import instancja
+
+PLIK = instancja.S.na_zywo      # bez RETRONIC_ID: pomocnik/na_zywo.json
+# nazwa: (min, max); domyślna = wartość stałej w cavebot.py w chwili startu
+ZAKRESY = {
+    "POGON_ZASIEG": (10, 14),           # max odległość pościgu za celem poza ekranem
+    "POGON_LIMIT": (12.0, 30.0),        # s bez zbliżania, potem odpuszczamy
+    "POGON_IGNOROWANIE": (5, 90),       # s ignorowania odpuszczonego celu
+    "OBJAZD_IGNOROWANIE": (20, 180),    # s ignorowania celu za ścianą
+    "IGNOROWANIE": (20, 180),           # s ignorowania po limicie walki
+    "IGNOROWANIE_BLISKO": (1, 5),       # ignorowany potwór tak blisko znów jest brany
+    "LIMIT_WALKI": (40, 180),           # s na jeden cel
+    "LOOT_PO_WALCE": (3, 8),            # min. odległość żywego celu blokująca loot
+    "LOOT_BLOK_MAX": (5, 60),           # s wstrzymania lootu
+    "KROKI_DO_ZWLOK": (10, 60),         # liczba prób podejścia do zwłok
+    "CZEKAJ_BLISKO": (2, 5),
+    "POSCIG_OKNO": (3.0, 5.0),          # s jednej szybkiej pętli pościgu
+    "POSCIG_OKNO_DOBRY": (4.0, 8.0),    # s: okno przy dobrym postępie
+    "POSCIG_KROK_MIN": (0.07, 0.2),     # s: min. odstęp między strzałkami w pościgu
+    "POSCIG_PRZEGLAD": (0.4, 2.0),      # s: co ile przegląd HP/otoczenia w pościgu
+    "POSCIG_BRAK_ZMIANY": (0.3, 1.0),   # s bez zmiany pozycji po strzałce = ściana/blokada
+    "POSCIG_PONOW_BRAK": (0, 2),        # ponowienia strzałki po braku zmiany pozycji
+    "POSCIG_TRZYMAJ": (0, 1),           # 1 = pościg trzymanym klawiszem (ciągły marsz), 0 = stuknięcia
+    "JEDZENIE_ZAPAS_W_WALCE": (0, 1),   # 1 = F3 na zapas także w walce (mana >= 30, zapas < MIN, bez ucieczki/leczenia exura)
+    "POSCIG_SKOS_AWARYJNY": (0, 1),     # 1 = gdy jedyne przejście jest po skosie (róg), pościg/podejście/krok idą skosem mimo KOSZT
+    "POSCIG_SKOS_KOSZT": (1.0, 4.0),    # czas kroku po skosie / prostego; < 2 włącza skosy numpadem w pościgu
+    "POSCIG_TRZYMAJ_PRZEGLAD": (0.2, 1.5),  # s: przegląd HP/otoczenia w trybie trzymania
+    "POSCIG_VKROK_SCIANA": (0, 1),      # 1 = trzymany klawisz w ścianę po dojściu nie liczy się jako krok w toku (bez fałszywego zawracania)
+    "POSCIG_OSTATNI_DOCISKAJ": (0, 1),  # 1 = klawisz trzymany dalej, gdy krok kończy przy celu dalszym niż 1 pole (bez postoju ~1,3 s)
+    "POSCIG_PAMIEC": (0, 1),            # 1 = pościg na pamięć za celem, który zniknął z widoku żywy
+    "POSCIG_PAMIEC_S": (3.0, 12.0),     # s: czas pościgu na pamięć
+    "POSCIG_PAMIEC_POL": (4, 14),       # pola: najdalej tyle za ostatnią pozycją celu
+    "POSCIG_PAMIEC_MAKS_ODL": (2, 10),  # pola: dalej niż tyle zniknął cel = bez pościgu na pamięć
+    "LOOT_W_WALCE": (0, 1),             # 1 = loot odłożonych zwłok w trakcie walki (atomowe kroki); 0 tylko ręcznie
+    "LOOT_W_WALCE_HP": (0, 95),         # % HP gracza: twarda dolna granica bezwzględna (domyślnie 0 = wyłączona)
+    "LOOT_W_WALCE_HP_MARGINES": (15, 40),  # pp nad progiem ucieczki: HP wyżej niż prog_aktualny + margines pozwala lootować w walce
+    "LOOT_W_WALCE_STYKAJACE": (1, 2),   # maks. żywych potworów w odl 1 przy lootowaniu w walce
+    "WYPAD_PO_TORCHE": (0, 1),          # 1 = wypad do miasta po pochodnie; analityk nie może go wyłączyć (tylko w górę)
+    "POCHODNIA_W_PRZERWIE": (0, 1),     # 1 = wymiana wypalonej pochodni także w trakcie zaplanowanej przerwy
+    "WYPAD_ILE_TORCHY": (1, 10),        # ile pochodni mieć po zakupie u Al Dee
+    "WYPAD_JEDZENIE": (0, 1),           # 1 = wypad po jedzenie (brak jedzenia + HP < WYPAD_JEDZENIE_HP)
+    "LOOT_POD_NOGAMI_PIERWSZE": (0, 1), # 1 = loot próbuje własnego pola (0,0) zaraz po zgadniętym; 0 = dawne 3x3 po kolei
+    "LOOT_MAKS_PROB": (1, 9),           # ile różnych pól maks. klikamy przy otwieraniu zwłok (dawne zachowanie ~9)
+    "PATROL_WAGA_MIN": (0.0, 0.5),      # dolny próg wagi miejsca w losowaniu patrolu (miejsca bez pola "waga")
+    "POSCIG_GRYZACY_MIN_HP": (0, 60),   # % HP celu: ranny cel w odl <= 3 nie jest porzucany przez gryzącego (0 = wyłączone)
+    "ROZPRAWA_BLOK_MIN_HP_CELU": (0, 60),  # % HP celu: ranny cel w odl <= 2: obejście zamiast bicia blokującego (0 = wyłączone)
+    "PATROL_POWROT_DO_CELU": (0, 1),    # 1 = po walce wracamy do pierwotnego celu patrolu zamiast brać bliższe miejsce
+    "PATROL_POWROT_MAX_ODL": (10, 80),  # pola: dalszy pierwotny cel jest porzucany po walce
+    "PATROL_SWEEP": (0, 1),             # 1 = wizyta w miejscu zachodnim (B) = przeczesanie nagranej trasy zachodu
+    "PATROL_SWEEP_MIN_S": (60.0, 3600.0),  # s: min. przerwa między początkami sweepów zachodu
+    "PATROL_SWEEP_WSCHOD_MIN": (0, 20),    # wizyt na wschodzie (nie-B) wymaganych po sweepie przed następnym
+    "PATROL_CZAS_SKALA_S": (60.0, 3600.0), # s: waga miejsca rośnie o 1x co tyle od ostatniej wizyty
+    "PATROL_CZAS_MAX": (0.0, 10.0),        # maks. dodatek do mnożnika czasu od ostatniej wizyty (0 = wyłączone)
+    "TRYB_PATROL": (0, 1),              # 1 = patrol po miejscach (trasy/miejsca.json), 0 = pętla trasy łowiska
+    "PATROL_PIETRA": (0, 1),            # 1 = patrol sięga miejsc na innych piętrach (plik miejsc z "przejscia", np. miejsca_troll.json)
+    "PATROL_PIETRO_KARA": (0, 60),      # pola doliczane do odległości (wagi) miejsca za piętro różnicy
+    "PATROL_GNIAZDO_MOBOW": (2, 10),    # miejsce/przejście z tyloma mobami naraz = gniazdo (wymaga HP i many)
+    "PATROL_GNIAZDO_HP": (0, 100),      # % HP wymagane do wyboru gniazda (0 = bez warunku)
+    "PATROL_GNIAZDO_MANA": (0, 100),    # % many wymagane do wyboru gniazda (0 = bez warunku)
+    "PATROL_KOORD": (0, 1),             # 1 = koordynator miejsc między instancjami (miejsca_koord.py; domyślnie 0)
+    "PATROL_KOORD_PROMIEN": (0, 30),    # pola: rezerwacja blokuje też miejsca tak blisko (0 = tylko to samo miejsce)
+    "PATROL_MOBY_BEZP": (0, 6),         # tyle mobów naraz nie obniża wagi miejsca
+    "PATROL_MOBY_KARA": (0.0, 2.0),     # waga miejsca /= 1 + KARA * (mobów - BEZP) (0 = bez wpływu)
+    "PATROL_GRACZ_PAM": (0, 1),         # 1 = pamięć graczy: omijamy część spotu, w której niedawno widziano obcego gracza
+    "PATROL_GRACZ_PAM_S": (30.0, 3600.0),  # s: jak długo ostatnia pozycja gracza zniechęca do miejsc w pobliżu
+    "PATROL_GRACZ_PAM_R": (4, 40),      # pola: miejsce tak blisko ostatniej pozycji gracza dostaje karę
+    "PATROL_GRACZ_PAM_KARA": (0.0, 1.0),  # mnożnik wagi takiego miejsca (0 = blokada)
+    "POSCIG_BEZ_ZMIANY_PIETRA": (0, 1), # 1 = pościg nigdy nie wchodzi na schody/dziury (poza wypadem do miasta)
+    "TRASA_PIETRA": (0, 2),             # trasa wielopiętrowa w pętli łowiska: 0 = wył., 1 = zawsze, 2 = tylko gdy trasa ma > 1 piętro (domyślnie)
+    "LOOT_PONOW_LOKALNIE": (0, 2),      # ile razy ponowić loot od razu po brak_okna, gdy w widoku brak żywych mobów
+    "UNIKANIE": (0, 1),                 # 1 = omijanie zwykłych graczy (zmiana punktu rotacji, pomijanie celów przy graczu)
+    "UNIKANIE_PROMIEN": (5, 12),        # pola: gracz tak blisko włącza unikanie
+    "UNIKANIE_PROMIEN_MAX": (10, 20),   # pola: dalej gracz się nie liczy
+    "UNIKANIE_MOB_PROMIEN": (2, 8),     # pola: moby tak blisko gracza nie są celami
+    "UNIKANIE_PUNKT_D": (3, 10),        # pola: punkt trasy bliżej gracza jest pomijany
+    "UNIKANIE_DROGA_MIN": (2, 6),       # pola: droga do punktu nie schodzi bliżej gracza
+    "UNIKANIE_BLOK_S": (20.0, 120.0),   # s blokady bez zmiany, potem inny punkt rotacji / luz
+    "UNIKANIE_ZNIKL_S": (5.0, 30.0),    # s bez gracza = koniec unikania
+    "TRASA_STOP_PRZY_POTWORZE_R": (0, 8),  # pola: potwór w tym promieniu wstrzymuje krok trasy/przejście pięter (0 = wył.)
+    "JEDZENIE_W_WALCE": (0, 1),         # 1 = jedzenie także w walce, gdy HP nie rośnie z regeneracji (głód) i jest bezpiecznie
+    "CZAS_JEDZENIA_WALKA": (10.0, 60.0),   # s bez wzrostu HP (nie od exura) w walce = głód
+    "JEDZENIE_WALKA_HP_MARGINES": (10, 60), # pp nad progiem ucieczki, od których wolno jeść w walce
+    "JEDZENIE_MANA_BRAK_S": (30.0, 600.0),  # s: mana < max, bez rzutu czaru i bez wzrostu tyle czasu = głód (jemy)
+    "ML_CZAR_AKTYWNY": (0, 1),          # 1 = automatyczny czar na magic level (domyślnie 0)
+    "ML_CZAR_KOSZT": (1, 500),          # koszt many czaru
+    "ML_CZAR_MIN_PRZERWA_S": (2.5, 30.0),  # s: exhaust między rzutami
+    "ML_CZAR_W_WALCE": (0, 1),          # 1 = rzucaj także z żywym mobem w pobliżu / w walce
+    "ML_BLOK_HP": (0, 100),             # HP% poniżej + walka/mob w pobliżu = bez ML (mana zostaje na exurę)
+    "ZDROWIE_CZAR_AKTYWNY": (0, 1),     # 1 = leczenie czarem exura (F2) także w walce (domyślnie 0)
+    "ZDROWIE_CZAR_HP": (20, 100),       # HP% poniżej którego leczymy exura (100 = zawsze, gdy HP < 100%)
+    "JEDZENIE_CZAR_AKTYWNY": (0, 1),    # 1 = exevo pan (F3) zamiast wypadu po jedzenie (domyślnie 0)
+    "WYPRAWA_AKTYWNA": (0, 1),          # 1 = wyprawa po zapasy do Thais (wyprawa.py; domyślnie 0)
+    "WYPRAWA_ZAPAS_PROG": (0, 20),      # sztuk jedzenia poniżej których ruszamy (0 = JEDZENIE_ZAPAS_MIN)
+    "WYPRAWA_JEDZENIE_CEL": (1, 40),    # docelowa liczba sztuk jedzenia po zakupie
+    "WYPRAWA_JEDZENIE_DOKUP": (0, 20),  # dokup ponad cel po zjedzeniu u NPC
+    "WYPRAWA_JEDZ_NA_MIEJSCU": (0, 1),  # 1 = jemy u NPC do "full"
+    "WYPRAWA_JEDZ_MAKS": (1, 30),       # maks. zjedzonych sztuk przy NPC
+    "WYPRAWA_BLANKI": (0, 100),         # docelowa liczba blank run (0 = nie kupuj)
+    "WYPRAWA_BLANKI_PROG": (1, 50),     # poniżej tylu blanków wyprawa startuje z tego powodu
+    "WYPRAWA_BLANKI_MAX_KOSZT": (0, 5000),  # gp: limit wydatku na blanki
+    "WYPRAWA_POCHODNIE": (0, 1),        # 1 = pochodnie u Gorna przy okazji
+    "WYPRAWA_CAP_REZERWA": (0, 100),    # oz capa wolne po zakupach
+    "WYPRAWA_ZLOTO_MIN": (0, 100000),   # gp: poniżej wyprawa nie startuje
+    "WYPRAWA_MIN_HP": (30, 100),        # % HP do startu
+    "WYPRAWA_CO_MIN": (1, 240),         # min: odstęp między wyprawami
+    "WYPRAWA_MAX_CZAS_S": (300, 7200),  # s: twardy limit czasu wyprawy
+    "WYPRAWA_MAX_KROKOW": (500, 50000), # twardy limit obiegów wyprawy
+    "WYPRAWA_STOP_PRZY_UTKNIECIU": (0, 1),  # 1 = alarm + STOP przy utknięciu w mieście
+    "JEDZENIE_ZAPAS_MIN": (1, 20),      # poniżej tylu sztuk jedzenia w plecaku rzucamy exevo pan (przy JEDZENIE_CZAR_AKTYWNY=1)
+    "OGIEN_UNIKAJ": (0, 1),             # 1 = omijaj pola ognia (wykrywane ze zrzutu), schodź z nich i nie lootuj z ognia (domyślnie 1)
+    "RUNA_AKTYWNA": (0, 1),             # 1 = strzał runą (hotkey RUNA_KLAWISZ) w celu w walce (domyślnie 0)
+    "RUNA_TRYB_KLIK": (0, 1),           # 1 = strzał runą kliknięciami (plecak -> Use with -> mob) zamiast hotkeya
+    "RUNA_ID": (1, 65535),              # ID runy w plecaku do strzału (HMM 3198)
+    "RUNA_MENU_DX": (0, 150),           # px: awaryjny offset "Use with" od kliknięcia (gdy OCR menu zawiedzie)
+    "RUNA_MENU_DY": (0, 150),
+    "RUNA_KLIK_PORAZKI": (1, 10),       # porażki z rzędu przed chłodzeniem
+    "RUNA_KLIK_CHLODZENIE_S": (10.0, 900.0),
+    "RUNA_INTERWAL_S": (1.0, 10.0),     # s: min. odstęp między strzałami runą (cooldown run ok. 2 s)
+    "UH_AKTYWNY": (0, 1),               # 1 = robienie run czarem runowym w spokoju (uh.py; domyślnie 0)
+    "UH_KOSZT": (1, 500),               # koszt many czaru runowego
+    "UH_MANA_MIN": (1, 500),            # mana wymagana do startu runy
+    "UH_MIN_HP": (50, 100),             # % HP gracza wymagane do startu runy
+    "UH_MOB_DYSTANS": (1, 10),          # pola (Chebyshev): stwory dalej nie blokują ani nie przerywają runy (gracz zawsze)
+    "UH_ODSTEP_S": (5.0, 600.0),        # s: min. odstęp między próbami
+    "RUNA_MIN_HP_CELU": (0, 100),       # nie strzelaj do celu o HP% poniżej tego (0 = bez limitu)
+}
+# Pokrętła tekstowe (tylko ręcznie w na_zywo.json): nazwa -> dozwolone wartości
+TEKSTY = {
+    "RUNA_KLAWISZ": tuple(f"F{i}" for i in range(1, 13)),   # hotkey runy w kliencie
+    "UH_KLAWISZ": tuple(f"F{i}" for i in range(1, 13)),     # hotkey czaru runowego w kliencie
+    "UH_CZAR": ("adori gran", "adura gran", "adura vita", "adura"),   # słowa czaru (log); koszt osobno
+}
+# Pokrętła dobijania: zmiana (z analityka/obserwatora) tylko w "dobrą" stronę względem domyślnej,
+# nigdy w stronę skracania pościgu / zasięgu dobijania. "nie_nizej": wartość >= domyślna,
+# "nie_wyzej": wartość <= domyślna. Ręczny plik na_zywo.json podlega tylko ZAKRESY.
+KIERUNEK = {
+    "POGON_ZASIEG": "nie_nizej", "POGON_LIMIT": "nie_nizej",
+    "POGON_TWARDY": "nie_nizej", "POGON_TWARDY_INNY": "nie_nizej",
+    "POGON_DOBICIE_HP": "nie_nizej",
+    "DOBICIE_ZASIEG": "nie_nizej", "DOBICIE_ZASIEG_UCIEKAJACY": "nie_nizej", "DOBICIE_MARGINES": "nie_nizej",
+    "POSCIG_OKNO": "nie_nizej", "POSCIG_OKNO_DOBRY": "nie_nizej",
+    "POSCIG_VKROK_SCIANA": "nie_nizej", "POSCIG_OSTATNI_DOCISKAJ": "nie_nizej",
+    "POSCIG_SKOS_AWARYJNY": "nie_nizej", "JEDZENIE_ZAPAS_W_WALCE": "nie_nizej",
+    "POSCIG_PAMIEC": "nie_nizej", "POSCIG_PAMIEC_S": "nie_nizej", "POSCIG_PAMIEC_POL": "nie_nizej",
+    "POSCIG_PAMIEC_MAKS_ODL": "nie_nizej",
+    "CZEKAJ_BLISKO": "nie_wyzej", "CZEKAJ_DROGA": "nie_wyzej",
+    # loot w walce: analityk nie może go wyłączyć (0) ani poluzować warunków bezpieczeństwa; tylko zaostrzyć
+    "LOOT_W_WALCE": "nie_nizej", "LOOT_W_WALCE_HP": "nie_nizej", "LOOT_W_WALCE_HP_MARGINES": "nie_nizej",
+    "LOOT_W_WALCE_STYKAJACE": "nie_wyzej",
+    # szukanie zwłok: analityk nie może wyłączyć próby pod nogami ani zmniejszyć budżetu pól
+    "LOOT_POD_NOGAMI_PIERWSZE": "nie_nizej", "LOOT_MAKS_PROB": "nie_nizej",
+    # wypad po pochodnie/jedzenie: analityk nie może go wyłączyć ani zmniejszyć zapasu
+    "POCHODNIA_W_PRZERWIE": "nie_nizej", "WYPAD_PO_TORCHE": "nie_nizej", "WYPAD_ILE_TORCHY": "nie_nizej", "WYPAD_JEDZENIE": "nie_nizej",
+    # unikanie graczy: analityk nie może go wyłączyć ani poluzować (tylko zaostrzyć); ręczny plik tylko ZAKRESY
+    "POSCIG_BEZ_ZMIANY_PIETRA": "nie_nizej",
+    "TRASA_PIETRA": "nie_nizej",        # analityk nie może wyłączyć przejść pięter (tylko Karol w na_zywo.json)
+    # patrol po miejscach: analityk nie może poluzować bezpieczeństwa druida ani pamięci graczy (tylko Karol w na_zywo.json)
+    "PATROL_GNIAZDO_HP": "nie_nizej", "PATROL_GNIAZDO_MANA": "nie_nizej", "PATROL_GNIAZDO_MOBOW": "nie_wyzej",
+    "PATROL_MOBY_KARA": "nie_nizej", "PATROL_MOBY_BEZP": "nie_wyzej",
+    "PATROL_GRACZ_PAM": "nie_nizej", "PATROL_GRACZ_PAM_S": "nie_nizej", "PATROL_GRACZ_PAM_R": "nie_nizej",
+    "PATROL_GRACZ_PAM_KARA": "nie_wyzej",
+    "PATROL_KOORD": "nie_wyzej",        # analityk nie może włączyć koordynatora (tylko Karol w na_zywo.json)
+    "UNIKANIE": "nie_nizej", "UNIKANIE_PROMIEN": "nie_nizej", "UNIKANIE_PROMIEN_MAX": "nie_nizej",
+    "UNIKANIE_MOB_PROMIEN": "nie_nizej", "UNIKANIE_PUNKT_D": "nie_nizej", "UNIKANIE_DROGA_MIN": "nie_nizej",
+    "UNIKANIE_BLOK_S": "nie_wyzej", "UNIKANIE_ZNIKL_S": "nie_nizej",
+    # czar ML: analityk nie może go włączyć ani rzucać w walce (tylko Karol w na_zywo.json)
+    "ML_CZAR_AKTYWNY": "nie_wyzej", "ML_CZAR_W_WALCE": "nie_wyzej",
+    # czary zdrowia/jedzenia: analityk nie może ich włączyć ani podnieść progów (tylko Karol w na_zywo.json)
+    "ZDROWIE_CZAR_AKTYWNY": "nie_wyzej", "ZDROWIE_CZAR_HP": "nie_wyzej",
+    "JEDZENIE_CZAR_AKTYWNY": "nie_wyzej", "ML_BLOK_HP": "nie_wyzej",
+    # jedzenie przy braku regeneracji many: analityk może tylko skrócić okno (jeść wcześniej), nie wydłużyć
+    "JEDZENIE_MANA_BRAK_S": "nie_wyzej",
+    # jedzenie w walce: analityk nie może go wyłączyć ani wydłużyć okna / podnieść marginesu (czyli jeść rzadziej)
+    "TRASA_STOP_PRZY_POTWORZE_R": "nie_nizej",
+    "JEDZENIE_W_WALCE": "nie_nizej", "CZAS_JEDZENIA_WALKA": "nie_wyzej", "JEDZENIE_WALKA_HP_MARGINES": "nie_wyzej",
+    # zapas jedzenia czarem: analityk może tylko obniżyć próg (mniej rzutów), nie podnieść
+    "JEDZENIE_ZAPAS_MIN": "nie_wyzej",
+    # strzał runą: analityk nie może go włączyć (tylko Karol w na_zywo.json)
+    "RUNA_AKTYWNA": "nie_wyzej", "RUNA_TRYB_KLIK": "nie_wyzej",
+    # robienie run: analityk nie może go włączyć ani obniżyć progów bezpieczeństwa (tylko Karol w na_zywo.json)
+    # wyprawa po zapasy: analityk nie może jej włączyć ani zwiększyć wydatków/ryzyka (tylko Karol w na_zywo.json)
+    "WYPRAWA_AKTYWNA": "nie_wyzej", "WYPRAWA_BLANKI": "nie_wyzej", "WYPRAWA_BLANKI_MAX_KOSZT": "nie_wyzej",
+    "WYPRAWA_JEDZENIE_CEL": "nie_wyzej", "WYPRAWA_JEDZENIE_DOKUP": "nie_wyzej", "WYPRAWA_MIN_HP": "nie_nizej",
+    "WYPRAWA_CO_MIN": "nie_nizej", "WYPRAWA_MAX_CZAS_S": "nie_wyzej", "WYPRAWA_MAX_KROKOW": "nie_wyzej",
+    "WYPRAWA_STOP_PRZY_UTKNIECIU": "nie_nizej", "WYPRAWA_ZLOTO_MIN": "nie_nizej", "WYPRAWA_CAP_REZERWA": "nie_nizej",
+    "UH_AKTYWNY": "nie_wyzej", "UH_MIN_HP": "nie_nizej", "UH_MOB_DYSTANS": "nie_nizej", "UH_MANA_MIN": "nie_nizej", "UH_ODSTEP_S": "nie_nizej",
+    # pola ognia: analityk nie może wyłączyć omijania (tylko Karol w na_zywo.json)
+    "OGIEN_UNIKAJ": "nie_nizej",
+}
+COFNIECIE_S = 300
+
+
+def _powiadom(*a, **k):
+    try:
+        import powiadom  # noqa: PLC0415
+        powiadom.powiadom(*a, **k)
+    except Exception:
+        pass
+
+
+def waliduj(zmiany, domyslne=None):
+    """-> (poprawne, bledy). Wartości liczbowe w zakresie; typ jak domyślny (int/float).
+    Z `domyslne` (słownik nazwa -> domyślna): pokrętła z KIERUNEK tylko w dozwoloną stronę."""
+    ok, bledy = {}, []
+    for k, v in (zmiany or {}).items():
+        if k.startswith("_"):
+            continue
+        if k in TEKSTY:
+            if domyslne:
+                bledy.append(f"{k}: tylko ręcznie w na_zywo.json")
+            elif v not in TEKSTY[k]:
+                bledy.append(f"{k}={v!r}: dozwolone {TEKSTY[k]}")
+            else:
+                ok[k] = v
+        elif k not in ZAKRESY:
+            bledy.append(f"{k}: nieznany klucz")
+        elif isinstance(v, bool) or not isinstance(v, (int, float)):
+            bledy.append(f"{k}: nie liczba")
+        elif not ZAKRESY[k][0] <= v <= ZAKRESY[k][1]:
+            bledy.append(f"{k}={v}: poza zakresem {ZAKRESY[k]}")
+        elif domyslne and k in KIERUNEK and k in domyslne and (
+                (KIERUNEK[k] == "nie_nizej" and v < domyslne[k])
+                or (KIERUNEK[k] == "nie_wyzej" and v > domyslne[k])):
+            bledy.append(f"{k}={v}: zły kierunek względem domyślnej {domyslne[k]} ({KIERUNEK[k]})")
+        else:
+            ok[k] = v
+    return ok, bledy
+
+
+class Pokretla:
+    def __init__(self, modul, plik=PLIK, log=print, zegar=time.time):
+        self.modul, self.plik, self.log, self.zegar = modul, Path(plik), log, zegar
+        self.domyslne = {k: getattr(modul, k) for k in (*ZAKRESY, *TEKSTY) if hasattr(modul, k)}
+        self.mtime = None
+        self.aktywne = {}
+        self.oczekuje = None      # {"t","przed":dict pliku,"zmiany","metryki","powod"}
+        self.zakazane = {}        # klucz -> do kiedy nie zmieniać po cofnięciu
+
+    def odswiez(self):
+        """Wołane co tick: tani stat, wczytanie tylko przy zmianie pliku."""
+        try:
+            m = self.plik.stat().st_mtime
+        except OSError:
+            m = None
+        if m == self.mtime:
+            return
+        self.mtime = m
+        try:
+            dane = json.loads(self.plik.read_text()) if m else {}
+        except (OSError, ValueError) as e:
+            self.log(f"na_zywo.json: błąd odczytu {e!r}, zostają poprzednie wartości")
+            return
+        self.zastosuj(dane if isinstance(dane, dict) else {})
+
+    def zastosuj(self, dane):
+        ok, bledy = waliduj(dane)
+        for b in bledy:
+            self.log(f"na_zywo.json odrzucone: {b}")
+        for k in list(self.aktywne):
+            if k not in ok:
+                setattr(self.modul, k, self.domyslne[k])
+                self.log(f"pokrętło {k}: powrót do domyślnej {self.domyslne[k]}")
+                del self.aktywne[k]
+        for k, v in ok.items():
+            if k not in self.domyslne:
+                self.log(f"pokrętło {k}: brak stałej w cavebot.py, pomijam")
+                continue
+            if self.aktywne.get(k) != v:
+                setattr(self.modul, k, v)
+                self.log(f"pokrętło {k}: {getattr(self.modul, k)} (domyślna {self.domyslne[k]})")
+                self.aktywne[k] = v
+
+    def _plik_dane(self):
+        try:
+            d = json.loads(self.plik.read_text())
+            return d if isinstance(d, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def _zapisz(self, dane):
+        self.plik.write_text(json.dumps(dane, ensure_ascii=False, indent=1))
+
+    def zmien(self, zmiany, powod, metryki=None):
+        """Wywołanie analityka: waliduje, zapisuje do pliku, loguje z uzasadnieniem.
+        -> lista faktycznie zmienionych kluczy."""
+        ok, bledy = waliduj(zmiany, self.domyslne)
+        teraz = self.zegar()
+        for b in bledy:
+            self.log(f"zmiana pokręteł odrzucona: {b}")
+        ok = {k: v for k, v in ok.items() if k in self.domyslne
+              and self.zakazane.get(k, 0) <= teraz and self.aktywne.get(k, self.domyslne[k]) != v}
+        if not ok or self.oczekuje:      # jedna zmiana naraz, ocena przed następną
+            return []
+        przed = self._plik_dane()
+        nowe = {**{k: v for k, v in przed.items() if not k.startswith("_")}, **ok}
+        self._zapisz(nowe)
+        self.oczekuje = {"t": teraz, "przed": przed, "zmiany": ok, "metryki": metryki or {}, "powod": powod}
+        self.log(f"ANALITYK zmienia pokrętła {ok}: {powod}")
+        _powiadom("Analityk zmienił pokrętło", f"{ok}: {powod}", klucz="pokretlo")
+        self.mtime = None
+        self.odswiez()
+        return list(ok)
+
+    def ocen(self, metryki_po):
+        """Po COFNIECIE_S od zmiany: porównaj z metrykami sprzed; gorzej -> cofnij. -> 'cofnieto'|'zostaje'|None."""
+        o = self.oczekuje
+        if not o or self.zegar() - o["t"] < COFNIECIE_S:
+            return None
+        przed, po = o["metryki"], metryki_po
+        gorzej = (po.get("zabicia_na_min", 0) < przed.get("zabicia_na_min", 0) * 0.85
+                  and przed.get("zabicia_na_min", 0) > 0) \
+            or po.get("odpuszczenia_na_min", 0) > przed.get("odpuszczenia_na_min", 0) * 1.25 + 0.1
+        self.oczekuje = None
+        if gorzej:
+            self._zapisz({k: v for k, v in o["przed"].items()})
+            for k in o["zmiany"]:
+                self.zakazane[k] = self.zegar() + 1800
+            self.log(f"AUTO-COFNIĘCIE pokręteł {o['zmiany']}: zabicia/min {przed.get('zabicia_na_min')} -> "
+                     f"{po.get('zabicia_na_min')}, odpuszczenia/min {przed.get('odpuszczenia_na_min')} -> "
+                     f"{po.get('odpuszczenia_na_min')}")
+            _powiadom("Auto-cofnięcie pokrętła", f"{o['zmiany']}: zabicia/min {przed.get('zabicia_na_min')} -> "
+                      f"{po.get('zabicia_na_min')}, odpuszczenia/min {przed.get('odpuszczenia_na_min')} -> "
+                      f"{po.get('odpuszczenia_na_min')}", klucz="cofniecie")
+            self.mtime = None
+            self.odswiez()
+            return "cofnieto"
+        self.log(f"pokrętła {o['zmiany']} zostają (zabicia/min {po.get('zabicia_na_min')})")
+        return "zostaje"

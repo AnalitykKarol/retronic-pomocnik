@@ -1,0 +1,9 @@
+# Próbki stylu Karola: prawdziwe wiadomości, które pisze na czacie w grze (Default i priv).
+# Jedna wiadomość w linii, bez nicków i bez godzin, najlepiej 15-40 sztuk z różnych sytuacji:
+# powitania, "co tu robisz", "gdzie jest X", prośby o item, odmowy, żarty, odpowiedzi po polsku i po angielsku.
+# Linie zaczynające się od # są pomijane. Plik trafia do promptu modelu tylko przy wiadomości od gracza
+# (max ~1500 znaków). Pusty plik albo brak pliku = model pisze wg ogólnych zasad (krótko, małe litery).
+# Przykład (usuń # żeby użyć):
+# hej
+# expie rata
+# nie wiem sry

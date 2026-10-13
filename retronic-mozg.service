@@ -1,0 +1,25 @@
+# Mózg pomocnika Retronic jako usługa systemd --user. NIE jest zainstalowana.
+# Instalacja (ręcznie, gdy gra i strażnik działają):
+#   ln -s ~/Games/Retronic/pomocnik/retronic-mozg.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user start retronic-mozg
+# Podgląd: journalctl --user -u retronic-mozg -f   (albo tail -F logi/mozg-*.log)
+# Domyślnie tryb doradca (zero inputu). Hybryda: zmień --tryb i NIE uruchamiaj wtedy osobnego cavebot.py.
+[Unit]
+Description=Retronic: mozg pomocnika (model AI nad cavebotem)
+After=graphical-session.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Games/Retronic/pomocnik
+Environment=PATH=%h/.local/share/mise/installs/claude/latest:%h/.local/bin:/usr/local/bin:/usr/bin
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecCondition=/usr/bin/test -S %t/retronic-pomocnik.sock
+ExecStart=/usr/bin/python3 -I %h/Games/Retronic/pomocnik/mozg.py --tryb doradca --co 30-60 --model haiku
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=15
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

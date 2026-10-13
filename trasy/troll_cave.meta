@@ -1,0 +1,89 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "początek nagrania"
+  },
+  {
+   "idx": 7,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 9"
+  },
+  {
+   "idx": 8,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 8 -> 9 (w dół), z (32485,32265)"
+  },
+  {
+   "idx": 13,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 8"
+  },
+  {
+   "idx": 14,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 9 -> 8 (w górę), z (32479,32269)"
+  },
+  {
+   "idx": 16,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 9"
+  },
+  {
+   "idx": 17,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 8 -> 9 (w dół), z (32477,32272)"
+  },
+  {
+   "idx": 32,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 8"
+  },
+  {
+   "idx": 33,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 9 -> 8 (w górę), z (32476,32272)"
+  },
+  {
+   "idx": 59,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 9"
+  },
+  {
+   "idx": 60,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 8 -> 9 (w dół), z (32474,32287)"
+  },
+  {
+   "idx": 65,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 8"
+  },
+  {
+   "idx": 66,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 9 -> 8 (w górę), z (32474,32285)"
+  },
+  {
+   "idx": 74,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 9"
+  },
+  {
+   "idx": 75,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 8 -> 9 (w dół), z (32482,32295)"
+  },
+  {
+   "idx": 111,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 8"
+  },
+  {
+   "idx": 112,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 9 -> 8 (w górę), z (32483,32297)"
+  }
+ ]
+}

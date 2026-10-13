@@ -1,0 +1,24 @@
+{
+ "npc": "Al Dee",
+ "stoje": [
+  32061,
+  32180,
+  7
+ ],
+ "poprzednie_pole_nagrania": [
+  32061,
+  32179,
+  7
+ ],
+ "kupione": "5 torch za 10 gold (2 gold/szt)",
+ "dialog": [
+  "hi",
+  "buy 5 torch",
+  "yes"
+ ],
+ "odpowiedzi_npc": [
+  "Hello, hello, Jointoramix! Please come in, look, and buy!",
+  "Do you want to buy 5 torchs for 10 gold coins?"
+ ],
+ "uwaga": "Stal w pkt (32061,32180,z7) podczas zakupu o 15:36; NPC to Al Dee, nie Willie. Potwierdzic odleglosc od NPC przy implementacji."
+}

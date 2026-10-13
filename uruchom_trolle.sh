@@ -1,0 +1,31 @@
+#!/bin/bash
+# Start bota na trollach (troll_cave, z8+z9, trasa wielopiętrowa). Postać ma stać na z8 przy punkcie 0 (32493,32260). Odmawia, gdy bot już działa albo brak gry.
+# Domyślnie pętla troll_cave. Zmienna TRASA wybiera inną trasę albo tryb:
+#   TRASA=patrol:troll ./uruchom_trolle.sh   mapa spotu trolli (z8+z9): patrol po miejscach z trasy/miejsca_troll.json,
+#                                            między miejscami po grafie schodów (trasa awaryjna: pole "trasa" z pliku)
+DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+INST=$(python3 -I "$DIR/instancja.py" powloka) || exit 1; eval "$INST"   # RETRONIC_ID -> INST_* (bez ID: dzisiejsze ścieżki)
+TYTUL="Bot Retronic${RETRONIC_ID:+ [$RETRONIC_ID]}"
+pidy() { python3 -I "$DIR/instancja.py" pidy '(mozg|cavebot)\.py'; }   # tylko bot tej instancji
+SOCK="$INST_SOCK"
+p=$(pidy | head -1)
+[ -n "$p" ] && { notify-send "$TYTUL" "Bot już działa (pid $p)"; echo "bot już działa" >&2; exit 1; }
+[ -S "$SOCK" ] || { notify-send "$TYTUL" "Gra nie działa (brak socketu)"; echo "brak socketu gry" >&2; exit 1; }
+rm -f "$INST_STOP" "$INST_STOP_RECZNY"
+mkdir -p "$INST_LOGI"
+cd "$DIR" || exit 1
+# na powierzchni (z7, np. przy depo) bot najpierw przechodzi nagrane dojście do troll_cave (dziura 32493,32259), na z8 startuje od razu
+DOJSCIE=()
+Z=$(python3 -I -c "
+import os,socket,json
+s=socket.socket(socket.AF_UNIX);s.settimeout(3);s.connect('$SOCK')
+s.sendall(b'{\"cmd\":\"pozycja\",\"nazwa\":\"${RETRONIC_POSTAC:-Jointoramix}\"}\n');print(json.loads(s.recv(400))['pozycja']['z'])" 2>/dev/null)
+[ "$Z" = "7" ] && DOJSCIE=(--dojscie depo_troll_cave)
+LOG="$INST_LOGI/mozg-stdout-$(date +%m%d-%H%M).log"
+# Opcjonalnie MAPA=trolle_nowe (mapy.json) zamiast TRASA, TRYB=sredni,runy (tryby.json). Bez obu zmiennych bez zmian.
+if [ -n "$MAPA$TRYB" ]; then
+  WYN=$(python3 -I "$DIR/tryb.py" --mapa "${MAPA:-trolle}" --tryb "${TRYB:-}") || exit 1
+  eval "$WYN"; [ -n "$MAPA" ] && TRASA="$MAPA_TRASA"
+fi
+setsid nohup python3 -I -u mozg.py --tryb hybryda --model haiku --trasa "${TRASA:-troll_cave}" "${DOJSCIE[@]}" --potwory "${MAPA_POTWORY:-Troll}" --prog-hp "${MAPA_PROG_HP:-60}" > "$LOG" 2>&1 < /dev/null &
+notify-send "$TYTUL" "Start (mozg hybryda, ${TRASA:-troll_cave}${DOJSCIE:+ + dojście z depo})"

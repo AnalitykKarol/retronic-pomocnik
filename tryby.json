@@ -1,0 +1,84 @@
+{
+ "_opis": "Tryb = tylko zachowanie (pokrętła z pokretla.py ZAKRESY/TEKSTY), bez trasy i mobów (to mapy.json). Kilka naraz po przecinku, scalane od lewej do prawej: TRYB=sredni,runy. Klucze, których tryb nie wymienia, zostają jak w na_zywo.json.",
+ "agresywny": {
+  "opis": "Runa w cel co 2 s w walce, strzał kliknięciami (RUNA_TRYB_KLIK=1: prawy klik na runie HMM id 3198 w plecaku -> 'Use with' -> lewy klik na mobie), bo hotkey F4 w tym kliencie nie działa. Wymaga otwartego plecaka z runami w prawym panelu i widocznego okna gry; strzał nie kosztuje many. Brak runy: bez strzałów, jeden wpis w logu.",
+  "pokretla": {
+   "RUNA_AKTYWNA": 1,
+   "RUNA_INTERWAL_S": 2.0,
+   "RUNA_MIN_HP_CELU": 0,
+   "RUNA_TRYB_KLIK": 1
+  }
+ },
+ "sredni": {
+  "opis": "Runa kliknięciami co 6 s i nie w cel poniżej 40% HP (nie marnuje runy na prawie martwym). Te same wymagania co 'agresywny'. Brak pokrętła 'tylko mocniejsze moby': bot nie rozróżnia siły potworów.",
+  "pokretla": {
+   "RUNA_AKTYWNA": 1,
+   "RUNA_INTERWAL_S": 6.0,
+   "RUNA_MIN_HP_CELU": 40,
+   "RUNA_TRYB_KLIK": 1
+  }
+ },
+ "ostrozny": {
+  "opis": "Bez run w walce (tylko melee, leczenie i jedzenie jak dotąd).",
+  "pokretla": {
+   "RUNA_AKTYWNA": 0
+  }
+ },
+ "ml": {
+  "opis": "Trening ML przez utevo lux (F1) w spokoju; robienie run wyłączone.",
+  "pokretla": {
+   "ML_CZAR_AKTYWNY": 1,
+   "UH_AKTYWNY": 0
+  }
+ },
+ "runy": {
+  "opis": "Robienie run w spokoju (adori gran, F6, 70 many, start przy mana >= 70, HP >= 90%, bez stworów w widoku): tarcza do plecaka, blank do ręki, rzut, runa do plecaka, tarcza z powrotem. ML (utevo lux) wyłączone, mana idzie w runy. Wymaga blank run w plecaku i hotkeya F6 = adori gran w kliencie. Tylko runy: bez exevo pan (JEDZENIE_CZAR_AKTYWNY=0, jedzenie wyłącznie z plecaka przy głodzie), bez exura (ZDROWIE_CZAR_AKTYWNY=0) i bez ML; cała mana idzie w adori gran.",
+  "pokretla": {
+   "UH_AKTYWNY": 1,
+   "ML_CZAR_AKTYWNY": 0,
+   "UH_KLAWISZ": "F6",
+   "UH_CZAR": "adori gran",
+   "UH_KOSZT": 70,
+   "UH_MANA_MIN": 70,
+   "UH_MIN_HP": 90,
+   "UH_MOB_DYSTANS": 3,
+   "JEDZENIE_CZAR_AKTYWNY": 0,
+   "ZDROWIE_CZAR_AKTYWNY": 0
+  }
+ },
+ "uh": {
+  "opis": "Robienie run UH (adura vita, F7, 100 many, start przy mana >= 100, HP >= 90%, żaden mob w widoku (UH czeka do końca walki)): tarcza do plecaka, blank do ręki, rzut, runa do plecaka, tarcza z powrotem. Tylko runy: bez exevo pan, exura przy HP < 80%, bez ML. Wymaga blank run w plecaku i hotkeya F7 = adura vita w kliencie.",
+  "pokretla": {
+   "UH_AKTYWNY": 1,
+   "ML_CZAR_AKTYWNY": 0,
+   "UH_KLAWISZ": "F7",
+   "UH_CZAR": "adura vita",
+   "UH_KOSZT": 100,
+   "UH_MANA_MIN": 100,
+   "UH_MIN_HP": 90,
+   "UH_MOB_DYSTANS": 10,
+   "JEDZENIE_CZAR_AKTYWNY": 0,
+   "ZDROWIE_CZAR_AKTYWNY": 1,
+   "ZDROWIE_CZAR_HP": 80
+  }
+ },
+ "wyprawa": {
+  "opis": "Wyprawa po zapasy (wyprawa.py): gdy jedzenia w plecaku < JEDZENIE_ZAPAS_MIN (albo głód bez jedzenia), bot w spokoju wraca do Thais przez troll_do_miasta, kupuje pochodnie u Gorna (jeśli brakuje), jedzenie u Frodo (cel 20 + zjedzenie do full + dokup 5), po czym wraca na spot. Wymaga pozycji Frodo (trasy/wyprawa_sklepy.json albo uczone z widoku: python3 -I wyprawa.py plan). Łączy się z innymi trybami (np. uh,wyprawa).",
+  "pokretla": {
+   "WYPRAWA_AKTYWNA": 1,
+   "WYPRAWA_JEDZENIE_CEL": 20,
+   "WYPRAWA_JEDZENIE_DOKUP": 5,
+   "WYPRAWA_JEDZ_NA_MIEJSCU": 1,
+   "WYPRAWA_BLANKI": 0
+  }
+ },
+ "wyprawa_blanki": {
+  "opis": "Jak 'wyprawa', plus dokup blank run u Xodeta do 30 sztuk (limit 600 gp). Wymaga pozycji Xodeta.",
+  "pokretla": {
+   "WYPRAWA_AKTYWNA": 1,
+   "WYPRAWA_BLANKI": 30,
+   "WYPRAWA_BLANKI_PROG": 3,
+   "WYPRAWA_BLANKI_MAX_KOSZT": 600
+  }
+ }
+}

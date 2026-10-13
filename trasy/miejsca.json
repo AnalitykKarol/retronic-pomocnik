@@ -1,0 +1,660 @@
+{
+ "opis": "miejsca polowania: klastry (Chebyshev<=4) punktow kanaly2+nowe_miejsca (zrodlo A/B). zabicia = pozycja zabitego potwora z telemetria-20261011 epizod_celu (tylko trasa kanaly2, wiec miejsca zrodlo B maja dane tylko od potworow widzianych z kanalu); udzial_zabic = waga; zabic_na_h tylko gdy godz_obecnosci>=0.1. waga (opcjonalne): reczna waga bazowa miejsca w losowaniu patrolu, zastepuje max(udzial_zabic, PATROL_WAGA_MIN); zachod (zrodlo B) wazony w gore, bo bot tam prawie nie stal (11.10)",
+ "promien": 4,
+ "miejsca": [
+  {
+   "id": 1,
+   "x": 31981,
+   "y": 32138,
+   "z": 11,
+   "punkty": 9,
+   "zrodlo": "B",
+   "sasiedzi": [
+    {
+     "id": 2,
+     "droga": 11
+    },
+    {
+     "id": 3,
+     "droga": 7
+    },
+    {
+     "id": 4,
+     "droga": 18
+    },
+    {
+     "id": 5,
+     "droga": 16
+    }
+   ],
+   "zabicia": 2,
+   "godz_obecnosci": 0.011,
+   "zabic_na_h": null,
+   "udzial_zabic": 0.002,
+   "waga": 0.12
+  },
+  {
+   "id": 2,
+   "x": 31984,
+   "y": 32146,
+   "z": 11,
+   "punkty": 21,
+   "zrodlo": "B",
+   "sasiedzi": [
+    {
+     "id": 1,
+     "droga": 11
+    },
+    {
+     "id": 3,
+     "droga": 18
+    },
+    {
+     "id": 4,
+     "droga": 7
+    },
+    {
+     "id": 6,
+     "droga": 14
+    }
+   ],
+   "zabicia": 3,
+   "godz_obecnosci": 0.011,
+   "zabic_na_h": null,
+   "udzial_zabic": 0.002,
+   "waga": 0.12
+  },
+  {
+   "id": 3,
+   "x": 31987,
+   "y": 32137,
+   "z": 11,
+   "punkty": 2,
+   "zrodlo": "B",
+   "sasiedzi": [
+    {
+     "id": 1,
+     "droga": 7
+    },
+    {
+     "id": 2,
+     "droga": 18
+    },
+    {
+     "id": 5,
+     "droga": 9
+    }
+   ],
+   "zabicia": 2,
+   "godz_obecnosci": 0.018,
+   "zabic_na_h": null,
+   "udzial_zabic": 0.002,
+   "waga": 0.12
+  },
+  {
+   "id": 4,
+   "x": 31990,
+   "y": 32147,
+   "z": 11,
+   "punkty": 2,
+   "zrodlo": "B",
+   "sasiedzi": [
+    {
+     "id": 1,
+     "droga": 18
+    },
+    {
+     "id": 2,
+     "droga": 7
+    },
+    {
+     "id": 6,
+     "droga": 9
+    }
+   ],
+   "zabicia": 0,
+   "godz_obecnosci": 0.005,
+   "zabic_na_h": null,
+   "udzial_zabic": 0.0,
+   "waga": 0.12
+  },
+  {
+   "id": 5,
+   "x": 31992,
+   "y": 32133,
+   "z": 11,
+   "punkty": 6,
+   "zrodlo": "B",
+   "sasiedzi": [
+    {
+     "id": 1,
+     "droga": 16
+    },
+    {
+     "id": 3,
+     "droga": 9
+    },
+    {
+     "id": 7,
+     "droga": 15
+    }
+   ],
+   "zabicia": 0,
+   "godz_obecnosci": 0.008,
+   "zabic_na_h": null,
+   "udzial_zabic": 0.0,
+   "waga": 0.12
+  },
+  {
+   "id": 6,
+   "x": 31995,
+   "y": 32145,
+   "z": 11,
+   "punkty": 11,
+   "zrodlo": "B",
+   "sasiedzi": [
+    {
+     "id": 2,
+     "droga": 14
+    },
+    {
+     "id": 4,
+     "droga": 9
+    },
+    {
+     "id": 8,
+     "droga": 17
+    }
+   ],
+   "zabicia": 5,
+   "godz_obecnosci": 0.045,
+   "zabic_na_h": null,
+   "udzial_zabic": 0.004,
+   "waga": 0.12
+  },
+  {
+   "id": 7,
+   "x": 32002,
+   "y": 32136,
+   "z": 11,
+   "punkty": 14,
+   "zrodlo": "B",
+   "sasiedzi": [
+    {
+     "id": 5,
+     "droga": 15
+    },
+    {
+     "id": 9,
+     "droga": 11
+    }
+   ],
+   "zabicia": 3,
+   "godz_obecnosci": 0.03,
+   "zabic_na_h": null,
+   "udzial_zabic": 0.002,
+   "waga": 0.12
+  },
+  {
+   "id": 8,
+   "x": 32002,
+   "y": 32153,
+   "z": 11,
+   "punkty": 6,
+   "zrodlo": "B",
+   "sasiedzi": [
+    {
+     "id": 6,
+     "droga": 17
+    },
+    {
+     "id": 10,
+     "droga": 7
+    },
+    {
+     "id": 11,
+     "droga": 16
+    },
+    {
+     "id": 12,
+     "droga": 15
+    }
+   ],
+   "zabicia": 9,
+   "godz_obecnosci": 0.117,
+   "zabic_na_h": 76.9,
+   "udzial_zabic": 0.007,
+   "waga": 0.08
+  },
+  {
+   "id": 9,
+   "x": 32008,
+   "y": 32141,
+   "z": 11,
+   "punkty": 4,
+   "zrodlo": "B",
+   "sasiedzi": [
+    {
+     "id": 7,
+     "droga": 11
+    },
+    {
+     "id": 12,
+     "droga": 19
+    },
+    {
+     "id": 13,
+     "droga": 17
+    },
+    {
+     "id": 14,
+     "droga": 13
+    }
+   ],
+   "zabicia": 145,
+   "godz_obecnosci": 0.028,
+   "zabic_na_h": null,
+   "udzial_zabic": 0.116
+  },
+  {
+   "id": 10,
+   "x": 32008,
+   "y": 32152,
+   "z": 11,
+   "punkty": 2,
+   "zrodlo": "B",
+   "sasiedzi": [
+    {
+     "id": 8,
+     "droga": 7
+    },
+    {
+     "id": 11,
+     "droga": 9
+    },
+    {
+     "id": 12,
+     "droga": 8
+    },
+    {
+     "id": 14,
+     "droga": 16
+    }
+   ],
+   "zabicia": 1,
+   "godz_obecnosci": 0.073,
+   "zabic_na_h": null,
+   "udzial_zabic": 0.001,
+   "waga": 0.08
+  },
+  {
+   "id": 11,
+   "x": 32012,
+   "y": 32157,
+   "z": 11,
+   "punkty": 18,
+   "zrodlo": "AB",
+   "sasiedzi": [
+    {
+     "id": 8,
+     "droga": 16
+    },
+    {
+     "id": 10,
+     "droga": 9
+    },
+    {
+     "id": 12,
+     "droga": 9
+    },
+    {
+     "id": 14,
+     "droga": 17
+    },
+    {
+     "id": 15,
+     "droga": 16
+    }
+   ],
+   "zabicia": 23,
+   "godz_obecnosci": 0.299,
+   "zabic_na_h": 76.9,
+   "udzial_zabic": 0.018
+  },
+  {
+   "id": 12,
+   "x": 32013,
+   "y": 32151,
+   "z": 11,
+   "punkty": 3,
+   "zrodlo": "A",
+   "sasiedzi": [
+    {
+     "id": 8,
+     "droga": 15
+    },
+    {
+     "id": 9,
+     "droga": 19
+    },
+    {
+     "id": 10,
+     "droga": 8
+    },
+    {
+     "id": 11,
+     "droga": 9
+    },
+    {
+     "id": 13,
+     "droga": 20
+    },
+    {
+     "id": 14,
+     "droga": 8
+    }
+   ],
+   "zabicia": 8,
+   "godz_obecnosci": 0.142,
+   "zabic_na_h": 56.3,
+   "udzial_zabic": 0.006
+  },
+  {
+   "id": 13,
+   "x": 32015,
+   "y": 32137,
+   "z": 11,
+   "punkty": 11,
+   "zrodlo": "A",
+   "sasiedzi": [
+    {
+     "id": 9,
+     "droga": 17
+    },
+    {
+     "id": 12,
+     "droga": 20
+    },
+    {
+     "id": 14,
+     "droga": 12
+    }
+   ],
+   "zabicia": 186,
+   "godz_obecnosci": 0.27,
+   "zabic_na_h": 688.9,
+   "udzial_zabic": 0.149
+  },
+  {
+   "id": 14,
+   "x": 32016,
+   "y": 32146,
+   "z": 11,
+   "punkty": 25,
+   "zrodlo": "AB",
+   "sasiedzi": [
+    {
+     "id": 9,
+     "droga": 13
+    },
+    {
+     "id": 10,
+     "droga": 16
+    },
+    {
+     "id": 11,
+     "droga": 17
+    },
+    {
+     "id": 12,
+     "droga": 8
+    },
+    {
+     "id": 13,
+     "droga": 12
+    },
+    {
+     "id": 16,
+     "droga": 15
+    }
+   ],
+   "zabicia": 566,
+   "godz_obecnosci": 0.638,
+   "zabic_na_h": 887.1,
+   "udzial_zabic": 0.452
+  },
+  {
+   "id": 15,
+   "x": 32022,
+   "y": 32159,
+   "z": 11,
+   "punkty": 8,
+   "zrodlo": "A",
+   "sasiedzi": [
+    {
+     "id": 11,
+     "droga": 16
+    },
+    {
+     "id": 16,
+     "droga": 20
+    },
+    {
+     "id": 17,
+     "droga": 12
+    }
+   ],
+   "zabicia": 16,
+   "godz_obecnosci": 0.224,
+   "zabic_na_h": 71.4,
+   "udzial_zabic": 0.013
+  },
+  {
+   "id": 16,
+   "x": 32026,
+   "y": 32149,
+   "z": 11,
+   "punkty": 14,
+   "zrodlo": "A",
+   "sasiedzi": [
+    {
+     "id": 14,
+     "droga": 15
+    },
+    {
+     "id": 15,
+     "droga": 20
+    },
+    {
+     "id": 18,
+     "droga": 12
+    },
+    {
+     "id": 19,
+     "droga": 18
+    }
+   ],
+   "zabicia": 69,
+   "godz_obecnosci": 0.849,
+   "zabic_na_h": 81.3,
+   "udzial_zabic": 0.055
+  },
+  {
+   "id": 17,
+   "x": 32031,
+   "y": 32160,
+   "z": 11,
+   "punkty": 15,
+   "zrodlo": "A",
+   "sasiedzi": [
+    {
+     "id": 15,
+     "droga": 12
+    },
+    {
+     "id": 18,
+     "droga": 16
+    },
+    {
+     "id": 19,
+     "droga": 10
+    },
+    {
+     "id": 21,
+     "droga": 19
+    }
+   ],
+   "zabicia": 4,
+   "godz_obecnosci": 0.111,
+   "zabic_na_h": 36.0,
+   "udzial_zabic": 0.003
+  },
+  {
+   "id": 18,
+   "x": 32035,
+   "y": 32150,
+   "z": 11,
+   "punkty": 18,
+   "zrodlo": "A",
+   "sasiedzi": [
+    {
+     "id": 16,
+     "droga": 12
+    },
+    {
+     "id": 17,
+     "droga": 16
+    },
+    {
+     "id": 19,
+     "droga": 12
+    },
+    {
+     "id": 20,
+     "droga": 13
+    }
+   ],
+   "zabicia": 49,
+   "godz_obecnosci": 0.569,
+   "zabic_na_h": 86.1,
+   "udzial_zabic": 0.039
+  },
+  {
+   "id": 19,
+   "x": 32037,
+   "y": 32156,
+   "z": 11,
+   "punkty": 5,
+   "zrodlo": "A",
+   "sasiedzi": [
+    {
+     "id": 16,
+     "droga": 18
+    },
+    {
+     "id": 17,
+     "droga": 10
+    },
+    {
+     "id": 18,
+     "droga": 12
+    },
+    {
+     "id": 21,
+     "droga": 9
+    },
+    {
+     "id": 22,
+     "droga": 18
+    }
+   ],
+   "zabicia": 13,
+   "godz_obecnosci": 0.188,
+   "zabic_na_h": 69.1,
+   "udzial_zabic": 0.01
+  },
+  {
+   "id": 20,
+   "x": 32044,
+   "y": 32146,
+   "z": 11,
+   "punkty": 14,
+   "zrodlo": "A",
+   "sasiedzi": [
+    {
+     "id": 18,
+     "droga": 13
+    },
+    {
+     "id": 21,
+     "droga": 18
+    },
+    {
+     "id": 22,
+     "droga": 9
+    }
+   ],
+   "zabicia": 23,
+   "godz_obecnosci": 0.268,
+   "zabic_na_h": 85.8,
+   "udzial_zabic": 0.018
+  },
+  {
+   "id": 21,
+   "x": 32044,
+   "y": 32158,
+   "z": 11,
+   "punkty": 13,
+   "zrodlo": "A",
+   "sasiedzi": [
+    {
+     "id": 17,
+     "droga": 19
+    },
+    {
+     "id": 19,
+     "droga": 9
+    },
+    {
+     "id": 20,
+     "droga": 18
+    },
+    {
+     "id": 22,
+     "droga": 9
+    }
+   ],
+   "zabicia": 111,
+   "godz_obecnosci": 0.164,
+   "zabic_na_h": 676.8,
+   "udzial_zabic": 0.089
+  },
+  {
+   "id": 22,
+   "x": 32047,
+   "y": 32152,
+   "z": 11,
+   "punkty": 3,
+   "zrodlo": "A",
+   "sasiedzi": [
+    {
+     "id": 19,
+     "droga": 18
+    },
+    {
+     "id": 20,
+     "droga": 9
+    },
+    {
+     "id": 21,
+     "droga": 9
+    }
+   ],
+   "zabicia": 14,
+   "godz_obecnosci": 0.316,
+   "zabic_na_h": 44.3,
+   "udzial_zabic": 0.011
+  }
+ ],
+ "pominiete_zabicia": 155
+}

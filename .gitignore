@@ -1,0 +1,17 @@
+# stan i dane uruchomieniowe
+logi/
+instancje/
+__pycache__/
+*.pyc
+*.bak
+*.bak-*
+*.przed_*
+straznik.log
+STOP
+STOP_RECZNY
+na_zywo.json
+uh_stan.json
+wyprawa_stan.json
+uciekanie.json
+mozg_pamiec.json
+telemetria-*.jsonl
