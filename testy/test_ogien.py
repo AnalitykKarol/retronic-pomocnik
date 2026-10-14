@@ -130,6 +130,7 @@ def ogien_w(b, s, *pola_):
 
 cavebot.OGIEN_UNIKAJ = 1
 cavebot.OGIEN_LOG_S = 1.0     # testy 3a: wpisy co 1 s (domyślnie od P6 co 10 s, patrz test 6)
+cavebot.OGIEN_WYJDZ_POTWIERDZ = 0   # starsze testy 3d/3e/7h zakładają zejście bez potwierdzenia (nowe: sekcja 8)
 
 # 3a. odczyt: względne -> bezwzględne, log tylko przy zmianie
 s = Swiat(pas(90, 120, 98, 102)); b = zrob(s)
@@ -400,6 +401,148 @@ ogien_w(b, s, (100, 100))
 L0 = len(LOGI)
 sprawdz("7h ogień pod nami: wychodzimy", b._ogien_wyjdz(tuple(s.poz), s.t) is True and bool(s.kroki), s.kroki)
 cavebot.PLIK_OGIEN_STALE = None
+
+# --- 8. potwierdzanie ognia, maska z danych (epizody), pomijanie przy stworze ---
+cavebot.OGIEN_WYJDZ_POTWIERDZ = 1
+cavebot.OGIEN_MASKA_TYLKO_SCIANY = 1
+sprawdz("8a domyślne pokrętła 1, ZAKRESY, KIERUNEK, na_zywo.przyklad",
+        all(getattr(cavebot, k) == 1 for k in ("OGIEN_WYJDZ_POTWIERDZ", "OGIEN_MASKA_DANE", "OGIEN_POMIJAJ_PRZY_STWORZE"))
+        and all(pokretla.ZAKRESY.get(k) == (0, 1) and pokretla.KIERUNEK.get(k) == "nie_nizej"
+                for k in ("OGIEN_WYJDZ_POTWIERDZ", "OGIEN_MASKA_DANE", "OGIEN_POMIJAJ_PRZY_STWORZE"))
+        and all(f'"{k}"' in open(str(Path(_katalog) / "na_zywo.przyklad.json")).read()
+                for k in ("OGIEN_WYJDZ_POTWIERDZ", "OGIEN_MASKA_DANE", "OGIEN_POMIJAJ_PRZY_STWORZE")))
+
+def troll(x, y, z=7, i=5): return {"id": i, "nazwa": "Troll", "gracz": False, "x": x, "y": y, "z": z, "hp": 100}
+
+# 8b. fałszywe wykrycie w WALKA, troll obok, HP bez spadku: nie schodzimy; jeden log na 30 s
+s = Swiat(pas(95, 110, 99, 101)); b = zrob(s)
+b.stan = "WALKA"; b.ostatnie_stwory = [troll(101, 100)]
+ogien_w(b, s, (100, 100)); b.ogien_pierw[(100, 100, 7)] = s.t - 10; b.ogien_pola[(100, 100, 7)] = s.t
+b.ogien_hp_hist = [(s.t - 2.5, 100.0), (s.t - 1.0, 100.0), (s.t, 100.0)]
+L0 = len(LOGI)
+r1 = b._ogien_wyjdz((100, 100, 7), s.t)
+s.t += 5.0; b.ogien_hp_hist.append((s.t, 100.0))
+r2 = b._ogien_wyjdz((100, 100, 7), s.t)
+sprawdz("8b walka, stwór obok, bez spadku HP: brak zejścia i kroku", r1 is False and r2 is False and not s.kroki, s.kroki)
+ign = [l for l in LOGI[L0:] if "ignoruję: bez spadku HP" in l]
+sprawdz("8b2 jedna linia logu na pole (limit 30 s)", len(ign) == 1 and "(100,100,7)" in ign[0], ign)
+s.t += 31.0; b.ogien_hp_hist.append((s.t, 100.0)); b._ogien_wyjdz((100, 100, 7), s.t)
+sprawdz("8b3 po 30 s log znów raz", len([l for l in LOGI[L0:] if "ignoruję: bez spadku HP" in l]) == 2)
+
+# 8c. prawdziwy ogień: spadek HP, brak stwora obok -> schodzimy
+s = Swiat(pas(95, 110, 99, 101)); b = zrob(s)
+ogien_w(b, s, (100, 100)); b.ogien_hp_hist = [(s.t - 1.0, 100.0), (s.t, 94.0)]
+sprawdz("8c spadek HP bez stwora obok: schodzimy", b._ogien_wyjdz((100, 100, 7), s.t) is True and s.kroki, s.kroki)
+# stwór obok i spadek HP, ale ogień dopiero co wykryty (jedno wykrycie): to stwór, nie schodzimy
+s = Swiat(pas(95, 110, 99, 101)); b = zrob(s)
+b.stan = "WALKA"; b.ostatnie_stwory = [troll(101, 100)]
+ogien_w(b, s, (100, 100)); b.ogien_pierw[(100, 100, 7)] = s.t; b.ogien_hp_hist = [(s.t - 1.0, 100.0), (s.t, 94.0)]
+sprawdz("8c2 stwór obok + spadek HP + świeże wykrycie: nie schodzimy", b._ogien_wyjdz((100, 100, 7), s.t) is False and not s.kroki)
+b.ogien_pierw[(100, 100, 7)] = s.t - 5.0
+sprawdz("8c3 stwór obok + spadek HP + pole wykryte >= 1,6 s: schodzimy", b._ogien_wyjdz((100, 100, 7), s.t) is True and s.kroki, s.kroki)
+# bez stwora i bez spadku: tylko to samo pole w odstępie >= OGIEN_POTW_S
+s = Swiat(pas(95, 110, 99, 101)); b = zrob(s)
+b.ogien_hp_hist = [(0.0, 100.0)]
+b.ogien_odczyt = lambda: {(0, 0)}
+b._ogien_tick((100, 100, 7), s.t, wymus=True)
+r0 = b._ogien_wyjdz((100, 100, 7), s.t)
+s.t += 1.0; b._ogien_tick((100, 100, 7), s.t, wymus=True)
+r1 = b._ogien_wyjdz((100, 100, 7), s.t)
+s.t += 0.7; b._ogien_tick((100, 100, 7), s.t, wymus=True)
+r2 = b._ogien_wyjdz((100, 100, 7), s.t)
+sprawdz("8d pole bez stwora i bez spadku HP: schodzimy dopiero po drugim wykryciu >= 1,6 s", r0 is False and r1 is False and r2 is True
+        and s.kroki, (r0, r1, r2, s.kroki))
+cavebot.OGIEN_WYJDZ_POTWIERDZ = 0
+s = Swiat(pas(95, 110, 99, 101)); b = zrob(s); b.stan = "WALKA"; b.ostatnie_stwory = [troll(101, 100)]
+ogien_w(b, s, (100, 100))
+sprawdz("8e pokrętło 0: jak dawniej, schodzimy bez potwierdzenia", b._ogien_wyjdz((100, 100, 7), s.t) is True and s.kroki)
+cavebot.OGIEN_WYJDZ_POTWIERDZ = 1
+
+# 8f. trwała maska z epizodów: 3 epizody w >= 2 godzinach bez spadku HP
+_tmp2 = _os.path.join(_tf.mkdtemp(), "ogien_epizody.json")
+cavebot.PLIK_OGIEN_EPIZODY = _tmp2
+BAZA = 1.8e9
+def tickuj(b, s, poz, dt, odczyt):
+    b.ogien_odczyt = lambda: odczyt
+    s.t += dt; b._ogien_tick(poz, s.t, wymus=True)
+s = Swiat(pas(95, 110, 100, 100)); b = zrob(s)
+b.ogien_wall = lambda: BAZA + s.t
+b.ogien_hp_hist = []
+POLE = (103, 100, 7)
+for i in range(3):                 # epizody po przerwie 1 h (> 60 s): 3 różne godziny
+    tickuj(b, s, (100, 100, 7), 3600.0, {(3, 0)})
+    sprawdz(f"8f{i} epizod {i + 1}: pole w ogien_pola tylko przed kwalifikacją", (POLE in b.ogien_pola) == (i < 2), b.ogien_epizody)
+e = b.ogien_epizody["103,100,7"]
+sprawdz("8f3 liczniki: 3 epizody, >= 2 godziny, bez hp", e["n"] == 3 and len(e["godz"]) >= 2 and not e["hp"], e)
+sprawdz("8f4 pole w masce danych (przechodnie, mimo OGIEN_MASKA_TYLKO_SCIANY=1)", POLE in b.ogien_dane_maska and POLE not in b.ogien_stale)
+tickuj(b, s, (100, 100, 7), 1.0, {(3, 0)})
+sprawdz("8g maska nie blokuje A* ani kliku, pole nie jest ogniem",
+        b._ogien_blok((100, 100, 7)) == [] and not b._ogien_na_drodze((100, 100, 7), (106, 100)) and not b._ogien_na(POLE)
+        and b.droga((100, 100, 7), (106, 100), skosy=False) is not None)
+b.ogien_pola[POLE] = s.t        # nawet wpisane do ogien_pola ręcznie: maska obowiązuje (bez_stalych)
+sprawdz("8g2 maska obejmuje _ogien_blok/_ogien_na_drodze także przy wpisie w ogien_pola",
+        POLE not in b._ogien_blok((100, 100, 7)) and not b._ogien_na_drodze((100, 100, 7), (106, 100)))
+b.ogien_pola.clear()
+cavebot.OGIEN_MASKA_DANE = 0
+b.ogien_pola[POLE] = s.t
+sprawdz("8g3 OGIEN_MASKA_DANE=0: pole znów blokuje", POLE in b._ogien_blok((100, 100, 7)))
+cavebot.OGIEN_MASKA_DANE = 1; b.ogien_pola.clear()
+b._ogien_epizody_zapisz(s.t + 100, wymus=True)
+zap = _json.load(open(_tmp2))
+sprawdz("8h zapis atomowy epizodów i brak .tmp", zap["pola"]["103,100,7"]["n"] == 3 and not _os.path.exists(_tmp2[:-5] + ".tmp"), zap)
+s2 = Swiat(pas(95, 110, 100, 100)); b2 = zrob(s2)
+sprawdz("8h2 wczytanie maski po restarcie", POLE in b2.ogien_dane_maska, b2.ogien_dane_maska)
+# zapis nie częściej niż co 30 s
+b.ogien_ep_brudne = True; b.ogien_ep_zapis_t = 1000.0
+b._ogien_epizody_zapisz(1010.0)
+sprawdz("8h3 zapis nie częściej niż co OGIEN_EPIZODY_ZAPIS_S", b.ogien_ep_brudne is True and b.ogien_ep_zapis_t == 1000.0)
+
+cavebot.PLIK_OGIEN_EPIZODY = None     # dalsze testy bez pliku (inaczej liczniki z 8f wracałyby przy zrob())
+# 8i. spadek HP na polu kasuje kwalifikację (epizod 3 ze spadkiem), także wypadnięcie z maski
+s = Swiat(pas(95, 110, 100, 100)); b = zrob(s); b.ogien_wall = lambda: BAZA + s.t
+for i in range(2):
+    tickuj(b, s, (100, 100, 7), 3600.0, {(3, 0)})
+s.t += 3600.0
+b.ogien_hp_hist = [(s.t - 1.0, 100.0), (s.t, 90.0)]
+b.ogien_odczyt = lambda: {(0, 0)}      # stoimy na polu (103,100): wykrycie pod nami + spadek HP
+b._ogien_tick((103, 100, 7), s.t, wymus=True)
+e = b.ogien_epizody["103,100,7"]
+sprawdz("8i epizod ze spadkiem HP na polu: hp=True i brak kwalifikacji", e["n"] == 3 and e["hp"] and POLE not in b.ogien_dane_maska, e)
+# pole już w masce, potem spadek HP pod nami: wypada z maski i znów jest ogniem
+s = Swiat(pas(95, 110, 100, 100)); b = zrob(s); b.ogien_wall = lambda: BAZA + s.t
+for i in range(3):
+    tickuj(b, s, (100, 100, 7), 3600.0, {(3, 0)})
+assert POLE in b.ogien_dane_maska
+s.t += 10.0; b.ogien_hp_hist = [(s.t - 1.0, 100.0), (s.t, 90.0)]
+b.ogien_odczyt = lambda: {(0, 0)}
+b._ogien_tick((103, 100, 7), s.t, wymus=True)
+sprawdz("8i2 spadek HP na polu z maski: wypada z maski i wraca jako ogień", POLE not in b.ogien_dane_maska and POLE in b.ogien_pola)
+# dwa epizody w tej samej godzinie to za mało godzin
+s = Swiat(pas(95, 110, 100, 100)); b = zrob(s); b.ogien_wall = lambda: BAZA + s.t
+for i in range(4):
+    tickuj(b, s, (100, 100, 7), 120.0, {(3, 0)})
+sprawdz("8i3 4 epizody w jednej godzinie: nie kwalifikuje", b.ogien_epizody["103,100,7"]["n"] == 4
+        and len(b.ogien_epizody["103,100,7"]["godz"]) == 1 and POLE not in b.ogien_dane_maska, b.ogien_epizody)
+cavebot.PLIK_OGIEN_EPIZODY = None
+
+# 8j. wykrycia przy stworze pomijane, dopóki HP nie spadnie
+s = Swiat(pas(95, 110, 100, 100)); b = zrob(s)
+b.ostatnie_stwory = [troll(104, 100)]
+b.ogien_hp_hist = [(0.0, 100.0)]
+tickuj(b, s, (100, 100, 7), 1.0, {(3, 0), (1, 0)})       # (103,100) obok trolla, (101,100) daleko
+sprawdz("8j wykrycie obok stwora pominięte, dalekie zostaje", set(b.ogien_pola) == {(101, 100, 7)}, sorted(b.ogien_pola))
+b.cel = {"id": 5, "nazwa": "Troll", "poz": (101, 100, 7), "hp": 100}; b.ostatnie_stwory = []
+b.ogien_pola.clear()
+tickuj(b, s, (100, 100, 7), 1.0, {(1, 0), (2, 0)})
+sprawdz("8j2 pole celu i obok niego pominięte", not b.ogien_pola, sorted(b.ogien_pola))
+b.ogien_hp_hist = [(s.t - 1.0, 100.0), (s.t, 92.0)]
+tickuj(b, s, (100, 100, 7), 0.01, {(1, 0)})
+sprawdz("8j3 po spadku HP wykrycie przy stworze działa", set(b.ogien_pola) == {(101, 100, 7)}, sorted(b.ogien_pola))
+cavebot.OGIEN_POMIJAJ_PRZY_STWORZE = 0
+b.cel = None; b.ostatnie_stwory = [troll(104, 100)]; b.ogien_hp_hist = [(0.0, 100.0)]; b.ogien_pola.clear()
+tickuj(b, s, (100, 100, 7), 5.0, {(3, 0)})
+sprawdz("8j4 pokrętło 0: wykrycie przy stworze zostaje", (103, 100, 7) in b.ogien_pola)
+cavebot.OGIEN_POMIJAJ_PRZY_STWORZE = 1
 
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

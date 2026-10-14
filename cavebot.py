@@ -324,6 +324,18 @@ OGIEN_STALY = 1                    # pokrętło 0/1: 1 = maska stałych pól ogn
 OGIEN_STALY_N = 20                 # tyle wykryć tego samego pola ...
 OGIEN_STALY_S = 600.0              # ... w ciągu co najmniej tylu sekund = pole stałe (nie run-fire z 1-2 min)
 OGIEN_MASKA_TYLKO_SCIANY = 1       # pokrętło 0/1 (R1a): 1 = do maski stałych pól trafiają tylko pola-ściany wg mapy (flaga 4 / niechodliwe), nigdy pole przechodnie
+OGIEN_WYJDZ_POTWIERDZ = 1            # pokrętło 0/1: 1 = z pola ognia schodzimy tylko po potwierdzeniu (spadek HP albo to samo pole >= OGIEN_POTW_S); w walce ze stworem obok tylko po spadku HP
+OGIEN_HP_OKNO_S = 3.0                # s: okno, w którym spadek HP potwierdza ogień (i kasuje kwalifikację pola do maski danych)
+OGIEN_HP_SPADEK_PP = 3.0             # pp max HP: tyle musi spaść HP w OGIEN_HP_OKNO_S (jak GRYZIE_SPADEK_PP; trafienie ognia to ok. 5 pp)
+OGIEN_POTW_S = 1.6                   # s: to samo pole wykryte jeszcze raz po tylu sekundach = ogień potwierdzony czasem
+OGIEN_IGNORUJ_LOG_S = 30.0           # s: log "ignoruję: bez spadku HP" najwyżej raz na pole w tym czasie
+OGIEN_MASKA_DANE = 1                 # pokrętło 0/1: 1 = trwała maska pól przechodnich z danych (epizody), omija OGIEN_MASKA_TYLKO_SCIANY
+OGIEN_EPIZOD_PRZERWA_S = 60.0        # s: wykrycie po takiej przerwie to nowy epizod pola
+OGIEN_EPIZODY_N = 3                  # tyle epizodów bez spadku HP ...
+OGIEN_EPIZODY_GODZ = 2               # ... w tylu różnych godzinach doby kwalifikuje pole przechodnie do maski danych
+OGIEN_EPIZODY_ZAPIS_S = 30.0         # s: zapis trasy/ogien_epizody.json najwyżej co tyle
+OGIEN_POMIJAJ_PRZY_STWORZE = 1       # pokrętło 0/1: 1 = wykrycia ognia na polu stwora/celu albo obok niego (odl <= 1) pomijamy, dopóki HP nie spadnie
+PLIK_OGIEN_EPIZODY = None if os.environ.get("RETRONIC_TESTY") else Path(__file__).resolve().parent / "trasy" / "ogien_epizody.json"
 PLIK_OGIEN_STALE = None if os.environ.get("RETRONIC_TESTY") else Path(__file__).resolve().parent / "trasy" / "ogien_stale.json"   # zasiew i zapis maski
 OGIEN_PODSUMOWANIE_S = 600.0       # s: odstęp podsumowania "[OGIEN] ogień: N stałych, M zmiennych"
 OGIEN_ODSWIEZ_WALKA_S = 0.8        # s: odstęp wykryć w WALKA, gdy w widoku nie ma zmiennych pól (domyślnie jak OGIEN_ODSWIEZ_S = bez zmiany; spec P6 sugeruje 3, pokrętło 0.8-5)
@@ -827,6 +839,15 @@ class Cavebot:
         self.ogien_widz = {}                   # P6: pole -> [ile wykryć, pierwsze, ostatnie] (do maski stałych pól)
         self.ogien_stale = set()               # P6: pola stałe (widziane >= OGIEN_STALY_N razy przez >= OGIEN_STALY_S albo ściana mapy)
         self._ogien_stale_wczytaj()
+        self.ogien_pierw = {}                  # pole ognia -> czas pierwszego wykrycia w bieżącej serii (potwierdzenie czasem)
+        self.ogien_hp_hist = []                # (czas, HP% max) z ostatnich OGIEN_HP_OKNO_S s
+        self.ogien_ign_log = {}                # pole -> czas ostatniego logu "ignoruję"
+        self.ogien_epizody = {}                # "x,y,z" -> {"n", "godz", "hp", "ost"} (trwałe, trasy/ogien_epizody.json)
+        self.ogien_dane_maska = set()          # pola przechodnie zakwalifikowane z danych (epizody)
+        self.ogien_ep_brudne = False
+        self.ogien_ep_zapis_t = float("-inf")
+        self.ogien_wall = time.time            # zegar ścienny (godzina doby, przerwa epizodu); testy podmieniają
+        self._ogien_epizody_wczytaj()
         self.ogien_podsum_t = None             # P6: czas ostatniego podsumowania w logu
         self.ogien_odczyt = self._ogien_odczyt_domyslny \
             if ((klik is not None or not atak) and not os.environ.get("RETRONIC_TESTY")) else None
@@ -2191,7 +2212,10 @@ class Cavebot:
 
     def _ogien_stale_ef(self):
         """Pola stałe obowiązujące teraz (pusty zbiór, gdy maska wyłączona pokrętłem OGIEN_STALY=0)."""
-        return self.ogien_stale if OGIEN_STALY else frozenset()
+        baza = self.ogien_stale if OGIEN_STALY else frozenset()
+        if OGIEN_MASKA_DANE and self.ogien_dane_maska:
+            return set(baza) | self.ogien_dane_maska     # maska danych (epizody): jak pola stałe, nie blokuje drogi ani kliku
+        return baza
 
     def _ogien_xy(self, z, bez_stalych=False):
         """Zbiór (x, y) pól ognia na piętrze z (pusty, gdy ogień nie obowiązuje). bez_stalych=True: bez pól stałych
@@ -2304,15 +2328,25 @@ class Cavebot:
         x, y, z = poz[0], poz[1], poz[2]
         stare = set(self.ogien_pola)
         widziane = {(x + dx, y + dy, z) for dx, dy in wzgl}
+        widziane = self._ogien_pomin_przy_stworze(widziane, z, teraz)
+        self._ogien_epizody_tick(widziane, poz, teraz)
+        if OGIEN_MASKA_DANE and self.ogien_dane_maska:
+            widziane = {p for p in widziane if p not in self.ogien_dane_maska}    # pole z maski danych to nie ogień
+            for p in self.ogien_dane_maska:
+                self.ogien_pola.pop(p, None)
         self._ogien_stale_aktualizuj(widziane, teraz)
         for p in widziane:
             self.ogien_pola[p] = teraz
+            self.ogien_pierw.setdefault(p, teraz)
         for p, t in list(self.ogien_pola.items()):
             if p in widziane:
                 continue
             w_widoku = p[2] == z and abs(p[0] - x) <= ZASIEG_X and abs(p[1] - y) <= ZASIEG_Y
             if p[2] != z or (w_widoku and teraz - t >= OGIEN_BRAK_S) or teraz - t > OGIEN_TRWA_S:
                 del self.ogien_pola[p]
+        for p in [p for p in self.ogien_pierw if p not in self.ogien_pola]:
+            del self.ogien_pierw[p]
+        self._ogien_epizody_zapisz(teraz)
         nowe = set(self.ogien_pola) - stare
         if nowe and self.klik_cel is not None and self._ogien_na_drodze(poz, self.klik_cel):
             self.zatrzymaj_klik(poz)       # klik w toku prowadził przez nowy ogień: stop, krok po kroku z omijaniem
@@ -2331,6 +2365,120 @@ class Cavebot:
             self.ogien_podsum_t = teraz
             if stale or aktualne:
                 log(f"[OGIEN] ogień: {len(stale)} stałych, {len(aktualne)} zmiennych")
+
+    # --- potwierdzanie ognia i maska z danych (OGIEN_WYJDZ_POTWIERDZ, OGIEN_MASKA_DANE, OGIEN_POMIJAJ_PRZY_STWORZE) ---
+
+    def _ogien_spadek_hp(self, teraz):
+        """Spadek HP (pp max HP) w ostatnich OGIEN_HP_OKNO_S s: najwyższy odczyt z okna minus ostatni."""
+        h = [p for t, p in self.ogien_hp_hist if teraz - t <= OGIEN_HP_OKNO_S]
+        return max(h) - h[-1] if len(h) >= 2 else 0.0
+
+    def _ogien_stwory_xy(self, z):
+        """Pola stworów (bez graczy) na piętrze z, z ostatniego obiegu, plus pole celu."""
+        pola = {(s["x"], s["y"]) for s in (self.ostatnie_stwory or [])
+                if s.get("z", z) == z and not s.get("gracz") and s.get("hp", 100) > 0}
+        c = self.cel
+        if isinstance(c, dict) and c.get("poz") and (len(c["poz"]) < 3 or c["poz"][2] == z):
+            pola.add((c["poz"][0], c["poz"][1]))
+        return pola
+
+    def _ogien_pomin_przy_stworze(self, widziane, z, teraz):
+        """Pkt 4: wykrycia na polu stwora/celu albo obok niego (odl <= 1) pomijamy, dopóki HP nie spadło."""
+        if not OGIEN_POMIJAJ_PRZY_STWORZE or not widziane or self._ogien_spadek_hp(teraz) >= OGIEN_HP_SPADEK_PP:
+            return widziane
+        st = self._ogien_stwory_xy(z)
+        if not st:
+            return widziane
+        return {p for p in widziane if not any(abs(p[0] - a) <= 1 and abs(p[1] - b) <= 1 for a, b in st)}
+
+    def _ogien_potwierdzony(self, poz, teraz):
+        """Pkt 1: czy ogień pod nami jest prawdziwy. Spadek HP bez stwora obok = tak; stwór obok (odl <= 1, także cel
+        w WALKA) bez spadku HP = nie; spadek HP przy stworze obok liczy się tylko razem z potwierdzeniem czasem;
+        bez stwora i bez spadku HP wystarczy to samo pole wykryte dwa razy w odstępie >= OGIEN_POTW_S."""
+        p = (poz[0], poz[1], poz[2])
+        spadek = self._ogien_spadek_hp(teraz) >= OGIEN_HP_SPADEK_PP
+        obok = any(abs(a - p[0]) <= 1 and abs(b - p[1]) <= 1 for a, b in self._ogien_stwory_xy(p[2]))
+        czasem = self.ogien_pola.get(p, teraz) - self.ogien_pierw.get(p, teraz) >= OGIEN_POTW_S
+        if spadek:
+            return (not obok) or czasem
+        return czasem and not obok
+
+    def _ogien_klucz(self, p):
+        return f"{p[0]},{p[1]},{p[2]}"
+
+    def _ogien_dane_przelicz(self):
+        """Pola przechodnie z >= OGIEN_EPIZODY_N epizodami w >= OGIEN_EPIZODY_GODZ godzinach i bez spadku HP."""
+        maska = set()
+        for k, e in self.ogien_epizody.items():
+            if e.get("n", 0) >= OGIEN_EPIZODY_N and len(set(e.get("godz", []))) >= OGIEN_EPIZODY_GODZ and not e.get("hp"):
+                try:
+                    x, y, z = (int(v) for v in k.split(","))
+                except ValueError:
+                    continue
+                maska.add((x, y, z))
+        for p in maska - self.ogien_dane_maska:
+            log(f"[OGIEN] pole {p} do maski danych: {self.ogien_epizody[self._ogien_klucz(p)]['n']} epizodów, bez spadku HP.")
+        for p in self.ogien_dane_maska - maska:
+            log(f"[OGIEN] pole {p} wypada z maski danych (spadek HP albo zmiana danych).")
+        self.ogien_dane_maska = maska
+
+    def _ogien_epizody_wczytaj(self):
+        if PLIK_OGIEN_EPIZODY is None:
+            return
+        try:
+            dane = json.loads(Path(PLIK_OGIEN_EPIZODY).read_text()).get("pola", {})
+            for k, e in dane.items():
+                self.ogien_epizody[k] = {"n": int(e.get("n", 0)), "godz": sorted({int(h) for h in e.get("godz", [])}),
+                                         "hp": bool(e.get("hp")), "ost": float(e.get("ost", 0.0))}
+            self._ogien_dane_przelicz()
+        except FileNotFoundError:
+            pass
+        except Exception as e:
+            log(f"[OGIEN] nie wczytam epizodów ognia: {e!r}")
+
+    def _ogien_epizody_zapisz(self, teraz, wymus=False):
+        """Atomowy zapis trasy/ogien_epizody.json, najwyżej co OGIEN_EPIZODY_ZAPIS_S (tylko po zmianie)."""
+        if PLIK_OGIEN_EPIZODY is None or not self.ogien_ep_brudne:
+            return
+        if not wymus and teraz - self.ogien_ep_zapis_t < OGIEN_EPIZODY_ZAPIS_S:
+            return
+        self.ogien_ep_zapis_t = teraz
+        try:
+            cel = Path(PLIK_OGIEN_EPIZODY)
+            tmp = cel.with_suffix(".tmp")
+            tmp.write_text(json.dumps({"opis": "epizody wykryc ognia na polach (n po przerwie > 60 s, godziny doby, hp = spadek HP na polu); zapis bota",
+                                       "pola": {k: self.ogien_epizody[k] for k in sorted(self.ogien_epizody)}}, indent=0))
+            tmp.replace(cel)
+            self.ogien_ep_brudne = False
+        except Exception as e:
+            log(f"[OGIEN] nie zapiszę epizodów ognia: {e!r}")
+
+    def _ogien_epizody_tick(self, widziane, poz, teraz):
+        """Pkt 2: liczy epizody wykryć pól (po przerwie > OGIEN_EPIZOD_PRZERWA_S), godziny doby, a spadek HP
+        na polu, na którym stoimy, kasuje kwalifikację pola do maski danych."""
+        if not OGIEN_MASKA_DANE or not widziane:
+            return
+        wall = self.ogien_wall()
+        godz = time.localtime(wall).tm_hour
+        zmiana = False
+        for p in widziane:
+            k = self._ogien_klucz(p)
+            e = self.ogien_epizody.get(k)
+            if e is None:
+                e = self.ogien_epizody[k] = {"n": 0, "godz": [], "hp": False, "ost": 0.0}
+            if wall - e["ost"] > OGIEN_EPIZOD_PRZERWA_S:
+                e["n"] += 1
+                if godz not in e["godz"]:
+                    e["godz"] = sorted(e["godz"] + [godz])
+                zmiana = True
+            e["ost"] = wall
+            if not e["hp"] and (poz[0], poz[1], poz[2]) == p and self._ogien_spadek_hp(teraz) >= OGIEN_HP_SPADEK_PP:
+                e["hp"] = True
+                zmiana = True
+                log(f"[OGIEN] pole {p}: spadek HP na polu, wypada z kwalifikacji do maski danych.")
+        if zmiana:
+            self.ogien_ep_brudne = True
+            self._ogien_dane_przelicz()
 
     def _ogien_przechodnie(self, pole):
         """Czy pole (x, y, z) wygląda na przechodnie (nie ściana nauczona/mapowa, nie zmiana piętra, znane)."""
@@ -2352,6 +2500,11 @@ class Cavebot:
         x, y, z = poz[0], poz[1], poz[2]
         ogien = self._ogien_xy(z)
         if (x, y) not in ogien:
+            return False
+        if OGIEN_WYJDZ_POTWIERDZ and not self._ogien_potwierdzony(poz, teraz):
+            if teraz - self.ogien_ign_log.get((x, y, z), float("-inf")) >= OGIEN_IGNORUJ_LOG_S:
+                self.ogien_ign_log[(x, y, z)] = teraz
+                log(f"[OGIEN] pole ({x},{y},{z}) ignoruję: bez spadku HP")
             return False
         if teraz - self.ogien_krok_t < OGIEN_KROK_S:
             self.pauza(0.05, 0.1)            # poprzedni krok jeszcze trwa
@@ -3217,6 +3370,7 @@ class Cavebot:
         if g.get("max_hp"):
             pct = 100.0 * g["hp"] / g["max_hp"]
             self.hp_hist = [(t, p) for t, p in self.hp_hist if teraz - t <= GRYZIE_OKNO] + [(teraz, pct)]
+            self.ogien_hp_hist = [(t, p) for t, p in self.ogien_hp_hist if teraz - t <= OGIEN_HP_OKNO_S] + [(teraz, pct)]
             if max(p for _, p in self.hp_hist) - pct >= GRYZIE_SPADEK_PP:
                 self.hp_gracza_spadek = teraz
         elif self.hp_ostatnie is not None and g["hp"] < self.hp_ostatnie:
