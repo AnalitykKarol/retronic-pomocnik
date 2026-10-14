@@ -36,6 +36,38 @@ PLIK_STARTOW_DOMYSLNE = (None if os.environ.get("RETRONIC_TESTY")       # 14.10 
                          else Path(__file__).resolve().parent / "trasy" / "pietra_starty_domyslne.json")
 START_KROK_NIE_MAX = 2              # tyle nieudanych kroków strzałką (postać stoi w miejscu) na pole startowe, potem je pomijamy
 START_RUCHY_MAX = 8                 # ticków na dojście do jednego pola startowego, potem je pomijamy
+PRE_SUMA_MAX = 2                    # 14.10 (R1b-fix): najwyżej tyle pre-kroków strzałką łącznie na jedno przejście (przy schodach T), potem próbujemy stąd
+SKOS_MAX = 2                        # 14.10 (R1b-fix): najwyżej tyle kroków/kliknięć "po skosie" na pole przejścia w jednym przejściu; potem slot kroku jest spalony
+# 14.10 (R1b-fix): statystyki udanych przejść z 12 h (który tryb zadziałał w górę); typ przejścia wg danych ma pierwszeństwo przed flagami mapy
+PLIK_STAT = Path(__file__).resolve().parent / "dane_tibia" / "ruch" / "pietra_statystyki_przejsc.json"
+_STAT = None
+
+
+def _statystyki():
+    global _STAT
+    if _STAT is None:
+        _STAT = {}
+        try:
+            if PLIK_STAT is not None and Path(PLIK_STAT).exists():
+                for e in json.loads(Path(PLIK_STAT).read_text()):
+                    _STAT[(int(e["pole"][0]), int(e["pole"][1]), int(e["z_od"]))] = e.get("tryby") or {}
+        except Exception:
+            _STAT = {}
+    return _STAT
+
+
+def tryb_z_danych(pole, min_n=3):
+    """Tryb, który w danych (pietra_statystyki_przejsc.json) działał przy przejściu z piętra pole[2] przez pole[:2]:
+    "R" (Ctrl+klik, drabina), "krok" (schody) albo None (brak danych albo remis)."""
+    tr = _statystyki().get((int(pole[0]), int(pole[1]), int(pole[2])))
+    if not tr:
+        return None
+    r, k = int(tr.get("R", 0)), int(tr.get("krok", 0))
+    if r >= min_n and r > k:
+        return "R"
+    if k >= min_n and k > r:
+        return "krok"
+    return None
 
 
 def cheb(a, b):
@@ -360,6 +392,12 @@ class Pietra:
             else:
                 self.log(f"Przejście pięter: pre-krok na {S} przy schodach {T[:2]} nie dotarł, próbuję stąd")
             return True
+        if pre_max > 0 and st.get("pre_suma", 0) >= PRE_SUMA_MAX:
+            # R1b-fix: dość pre-kroków na to przejście (postać nie rusza się strzałkami): próbujemy stąd, bez dalszego ustawiania
+            st["odw"].update(st["starty"])
+            st["ruchy"] = 0
+            self.log(f"Przejście pięter: {PRE_SUMA_MAX} pre-kroki bez skutku przy schodach {T[:2]}, próbuję stąd")
+            return True
         st["ruchy"] += 1
         if st["ruchy"] > START_RUCHY_MAX:
             st["odw"].add(S)
@@ -374,6 +412,7 @@ class Pietra:
             ruszyl = None
             if pre_max > 0:
                 st.setdefault("pre", {})[S] = st.get("pre", {}).get(S, 0) + 1
+                st["pre_suma"] = st.get("pre_suma", 0) + 1
             try:
                 cb.zatrzymaj_klik(poz)
                 cb.klik_cel = None
@@ -435,7 +474,10 @@ class Pietra:
         if self._dane():
             if k["lad"][2] > st["z0"]:
                 return list(TRYBY_DOL_DANE)
-            if _schody(self.cb.mapa, k["pole"], k["lad"]):
+            z_danych = tryb_z_danych(k["pole"])          # dane z 12 h przed flagami mapy (flagi bywają mylące)
+            if z_danych == "R":
+                return list(TRYBY_GORA_DRABINA)
+            if z_danych == "krok" or _schody(self.cb.mapa, k["pole"], k["lad"]):
                 return list(TRYBY_GORA_SCHODY)
             return list(TRYBY_GORA_DRABINA)
         if k["lad"][2] > st["z0"]:
@@ -503,10 +545,18 @@ class Pietra:
                     if dx and dy:
                         # strzałki nie chodzą po skosie: najpierw krok w poziomie albo w pionie (to nie jest próba),
                         # potem pole jest obok. Oba zablokowane = zwykła nieudana próba (bez pętli bez końca).
+                        # R1b-fix: każdy krok i klik liczy się do SKOS_MAX na pole T (także gdy pozycja migocze); po limicie slot
+                        # kroku jest spalony i idziemy do następnego trybu, zamiast stać do limitu czasu.
+                        licz = st.setdefault("skos", {})
+                        if licz.get(tuple(T), 0) >= SKOS_MAX:
+                            self.log(f"Przejście pięter: {SKOS_MAX} kroki po skosie bez skutku przy {T[:2]}, następny tryb")
                         for kier, (kx, ky) in (("Right" if dx > 0 else "Left", (poz[0] + (1 if dx > 0 else -1), poz[1])),
                                                ("Down" if dy > 0 else "Up", (poz[0], poz[1] + (1 if dy > 0 else -1)))):
                             if _flaga(cb.mapa, kx, ky, z0) & 4:
                                 continue                    # ściana na mapie: nie walimy w nią strzałką
+                            if licz.get(tuple(T), 0) >= SKOS_MAX:
+                                break
+                            licz[tuple(T)] = licz.get(tuple(T), 0) + 1
                             self.log(f"Przejście pięter: krok {kier} z {tuple(poz)} (pole {T[:2]} po skosie)")
                             try:
                                 cb.postac.krok(kier)
@@ -516,9 +566,11 @@ class Pietra:
                                 pass
                             cb.pauza(0.15, 0.3)
                             if tuple(cb.postac.pozycja()) != tuple(poz):
-                                st["proby"] = n
+                                if licz.get(tuple(T), 0) < SKOS_MAX:
+                                    st["proby"] = n         # ruszyliśmy się: ten sam slot jeszcze raz, już z nowego pola
                                 return True
-                        if getattr(cb, "klik", None) is not None:       # po skosie tylko klik klienta (marsz 1 pola)
+                        if getattr(cb, "klik", None) is not None and licz.get(tuple(T), 0) < SKOS_MAX:       # po skosie tylko klik klienta (marsz 1 pola)
+                            licz[tuple(T)] = licz.get(tuple(T), 0) + 1
                             self.log(f"Przejście pięter: klik na pole {T[:2]} po skosie z {tuple(poz)}")
                             try:
                                 cb.klik(dx, dy)
@@ -528,7 +580,8 @@ class Pietra:
                                 pass
                             cb.spij(0.5)
                             if tuple(cb.postac.pozycja()) != tuple(poz):
-                                st["proby"] = n
+                                if licz.get(tuple(T), 0) < SKOS_MAX:
+                                    st["proby"] = n
                                 return self._po_przejsciu(z0, st, poz, teraz, k, "klik po skosie", czekaj=self._czekaj("krok")) or True
                         tryb, opis = "krok_skos", "krok po skosie bez skutku"
                         if self._po_przejsciu(z0, st, poz, teraz, k, opis, czekaj=self._czekaj("krok")):

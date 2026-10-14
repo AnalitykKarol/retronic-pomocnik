@@ -127,7 +127,7 @@ troll = [tuple(p) for p in json.loads((TRASY / f"{MI['trasa']}.json").read_text(
 cavebot.TRYB_PATROL = 1
 cavebot.PATROL_PLIK = "miejsca_troll.json"
 nazwy = [m["nazwa"] for m in MI["miejsca"]]
-sprawdz("1 plik miejsc: 9 miejsc, graf, przejścia, łącznik", len(nazwy) == 9 and MI.get("graf") and MI.get("przejscia") and MI.get("laczniki"),
+sprawdz("1 plik miejsc: 8 miejsc (spawny), graf, przejścia, łącznik", len(nazwy) == 8 and MI.get("graf") and MI.get("przejscia") and MI.get("laczniki"),
         f"{len(nazwy)} miejsc")
 
 def poz_miejsca(m): return (m["x"], m["y"], m["z"])

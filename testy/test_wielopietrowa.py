@@ -100,6 +100,14 @@ def zrob(s, punkty, **kw):
     b = cavebot.Cavebot(P(s), punkty, zapytaj=s.zapytaj, atak=atak, alarm=lambda w: None, spij=s.spij,
                         zegar=s.zegar, loot=loot, mapa=M, klik=s.klik, **kw)
     b.pietra_ops = Ops(s)
+    if b.pokretla is not None:         # kopia żywego na_zywo.json z PIETRA_TRYBY_Z_DANYCH=1 (na żywo bywa 0 i zmieniało ścieżkę prób w testach)
+        try:
+            d = json.loads((Path(_R) / "na_zywo.json").read_text())
+        except Exception:
+            d = {}
+        d["PIETRA_TRYBY_Z_DANYCH"] = getattr(cavebot, "PIETRA_TRYBY_Z_DANYCH", 1)
+        kopia = Path(__import__("tempfile").mkdtemp()) / "na_zywo.json"; kopia.write_text(json.dumps(d))
+        b.pokretla.plik = kopia
     return b
 
 def bieg(b, s, n):
@@ -443,6 +451,75 @@ import pokretla
 przyklad = json.loads((Path(_R) / "na_zywo.przyklad.json").read_text())
 for nazwa in ("PIETRA_TRYBY_Z_DANYCH", "PIETRA_CZEKAJ_KROK_S", "PIETRA_CZEKAJ_R_S", "PIETRA_DOMYSL_PROMIEN", "PIETRA_PRE_MAX", "PIETRA_STARTY_DOMYSLNE"):
     sprawdz(f"15 pokrętło {nazwa}", nazwa in pokretla.ZAKRESY and nazwa in przyklad and przyklad[nazwa] == getattr(cavebot, nazwa))
+
+
+# 16. R1b-fix (14.10 18:33): drabina (32483,32285,z9) w górę ze skosu (32484,32284,z9). Pierwszy R bez skutku, strzałki
+# Left/Down nie ruszają postaci (odrzucone przez serwer: pozycja chwilę migocze). Dawniej bot stał 150 s w pętli "krok Left
+# ... po skosie" i nie wracał do R; teraz: R pierwsze, najwyżej 2 pre-kroki i 2 kroki po skosie, potem R.
+class SwiatD(Swiat):
+    """Drabina: R działa dopiero od `od_proby`-tego użycia (1 = od razu); kroki strzałką zablokowane (blok=True)."""
+    def __init__(s, *a, od_proby=1, blok=True, **kw):
+        super().__init__(*a, **kw); s.od = od_proby; s.blok = blok; s.flick = False
+    def ruch(s, dx, dy):
+        if s.blok and s.poz[2] == 9:
+            return
+        super().ruch(dx, dy)
+    def uzyj(s, pole):
+        if len(s.uzycia) + 1 >= s.od:
+            super().uzyj(pole)
+        else:
+            s.uzycia.append(tuple(pole))
+class PD(P):
+    def krok(p, k):
+        p.s.t += 0.2; p.s.flick = p.s.blok; return True        # klient "idzie", serwer cofa: pozycja migocze jeden odczyt
+    def pozycja(p):
+        if p.s.flick:
+            p.s.flick = False
+            return (p.s.poz[0] - 1, p.s.poz[1], p.s.poz[2])
+        return tuple(p.s.poz)
+P16 = (32484, 32284, 9)
+def drabina16(od_proby, blok=True, flicker=True, **kw):
+    LOG.clear()
+    s = SwiatD(P16, od_proby=od_proby, blok=blok, **kw)
+    tr = [P16, (32483, 32286, 8)] + [p for p in troll if p[2] == 8][:14]       # długa trasa: start nie leży w podglądzie 10 punktów
+    bb = zrob(s, tr, okrazenia=1); bb.idx = 1
+    if flicker:
+        bb.postac = PD(s)
+    for _ in range(300):
+        if s.zmiany or not bb.tick(): break
+    return s, bb
+def kroki16(): return sum(1 for l in LOG if "ustawiam się ortogonalnie" in l), sum(1 for l in LOG if "po skosie" in l and "krok" in l)
+s, bb = drabina16(1)
+sprawdz("16a drabina ze skosu: pierwsza próba R z bieżącego pola, sukces", len(s.zmiany) == 1 and s.poz[2] == 8 and s.uzycia == [(32483, 32285, 9)] and kroki16() == (0, 0),
+        f"{s.zmiany} {s.uzycia} {kroki16()}")
+sprawdz("16a log: próba 1/3 (R", any("próba 1/3 (R" in l for l in LOG))
+s, bb = drabina16(2)
+pre, skos = kroki16()
+sprawdz("16b pierwszy R bez skutku, kroki zablokowane (migotanie): potem R i sukces", len(s.zmiany) == 1 and s.poz[2] == 8 and len(s.uzycia) == 2,
+        f"{s.zmiany} {s.uzycia} t={s.t:.0f}s")
+sprawdz("16b pre-kroki najwyżej 2, kroki po skosie najwyżej 2 na tryb", pre <= 2 and skos <= 2 + 2, f"pre={pre} skos={skos} {[l for l in LOG if 'Przejście' in l][:12]}")
+sprawdz("16b bez limitu czasu i bez porażki", not any("NIEUDANE" in l for l in LOG) and bb.pietra_porazki == 0 and s.t < 60, f"t={s.t:.0f}s")
+s, bb = drabina16(2, flicker=False)
+pre, skos = kroki16()
+sprawdz("16c to samo bez migotania pozycji", len(s.zmiany) == 1 and pre <= 2 and skos <= 4 and s.t < 60, f"pre={pre} skos={skos} t={s.t:.0f}s")
+s, bb = drabina16(99)
+sprawdz("16d nic nie działa: kończy porażką po trzech próbach, nie stoi do limitu czasu", s.t < 100 and not s.zmiany and len(s.uzycia) >= 2 and not any("próba 4/" in l for l in LOG),
+        f"t={s.t:.0f}s uzycia={len(s.uzycia)} {[l for l in LOG if 'Przejście' in l][-3:]}")
+
+# 17. typ przejścia z danych (pietra_statystyki_przejsc.json): R działał w górę -> drabina, mimo flag
+sprawdz("17a (32483,32285) z9: dane mówią R", pietra.tryb_z_danych((32483, 32285, 9)) == "R", f"{pietra.tryb_z_danych((32483, 32285, 9))}")
+sprawdz("17b (32498,32270) z9: dane mówią krok", pietra.tryb_z_danych((32498, 32270, 9)) == "krok", f"{pietra.tryb_z_danych((32498, 32270, 9))}")
+sprawdz("17c nieznane schody: brak danych", pietra.tryb_z_danych((1, 2, 9)) is None)
+pp17 = pietra.Pietra(types.SimpleNamespace(mapa=M), konf=cavebot)
+k17 = {"pole": (32498, 32270, 9), "lad": (32498, 32271, 8)}
+sprawdz("17d schody z danych: krok, krok, R", pp17._tryby(k17, {"z0": 9}) == ["krok", "krok", "R"])
+k17b = {"pole": (32483, 32285, 9), "lad": (32483, 32286, 8)}
+sprawdz("17e drabina z danych: R, krok, R", pp17._tryby(k17b, {"z0": 9}) == ["R", "krok", "R"])
+# dane wygrywają z flagami: schody z flagą 2 na obu piętrach, ale w danych R = drabina
+orig_t = pietra.tryb_z_danych
+pietra.tryb_z_danych = lambda pole: "R"
+sprawdz("17f dane R wygrywają z flagami schodów", pp17._tryby(k17, {"z0": 9}) == ["R", "krok", "R"])
+pietra.tryb_z_danych = orig_t
 
 print(f"\nOK={sum(ok)} FAIL={len(ok) - sum(ok)}")
 sys.exit(0 if all(ok) else 1)
