@@ -302,7 +302,8 @@ for _ in range(3):
 sprawdz("3g5 po czekaniu ignoruje ogień na OGIEN_IGNORUJ_S", b.ogien_ignoruj_do > s.t - 5
         and any("ignoruję go" in l for l in LOGI), f"{b.ogien_ignoruj_do} {s.t}")
 
-# --- 6. P6: maska stałych pól, rzadszy log, podsumowanie ---------------------------------------
+# --- 6. P6: maska stałych pól, rzadszy log, podsumowanie
+cavebot.OGIEN_MASKA_TYLKO_SCIANY = 0   # starsze testy P6 zakładają maskę także dla pól przechodnich
 sprawdz("6a domyślne: OGIEN_STALY 1, OGIEN_LOG_S 10 (z pliku)", cavebot.OGIEN_STALY == 1 and "OGIEN_LOG_S = 10.0" in open(cavebot.__file__).read())
 sprawdz("6b ZAKRESY pokręteł P6", pokretla.ZAKRESY.get("OGIEN_STALY") == (0, 1) and pokretla.ZAKRESY.get("OGIEN_LOG_S") == (1.0, 60.0)
         and pokretla.ZAKRESY.get("OGIEN_ODSWIEZ_WALKA_S") == (0.8, 5.0)
@@ -357,6 +358,48 @@ s.t += 3.0; b._ogien_tick((100, 100, 7), s.t); t3 = b.ogien_t
 cavebot.OGIEN_ODSWIEZ_WALKA_S = 0.8
 sprawdz("6l WALKA: wykrycia co 3 s zamiast 0,8", t1 == 100.0 and t2 == 100.0 and t3 == 104.0, (t1, t2, t3))
 cavebot.OGIEN_LOG_S = 1.0
+
+
+# --- 7. R1a: maska tylko dla pól-ścian wg mapy, zasiew i zapis pliku ---
+import json as _json, tempfile as _tf, os as _os
+cavebot.OGIEN_MASKA_TYLKO_SCIANY = 1
+sprawdz("7a domyślne i ZAKRES OGIEN_MASKA_TYLKO_SCIANY", "OGIEN_MASKA_TYLKO_SCIANY = 1 " in open(cavebot.__file__).read()
+        and pokretla.ZAKRESY.get("OGIEN_MASKA_TYLKO_SCIANY") == (0, 1)
+        and pokretla.KIERUNEK.get("OGIEN_MASKA_TYLKO_SCIANY") == "nie_nizej"
+        and '"OGIEN_MASKA_TYLKO_SCIANY"' in open(str(Path(_katalog) / "na_zywo.przyklad.json")).read())
+_tmp = _os.path.join(_tf.mkdtemp(), "ogien_stale.json")
+cavebot.PLIK_OGIEN_STALE = _tmp
+s = Swiat(pas(90, 120, 98, 102)); b = zrob(s)
+b.ogien_odczyt = lambda: {(2, 0)}
+for _ in range(25):
+    s.t += 27.0; b._ogien_tick((100, 100, 7), s.t, wymus=True)
+sprawdz("7b pole przechodnie wykryte 25x w 11 min nie wchodzi do maski", (102, 100, 7) not in b.ogien_stale, b.ogien_stale)
+sprawdz("7c i blokuje drogę oraz klik", b._ogien_blok((100, 100, 7)) == [(102, 100, 7)] and b._ogien_na_drodze((100, 100, 7), (106, 100)))
+s = Swiat(pas(90, 120, 98, 102)); b = zrob(s)
+_f0 = b.mapa.flagi
+b.mapa.flagi = lambda x, y, z: 5 if (x, y) == (101, 100) else _f0(x, y, z)
+b.ogien_odczyt = lambda: {(1, 0), (0, 1)}
+b._ogien_tick((100, 100, 7), 5.0, wymus=True)
+sprawdz("7d pole-ściana wchodzi do maski od razu, przechodnie nie", b.ogien_stale == {(101, 100, 7)}, b.ogien_stale)
+zap = _json.load(open(_tmp))
+sprawdz("7e zapis pliku po zmianie", zap["pola"] == [[101, 100, 7]], zap)
+# wczytanie: ściana zostaje, pole przechodnie z pliku odpada
+_json.dump({"pola": [[101, 100, 7], [105, 100, 7]]}, open(_tmp, "w"))
+s = Swiat(pas(90, 120, 98, 102))
+_zr = cavebot.Cavebot
+b = zrob(s); b.mapa.flagi = lambda x, y, z: 5 if (x, y) == (101, 100) else _f0(x, y, z)
+b.ogien_stale = set(); b._ogien_stale_wczytaj()
+sprawdz("7f wczytanie maski z pliku (tylko ściany wg mapy)", b.ogien_stale == {(101, 100, 7)}, b.ogien_stale)
+cavebot.OGIEN_MASKA_TYLKO_SCIANY = 0
+b.ogien_stale = set(); b._ogien_stale_wczytaj()
+sprawdz("7g pokrętło 0: wczytuje wszystko z pliku", b.ogien_stale == {(101, 100, 7), (105, 100, 7)}, b.ogien_stale)
+cavebot.OGIEN_MASKA_TYLKO_SCIANY = 1
+# prawdziwy ogień pod nami nadal daje "schodzę"
+s = Swiat(pas(90, 120, 98, 102)); b = zrob(s)
+ogien_w(b, s, (100, 100))
+L0 = len(LOGI)
+sprawdz("7h ogień pod nami: wychodzimy", b._ogien_wyjdz(tuple(s.poz), s.t) is True and bool(s.kroki), s.kroki)
+cavebot.PLIK_OGIEN_STALE = None
 
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

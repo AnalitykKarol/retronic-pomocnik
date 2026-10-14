@@ -1,41 +1,24 @@
-"""Jednorazowy test zakupu ham u NPC stojącego obok (13.10): hi -> buy N ham -> yes, weryfikacja w plecaku.
-Użycie: python3 -I kup_test.py [N] (domyślnie 3). Nie wymaga uruchomionego bota; wpisuje na Default przez XTEST."""
-import os, re, sys, time
+"""Jednorazowy zakup u NPC stojącego obok (wspólny kod: wyprawa.kup_u_npc), weryfikacja w plecaku.
+Użycie: python3 -I kup_test.py [N] [przedmiot] [limit_gp]   (domyślnie 3 ham 150; limit 0 = bez limitu)
+Przykład: kup_test.py 20 "blank rune" 500. Nie wymaga uruchomionego bota; wpisuje na Default przez XTEST."""
+import os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mozg, wypad, wyprawa
 
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 3
+PRZEDMIOT = sys.argv[2] if len(sys.argv) > 2 else "ham"
+LIMIT = int(sys.argv[3]) if len(sys.argv) > 3 else 150
 ops = wypad.OperacjeZywe(log=print, wyslij=lambda t: mozg.wpisz_na_czacie(t))
+ID = {3147} if "blank" in PRZEDMIOT.lower() else set(ops.id_ham)
 
-def ham():
+def ile():
     p = ops.plecak()
-    return None if p is None else sum(v for k, v in p["id"].items() if k in ops.id_ham)
+    return None if p is None else sum(v for k, v in p["id"].items() if k in ID)
 
-def czekaj(wzor, s=9.0):
-    t0 = time.time(); wid = []
-    while time.time() - t0 < s:
-        for w in ops.wiadomosci():
-            print(f"  [{w['autor']}/{w['kanal']}] {w['tekst']}"); wid.append(w["tekst"])
-            if w["autor"] == "Jointoramix" and w["kanal"] not in ("Default", ""):
-                print(f"STOP: moja wiadomość poszła na kanał {w['kanal']}, przełącz zakładkę na Default"); sys.exit(5)
-            if w["autor"] != "Jointoramix" and re.search(wzor, w["tekst"], re.I):
-                return w["tekst"], wid
-        time.sleep(0.6)
-    return None, wid
-
-ops.wiadomosci()
-przed = ham(); print("ham przed:", przed)
-ops.czat("hi"); r, _ = czekaj(r"hello|welcome|hi\b")
-if r is None:
-    print("BRAK ODPOWIEDZI NPC na hi (NPC nie obok?)"); sys.exit(2)
-ops.czat(f"buy {N} ham"); r, _ = czekaj(r"want to buy|buy\s+\d+")
-if r is None:
-    print("BRAK OFERTY"); sys.exit(3)
-m = wyprawa.ODP_OFERTA.search(r)
-print("oferta:", m.groups() if m else r)
-if m and int(m[1]) <= N and int(m[3]) <= 150:
-    ops.czat("yes"); czekaj(r"bought|thank", 8)
-else:
-    ops.czat("no"); print("oferta poza limitem, odmówiłem"); sys.exit(4)
+przed = ile(); print(f"{PRZEDMIOT} przed:", przed)
+w = wyprawa.kup_u_npc("NPC", PRZEDMIOT, N, LIMIT or None, ops=ops, log=print, ja="Jointoramix")
+print("wynik:", w)
+if not w["ok"]:
+    sys.exit({"brak_powitania": 2, "brak_oferty": 3, "za_drogo": 4, "zla_zakladka": 5}.get(w["powod"], 1))
 time.sleep(2.0)
-po = ham(); print("ham po:", po)
+print(f"{PRZEDMIOT} po:", ile())

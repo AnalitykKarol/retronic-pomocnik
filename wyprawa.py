@@ -93,7 +93,7 @@ DOMYSLNE = {                                             # gdy konf (cavebot) ni
     "WYPRAWA_JEDZ_NA_MIEJSCU": 1, "WYPRAWA_JEDZ_MAKS": 12, "WYPRAWA_BLANKI": 0, "WYPRAWA_BLANKI_PROG": 2,
     "WYPRAWA_BLANKI_MAX_KOSZT": 500, "WYPRAWA_POCHODNIE": 1, "WYPRAWA_CAP_REZERWA": 8, "WYPRAWA_ZLOTO_MIN": 30,
     "WYPRAWA_MIN_HP": 70, "WYPRAWA_CO_MIN": 20, "WYPRAWA_MAX_CZAS_S": 1800, "WYPRAWA_MAX_KROKOW": 6000,
-    "WYPRAWA_STOP_PRZY_UTKNIECIU": 1, "WYPRAWA_CZEKAJ_NA_GLOD": 0, "WYPRAWA_DEPO_W_WALCE": 1, "WYPRAWA_DEPO_ZLOZ": 0, "WYPRAWA_TYLKO_DEPO": 0, "WYPRAWA_DEPO_POWROT": 0, "WYPRAWA_DEPO_POSTOJ_S": 0, "WYPRAWA_DEPO_BLANKI": 0, "WYPRAWA_PO_DEPO_S": 900, "WYPRAWA_PO_DOJSCIU_S": 300, "JEDZENIE_ZAPAS_MIN": 5, "WYPAD_ILE_TORCHY": 5,
+    "WYPRAWA_STOP_PRZY_UTKNIECIU": 1, "WYPRAWA_CZEKAJ_NA_GLOD": 0, "GLOD_ZAPAS_WAZNY_S": 120, "WYPRAWA_WZNOW_WALIDUJ": 1, "WYPRAWA_DEPO_W_WALCE": 1, "WYPRAWA_DEPO_ZLOZ": 0, "WYPRAWA_TYLKO_DEPO": 0, "WYPRAWA_DEPO_POWROT": 0, "WYPRAWA_DEPO_POSTOJ_S": 0, "WYPRAWA_DEPO_BLANKI": 1, "WYPRAWA_PO_DEPO_S": 900, "WYPRAWA_PO_DOJSCIU_S": 300, "BLANKI_AUTO_BAG": 1, "BLANKI_AUTO_BAG_MIN": 10, "JEDZENIE_ZAPAS_MIN": 5, "WYPAD_ILE_TORCHY": 5,
 }
 
 POTWIERDZ = 2                  # kolejne odczyty z warunkiem = start
@@ -313,10 +313,63 @@ class OperacjeZywe(wypad.OperacjeZywe):
         import loot  # noqa: PLC0415
         return loot.przenies_do_runow(log=self.log)
 
+    def blanki_i_miejsce(self):
+        """(blanki w głównym plecaku, wolne pola w bagu na runy albo None); None = odczyt nie działa."""
+        import loot  # noqa: PLC0415
+        return loot.blanki_i_miejsce()
+
     def zjedz(self):
         """Jeden Use na jedzeniu z plecaka (loot.zjedz): lista zjedzonych nazw; [] = nic nie ubyło (najedzony)."""
         import loot  # noqa: PLC0415
         return loot.zjedz(1, log=self.log)
+
+
+def kup_u_npc(npc, przedmiot, n, limit_gp, ops=None, log=print, ja=None, czekaj_s=9.0, spij=time.sleep):
+    """Zakup poza wyprawą u NPC stojącego obok: hi -> buy N przedmiot -> yes (tylko gdy oferta mieści się w n i limit_gp).
+    limit_gp None = bez limitu. Nic nie robi poza czatem. Zwraca {"ok", "powod", "oferta": (ile, gp) albo None}.
+    powod: None | "brak_powitania" | "brak_oferty" | "za_drogo" | "zla_zakladka" (ja = nazwa postaci na innym kanale)."""
+    if ops is None:
+        import mozg  # noqa: PLC0415
+        ops = wypad.OperacjeZywe(log=log, wyslij=lambda t: mozg.wpisz_na_czacie(t))
+
+    def czekaj(wzor, s):
+        t0 = time.time()
+        while time.time() - t0 < s:
+            for w in ops.wiadomosci():
+                log(f"  [{w['autor']}/{w['kanal']}] {w['tekst']}")
+                if ja and w["autor"] == ja:
+                    if w["kanal"] not in ("Default", ""):
+                        return "zla_zakladka"
+                    continue
+                if re.search(wzor, w["tekst"]) if isinstance(wzor, str) else wzor.search(w["tekst"]):
+                    return w["tekst"]
+            spij(0.6)
+        return None
+
+    ops.wiadomosci()
+    ops.czat("hi")
+    r = czekaj(wypad.ODP_POWITANIE, czekaj_s)
+    if r == "zla_zakladka":
+        return {"ok": False, "powod": "zla_zakladka", "oferta": None}
+    if r is None:
+        log(f"kup_u_npc: {npc} nie odpowiada na hi (nie stoi obok?)")
+        return {"ok": False, "powod": "brak_powitania", "oferta": None}
+    ops.czat(f"buy {n} {przedmiot}")
+    r = czekaj(ODP_OFERTA, czekaj_s)
+    if r == "zla_zakladka":
+        return {"ok": False, "powod": "zla_zakladka", "oferta": None}
+    m = ODP_OFERTA.search(r) if r else None
+    if m is None:
+        log(f"kup_u_npc: brak oferty od {npc}")
+        return {"ok": False, "powod": "brak_oferty", "oferta": None}
+    oferta = (int(m[1]), int(m[3]))
+    log(f"kup_u_npc: oferta {oferta[0]} za {oferta[1]} gp")
+    if oferta[0] <= 0 or oferta[0] > n or (limit_gp is not None and oferta[1] > limit_gp):
+        ops.czat("no")
+        return {"ok": False, "powod": "za_drogo", "oferta": oferta}
+    ops.czat("yes")
+    czekaj(re.compile(r"here you are|bought|thank", re.I), 8.0)
+    return {"ok": True, "powod": None, "oferta": oferta}
 
 
 # --- wyprawa ---------------------------------------------------------------------
@@ -338,7 +391,9 @@ class Wyprawa(Wypad):
         self._wznowiono = False
         self.potw_w = 0
         self.glod_potw_do = float("-inf")   # do kiedy ważny potwierdzony głód (WYPRAWA_CZEKAJ_NA_GLOD)
+        self.zapas_wiarygodny_t = float("-inf")   # kiedy ostatnio odczytano zapas z widocznego plecaka
         self.sprawdzono_w = float("-inf")
+        self._blanki_auto_t = None          # N9: czas ostatniej próby przeniesienia blanków do bagu (None = jeszcze nie)
         self.nast_wyprawa = float("-inf")
         self._ost_poz_w = None
         self._npc_zapis = float("-inf")
@@ -559,6 +614,12 @@ class Wyprawa(Wypad):
             except Exception as e:
                 self._blad("wznowienie", opis=repr(e))
         try:
+            self._blanki_auto(teraz)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            self._blad("blanki_auto", opis=repr(e))
+        try:
             lista = getattr(self.cb, "ostatnie_stwory", [])
             self._ucz_npc(lista, teraz)
             if self._okazja_wyprawa(teraz):
@@ -568,6 +629,41 @@ class Wyprawa(Wypad):
         except Exception as e:
             self._blad("wyprawa_okazja", opis=repr(e))
         return super()._okazja(teraz)
+
+    def _blanki_auto(self, teraz):
+        """N9: blanki z głównego plecaka do bagu na runy poza wyprawą: raz zaraz po starcie, potem co
+        BLANKI_AUTO_BAG_MIN min, tylko w spokoju (bez walki/lootu/UH/potworów). Bez wolnego pola nie rusza myszy."""
+        if not int(self._kw("BLANKI_AUTO_BAG")) or self.zablokowany or teraz < self.blokada_do:
+            return False
+        if self._blanki_auto_t is not None and \
+                teraz - self._blanki_auto_t < float(self._kw("BLANKI_AUTO_BAG_MIN")) * 60.0:
+            return False
+        cb = self.cb
+        poz = cb.ruch_poz if getattr(cb, "ruch_poz", None) else None
+        if poz is None:
+            return False
+        if self._blokada_startu(teraz, poz, getattr(cb, "ostatnie_stwory", [])) is not None:
+            return False                     # nie w spokoju: próbujemy w następnym obiegu (bez zużycia terminu)
+        self._blanki_auto_t = teraz
+        fn = getattr(self.ops, "blanki_i_miejsce", None)
+        if not callable(fn):
+            return False
+        st = fn()
+        if st is None:
+            return False
+        ile, wolne = st
+        if not ile:
+            return False
+        if wolne is None:
+            self.log("Blanki: w plecaku są blanki, ale bag na runy nie jest otwarty, nie przenoszę")
+            return False
+        if wolne <= 0:
+            self.log("Blanki: brak wolnego widocznego pola w bagu na runy, nie przenoszę")
+            return False
+        n = self.ops.przenies_runy()
+        self.log(f"Blanki: przeniesiono {n} do bagu na runy (poza wyprawą)")
+        self._tele("blanki_auto_bag", przeniesiono=n, w_plecaku=ile, wolne=wolne)
+        return bool(n)
 
     def okazja_w_walce(self, teraz):
         """Wołane z Cavebot.tick w walce: True, gdy wyprawa (po ham/blanki/do depo) właśnie wystartowała mimo potworów."""
@@ -612,9 +708,13 @@ class Wyprawa(Wypad):
                 self.ostrzezenia.add("w_plecak")
                 self.log("Wyprawa: nie widzę otwartego plecaka w pamięci, nie sprawdzę zapasu")
             self.potw_w = 0
+            if teraz - self.zapas_wiarygodny_t > float(self._kw("GLOD_ZAPAS_WAZNY_S")):
+                self.glod_potw_do = float("-inf")   # zapas nieczytelny za długo: dawny "głód" nie jest już ważny
             return False
         self.ostrzezenia.discard("w_plecak")
         zapas = self._jedzenie_ile(plecak)
+        if zapas is not None:
+            self.zapas_wiarygodny_t = teraz
         prog = int(self._kw("WYPRAWA_ZAPAS_PROG")) or int(self._kw("JEDZENIE_ZAPAS_MIN"))
         glod = bool(getattr(cb, "jedzenie_znane_brak", lambda t: False)(teraz))
         czar = getattr(cb, "jedzenie_czar_zastepuje_wypad", None)
@@ -624,7 +724,9 @@ class Wyprawa(Wypad):
         # w trybie głodu = cb.jedzenie_nie_do w przyszłości; pamiętamy to GLOD_WAZNY_S), samo zapas 0 w plecaku nie wystarcza
         glod_ok = True
         if int(self._kw("WYPRAWA_CZEKAJ_NA_GLOD")) or self._tryb_depo():    # do depo zawsze po potwierdzonym głodzie
-            if teraz < getattr(cb, "jedzenie_nie_do", float("-inf")):
+            watpliwy = getattr(cb, "jedzenie_odczyt_watpliwy", None)
+            if teraz < getattr(cb, "jedzenie_nie_do", float("-inf")) and zapas is not None \
+                    and not (callable(watpliwy) and watpliwy(teraz)):
                 self.glod_potw_do = teraz + GLOD_WAZNY_S
             glod_ok = teraz < self.glod_potw_do
         if glod_ok and zapas is not None and zapas < prog and not czar_ok:
@@ -932,6 +1034,32 @@ class Wyprawa(Wypad):
             return self.plan
         return super()._wybierz_plan(poz)
 
+    def _powod_ustal(self, st):
+        """Po restarcie: wyprawa wystartowana tylko z powodu jedzenia (zapas/glod), jeszcze nic nie kupiła,
+        a plecak jest widoczny i zapas >= próg => powód nieaktualny (fałszywy głód), nie wznawiamy."""
+        try:
+            if st.get("faza") not in (None, "do") or st.get("kupione"):
+                return False
+            powody = {t for t in re.split(r"[:+]", str(st.get("powod") or "")) if t} - {"wyprawa", "depo"}
+            if not powody or not powody <= {"zapas", "glod"}:
+                return False                      # inny powód (blanki, pochodnie, nieznany): wznawiamy jak dawniej
+            plecak = self.ops.plecak()
+            if plecak is None:
+                return False                      # kontenery niewidoczne: nie umiemy zweryfikować
+            zapas = self._jedzenie_ile(plecak)
+            if zapas is None:
+                return False
+            prog = int(self._kw("WYPRAWA_ZAPAS_PROG")) or int(self._kw("JEDZENIE_ZAPAS_MIN"))
+            if zapas >= prog or (zapas > 0 and "zapas" not in powody):
+                self.log(f"Wyprawa: powód '{st.get('powod')}' nieaktualny po restarcie (zapas {zapas}, próg {prog}), "
+                         "nie wznawiam")
+                return True
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            self.log(f"Wyprawa: walidacja powodu nie powiodła się ({e!r}), wznawiam")
+        return False
+
     def _wznow(self, teraz):
         """Po restarcie bota: kontynuacja wyprawy z pliku stanu (tylko gdy postać jest przy planie)."""
         st = self._stan_czytaj()
@@ -941,6 +1069,9 @@ class Wyprawa(Wypad):
         if wiek > WZNOW_MAX_S:
             self.log(f"Wyprawa: stary zapis stanu ({wiek:.0f} s), nie wznawiam")
             self._stan_koniec(wynik="przestarzaly")
+            return False
+        if int(self._kw("WYPRAWA_WZNOW_WALIDUJ")) and self._powod_ustal(st):
+            self._stan_koniec(wynik="powod_ustal")
             return False
         poz = tuple(self.cb.postac.pozycja())
         potrzeby = st.get("potrzeby") or {"frodo": True}

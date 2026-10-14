@@ -266,6 +266,33 @@ kon = ev(s, "wyprawa_koniec")
 sprawdz("7c restart już za drzwiami (powrót): wznowiona, dochodzi do z8 bez użycia drzwi", wyst and kon and kon[-1]["wynik"] in ("ok", "bez_zakupow") and s.poz[2] == 8
         and s.uzyc == 1, (w2.logi[:3], s.uzyc, kon))
 
+# 8. N3 (14.10): _dziura, łopata tylko na z7 (PIETRA_LOPATA_TYLKO_Z7); z8 + nieudany krok = brak łopaty
+class _OpsL:
+    def __init__(o):
+        o.lopaty = []
+    def uzyj_lopate(o, cel, poz):
+        o.lopaty.append(tuple(cel))
+    def uzyj_pole(o, pole, poz):
+        pass
+
+def _proba_dziury(z, tylko_z7=1, lopata=1):
+    s = swiat(poz=(32493, 32258, z))
+    cb, w = uruchom(s, maks=1)
+    w.ops = _OpsL()
+    k = w.konf
+    k.PIETRA_LOPATA_TYLKO_Z7 = tylko_z7
+    k.PIETRA_LOPATA = lopata
+    w._po_przejsciu = lambda *a, **kw: False         # krok nie zmienia piętra (dziura zasypana)
+    e = {"dziura": (32493, 32259, z), "stoi": (32493, 32258, z), "ladunek": (32493, 32259, z + 1),
+         "pewna": True, "proby": 1}                  # n=1 -> tryb "lopata" w kolejności pewnej dziury
+    w._dziura((32493, 32258, z), e, 1000.0)
+    return w.ops.lopaty
+
+sprawdz("8a z7 + nieudany krok: łopata użyta", len(_proba_dziury(7)) == 1)
+sprawdz("8b z8 + nieudany krok: brak łopaty (TYLKO_Z7=1)", _proba_dziury(8) == [])
+sprawdz("8c z8 + TYLKO_Z7=0: łopata (dawne zachowanie)", len(_proba_dziury(8, tylko_z7=0)) == 1)
+sprawdz("8d z7 + PIETRA_LOPATA=0: brak łopaty", _proba_dziury(7, lopata=0) == [])
+
 print()
 print(f"{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

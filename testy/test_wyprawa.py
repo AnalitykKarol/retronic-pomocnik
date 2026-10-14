@@ -69,6 +69,7 @@ class Konf:
     WYPRAWA_MAX_KROKOW = 6000
     WYPRAWA_STOP_PRZY_UTKNIECIU = 1
     WYPRAWA_CZEKAJ_NA_GLOD = 0
+    WYPRAWA_WZNOW_WALIDUJ = 1
     WYPRAWA_TYLKO_DEPO = 0
     UH_STAN_PLIK = None
 
@@ -985,11 +986,28 @@ s, cb, w, k = nowy(jedzenie=5, torch=5, konf=konf_depo(WYPRAWA_BLANKI=10, WYPRAW
 cb.dojscie_aktywne = True
 sprawdz("15a dojscie_aktywne: _blokada_startu = 'dojscie'", w._blokada_startu(s.t, tuple(s.poz), []) == "dojscie")
 sprawdz("15a2 dojście: wyprawa nie startuje mimo blanków 0", not pre(s, cb, w, 6))
-s, cb, w, k = nowy(jedzenie=5, torch=5, konf=konf_depo(WYPRAWA_BLANKI=10, WYPRAWA_BLANKI_PROG=1))
+s, cb, w, k = nowy(jedzenie=5, torch=5, konf=konf_depo(WYPRAWA_BLANKI=10, WYPRAWA_BLANKI_PROG=1, WYPRAWA_DEPO_BLANKI=0))
 sprawdz("15b tryb depo, blanki 0, zapas ok, WYPRAWA_DEPO_BLANKI=0: brak wyprawy", not pre(s, cb, w, 6) and not cb.wypad_aktywny)
 sprawdz("15b2 jednorazowa notatka o braku blanków", sum("brak blanków" in l for l in w.logi) == 1, w.logi[-3:])
 s, cb, w, k = nowy(jedzenie=5, torch=5, konf=konf_depo(WYPRAWA_BLANKI=10, WYPRAWA_BLANKI_PROG=1, WYPRAWA_DEPO_BLANKI=1))
 sprawdz("15c WYPRAWA_DEPO_BLANKI=1: wyprawa 'depo:blanki' startuje", pre(s, cb, w, 6) and w.powod.startswith("wyprawa:depo:blanki"), w.powod)
+# N2 (14.10): bez żadnego pokrętła z na_zywo (konf nie ma WYPRAWA_DEPO_BLANKI) domyślna = 1: brak blanków = depo
+sprawdz("15c2 domyślne WYPRAWA_DEPO_BLANKI=1 w cavebot.py i wyprawa.DOMYSLNE", cavebot.WYPRAWA_DEPO_BLANKI == 1
+        and W.DOMYSLNE["WYPRAWA_DEPO_BLANKI"] == 1)
+s, cb, w, k = nowy(jedzenie=5, torch=5, konf=konf_depo(WYPRAWA_BLANKI=10, WYPRAWA_BLANKI_PROG=1))
+sprawdz("15c3 tryb depo, 0 blanków, zapas ok, bez pokręteł z na_zywo: 'depo:blanki' startuje",
+        not hasattr(k, "WYPRAWA_DEPO_BLANKI") and pre(s, cb, w, 6) and w.powod.startswith("wyprawa:depo:blanki"), w.powod)
+# N2: "domyślna" w logu hot reload = wartość z kodu także dla drugiej instancji Pokretla w tym samym procesie
+_m = types.SimpleNamespace(PIETRA_LOPATA=1, WYPRAWA_DEPO_BLANKI=1)
+_lg = []
+_p1 = pokretla.Pokretla(_m, plik=TMP / "nz15.json", log=_lg.append)
+_p1.zastosuj({"PIETRA_LOPATA": 0})
+_p2 = pokretla.Pokretla(_m, plik=TMP / "nz15b.json", log=_lg.append)
+_p2.zastosuj({"PIETRA_LOPATA": 1})
+sprawdz("15c4 druga instancja Pokretla: domyślna z kodu (1), nie nadpisana (0)", _p2.domyslne["PIETRA_LOPATA"] == 1
+        and any("PIETRA_LOPATA: 1 (domyślna 1)" in l for l in _lg), _lg)
+_p2.zastosuj({})
+sprawdz("15c5 powrót do domyślnej przywraca wartość z kodu", _m.PIETRA_LOPATA == 1, _m.PIETRA_LOPATA)
 stan15 = TMP / "stan15.json"
 stan15.write_text(json.dumps({"depo_powody": ["blanki"], "depo_blanki": 0, "nast_wall": 0}))
 s, cb, w, k = nowy(jedzenie=5, torch=5, konf=konf_depo(WYPRAWA_BLANKI=10, WYPRAWA_BLANKI_PROG=1, WYPRAWA_DEPO_BLANKI=1), stan=stan15)
@@ -1000,6 +1018,136 @@ sprawdz("15e nowe pokrętła P7 w pokretla.ZAKRESY", all(x in pokretla.ZAKRESY f
     "DOJSCIE_BEZ_UNIKANIA_POL", "DOJSCIE_PROBY", "DOJSCIE_PAUZA_PROBY_S")) and all(hasattr(cavebot, x) for x in (
     "WYPRAWA_DEPO_BLANKI", "WYPRAWA_PO_DEPO_S", "WYPRAWA_PO_DOJSCIU_S", "DOJSCIE_WALKA_PRZEJSCIE_S",
     "DOJSCIE_BEZ_UNIKANIA_POL", "DOJSCIE_PROBY", "DOJSCIE_PAUZA_PROBY_S")))
+
+# --- 16. N5: fałszywy głód przy niewidocznych kontenerach, wznowienie po restarcie ---------------
+def stan_depo(powod="depo:glod", **extra):
+    p = TMP / f"n5_{_n[0]}.json"
+    _n[0] += 1
+    d = {"aktywna": True, "przerwana": True, "baza": "troll", "k": 0, "faza": "do", "powod": powod,
+         "potrzeby": {"depo": True}, "t_wall": 5_000_000.0 - 10, "kupione": {}}
+    d.update(extra)
+    p.write_text(json.dumps(d))
+    return p
+
+st16 = stan_depo()
+s, cb, w, k = nowy(jedzenie=3, stan=st16, konf=konf_depo(), sklepy=sp_bez)
+w.tick()
+sprawdz("16a stan depo:glod + zapas 3 + kontenery widoczne: brak wznowienia, stan wygaszony",
+        not cb.wypad_aktywny and w.w is None and json.loads(st16.read_text()).get("aktywna") is False
+        and json.loads(st16.read_text()).get("wynik") == "powod_ustal"
+        and not any("WZNOWIONA" in l for l in w.logi), w.logi[-3:])
+st16b = stan_depo()
+kk = konf_depo(WYPRAWA_WZNOW_WALIDUJ=0)
+s, cb, w, k = nowy(jedzenie=3, stan=st16b, konf=kk, sklepy=sp_bez, poz=DEPO)
+w._powod_ustal = lambda st: (_ for _ in ()).throw(AssertionError("walidacja przy pokrętle 0"))
+try:
+    w.tick()
+    ok16b = True
+except AssertionError:
+    ok16b = False
+sprawdz("16b WYPRAWA_WZNOW_WALIDUJ=0: walidacja pominięta (dawne zachowanie)", ok16b)
+s, cb, w, k = nowy(jedzenie=0, stan=stan_depo(), konf=konf_depo(), sklepy=sp_bez)
+sprawdz("16c zapas 0: powód nadal zachodzi, nie kasujemy", w._powod_ustal(json.loads(w.plik_stanu.read_text())) is False)
+s, cb, w, k = nowy(jedzenie=0, stan=stan_depo("depo:glod+blanki"), konf=konf_depo(), sklepy=sp_bez)
+s.plecak[3582] = 9
+sprawdz("16d powód z blankami: nie kasujemy", w._powod_ustal(json.loads(w.plik_stanu.read_text())) is False)
+s, cb, w, k = nowy(jedzenie=3, stan=stan_depo(faza="z"), konf=konf_depo(), sklepy=sp_bez)
+sprawdz("16e faza powrotu: nie kasujemy", w._powod_ustal(json.loads(w.plik_stanu.read_text())) is False)
+s, cb, w, k = nowy(jedzenie=3, stan=stan_depo(), konf=konf_depo(), sklepy=sp_bez)
+w.ops.plecak = lambda: None
+sprawdz("16f kontenery niewidoczne: nie umiemy zweryfikować, nie kasujemy",
+        w._powod_ustal(json.loads(w.plik_stanu.read_text())) is False)
+# kontenery niewidoczne: cb zgłasza odczyt wątpliwy -> brak glod_potw i brak powodu "glod"
+s, cb, w, k = nowy(jedzenie=0, konf=konf_depo(), sklepy=sp_bez)
+cb.jedzenie_nie_do = s.t + 1000
+cb.jedzenie_odczyt_watpliwy = lambda t: True
+cb.jedzenie_znane_brak = lambda t: False
+sprawdz("16g wątpliwy odczyt: brak glod_potw i brak startu depo", not pre(s, cb, w, 6) and w.glod_potw_do == float("-inf"), w.glod_potw_do)
+# glod_potw wygasa, gdy zapas nieczytelny dłużej niż GLOD_ZAPAS_WAZNY_S
+s, cb, w, k = nowy(jedzenie=0, konf=konf_depo(), sklepy=sp_bez)
+cb.jedzenie_nie_do = s.t + 100
+pre(s, cb, w, 1)
+sprawdz("16h głód potwierdzony przy czytelnym plecaku", w.glod_potw_do > s.t)
+cb.jedzenie_nie_do = float("-inf")
+w.ops.plecak = lambda: None
+s.t += 500
+w.sprawdzono_w = float("-inf"); w.nast_wyprawa = float("-inf")
+for _ in range(2):
+    s.t += 20; cb.ruch_poz = tuple(s.poz)
+    w._okazja_wyprawa(s.t)
+sprawdz("16i plecak nieczytelny > GLOD_ZAPAS_WAZNY_S: glod_potw_do skasowany", w.glod_potw_do == float("-inf"), w.glod_potw_do)
+sprawdz("16j nowe pokrętła N5 w ZAKRESY/cavebot", all(x in pokretla.ZAKRESY for x in (
+    "JEDZENIE_BRAK_WALIDUJ", "JEDZENIE_BRAK_PROBY", "GLOD_ZAPAS_WAZNY_S", "WYPRAWA_WZNOW_WALIDUJ"))
+    and all(hasattr(cavebot, x) for x in ("JEDZENIE_BRAK_WALIDUJ", "JEDZENIE_BRAK_PROBY", "GLOD_ZAPAS_WAZNY_S",
+                                          "WYPRAWA_WZNOW_WALIDUJ")))
+
+# --- N9: blanki do bagu poza wyprawą ---
+def _auto(stan=(5, 3), **kw):
+    s, cb, w, k = nowy(**kw)
+    wyw = []
+    w.ops.blanki_i_miejsce = lambda: stan
+    w.ops.przenies_runy = lambda: (wyw.append(1), 5)[1]
+    cb.ruch_poz = tuple(s.poz)
+    return s, cb, w, k, wyw
+
+s, cb, w, k, wyw = _auto()
+w._blanki_auto(s.t)
+sprawdz("17a start: blanki w plecaku + wolne pole -> przeniesione raz", len(wyw) == 1, wyw)
+w._blanki_auto(s.t + 60)
+sprawdz("17b przed upływem BLANKI_AUTO_BAG_MIN brak ponowienia", len(wyw) == 1, wyw)
+w._blanki_auto(s.t + 601)
+sprawdz("17c po 10 min druga próba", len(wyw) == 2, wyw)
+s, cb, w, k, wyw = _auto(stan=(5, 0))
+w._blanki_auto(s.t)
+sprawdz("17d brak wolnego pola: bez ruchu myszy i jedna linia logu", not wyw and
+        sum("brak wolnego widocznego pola" in l for l in w.logi) == 1, (wyw, w.logi))
+s, cb, w, k, wyw = _auto(stan=(0, 3))
+w._blanki_auto(s.t)
+sprawdz("17e brak blanków w plecaku: nic", not wyw)
+s, cb, w, k, wyw = _auto()
+cb.cel = {"x": 1}
+sprawdz("17f w walce nie rusza i nie zużywa terminu", not w._blanki_auto(s.t) and not wyw and w._blanki_auto_t is None)
+cb.cel = None
+w._blanki_auto(s.t)
+sprawdz("17g po walce przenosi", len(wyw) == 1)
+k.BLANKI_AUTO_BAG = 0
+s, cb, w, k, wyw = _auto()
+k.BLANKI_AUTO_BAG = 0
+w._blanki_auto(s.t)
+sprawdz("17h pokrętło BLANKI_AUTO_BAG=0 wyłącza", not wyw)
+sprawdz("17i pokrętła w ZAKRESY/cavebot", all(x in pokretla.ZAKRESY for x in ("BLANKI_AUTO_BAG", "BLANKI_AUTO_BAG_MIN"))
+        and all(hasattr(cavebot, x) for x in ("BLANKI_AUTO_BAG", "BLANKI_AUTO_BAG_MIN")))
+
+# --- N10: kup_u_npc ---
+class OpsKup:
+    def __init__(o, odp):
+        o.odp, o.wys, o.q = odp, [], []
+    def wiadomosci(o):
+        w, o.q = o.q, []
+        return w
+    def czat(o, t):
+        o.wys.append(t)
+        for p, a in o.odp:
+            if t.startswith(p):
+                o.q.append({"autor": "Xodet", "kanal": "Default", "tekst": a})
+
+def _kup(odp, n=20, lim=500):
+    o = OpsKup(odp)
+    return W.kup_u_npc("Xodet", "blank rune", n, lim, ops=o, log=lambda *a: None, czekaj_s=0.3, spij=lambda x: None), o
+ODP = [("hi", "Oh, please come in, Jointoramix!"), ("buy", "Do you want to buy 20 blank rune for 200 gold?"),
+       ("yes", "Here you are.")]
+r, o = _kup(ODP)
+sprawdz("18a oferta 200 gp przy limicie 500: yes", r["ok"] and r["oferta"] == (20, 200) and o.wys[-1] == "yes", (r, o.wys))
+r, o = _kup(ODP, lim=150)
+sprawdz("18b limit 150 odrzuca 200 gp (limit parametrem)", not r["ok"] and r["powod"] == "za_drogo" and o.wys[-1] == "no", (r, o.wys))
+r, o = _kup(ODP, lim=None)
+sprawdz("18c limit None = bez limitu", r["ok"])
+r, o = _kup([])
+sprawdz("18d brak powitania", r["powod"] == "brak_powitania" and o.wys == ["hi"], (r, o.wys))
+r, o = _kup([ODP[0]])
+sprawdz("18e brak oferty", r["powod"] == "brak_oferty", r)
+sprawdz("18f Xodet zweryfikowany w wyprawa_sklepy.json",
+        json.loads((Path(W.__file__).parent / "trasy" / "wyprawa_sklepy.json").read_text())["przystanki"]["xodet"]["zweryfikowane"] is True)
 
 if _os.environ.get("DBG"):
     print(DBGLOG)

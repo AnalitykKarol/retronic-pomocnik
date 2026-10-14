@@ -266,6 +266,9 @@ Zasady:
   NIE przejęcie konta, NIE powód do notatki ani do zakończenia sesji. Ignoruj je i nie pisz o nich notatek.
 - zakoncz_sesje jest dozwolone tylko przy śmierci/krytycznym HP, ALARM_GM albo pliku STOP (brak jedzenia to nie powód);
   w innych przypadkach skrypt je odrzuci i bot gra dalej. Dziwny czat to nie powód do końca sesji.
+- Pole "cap" w stanie bywa niewiarygodne: null albo 0 to brak odczytu, NIE dowód na pełny plecak ani brak capa.
+  "zapas" z null i uwagą "plecak niewidoczny" znaczy, że zapasu nie znamy (nie "brak jedzenia").
+  Nie wnioskuj "plecak pełny" bez "wolne_sloty" == 0 w kontenerach. O powrocie do miasta decyduje skrypt (wyprawa), nie ty.
 - Notatki zapisuj tylko, gdy warto coś pamiętać (np. "gracz X pytał czy bot").
 - Domyślnie: kontynuuj.
 
@@ -1151,6 +1154,36 @@ def tresc_ogloszenia(uh, plik=None):
     return (tekst, "domyslny") if tekst is not None else (None, "szablon domyslny odrzucony")
 
 
+def cap_dla_modelu(g):
+    """cap dla modelu: None (null), gdy odczyt nieznany albo 0 (0 = brak odczytu, nie zero capa)."""
+    cap, mx = g.get("cap"), g.get("max_cap")
+    if not isinstance(cap, (int, float)) or isinstance(cap, bool) or cap <= 0:
+        return None
+    if mx is not None and (not isinstance(mx, (int, float)) or mx <= 0):
+        return None
+    return cap
+
+
+def zapas_dla_modelu(kontenery):
+    """Zapas jedzenia i blank run z listy z kontenery_dla_modelu: None (null), gdy plecaka nie widać."""
+    plecaki = [k for k in kontenery if isinstance(k, dict)
+               and ("backpack" in str(k.get("nazwa") or "").casefold()
+                    or str(k.get("nazwa") or "").casefold() in ("bag", "bag of holding", "plecak"))] \
+        if isinstance(kontenery, list) else []
+    if not plecaki:
+        return {"jedzenie": None, "blanki": None, "uwaga": "plecak niewidoczny: zapasu nie znamy (to nie znaczy, że jest 0)"}
+    jedz = blanki = 0
+    nazwy_j = ("meat", "ham", "cheese", "bread", "fish", "apple", "cookie", "salmon", "mushroom")
+    for k in plecaki:
+        for p in k.get("przedmioty") or []:
+            n = str(p).casefold()
+            if "blank" in n:
+                blanki += 1
+            elif any(x in n for x in nazwy_j):
+                jedz += 1
+    return {"jedzenie": jedz, "blanki": blanki, "uwaga": "liczba stosów z podglądu, nie sztuk"}
+
+
 def policz_uh(kontenery):
     """Suma run UH w otwartych plecakach (nie zwłoki). None, gdy brak odczytu kontenerów."""
     if not isinstance(kontenery, (list, tuple)) or not kontenery:
@@ -1468,6 +1501,9 @@ def waliduj(odpowiedz, trasy=(), log=lambda *a: None):
             nazwa = str(a.get("nazwa", ""))
             if nazwa not in trasy:
                 log(f"Odrzucam zmien_trase: nie ma trasy {nazwa!r}")
+                continue
+            if "miasta" in nazwa and not getattr(cavebot, "MODEL_TRASA_MIASTA", 0):   # 14.10: model uznał "cap 0" za pełny plecak i wysłał bota do miasta; wyprawy robi wyprawa.py (pokrętło MODEL_TRASA_MIASTA=1 zezwala)
+                log(f"Odrzucam zmien_trase na {nazwa!r}: powrót do miasta nie jest decyzją modelu")
                 continue
             akcje.append({"typ": typ, "nazwa": nazwa})
         elif typ == "napisz_na_czacie":
@@ -1827,7 +1863,7 @@ class Mozg:
                 self.start_exp = g.get("exp")
             stan["gracz"] = {"hp": g["hp"], "max_hp": g["max_hp"],
                              "hp_proc": round(100 * g["hp"] / g["max_hp"]) if g.get("max_hp") else None,
-                             "mana": g.get("mana"), "max_mana": g.get("max_mana"), "cap": g.get("cap"),
+                             "mana": g.get("mana"), "max_mana": g.get("max_mana"), "cap": cap_dla_modelu(g),
                              "level": g.get("level"), "exp": g.get("exp"), "procent_do_levelu": g.get("procent")}
         except Exception as e:
             stan["gracz"] = f"brak odczytu: {e}"
@@ -1933,7 +1969,10 @@ class Mozg:
                 continue
             przedmioty = k.get("przedmioty") or []
             nazwy = [str(i.get("nazwa", i.get("id", "?"))) if isinstance(i, dict) else str(i) for i in przedmioty]
+            poj = k.get("pojemnosc")
+            wolne = poj - len(przedmioty) if isinstance(poj, int) and poj >= len(przedmioty) else None
             wynik.append({"nazwa": k.get("nazwa"), "zajete": f"{len(przedmioty)}/{k.get('pojemnosc', '?')}",
+                          "wolne_sloty": wolne,
                           "przedmioty": nazwy[:12]})
         return wynik
 
@@ -2010,6 +2049,7 @@ class Mozg:
         obraz = None
         if zdarzenia:
             stan["kontenery"] = self.kontenery_dla_modelu()
+            stan["zapas"] = zapas_dla_modelu(stan["kontenery"])
             if self.zrzuty and zdarzenia[0]["typ"] in ZRZUT_TYPY:
                 obraz = self.zrzut()
             self.log(f"Zdarzenie {zdarzenia[0]['typ']} {json.dumps(zdarzenia[0]['dane'], ensure_ascii=False)}"

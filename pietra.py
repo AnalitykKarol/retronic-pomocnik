@@ -15,6 +15,7 @@ Przy porażce przejścia: log + telemetria + powiadomienie, trasa zawraca (inna 
 PIETRA_PORAZKI_STOP porażkach z rzędu bot przerywa (jak przy "Trzy punkty z rzędu nieosiągalne").
 """
 import json
+import math
 import os
 import time
 from pathlib import Path
@@ -30,6 +31,10 @@ except Exception:       # wypad nigdy nie wywraca bota
 # 13.10: pole startowe (ortogonalne do schodów), z którego przejście wyszło; per schody, klucz "x,y,z" pola T.
 # W testach (RETRONIC_TESTY) bez zapisu, chyba że test sam ustawi PLIK_STARTOW.
 PLIK_STARTOW = None if os.environ.get("RETRONIC_TESTY") else Path(__file__).resolve().parent / "trasy" / "pietra_start.json"
+PLIK_ZLYCH = (Path(PLIK_STARTOW).with_name("pietra_zle.json") if PLIK_STARTOW is not None else None)  # 14.10: pola startowe, które nie dały ruchu
+PLIK_STARTOW_DOMYSLNE = (None if os.environ.get("RETRONIC_TESTY")       # 14.10 (R1b): zasiane dobre pola startowe, tylko do odczytu
+                         else Path(__file__).resolve().parent / "trasy" / "pietra_starty_domyslne.json")
+START_KROK_NIE_MAX = 2              # tyle nieudanych kroków strzałką (postać stoi w miejscu) na pole startowe, potem je pomijamy
 START_RUCHY_MAX = 8                 # ticków na dojście do jednego pola startowego, potem je pomijamy
 
 
@@ -44,10 +49,36 @@ def _flaga(mapa, x, y, z):
         return 0
 
 
-def kandydaci(mapa, a, b):
+def _schody(mapa, pole, lad):
+    """Typ "schody" (14.10, R1b): pole przejścia ma flagę 2 na obu piętrach (schody (32498,32270) z8 i z9), więc krok
+    działa w obie strony. `pole` to pole T na piętrze startu, `lad` lądowanie (inne piętro, tylko x,y i z się liczą)."""
+    if mapa is None:
+        return False
+    return bool(_flaga(mapa, pole[0], pole[1], pole[2]) & 2 and _flaga(mapa, pole[0], pole[1], lad[2]) & 2)
+
+
+def _domysl_ok(mapa, pole, poz, promien, flaga_tu, flaga_nad):
+    """Czy kandydat "domysł" `pole` przechodzi sprawdzenie R1b. Bez promienia (0) albo bez pozycji gracza: zawsze (dawne).
+    `flaga_tu` = bit wymagany na polu (w dół 2 = dziura; w górę 1 = chodliwe), `flaga_nad` = bit wymagany piętro wyżej
+    (w górę 2 = dziura nad R); bez mapy sprawdzamy tylko promień."""
+    if not promien or poz is None:
+        return True
+    if cheb(pole, poz) > promien:
+        return False
+    if mapa is None:
+        return True
+    f = _flaga(mapa, pole[0], pole[1], pole[2])
+    if f & 4 or not f & flaga_tu:
+        return False
+    return not flaga_nad or bool(_flaga(mapa, pole[0], pole[1], pole[2] - 1) & flaga_nad)
+
+
+def kandydaci(mapa, a, b, poz=None, promien=0):
     """Pola, którymi da się przejść z `a` (stoimy tu, piętro a[2]) na punkt `b` (inne piętro).
     Lista słowników {"pole": (x, y, z) na piętrze a, "pewne": bool, "lad": (x, y, z) lądowanie}, najlepsze pierwsze.
-    Brak mapy = tylko założenie z wypad.py (dziura pod b / lina na (b.x, b.y-1))."""
+    Brak mapy = tylko założenie z wypad.py (dziura pod b / lina na (b.x, b.y-1)).
+    R1b: z `promien` > 0 i `poz` (pozycja gracza) kandydat "domysł" (poza pewnymi z mapy) jest tylko w promieniu `promien`
+    od gracza i z flagami mapy zgodnymi z przejściem (dawniej kotwica na `a` i brak sprawdzenia)."""
     z = a[2]
     wyn, widziane = [], set()
 
@@ -65,7 +96,7 @@ def kandydaci(mapa, a, b):
                 if f & 1 and f & 2 and not f & 4 and cheb((x, y), a) <= 3:
                     dodaj(x, y, True, (x, y, z + 1))
         wyn.sort(key=lambda k: ((k["pole"][0], k["pole"][1]) != (b[0], b[1]), cheb(k["pole"], a)))
-        if (b[0], b[1]) not in widziane:
+        if (b[0], b[1]) not in widziane and _domysl_ok(mapa, (b[0], b[1], z), poz, promien, 2, 0):
             dodaj(b[0], b[1], False, (b[0], b[1], z + 1))      # założenie wypad.py: dziura leży pod punktem b
     else:                                           # w górę: R z dziurą nad sobą, lądowanie (R.x, R.y+1, z-1)
         for dx in range(-3, 4):
@@ -78,7 +109,7 @@ def kandydaci(mapa, a, b):
                 if gora & 1 and gora & 2 and cheb((x, y + 1), (b[0], b[1])) <= 1:
                     dodaj(x, y, True, (x, y + 1, z - 1))
         wyn.sort(key=lambda k: (cheb(k["pole"], a), cheb(k["lad"], b)))
-        if (b[0], b[1] - 1) not in widziane:
+        if (b[0], b[1] - 1) not in widziane and _domysl_ok(mapa, (b[0], b[1] - 1, z), poz, promien, 1, 2):
             dodaj(b[0], b[1] - 1, False, (b[0], b[1], z - 1))   # konwencja wypad.py: R = (b.x, b.y-1) na piętrze a
     return wyn[:3]
 
@@ -88,6 +119,13 @@ def kandydaci(mapa, a, b):
 TRYBY_DOL = {True: ("krok", "lopata", "krok", "use", "lopata", "krok", "use_wlasne"),
              False: ("use", "krok", "use_wlasne", "lopata", "krok", "use", "use_wlasne")}
 TRYBY_GORA = ("R", "krok", "R", "lina", "wlasne", "E", "W", "N")
+# 14.10 (R1b, PIETRA_TRYBY_Z_DANYCH=1): tylko tryby, które w danych 12 h kiedykolwiek zadziałały. Typ "schody" (flaga 2 na obu
+# piętrach) = krok w obie strony jako pierwsza próba; drabina w górę = R (ze skosu, bez ustawiania się); dziura w dół = krok.
+# "lopata" tylko dla zasypanej dziury (ZASYPANE) i z pola sąsiedniego; slot bez zastosowania nie zużywa numeru próby.
+TRYBY_DOL_DANE = ("krok", "lopata", "krok", "lopata", "krok")
+TRYBY_GORA_SCHODY = ("krok", "krok", "R")
+TRYBY_GORA_DRABINA = ("R", "krok", "R")
+ZASYPANE = {(32493, 32259, 7)}      # dziury zasypane (piętro z, na którym stoimy), jedyne, gdzie łopata ma sens
 
 
 class Pietra:
@@ -101,6 +139,8 @@ class Pietra:
         self.resync = []                # czasy ostatnich resynchronizacji (pętla zabezpieczająca)
         self.ostrzezenia = set()
         self._starty = None             # {"x,y,z": [x, y]} z PLIK_STARTOW (wczytywane przy pierwszym użyciu)
+        self._domyslne = None           # {"x,y,z": [x, y]} z PLIK_STARTOW_DOMYSLNE (tylko odczyt, nigdy nie trafia do PLIK_STARTOW)
+        self._nd = {}                   # R1b: (T, S) -> ile razy nie dotarliśmy na pole startowe S (nie zeruje się przy migotaniu)
 
     # --- konfiguracja (stałe modułu cavebot) ---
 
@@ -155,7 +195,7 @@ class Pietra:
                 return self._resync(poz, cel, teraz)
             st = self.st = {"cel": tuple(cel), "a": tuple(a), "z0": z, "od": teraz, "kand": None, "ki": 0,
                             "proby": 0, "nast": teraz, "postep": [teraz, 999], "tryby": None}
-            st["kand"] = kandydaci(cb.mapa, a, cel)
+            st["kand"] = kandydaci(cb.mapa, a, cel, tuple(poz), int(self._k("PIETRA_DOMYSL_PROMIEN", 3)))
             self.log(f"Przejście pięter: z{z} -> z{cel[2]} (punkt trasy {cb.idx}), kandydaci: "
                      f"{[(k['pole'][:2], 'pewny' if k['pewne'] else 'domysł') for k in st['kand']]}")
             self._tele("pietra_start", z_od=z, z_do=cel[2], idx=cb.idx, poz=list(poz),
@@ -171,7 +211,25 @@ class Pietra:
         if teraz < st["nast"]:
             cb.pauza(0.2, 0.5)
             return True
-        S = self._start(poz, T, st)
+        if float(self._k("PIETRA_CZEKAJ_KROK_S", 1.2)) > 0 and st["proby"] > 0:
+            # R1b: przed kolejną próbą ponowny odczyt pozycji (poprzednia mogła się udać z opóźnieniem)
+            p = tuple(cb.postac.pozycja())
+            if p[2] != poz[2]:
+                return self._po_przejsciu(poz[2], st, poz, teraz, k, "opóźnione", czekaj=0) or True
+            if p != tuple(poz):
+                if cheb(p, T) > 1:
+                    return True                 # odeszliśmy od pola: następny obieg zrobi dojście
+                poz = p
+        S = None
+        if self._dane():
+            # R1b: ortogonalne pole startowe tylko przed krokiem; R (Ctrl+klik) działa ze skosu i z własnego pola
+            if st["tryby"] is None:
+                st["tryby"] = self._tryby(k, st)
+                st["proby"] = 0
+            if self._wybierz(st, k, poz, teraz) == "krok":
+                S = self._start(poz, T, st)
+        else:
+            S = self._start(poz, T, st)
         if S is not None:
             return self._na_start(poz, S, T, st)
         return self._proba(poz, st, k, teraz)
@@ -188,6 +246,48 @@ class Pietra:
             except Exception:
                 self._starty = {}
         return self._starty
+
+    def _wczytaj_domyslne(self):
+        if self._domyslne is None:
+            self._domyslne = {}
+            try:
+                if PLIK_STARTOW_DOMYSLNE is not None and self._k("PIETRA_STARTY_DOMYSLNE", 1) and Path(PLIK_STARTOW_DOMYSLNE).exists():
+                    d = json.loads(Path(PLIK_STARTOW_DOMYSLNE).read_text())
+                    self._domyslne = {str(k): [int(v[0]), int(v[1])] for k, v in d.items() if not str(k).startswith("_")}
+            except Exception:
+                self._domyslne = {}
+        return self._domyslne
+
+    def _zle_starty(self, T):
+        """Pola startowe przy schodach T, które już nie rusza krokiem (zablokowane mimo mapy): pomijane na stałe."""
+        if getattr(self, "_zle", None) is None:
+            self._zle = {}
+            try:
+                if PLIK_ZLYCH is not None and Path(PLIK_ZLYCH).exists():
+                    d = json.loads(Path(PLIK_ZLYCH).read_text())
+                    self._zle = {str(k): [tuple(int(a) for a in q[:2]) for q in v] for k, v in d.items()}
+            except Exception:
+                self._zle = {}
+        return self._zle.get(f"{T[0]},{T[1]},{T[2]}", [])
+
+    def _zapisz_zle(self, T, S):
+        zle = self._zle_starty(T)
+        if tuple(S) in zle:
+            return
+        zle.append(tuple(S))
+        self._zle[f"{T[0]},{T[1]},{T[2]}"] = zle
+        d = self._wczytaj_starty()
+        klucz = f"{T[0]},{T[1]},{T[2]}"
+        if d.get(klucz) == [S[0], S[1]]:
+            d.pop(klucz, None)                  # zła pamięć startu: nie wracamy do tego pola
+        if PLIK_ZLYCH is None:
+            return
+        try:
+            tmp = Path(str(PLIK_ZLYCH) + ".tmp")
+            tmp.write_text(json.dumps({k: [list(q) for q in v] for k, v in self._zle.items()}, indent=1, sort_keys=True))
+            os.replace(tmp, PLIK_ZLYCH)
+        except Exception:
+            pass
 
     def _zapamietaj_start(self, T, poz):
         """Przejście wyszło z pola ortogonalnego do T: zapamiętaj je jako pierwsze na następny raz (per schody)."""
@@ -219,12 +319,13 @@ class Pietra:
                 zaj = {tuple(q[:2]) for q in cb.zajete_bez_nas(poz)}
             except Exception:
                 pass
-            mem = tuple(self._wczytaj_starty().get(f"{T[0]},{T[1]},{T[2]}", ()))
+            klucz = f"{T[0]},{T[1]},{T[2]}"
+            mem = tuple(self._wczytaj_starty().get(klucz) or self._wczytaj_domyslne().get(klucz) or ())
             pola = []
             for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
                 c = (T[0] + dx, T[1] + dy)
                 f = _flaga(cb.mapa, c[0], c[1], T[2])
-                if f & 1 and not f & (2 | 4) and (c not in zaj or c == p):
+                if f & 1 and not f & (2 | 4) and (c not in zaj or c == p) and c not in self._zle_starty(T):
                     pola.append(c)
             pola.sort(key=lambda c: (c != mem, cheb(c, p)))
             st.update(starty_dla=T, starty=pola, odw=set(), biezacy=None, zmien=False, ruchy=0)
@@ -236,6 +337,7 @@ class Pietra:
             if S == p:
                 st.update(biezacy=S, zmien=False, ruchy=0)
                 st["odw"].add(S)
+                self._nd.pop((tuple(T), S), None)       # dotarliśmy na S: licznik "nie dotarł" od zera
                 return None
             return S
         return None
@@ -243,24 +345,56 @@ class Pietra:
     def _na_start(self, poz, S, T, st):
         """Jeden obieg dojścia na pole startowe S: strzałka, gdy sąsiaduje w osi, inaczej zwykłe podejście."""
         cb = self.cb
+        pre_max = int(self._k("PIETRA_PRE_MAX", 1))
+        if pre_max > 0 and cheb(poz, S) == 1 and st.get("pre", {}).get(S, 0) >= pre_max:
+            # R1b: pre-krok na S już był, a dalej stoimy poza S: to "nie dotarł na S" (liczone po pozycji, więc odporne
+            # na migotanie wyniku kroku); po START_KROK_NIE_MAX takich razach pole idzie do pietra_zle.json
+            T_ = tuple(T)
+            self._nd[(T_, S)] = self._nd.get((T_, S), 0) + 1
+            st["odw"].add(S)
+            st["ruchy"] = 0
+            if self._nd[(T_, S)] >= START_KROK_NIE_MAX:
+                self._zapisz_zle(T, S)
+                self.log(f"Przejście pięter: nie dotarłem na {S} przy schodach {T[:2]} {self._nd[(T_, S)]} razy, "
+                         f"pole startowe do złych")
+            else:
+                self.log(f"Przejście pięter: pre-krok na {S} przy schodach {T[:2]} nie dotarł, próbuję stąd")
+            return True
         st["ruchy"] += 1
         if st["ruchy"] > START_RUCHY_MAX:
             st["odw"].add(S)
             st["ruchy"] = 0
+            self._zapisz_zle(T, S)
             self.log(f"Przejście pięter: nie dochodzę na pole {S} przy schodach {T[:2]}, pomijam")
             return True
         dx, dy = S[0] - poz[0], S[1] - poz[1]
         if cheb(poz, S) == 1 and not (dx and dy) and not _flaga(cb.mapa, S[0], S[1], poz[2]) & 4:
             kier = ("Right" if dx > 0 else "Left") if dx else ("Down" if dy > 0 else "Up")
             self.log(f"Przejście pięter: ustawiam się ortogonalnie ze schodami {T[:2]}: krok {kier} z {tuple(poz)} na {S}")
+            ruszyl = None
+            if pre_max > 0:
+                st.setdefault("pre", {})[S] = st.get("pre", {}).get(S, 0) + 1
             try:
                 cb.zatrzymaj_klik(poz)
                 cb.klik_cel = None
-                cb.postac.krok(kier)
+                ruszyl = cb.postac.krok(kier)
             except bot.Zatrzymano:
                 raise
             except Exception:
                 pass
+            if pre_max > 0:
+                pass                # R1b: skutek oceniamy po pozycji w następnym obiegu (patrz początek _na_start)
+            elif ruszyl is None:      # 14.10: pole nie odpowiada na krok (zajęte/zablokowane mimo mapy): nie męczymy go 8 razy
+                st["krok_nie"] = st.get("krok_nie", 0) + 1
+                if st["krok_nie"] >= START_KROK_NIE_MAX:
+                    st["odw"].add(S)
+                    st["ruchy"] = 0
+                    st["krok_nie"] = 0
+                    self._zapisz_zle(T, S)
+                    self.log(f"Przejście pięter: krok {kier} na {S} nie rusza postaci {START_KROK_NIE_MAX} razy, "
+                             f"pomijam pole startowe przy schodach {T[:2]}")
+            else:
+                st["krok_nie"] = 0
             cb.pauza(0.15, 0.3)
             return True
         r = cb.podejdz(S, poz, objazd=False, dlugosc=0)
@@ -293,16 +427,49 @@ class Pietra:
 
     # --- próby przejścia ---
 
+    def _dane(self):
+        """R1b: tryby i pole startowe z danych (PIETRA_TRYBY_Z_DANYCH=1); 0 = dawny porządek prób."""
+        return bool(self._k("PIETRA_TRYBY_Z_DANYCH", 1))
+
     def _tryby(self, k, st):
+        if self._dane():
+            if k["lad"][2] > st["z0"]:
+                return list(TRYBY_DOL_DANE)
+            if _schody(self.cb.mapa, k["pole"], k["lad"]):
+                return list(TRYBY_GORA_SCHODY)
+            return list(TRYBY_GORA_DRABINA)
         if k["lad"][2] > st["z0"]:
             return list(TRYBY_DOL[bool(k["pewne"])])
         return list(TRYBY_GORA)
+
+    def _stosuje(self, tryb, poz, T, teraz):
+        """R1b: czy tryb ma zastosowanie w tej chwili. "krok" nie z własnego pola przejścia; "lopata" tylko dla dziury
+        zasypanej (ZASYPANE), przy włączonym PIETRA_LOPATA, z łopatą w plecaku i z operacją łopaty."""
+        if tryb == "krok":
+            return (poz[0], poz[1]) != (T[0], T[1])
+        if tryb == "lopata":
+            return bool(self._k("PIETRA_LOPATA", 1)) and (T[0], T[1], T[2]) in ZASYPANE \
+                and teraz >= getattr(self, "brak_lopaty_do", float("-inf")) \
+                and getattr(self.ops, "uzyj_lopate", None) is not None
+        return True
+
+    def _wybierz(self, st, k, poz, teraz):
+        """R1b: najbliższy tryb z zastosowaniem na bieżącym slocie; sloty bez zastosowania wypadają z listy, więc nie
+        zużywają numeru próby. None = lista wyczerpana."""
+        tr = st["tryby"]
+        while st["proby"] < len(tr):
+            if self._stosuje(tr[st["proby"]], poz, k["pole"], teraz):
+                return tr[st["proby"]]
+            tr.pop(st["proby"])
+        return None
 
     def _proba(self, poz, st, k, teraz):
         cb = self.cb
         if st["tryby"] is None:
             st["tryby"] = self._tryby(k, st)
             st["proby"] = 0
+        if self._dane():
+            self._wybierz(st, k, poz, teraz)
         tryby = st["tryby"]
         n = st["proby"]
         if n >= len(tryby):
@@ -362,9 +529,9 @@ class Pietra:
                             cb.spij(0.5)
                             if tuple(cb.postac.pozycja()) != tuple(poz):
                                 st["proby"] = n
-                                return self._po_przejsciu(z0, st, poz, teraz, k, "klik po skosie") or True
+                                return self._po_przejsciu(z0, st, poz, teraz, k, "klik po skosie", czekaj=self._czekaj("krok")) or True
                         tryb, opis = "krok_skos", "krok po skosie bez skutku"
-                        if self._po_przejsciu(z0, st, poz, teraz, k, opis):
+                        if self._po_przejsciu(z0, st, poz, teraz, k, opis, czekaj=self._czekaj("krok")):
                             return True
                         st["nast"] = cb.zegar() + self._odstep(n)
                         return True
@@ -414,6 +581,9 @@ class Pietra:
                         if nowa != tuple(poz):
                             poz = nowa
                             break
+                if self._dane() and (poz[0], poz[1]) == (T[0], T[1]):
+                    self.log(f"Przejście pięter: nie zeszło z dziury {T[:2]}, łopata z własnego pola nie działa, pomijam")
+                    return True
                 self.log(f"Przejście pięter: próba {n + 1}/{len(tryby)} (łopata na {cel_k[:2]}, odkopuję dziurę) "
                          f"z {tuple(poz)}")
                 self._tele("pietra_lopata", poz=list(poz), pole=list(cel_k), proba=n + 1)
@@ -440,9 +610,9 @@ class Pietra:
             self.log(f"Przejście pięter: próba {tryb} nie wyszła ({ex!r})")
             st["nast"] = teraz + self._odstep(n)
             return True
-        if self._po_przejsciu(z0, st, poz, teraz, k, opis):
+        if self._po_przejsciu(z0, st, poz, teraz, k, opis, czekaj=self._czekaj(tryb)):
             return True
-        if tryb in ("use", "R") and not na_polu:
+        if tryb in ("use", "R") and not na_polu and not self._dane():
             st["zmien"] = True          # Ctrl+klik bez skutku: następna próba z innego pola ortogonalnego (jeśli jest)
         st["nast"] = cb.zegar() + self._odstep(n)
         return True
@@ -450,16 +620,28 @@ class Pietra:
     def _use(self, pole, poz, _):
         self.ops.uzyj_pole(pole, poz)
 
-    @staticmethod
-    def _odstep(n):
-        odst = (1.0, 2.0, 4.0, 6.0)
+    def _odstep(self, n):
+        # R1b: przy skróconym czekaniu pierwszy odstęp między próbami ledwie zauważalny (dawniej 1 s po 3,5 s czekania)
+        odst = (0.2, 1.0, 2.0, 4.0) if float(self._k("PIETRA_CZEKAJ_KROK_S", 1.2)) > 0 else (1.0, 2.0, 4.0, 6.0)
         return odst[min(n, len(odst) - 1)]
 
-    def _po_przejsciu(self, z0, st, poz_przed, teraz, k, opis):
-        """Po próbie: do ~2 s sprawdzamy pozycję (z rdzenia). Zmiana piętra = sukces."""
+    def _czekaj(self, tryb):
+        """s czekania na zmianę piętra po próbie: krok 1,2, R i reszta 2,0 (p99 udanych 1,5 i 1,8 s); 0 w pokrętle = dawne 2,0."""
+        ks = float(self._k("PIETRA_CZEKAJ_KROK_S", 1.2))
+        rs = float(self._k("PIETRA_CZEKAJ_R_S", 2.0))
+        if tryb == "lopata" and ks > 0:
+            return 0.4                  # łopata otwiera dziurę, piętra nie zmienia
+        if tryb.startswith("krok"):
+            return ks if ks > 0 else 2.0
+        return rs if rs > 0 else 2.0
+
+    def _po_przejsciu(self, z0, st, poz_przed, teraz, k, opis, czekaj=2.0):
+        """Po próbie: przez `czekaj` s (co 0,4 s) sprawdzamy pozycję (z rdzenia). Zmiana piętra = sukces.
+        czekaj 0 = jeden odczyt bez czekania (opóźniony sukces wykryty przed kolejną próbą)."""
         cb = self.cb
-        for _ in range(5):
-            cb.spij(0.4)
+        for _ in range(max(1, int(math.ceil(czekaj / 0.4 - 1e-9))) if czekaj > 0 else 1):
+            if czekaj > 0:
+                cb.spij(0.4)
             p = cb.postac.pozycja()
             if p[2] != z0:
                 n = st["proby"]
@@ -470,7 +652,8 @@ class Pietra:
                 self._tele("pietra_krok", z_od=z0, z_do=p[2], poz=list(p), idx=cb.idx, proba=n, tryb=opis,
                            oczekiwane=oczekiwane, czas_s=round(teraz - st["od"], 1))
                 T = k["pole"]
-                if cheb(poz_przed, T) == 1 and (poz_przed[0] == T[0] or poz_przed[1] == T[1]) and poz_przed[2] == T[2]:
+                if cheb(poz_przed, T) == 1 and (poz_przed[0] == T[0] or poz_przed[1] == T[1]) and poz_przed[2] == T[2] \
+                        and (not self._dane() or opis.startswith("krok")):      # R1b: pamięć startu tylko dla kroku
                     self._zapamietaj_start(T, poz_przed)
                 self._sukces(p)
                 return True

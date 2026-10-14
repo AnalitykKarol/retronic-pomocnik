@@ -745,7 +745,7 @@
    "slowa": {
     "blank": "blank rune"
    },
-   "zweryfikowane": false,
+   "zweryfikowane": true,
    "drzwi": [
     [
      32365,
@@ -758,7 +758,7 @@
      7
     ]
    ],
-   "_uwaga": "13.10 11:35 z nagrania Karola trasy/drzwi_frodo.json: stał przy (32400,32219..32220), drzwi sklepu (32400,32217). NPC Xodet nie potwierdzony odpowiedzią."
+   "_uwaga": "13.10 11:35 z nagrania Karola trasy/drzwi_frodo.json: stał przy (32400,32219..32220), drzwi sklepu (32400,32217). 14.10 11:31 zweryfikowane na żywo: buy 20 blank rune -> 200 gold, yes -> Here you are., stoi (32400,32220,7)."
   }
  }
 }

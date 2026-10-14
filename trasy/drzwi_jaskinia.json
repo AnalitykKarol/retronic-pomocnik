@@ -1,0 +1,6 @@
+{
+ "opis": "Drzwi w jaskini trolli (R1c): pole przechodnie dla pościgu i patrolu mimo ściany w mapie; zamknięte = Use z pola obok (max 3 próby, potem odpuszczenie).",
+ "drzwi": [
+  {"id": "drzwi_32505_32270", "pole": [32505, 32270, 8], "os": "x", "strony": [[32504, 32270, 8], [32506, 32270, 8]]}
+ ]
+}

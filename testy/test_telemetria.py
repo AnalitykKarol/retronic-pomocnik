@@ -360,6 +360,8 @@ sprawdz("telemetria: licznik puszczeń per powód i t_pierwszy_krok z poscig_kon
 # --- P4: zapis tylko na żywo, blokada pisarza, pid/sesja, ścisły RE_LOOT ---
 def _pliki(k): return list(Path(k).glob("telemetria-*.jsonl"))
 _env0 = {k: os.environ.get(k) for k in ("RETRONIC_TELEMETRIA", "RETRONIC_TESTY")}
+_src0 = telemetria._src
+telemetria._src = lambda: "mozg"            # R0a: zapis domyślny tylko w procesie mozg.py; test udaje mozg
 try:
     # 1. przy RETRONIC_TESTY (nawet z RETRONIC_TELEMETRIA=1) i bez zmiennej: brak pliku
     k1 = Path(tempfile.mkdtemp())
@@ -391,7 +393,21 @@ try:
     for f in telemetria._BLOKADY.values():
         os.close(f)
     telemetria._BLOKADY.clear()
+    # R0a: ten sam proces, ale nie mozg.py (skrypt pomocniczy, test bez RETRONIC_TESTY): brak zapisu mimo RETRONIC_TELEMETRIA=1
+    telemetria._src = lambda: "cavebot"
+    k4 = Path(tempfile.mkdtemp())
+    te = _Tele(k4, zegar=zegar); te.zdarzenie("info", tekst="x")
+    sprawdz("R0a-1 proces inny niż mozg.py: brak zapisu, pliku i blokady",
+            te.zapis is False and not _pliki(k4) and not (k4 / "telemetria.lock").exists())
+    telemetria._src = lambda: "mozg"
+    k5 = Path(tempfile.mkdtemp())
+    te = _Tele(k5, zegar=zegar); te.zdarzenie("info", tekst="x")
+    sprawdz("R0a-2 mozg.py z RETRONIC_TELEMETRIA=1 nadal zapisuje (produkcja bez zmian)", te.zapis is True and len(_pliki(k5)) == 1)
+    for f in telemetria._BLOKADY.values():
+        os.close(f)
+    telemetria._BLOKADY.clear()
 finally:
+    telemetria._src = _src0
     for k, v in _env0.items():
         if v is None: os.environ.pop(k, None)
         else: os.environ[k] = v
@@ -413,6 +429,65 @@ sprawdz("P4-3d loot_wstrzymany z polem zwloki i n",
 tl_.linia("Loot: pelny_plecak")
 sprawdz("P4-3e Loot: pelny_plecak jest lootem", [r["wynik"] for r in tl_.rek if r["typ"] == "loot"] == ["pelny_plecak"])
 
+
+# --- R0a: postać "Ja" nie zapisuje nic (nawet przy jawnym zapis=True) ---
+kj = Path(tempfile.mkdtemp())
+tj = _Tele(kj, zegar=zegar, zapis=True)
+tj.nazwa_postaci = "Ja"
+tj.zdarzenie("pietra_krok", z_od=8, z_do=9)
+sprawdz("R0a-3 nazwa Ja: zdarzenie w pamięci, brak pliku", len(tj.rek) == 1 and not _pliki(kj))
+kj2 = Path(tempfile.mkdtemp())
+tj2 = _Tele(kj2, zegar=zegar, zapis=True)
+cbj = types.SimpleNamespace(cel=None, stan="IDZ", ignorowane={}, zegar=zegar, droga_bez_blokad=0,
+                            postac=types.SimpleNamespace(nazwa="Ja"))
+tj2.probka(cbj, {"proc": 90}, (100, 100, 7), [])
+tj2.zdarzenie("pietra_start", z_od=8, z_do=9)
+sprawdz("R0a-4 cb.postac.nazwa Ja: brak pliku", not _pliki(kj2))
+kj3 = Path(tempfile.mkdtemp())
+tj3 = _Tele(kj3, zegar=zegar, zapis=True)
+cbj.postac = types.SimpleNamespace(nazwa="Karol")
+tj3.probka(cbj, {"proc": 90}, (100, 100, 7), [{"nazwa": "Ja", "gracz": True, "x": 100, "y": 100, "z": 7, "id": 1, "hp": 90}])
+tj3.zdarzenie("pietra_start", z_od=8, z_do=9)
+sprawdz("R0a-5 własny wpis Ja w stworach: brak pliku", not _pliki(kj3))
+kj4 = Path(tempfile.mkdtemp())
+tj4 = _Tele(kj4, zegar=zegar, zapis=True)
+tj4.probka(cbj, {"proc": 90}, (100, 100, 7), [])
+sprawdz("R0a-6 zwykła postać zapisuje", len(_pliki(kj4)) == 1)
+
+# --- R0b: ruch_okno ---
+T0 = [1000.0]
+tr = _Tele(Path(tempfile.mkdtemp()), zegar=lambda: T0[0], zapis=False)
+def _tik(t, poz, stan="IDZ", powod="inne", kl=0, st=0):
+    T0[0] = t
+    return tr.ruch_tick(t, poz, stan, powod, kl, st)
+_tik(1000.0, (100, 100, 8))
+_tik(1001.0, (101, 100, 8), kl=1)                       # marsz 1 s, 1 pole
+_tik(1002.0, (101, 100, 8), powod="schody")             # stoi 1 s (schody)
+_tik(1004.5, (101, 100, 8), powod="patrol_postoj")      # stoi 2,5 s + luka 2,5 s
+_tik(1005.5, (102, 101, 8), kl=2, st=3)                 # marsz 1 s, 1 pole (skos)
+_tik(1006.5, (102, 101, 9))                             # zmiana piętra
+_tik(1007.0, (102, 101, 9), stan="WALKA", powod="walka")
+r_ = _tik(1031.0, (102, 101, 9), stan="WALKA", powod="walka", kl=5, st=3)   # >= 30 s od początku: zamknięcie okna
+sprawdz("R0b-1 okno zamknięte po 30 s i zapisane jako ruch_okno", r_ is not None and r_["typ"] == "ruch_okno" and r_["okno_s"] == 31.0)
+sprawdz("R0b-2 czas marszu i stania w IDZ", r_["stany"]["IDZ"] == [3.0, 3.5])
+sprawdz("R0b-3 przyczyny stania", r_["powody_s"].get("schody") == 1.0 and r_["powody_idz_s"].get("patrol_postoj") == 2.5
+        and r_["powody_s"].get("walka") == 24.5 and "walka" not in r_["powody_idz_s"])
+sprawdz("R0b-4 luki ticka > 1,5 s (2,5 s i 24 s)", r_["luki"] == 2 and r_["luka_max"] == 24.0 and r_["luki_s"] == 26.5)
+sprawdz("R0b-5 kroki, zmiany pięter, kliki, strzałki", r_["kroki"] == 2 and r_["zmiany_pietra"] == 1
+        and r_["kliki"] == 5 and r_["strzalki"] == 3)
+r2_ = _tik(1032.0, (102, 101, 9), stan="WALKA", powod="walka", kl=5, st=3)
+sprawdz("R0b-6 po zamknięciu liczniki od zera", r2_ is None and tr._ruch["ticki"] == 1 and tr._ruch["kroki"] == 0)
+_tik(1100.0, (50, 50, 8), kl=5, st=3)                   # teleport: pola nie liczone
+sprawdz("R0b-7 skok > RUCH_SKOK_MAX nie dolicza pól", tr._ruch["kroki"] == 0)
+
+# próbka wczesna: bez A*, z polem wczesna, nie zasila epizodów
+tw_ = _Tele(Path(tempfile.mkdtemp()), zegar=zegar, zapis=False)
+cbw = types.SimpleNamespace(cel=None, stan="IDZ", ignorowane={}, zegar=zegar, droga_bez_blokad=0,
+                            droga=lambda *a, **k: (_ for _ in ()).throw(AssertionError("A* w próbce wczesnej")),
+                            postac=types.SimpleNamespace(nazwa="Karol"))
+rw = tw_.probka(cbw, {"proc": 90}, (100, 100, 7), [{"nazwa": "Rat", "gracz": False, "x": 101, "y": 100, "z": 7, "id": 5, "hp": 80}],
+                wczesna="ogien_wyjdz")
+sprawdz("R0b-8 próbka wczesna: pole wczesna, bez A*", rw is not None and rw["wczesna"] == "ogien_wyjdz" and "droga" not in rw["stwory"][0])
 
 print("WYNIK:", "OK" if ok else "BŁĄD")
 sys.exit(0 if ok else 1)

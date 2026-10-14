@@ -222,32 +222,227 @@ def przejscie(s):
     for _ in range(400):
         if s.zmiany or not b.tick(): break
     return b
+# 8 (R1b). R ze skosu bez pre-kroków: dziura w górę (drabina) = Ctrl+klik z pola, na którym stoimy
 plik = Path(tempfile.mkdtemp()) / "pietra_start.json"
 pietra.PLIK_STARTOW = plik
 try:
-    # a) start po skosie, Ctrl+klik działa wszędzie: pierwsza próba z pola ortogonalnego, brak kroków po skosie
     s = SwiatS(poz0, gora="use"); przejscie(s)
     sprawdz("8a przejście wyszło", len(s.zmiany) == 1 and s.poz[2] == 8, f"{s.zmiany}")
-    sprawdz("8a pierwsza próba z pola ortogonalnego", s.z_pol and ortog(s.z_pol[0]), f"{s.z_pol}")
-    sprawdz("8a bez 'po skosie' w logu", not any("po skosie" in l for l in LOG))
-    zap = json.loads(plik.read_text()) if plik.exists() else {}
-    sprawdz("8a zapamiętane pole startowe", zap.get(f"{R8[0]},{R8[1]},{R8[2]}") == list(s.z_pol[0]), f"{zap}")
-    # b) pamięć: zapamiętane pole (nie to, które wybrałby bez pamięci) jest pierwsze
-    daleko = [c for c in orto if max(abs(c[0] - poz0[0]), abs(c[1] - poz0[1])) == 1][-1]   # sąsiad poz0, ostatni w kolejności
+    sprawdz("8a pierwsza próba R ze skosu (z pola, na którym stoimy)", s.z_pol and s.z_pol[0] == (poz0[0], poz0[1]), f"{s.z_pol} poz0={poz0}")
+    sprawdz("8a bez pre-kroków i bez kroków po skosie", not any(("ortogonalnie" in l or "po skosie" in l) for l in LOG),
+            f"{[l for l in LOG if 'ortog' in l or 'skosie' in l][:2]}")
+    sprawdz("8a próba 1/3 (R, krok, R)", any("próba 1/3 (R" in l for l in LOG), f"{[l for l in LOG if 'próba' in l][:2]}")
+    sprawdz("8a R nie zapisuje pola startowego (pamięć tylko dla kroku)", not plik.exists() or json.loads(plik.read_text()) == {})
+    # b) zapamiętane pole startowe nie wyciąga postaci z miejsca przed R
+    daleko = [c for c in orto if max(abs(c[0] - poz0[0]), abs(c[1] - poz0[1])) == 1][-1]
     plik.write_text(json.dumps({f"{R8[0]},{R8[1]},{R8[2]}": list(daleko)}))
     s = SwiatS(poz0, gora="use"); przejscie(s)
-    sprawdz("8b zapamiętane pole użyte jako pierwsze", s.z_pol and s.z_pol[0] == daleko, f"{s.z_pol} oczekiwane {daleko}")
-    # c) Ctrl+klik działa tylko z jednego pola: zmieniamy pole ortogonalne (bez kroków po skosie), próby <= 8
+    sprawdz("8b pamięć startu nie przestawia postaci przed R", s.z_pol and s.z_pol[0] == (poz0[0], poz0[1]), f"{s.z_pol}")
+    # c) R nie działa nigdzie: tryby R, krok, R; krok dopiero z pola ortogonalnego, bez kroków po skosie i bez lina/E/W/N
     plik.write_text("{}")
-    dobre = daleko
-    s = SwiatS(poz0, gora="use", dobre=dobre); przejscie(s)
-    sprawdz("8c po nieudanym Ctrl+klik przejście z innego pola", len(s.zmiany) == 1 and len(s.z_pol) >= 2 and s.z_pol[-1] == dobre,
-            f"{s.z_pol} zmiany={s.zmiany}")
-    sprawdz("8c bez serii kroków po skosie", not any("po skosie" in l for l in LOG), f"{[l for l in LOG if 'skosie' in l][:2]}")
-    sprawdz("8c limit prób 8 zachowany", not any("próba 9/" in l for l in LOG))
-    sprawdz("8c po sukcesie zapamiętane dobre pole", json.loads(plik.read_text()).get(f"{R8[0]},{R8[1]},{R8[2]}") == list(dobre))
+    s = SwiatS(poz0, gora="nigdy"); przejscie(s)
+    ostatnie = " ".join(LOG)
+    sprawdz("8c bez trybów lina/wlasne/E/W/N/use", not any(t in ostatnie for t in ("(lina", "(wlasne", "(E)", "(W)", "(N)", "(use")),
+            f"{[l for l in LOG if 'próba' in l][:6]}")
+    sprawdz("8c najwyżej 3 próby na pole", not any("próba 4/" in l for l in LOG))
 finally:
     pietra.PLIK_STARTOW = None
+
+# 8s. dawne zasady (pokrętła R1b = 0): pierwsza próba z pola ortogonalnego, jak przed 14.10
+cavebot.PIETRA_TRYBY_Z_DANYCH = 0; cavebot.PIETRA_PRE_MAX = 0; cavebot.PIETRA_CZEKAJ_KROK_S = 0.0
+try:
+    plik = Path(tempfile.mkdtemp()) / "pietra_start.json"
+    pietra.PLIK_STARTOW = plik
+    try:
+        # a) start po skosie, Ctrl+klik działa wszędzie: pierwsza próba z pola ortogonalnego, brak kroków po skosie
+        s = SwiatS(poz0, gora="use"); przejscie(s)
+        sprawdz("8s-a przejście wyszło", len(s.zmiany) == 1 and s.poz[2] == 8, f"{s.zmiany}")
+        sprawdz("8s-a pierwsza próba z pola ortogonalnego", s.z_pol and ortog(s.z_pol[0]), f"{s.z_pol}")
+        sprawdz("8s-a bez 'po skosie' w logu", not any("po skosie" in l for l in LOG))
+        zap = json.loads(plik.read_text()) if plik.exists() else {}
+        sprawdz("8s-a zapamiętane pole startowe", zap.get(f"{R8[0]},{R8[1]},{R8[2]}") == list(s.z_pol[0]), f"{zap}")
+        # b) pamięć: zapamiętane pole (nie to, które wybrałby bez pamięci) jest pierwsze
+        daleko = [c for c in orto if max(abs(c[0] - poz0[0]), abs(c[1] - poz0[1])) == 1][-1]   # sąsiad poz0, ostatni w kolejności
+        plik.write_text(json.dumps({f"{R8[0]},{R8[1]},{R8[2]}": list(daleko)}))
+        s = SwiatS(poz0, gora="use"); przejscie(s)
+        sprawdz("8s-b zapamiętane pole użyte jako pierwsze", s.z_pol and s.z_pol[0] == daleko, f"{s.z_pol} oczekiwane {daleko}")
+        # c) Ctrl+klik działa tylko z jednego pola: zmieniamy pole ortogonalne (bez kroków po skosie), próby <= 8
+        plik.write_text("{}")
+        dobre = daleko
+        s = SwiatS(poz0, gora="use", dobre=dobre); przejscie(s)
+        sprawdz("8s-c po nieudanym Ctrl+klik przejście z innego pola", len(s.zmiany) == 1 and len(s.z_pol) >= 2 and s.z_pol[-1] == dobre,
+                f"{s.z_pol} zmiany={s.zmiany}")
+        sprawdz("8s-c bez serii kroków po skosie", not any("po skosie" in l for l in LOG), f"{[l for l in LOG if 'skosie' in l][:2]}")
+        sprawdz("8s-c limit prób 8 zachowany", not any("próba 9/" in l for l in LOG))
+        sprawdz("8s-c po sukcesie zapamiętane dobre pole", json.loads(plik.read_text()).get(f"{R8[0]},{R8[1]},{R8[2]}") == list(dobre))
+    finally:
+        pietra.PLIK_STARTOW = None
+
+finally:
+    cavebot.PIETRA_TRYBY_Z_DANYCH = 1; cavebot.PIETRA_PRE_MAX = 1; cavebot.PIETRA_CZEKAJ_KROK_S = 1.2
+
+# 9. schody (32498,32270): krok w obie strony jako pierwsza próba (R na tych schodach prawie nigdy nie działa)
+SCH = (32498, 32270)
+class SwiatSch(Swiat):
+    def ruch(s, dx, dy):
+        x, y, z = s.poz[0] + dx, s.poz[1] + dy, s.poz[2]
+        if (x, y) == SCH and z in (8, 9):
+            nz = 8 if z == 9 else 9
+            ny = y + 1 if z == 9 else y            # w górę ląduje o pole niżej na ekranie, w dół na tym samym polu
+            s.zmiany.append((tuple(s.poz), nz)); s.poz[:] = [x, ny, nz]; s.odwiedzone.add(tuple(s.poz)); return
+        super().ruch(dx, dy)
+    def uzyj(s, pole):
+        s.uzycia.append(tuple(pole))               # Ctrl+klik na schodach nie działa
+def schody(poz, a, b, c):
+    LOG.clear()
+    s = SwiatSch(poz, gora="krok")
+    bb = zrob(s, [a, b, c], okrazenia=1); bb.idx = 1
+    for _ in range(300):
+        if s.zmiany or not bb.tick(): break
+    return s, bb
+kg = pietra.kandydaci(M, (32498, 32272, 9), (32498, 32271, 8), (32498, 32272, 9), 3)[0]
+sprawdz("9 schody wykryte (flaga 2 na obu piętrach)", pietra._schody(M, kg["pole"], kg["lad"]) and kg["pole"][:2] == SCH, f"{kg}")
+s, bb = schody((32498, 32272, 9), (32498, 32272, 9), (32498, 32271, 8), (32498, 32272, 8))
+sprawdz("9a schody w górę: przejście krokiem", len(s.zmiany) == 1 and s.poz[2] == 8, f"{s.zmiany}")
+sprawdz("9a pierwsza próba to krok, bez Ctrl+klik", any("próba 1/3 (krok" in l for l in LOG) and not s.uzycia, f"{s.uzycia} {[l for l in LOG if 'próba' in l]}")
+s, bb = schody((32500, 32270, 8), (32500, 32270, 8), (32498, 32270, 9), (32498, 32272, 9))
+sprawdz("9b schody w dół: przejście krokiem z (32499,32270)", len(s.zmiany) == 1 and s.zmiany[0][0] == (32499, 32270, 8) and not s.uzycia,
+        f"{s.zmiany} {s.uzycia}")
+sprawdz("9c drabina nie jest typem schody", not pietra._schody(M, R8, (R8[0], R8[1] + 1, R8[2] - 1)))
+
+# 10. łopata: tylko zasypana dziura i z pola sąsiedniego; slot bez zastosowania nie zużywa próby
+class OpsL(Ops):
+    def __init__(o, s): super().__init__(s); o.kopal = []
+    def uzyj_lopate(o, cel, poz): o.kopal.append((tuple(cel), tuple(poz)))
+def z_lopata(poz, trasa, idx, **kw):
+    LOG.clear()
+    s = Swiat(poz, dol="nigdy"); bb = zrob(s, trasa, okrazenia=1); bb.pietra_ops = OpsL(s); bb.idx = idx
+    for _ in range(120):
+        if not bb.tick(): break
+    return s, bb
+stary_t7 = cavebot.PIETRA_LOPATA_TYLKO_Z7
+try:
+    cavebot.PIETRA_LOPATA_TYLKO_Z7 = 0
+    # dziura otwarta na z8 (troll i=8): nowe zasady nie kopią, dawne tak
+    s, bb = z_lopata(tuple(troll[7]), list(troll), 8)
+    sprawdz("10a otwarta dziura: bez łopaty", not bb.pietra_ops.kopal and not any("łopata" in l for l in LOG), f"{bb.pietra_ops.kopal}")
+    sprawdz("10a numery prób bez dziur (1/3, 2/3, 3/3)", any("próba 3/3" in l for l in LOG) and not any("próba 4/" in l for l in LOG))
+    cavebot.PIETRA_TRYBY_Z_DANYCH = 0
+    s, bb = z_lopata(tuple(troll[7]), list(troll), 8)
+    sprawdz("10a dawne zasady (pokrętło 0): łopata na otwartej dziurze jak dawniej", bool(bb.pietra_ops.kopal), f"{bb.pietra_ops.kopal}")
+    cavebot.PIETRA_TRYBY_Z_DANYCH = 1
+finally:
+    cavebot.PIETRA_TRYBY_Z_DANYCH = 1; cavebot.PIETRA_LOPATA_TYLKO_Z7 = stary_t7
+# zasypana (32493,32259,z7): łopata z pola sąsiedniego, nie z własnego
+tr7 = [(32492, 32258, 7), (32493, 32259, 8), (32493, 32260, 8)]
+s, bb = z_lopata((32492, 32258, 7), tr7, 1)
+kop = bb.pietra_ops.kopal
+sprawdz("10b zasypana dziura: łopata użyta", bool(kop) and kop[0][0] == (32493, 32259, 7), f"{kop}")
+sprawdz("10b łopata z pola sąsiedniego, nie z własnego", all(max(abs(c[0] - p[0]), abs(c[1] - p[1])) == 1 for c, p in kop), f"{kop}")
+sprawdz("10b lista prób: krok, łopata, krok, łopata, krok", any("próba 1/5 (krok" in l for l in LOG), f"{[l for l in LOG if 'próba' in l][:3]}")
+
+# 11. kandydat "domysł": tylko w promieniu 3 od gracza i z flagą mapy; kotwica na graczu
+a11, b11 = (32483, 32297, 9), (32482, 32295, 8)
+sprawdz("11a domysł ze ścianą (32482,32294,z9) odrzucony", pietra.kandydaci(M, a11, b11, a11, 3) == [])
+sprawdz("11a pokrętło 0: dawny domysł jest", [k["pole"] for k in pietra.kandydaci(M, a11, b11, a11, 0)] == [(32482, 32294, 9)])
+sprawdz("11b daleki domysł (144 pola od gracza) odrzucony", pietra.kandydaci(None, (32348, 32224, 8), (32348, 32224, 7), (32492, 32258, 8), 3) == [])
+sprawdz("11b domysł blisko gracza bez mapy zostaje", len(pietra.kandydaci(None, (100, 100, 8), (102, 100, 9), (101, 99, 8), 3)) == 1)
+sprawdz("11b ten sam domysł z promieniem 0 (dawne) zostaje także daleko", len(pietra.kandydaci(None, (100, 100, 8), (102, 100, 9), (190, 99, 8), 0)) == 1)
+# w trasie: brak kandydata = porażka z logiem "wyczerpane", bez błądzenia 26 s po ścianie
+s = Swiat((32483, 32297, 9)); tr11 = [(32483, 32297, 9), (32482, 32295, 8), (32482, 32297, 8)]
+LOG.clear(); bb = zrob(s, tr11, okrazenia=1); bb.idx = 1
+for _ in range(60):
+    if not bb.tick(): break
+    if s.zmiany: break
+sprawdz("11c brak pewnego przejścia: żadna próba w ścianę (32482,32294)", not any("(32482, 32294)" in l and "próba" in l for l in LOG), f"{[l for l in LOG if 'próba' in l][:2]}")
+
+# 12. pole startowe stuknięte 2 razy trafia do pietra_zle.json także przy migotaniu pozycji (krok "udany", postać stoi)
+class PM(P):
+    def krok(p, k):
+        p.s.t += 0.2; return True                           # migotanie: krok zgłasza ruch, pozycja bez zmian
+class SwiatM(Swiat):
+    def ruch(s, dx, dy):
+        if (s.poz[0] + dx, s.poz[1] + dy) in s.blok:
+            return                                           # pole startowe zablokowane mimo mapy
+        super().ruch(dx, dy)
+T12 = (32476, 32272, 8)
+def stukaj(pre_max, rund):
+    LOG.clear()
+    plz = Path(tempfile.mkdtemp()) / "pietra_zle.json"
+    pietra.PLIK_ZLYCH = plz
+    cavebot.PIETRA_PRE_MAX = pre_max
+    try:
+        s = SwiatM((32477, 32273, 8), dol="nigdy"); s.blok = {(T12[0] + dx, T12[1] + dy) for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))}
+        tr = list(troll); tr[16] = (32477, 32273, 8)             # punkt przed dziurą (32476,32272), po skosie od niej
+        bb = zrob(s, tr, okrazenia=1); bb.postac = PM(s)
+        for r in range(rund):
+            s.poz[:] = [32477, 32273, 8]; bb.punkty[:] = list(tr); bb.idx = 17; bb.pietra_porazki = 0; 
+            if bb.pietra: bb.pietra.st = None
+            for _ in range(80):
+                if not bb.tick(): break
+        return json.loads(plz.read_text()) if plz.exists() else {}, bb
+    finally:
+        pietra.PLIK_ZLYCH = None; cavebot.PIETRA_PRE_MAX = 1
+z1, _ = stukaj(1, 1)
+pre = [l.split(" na ")[-1] for l in LOG if "ustawiam się ortogonalnie" in l]
+sprawdz("12d najwyżej 1 pre-krok na pole startowe w jednym przejściu", pre and len(pre) == len(set(pre)), f"{pre}")
+sprawdz("12a po 1 nieudanym dojściu jeszcze nie do złych", not z1, f"{z1}")
+z2, bb12 = stukaj(1, 2)
+sprawdz("12b po 2 nieudanych dojściach pole do złych mimo migotania", any(v for v in z2.values()), f"{z2}")
+LOG.clear(); z0, _ = stukaj(0, 1)
+sprawdz("12c dawne zasady (PRE_MAX=0): pre-kroki w kółko, więcej niż jeden na pole", sum(1 for l in LOG if "ustawiam się ortogonalnie" in l) > 4,
+        f"{sum(1 for l in LOG if 'ustawiam się ortogonalnie' in l)}")
+
+# 13. czekanie na zmianę piętra: krok 1,2 s, R 2,0 s; opóźnione przejście wykryte przed kolejną próbą
+pp = pietra.Pietra(types.SimpleNamespace(), konf=cavebot)
+sprawdz("13a czekanie: krok 1,2 s, R 2,0 s, łopata 0,4 s", (pp._czekaj("krok"), pp._czekaj("R"), pp._czekaj("lopata")) == (1.2, 2.0, 0.4))
+cavebot.PIETRA_CZEKAJ_KROK_S = 0.0
+sprawdz("13a pokrętło 0 = dawne 2,0 s", pp._czekaj("krok") == 2.0 and pp._odstep(0) == 1.0)
+cavebot.PIETRA_CZEKAJ_KROK_S = 1.2
+sprawdz("13a odstęp po skróceniu czekania", pp._odstep(0) == 0.2)
+class SwiatO(Swiat):
+    """Przejście w dół zgłasza się dopiero 1,6 s po kroku (dłużej niż czekanie 1,2 s)."""
+    def ruch(s, dx, dy):
+        x, y, z = s.poz[0] + dx, s.poz[1] + dy, s.poz[2]
+        if f(x, y, z) & 2 and f(x, y, z) & 1 and getattr(s, "op", None) is None:
+            s.op = (s.t + 1.6, [x, y, z + 1]); s.poz[:] = [x, y, z]; return
+        super().ruch(dx, dy)
+class PO(P):
+    def pozycja(p):
+        o = getattr(p.s, "op", None)
+        if o and p.s.t >= o[0]:
+            p.s.zmiany.append((tuple(p.s.poz), o[1][2])); p.s.poz[:] = o[1]; p.s.op = None
+        return tuple(p.s.poz)
+LOG.clear()
+s = SwiatO(troll[7]); bb = zrob(s, list(troll), okrazenia=1); bb.postac = PO(s); bb.idx = 8
+for _ in range(80):
+    if s.zmiany or not bb.tick(): break
+sprawdz("13b opóźnione przejście wykryte, bez drugiej próby", len(s.zmiany) == 1 and not any("próba 2/" in l for l in LOG),
+        f"{s.zmiany} {[l for l in LOG if 'próba' in l]}")
+
+# 14. zasiane dobre pola startowe: dane domyślne (osobny plik), nigdy nie trafiają do pietra_start.json
+dom = json.loads((TRASY / "pietra_starty_domyslne.json").read_text())
+oczek = {(32499, 32270), (32477, 32272), (32494, 32290), (32495, 32289), (32482, 32295), (32483, 32297)}
+sprawdz("14a plik zawiera 6 pól ze specu", {tuple(v) for k, v in dom.items() if not k.startswith("_")} == oczek, f"{dom}")
+pietra.PLIK_STARTOW_DOMYSLNE = TRASY / "pietra_starty_domyslne.json"
+plik14 = Path(tempfile.mkdtemp()) / "pietra_start.json"; pietra.PLIK_STARTOW = plik14
+try:
+    ppp = pietra.Pietra(types.SimpleNamespace(), konf=cavebot)
+    sprawdz("14b wczytane jako domyślne", ppp._wczytaj_domyslne().get("32498,32270,8") == [32499, 32270])
+    sprawdz("14b pamięć bota (pietra_start) pusta, domyślne osobno", ppp._wczytaj_starty() == {})
+    ppp._zapamietaj_start((32498, 32270, 8), (32498, 32269, 8))
+    zapis = json.loads(plik14.read_text())
+    sprawdz("14c zapis pamięci bota nie zawiera zasianych pól", zapis == {"32498,32270,8": [32498, 32269]}, f"{zapis}")
+    cavebot.PIETRA_STARTY_DOMYSLNE = 0
+    sprawdz("14d pokrętło 0 = bez zasiewu", pietra.Pietra(types.SimpleNamespace(), konf=cavebot)._wczytaj_domyslne() == {})
+finally:
+    cavebot.PIETRA_STARTY_DOMYSLNE = 1; pietra.PLIK_STARTOW = None; pietra.PLIK_STARTOW_DOMYSLNE = None
+
+# 15. pokrętła R1b w pokretla.py i w na_zywo.przyklad.json
+import pokretla
+przyklad = json.loads((Path(_R) / "na_zywo.przyklad.json").read_text())
+for nazwa in ("PIETRA_TRYBY_Z_DANYCH", "PIETRA_CZEKAJ_KROK_S", "PIETRA_CZEKAJ_R_S", "PIETRA_DOMYSL_PROMIEN", "PIETRA_PRE_MAX", "PIETRA_STARTY_DOMYSLNE"):
+    sprawdz(f"15 pokrętło {nazwa}", nazwa in pokretla.ZAKRESY and nazwa in przyklad and przyklad[nazwa] == getattr(cavebot, nazwa))
 
 print(f"\nOK={sum(ok)} FAIL={len(ok) - sum(ok)}")
 sys.exit(0 if all(ok) else 1)

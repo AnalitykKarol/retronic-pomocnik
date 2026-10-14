@@ -101,9 +101,10 @@ class Mapa:
         return bool(f & BEZ_DROGI)
 
     def droga(self, start, cel, zajete=(), dlugosc=1, skosy=True, limit=DROGA_LIMIT,
-              schody=False, nieznane=False, znane=None):
+              schody=False, nieznane=False, znane=None, przepusc=None):
         """Najkrótsza droga po mapie piętra start=(x,y,z) do najbliższego pola, z którego do
-        cel=(x,y[,z]) jest <= dlugosc (Chebyshev). Krok prosty kosztuje 1, skos 3 (jak w cavebot).
+        cel=(x,y[,z]) jest <= dlugosc (Chebyshev). `przepusc` (zbiór kluczy x*_K+y): pola przechodnie mimo ściany
+        w mapie (drzwi, R1c). Krok prosty kosztuje 1, skos 3 (jak w cavebot).
         Pola z `zajete` ((x,y) albo (x,y,z)) omijamy; schody/dziury (flaga 2) tylko gdy schody=True,
         pola niewidziane tylko gdy nieznane=True albo gdy ich klucz x*_K+y jest w `znane` (pola, na
         których stał gracz, a minimapa ich nie ma). Zwraca listę pól (x,y,z) bez startu
@@ -129,6 +130,8 @@ class Mapa:
                 f = b[((y & 63) * 64 + (x & 63)) * 3] if b is not None else 0
                 w = (bool(f & WIDZIANE) or nieznane or (znane is not None and k in znane)) \
                     and not f & zle and k not in blok
+                if not w and przepusc and k in przepusc and k not in blok:
+                    w = True
                 dozwolone[k] = w
             return w
 

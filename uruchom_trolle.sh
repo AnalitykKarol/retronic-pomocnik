@@ -35,6 +35,8 @@ elif [ -z "$Z" ]; then
   notify-send "$TYTUL" "Nie znam piętra postaci: dojście z depo zdecyduje mozg po starcie"
   DOJSCIE=(--dojscie depo_troll_cave --dojscie-jesli-z7)
 fi
+# BEZ_DOJSCIA=1: start bez dojścia z depo (np. najpierw wyprawa po blanki/jedzenie; wyprawa nie startuje w trakcie dojścia)
+[ "${BEZ_DOJSCIA:-0}" = "1" ] && DOJSCIE=()
 # Opcjonalnie MAPA=trolle_nowe (mapy.json) zamiast TRASA, TRYB=sredni,runy (tryby.json). Bez obu zmiennych bez zmian.
 if [ -n "$MAPA$TRYB" ]; then
   printf 'MAPA=%q\nTRYB=%q\n' "$MAPA" "$TRYB" > "$DIR/ostatni_start${RETRONIC_ID:+.$RETRONIC_ID}.env"   # guzik/panel (uruchom.sh) startuje ostatni tryb

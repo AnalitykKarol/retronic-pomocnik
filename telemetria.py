@@ -23,6 +23,11 @@ ASTAR_CO = 2.0                     # s: droga liczona nie częściej; między ty
 BLISKO_LOOT = 5                    # żywy cel tak blisko przy starcie lootu = anomalia
 UTKNIECIE_S = 15                   # stoi w IDZ/WALKA bez ruchu tyle sekund = utknięcie
 STANY_POSTOJU = ("PRZERWA", "PAUZA", "JEDZENIE", "LOOT", "GRACZ", "UCIECZKA")
+RUCH_OKNO_S = 30.0                 # R0b: co tyle sekund rekord ruch_okno
+RUCH_LUKA_S = 1.5                  # R0b: odstęp między obiegami tyle lub dłuższy = luka ticka
+RUCH_DT_MAX = 30.0                 # R0b: do czasu marszu/stania liczymy najwyżej tyle z jednego odstępu (pauza bota to luka)
+RUCH_SKOK_MAX = 8                  # R0b: przesunięcie większe (Czebyszew) = teleport/wypad, nie liczymy pól
+NAZWY_TESTOWE = ("Ja",)            # R0a: postać atrapy z testów i skryptów pomocniczych, jej telemetrii nie zapisujemy
 
 RE_CEL = re.compile(r"Nowy cel: (.+?) \((\d+),(\d+)\) HP (\d+)%")
 RE_ODP = re.compile(r"Odpuszczam (.+?)(?: poza ekranem)?: (.*)")
@@ -46,8 +51,10 @@ _BLOKADY = {}                      # katalog -> otwarty deskryptor blokady zapis
 
 
 def _zapis_wlaczony():
-    """13.10 (P4): zapis do prawdziwego pliku tylko na żywo: RETRONIC_TELEMETRIA=1 i bez RETRONIC_TESTY."""
-    return os.environ.get("RETRONIC_TELEMETRIA") == "1" and not os.environ.get("RETRONIC_TESTY")
+    """13.10 (P4): zapis do prawdziwego pliku tylko na żywo: RETRONIC_TELEMETRIA=1 i bez RETRONIC_TESTY.
+    14.10 (R0a): dodatkowo tylko proces mozg.py (skrypty pomocnicze i testy uruchamiane jako inny plik nie piszą)."""
+    return (os.environ.get("RETRONIC_TELEMETRIA") == "1" and not os.environ.get("RETRONIC_TESTY")
+            and _src() == "mozg")
 
 
 def _src():
@@ -69,6 +76,8 @@ class Telemetria:
         self.pid = os.getpid()
         self.sesja = round(time.time(), 1)     # czas startu procesu (obiektu): odróżnia pisarzy w jednym pliku
         self.src = _src()
+        self.nazwa_postaci = None        # R0a: ustawia Cavebot; nazwa z NAZWY_TESTOWE blokuje zapis na dysk
+        self._ruch = None                # R0b: stan okna ruchu (patrz ruch_tick)
         if self.zapis and self._blokada:
             self._zajmij_blokade()
         self.rek = deque()               # rekordy z ostatniej godziny
@@ -128,13 +137,16 @@ class Telemetria:
     def _plik(self, t):
         return self.katalog / f"telemetria-{time.strftime('%Y%m%d', time.localtime(t))}.jsonl"
 
+    def _postac_testowa(self):
+        return self.nazwa_postaci in NAZWY_TESTOWE
+
     def _zapisz(self, r):
         if self.zapis:
             r["pid"], r["sesja"], r["src"] = self.pid, self.sesja, self.src
         self.rek.append(r)
         while self.rek and r["t"] - self.rek[0]["t"] > PAMIEC_S:
             self.rek.popleft()
-        if not self.zapis:
+        if not self.zapis or self._postac_testowa():     # R0a: atrapa "Ja" nie trafia do pliku
             return
         try:
             self.katalog.mkdir(parents=True, exist_ok=True)
@@ -177,14 +189,18 @@ class Telemetria:
         self.akcja = (self.zegar(), nazwa, str(wynik)[:60])
 
     # --- próbka z cavebota ---
-    def probka(self, cb, g, poz, lista):
+    def probka(self, cb, g, poz, lista, wczesna=None):
+        """wczesna: powód wczesnego zakończenia obiegu (R0b); próbka bez liczenia dróg (A*), tylko z cache."""
         t = self.zegar()
         if t - self.ostatnia_probka < 1.0:
             return None
         self.ostatnia_probka = t
+        nz = getattr(getattr(cb, "postac", None), "nazwa", None)
+        if isinstance(nz, str):
+            self.nazwa_postaci = nz
         stwory = []
         dbb = getattr(cb, "droga_bez_blokad", 0)   # nasze zapytania o drogę nie psują licznika bota
-        liczyc = t - self.astar_ost >= ASTAR_CO
+        liczyc = t - self.astar_ost >= ASTAR_CO and not wczesna
         if liczyc:
             self.astar_ost = t
             self.astar_cache = {}
@@ -217,6 +233,8 @@ class Telemetria:
                 if s["id"] in self.astar_cache:
                     w["osiagalny"], w["droga"] = self.astar_cache[s["id"]]
             stwory.append(w)
+            if w["gracz"] and odl == 0 and w["n"] in NAZWY_TESTOWE:
+                self.nazwa_postaci = w["n"]              # R0a: własny wpis atrapy
         stwory.sort(key=lambda w: w["odl"])
         cb.droga_bez_blokad = dbb
         r = {"t": round(t, 1), "typ": "probka", "stan": cb.stan, "poz": list(poz),
@@ -224,6 +242,8 @@ class Telemetria:
              "mana": g.get("mana"), "max_mana": g.get("max_mana"), "stwory": stwory[:STWORY_MAX], "dbb": dbb}
         if g.get("exp") is not None:
             r["exp"] = g["exp"]
+        if wczesna:
+            r["wczesna"] = wczesna
         if cb.cel:
             r["cel"] = {k: cb.cel.get(k) for k in ("id", "nazwa", "poz", "hp", "odl")}
             if any(w.get("cel") and w.get("ign") for w in stwory):
@@ -238,12 +258,65 @@ class Telemetria:
             r["akcja"] = {"co": self.akcja[1], "wynik": self.akcja[2], "temu": round(t - self.akcja[0], 1)}
         self._zapisz(r)
         self._utknięcie(r)
+        if wczesna:              # R0b: próbka z wczesnego zakończenia obiegu tylko uzupełnia lukę, nie zasila epizodów
+            return r
         try:
             self._ep_probka(r)
             self._exp_probka(r)
         except Exception:        # pomiar nigdy nie psuje bota
             pass
         return r
+
+    # --- R0b: okno ruchu co RUCH_OKNO_S (czas marszu/stania, przyczyny, luki, kroki, kliki) ---
+    def ruch_tick(self, t, poz, stan, powod, kliki=0, strzalki=0):
+        """Wołane raz na początku obiegu Cavebot.tick (przed wczesnymi return), bez RPC: tylko arytmetyka.
+        Odstęp od poprzedniego obiegu liczymy do marszu (pozycja się zmieniła) albo stania (nie), w stanie `stan`
+        z początku obiegu (to, co bot robił w tym odstępie). `powod` = przyczyna stania (schody, ogien, utkniecie,
+        loot, walka, patrol_postoj, inne). Zwraca rekord ruch_okno, gdy okno się zamknęło."""
+        poz = tuple(poz)
+        w = self._ruch
+        if w is None:
+            self._ruch = {"t0": t, "t": t, "poz": poz, "kl": kliki, "st": strzalki, **self._ruch_puste()}
+            return None
+        dt = t - w["t"]
+        if dt > 0:
+            dtc = min(dt, RUCH_DT_MAX)
+            ruszyl = poz != w["poz"]
+            if ruszyl and poz[2] != w["poz"][2]:
+                w["zmiany_pietra"] += 1
+            elif ruszyl and max(abs(poz[0] - w["poz"][0]), abs(poz[1] - w["poz"][1])) <= RUCH_SKOK_MAX:
+                w["kroki"] += max(abs(poz[0] - w["poz"][0]), abs(poz[1] - w["poz"][1]))
+            ms = w["stany"].setdefault(str(stan), [0.0, 0.0])
+            if ruszyl:
+                ms[0] += dtc
+            else:
+                ms[1] += dtc
+                w["powody"][powod] = w["powody"].get(powod, 0.0) + dtc
+                if stan == "IDZ":
+                    w["powody_idz"][powod] = w["powody_idz"].get(powod, 0.0) + dtc
+            w["ticki"] += 1
+            if dt >= RUCH_LUKA_S:
+                w["luki"] += 1
+                w["luki_s"] += dt
+                w["luka_max"] = max(w["luka_max"], dt)
+        w["t"], w["poz"] = t, poz
+        if t - w["t0"] < RUCH_OKNO_S:
+            return None
+        r = self.zdarzenie(
+            "ruch_okno", okno_s=round(t - w["t0"], 1), ticki=w["ticki"],
+            stany={k: [round(v[0], 1), round(v[1], 1)] for k, v in w["stany"].items()},
+            powody_s={k: round(v, 1) for k, v in w["powody"].items()},
+            powody_idz_s={k: round(v, 1) for k, v in w["powody_idz"].items()},
+            luki=w["luki"], luki_s=round(w["luki_s"], 1), luka_max=round(w["luka_max"], 1),
+            kroki=w["kroki"], zmiany_pietra=w["zmiany_pietra"],
+            kliki=max(0, kliki - w["kl"]), strzalki=max(0, strzalki - w["st"]), poz=list(poz))
+        self._ruch = {"t0": t, "t": t, "poz": poz, "kl": kliki, "st": strzalki, **self._ruch_puste()}
+        return r
+
+    @staticmethod
+    def _ruch_puste():
+        return {"stany": {}, "powody": {}, "powody_idz": {}, "ticki": 0, "luki": 0, "luki_s": 0.0, "luka_max": 0.0,
+                "kroki": 0, "zmiany_pietra": 0}
 
     # --- epizody celu (dobijanie) ---
     def _ep_pamiec(self, d):

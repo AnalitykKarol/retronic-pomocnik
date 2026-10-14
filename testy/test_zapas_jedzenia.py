@@ -316,5 +316,26 @@ if _os.path.exists(panel):
 else:
     print("(pominięto 14: brak panel.png)")
 
+# 15. N5: nieudane jedzenie przy nieczytelnych kontenerach to nie "brak jedzenia"
+s = Swiat(mana=35, zapas=0); b = zrob(s); s.odczyt = "brak"
+glodny_hp(b, s)
+b.jedzenie = None
+b.zjedz(s.t, b.gracz())
+sprawdz("15a kontenery puste: jedzenie_znane_brak False", not b.jedzenie_znane_brak(s.t) and b.jedzenie_odczyt_watpliwy(s.t))
+s = Swiat(mana=35, zapas=0); b = zrob(s); s.odczyt = "ok"
+glodny_hp(b, s)
+b.zjedz(s.t, b.gracz())
+sprawdz("15b plecak czytelny i pusty: brak jedzenia znany", b.jedzenie_znane_brak(s.t) and not b.jedzenie_odczyt_watpliwy(s.t))
+cavebot.JEDZENIE_BRAK_WALIDUJ = 0
+s = Swiat(mana=35, zapas=0); b = zrob(s); s.odczyt = "brak"
+glodny_hp(b, s)
+b.zjedz(s.t, b.gracz())
+sprawdz("15c pokrętło 0: dawne zachowanie (brak znany)", b.jedzenie_znane_brak(s.t))
+cavebot.JEDZENIE_BRAK_WALIDUJ = 1
+s = Swiat(mana=35, zapas=0); b = zrob(s); s.odczyt = "brak"
+b.zjedz(s.t, b.gracz()); s.odczyt = "ok"; s.zapas = 3
+s.t += cavebot.JEDZENIE_PONOW + 1
+sprawdz("15d po wygaśnięciu okna znów liczy się odczyt", not b.jedzenie_odczyt_watpliwy(s.t))
+
 print("\nWYNIK:", sum(ok), "/", len(ok))
 sys.exit(0 if all(ok) else 1)

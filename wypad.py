@@ -881,7 +881,8 @@ class Wypad:
             # za daleko od pola drabiny: wracamy do chodzenia po poprzednim etapie
             if self.ei > 0 and self.etapy[self.ei - 1]["typ"] == "IDZ":
                 self.ei -= 1
-                self.pi = 0
+                # 14.10: ostatni punkt odcinka (przy przejściu), nie pierwszy: pi = 0 cofało postać do miasta
+                self.pi = max(0, len(self.etapy[self.ei].get("punkty") or ()) - 1)
             else:
                 return self._awaria("lina_daleko", f"poz {poz}, drabina {e['cel']}")
             return True
@@ -918,7 +919,8 @@ class Wypad:
         if cheb(poz, h) > 1:
             if self.ei > 0 and self.etapy[self.ei - 1]["typ"] == "IDZ":
                 self.ei -= 1
-                self.pi = 0
+                # 14.10: ostatni punkt odcinka (przy przejściu), nie pierwszy: pi = 0 cofało postać do miasta
+                self.pi = max(0, len(self.etapy[self.ei].get("punkty") or ()) - 1)
                 return True
             return self._awaria("dziura_daleko", f"poz {poz}, dziura {h}")
         if self._nie_czas(e, teraz):
@@ -942,6 +944,9 @@ class Wypad:
                 uzyj = getattr(self.ops, "uzyj_lopate", None)
                 if not self._k("PIETRA_LOPATA", 1) or uzyj is None:
                     cb.pauza(0.2, 0.5)
+                    return True
+                if self._k("PIETRA_LOPATA_TYLKO_Z7", 1) and poz[2] != 7:
+                    cb.pauza(0.2, 0.5)          # 14.10: schody/dziury w jaskini nie są zasypane, łopata tylko na z7 (jak w pietra.py)
                     return True
                 cel_k = (poz[0], poz[1], poz[2]) if na_dziurze else h
                 self.log(f"Wypad: dziura {tuple(h)[:2]} zasypana? próba {n + 1}: odkopuję łopatą ({cel_k[:2]}) z {tuple(poz)}")
@@ -1016,7 +1021,8 @@ class Wypad:
                 return self._awaria("drzwi_daleko", f"poz {poz}, drzwi {h}", e)
             if self.ei > 0 and self.etapy[self.ei - 1]["typ"] == "IDZ":
                 self.ei -= 1
-                self.pi = 0
+                # 14.10: ostatni punkt odcinka (przy przejściu), nie pierwszy: pi = 0 cofało postać do miasta
+                self.pi = max(0, len(self.etapy[self.ei].get("punkty") or ()) - 1)
                 return True
             return self._awaria("drzwi_daleko", f"poz {poz}, drzwi {h}", e)
         if self._nie_czas(e, teraz):

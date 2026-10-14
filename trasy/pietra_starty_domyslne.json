@@ -1,0 +1,9 @@
+{
+ "_opis": "R1b 14.10: zasiane dobre pola startowe przy przejsciach pieter (dane 12 h), tylko odczyt; zapamietane przez bota pola sa w pietra_start.json i maja pierwszenstwo",
+ "32476,32272,8": [32477, 32272],
+ "32482,32296,8": [32482, 32295],
+ "32482,32296,9": [32483, 32297],
+ "32494,32289,8": [32494, 32290],
+ "32494,32289,9": [32495, 32289],
+ "32498,32270,8": [32499, 32270]
+}

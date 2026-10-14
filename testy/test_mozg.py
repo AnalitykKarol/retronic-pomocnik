@@ -1071,6 +1071,33 @@ g, sw, cbc, mm, wys = czat_c2()
 g.czat.append({"nadawca": "GM Zed", "tekst": "hmm?", "kanal": "Default"}); mm.czat_zdarzenie()
 sprawdz("C2g2 GM = ALARM_GM mimo braku nicka", mm.alarm_gm)
 
+# N4: cap null, zapas null przy niewidocznym plecaku, wolne_sloty, pokrętło MODEL_TRASA_MIASTA
+g, sw, cbc, mm, wys = czat_c2()
+_old = g.__call__
+def _g0(z, _o=_old):
+    r = _o(z)
+    if z["cmd"] == "gracz": r["gracz"]["cap"] = 0
+    return r
+mm.zapytaj = _g0
+st = mm.zbuduj_stan()
+sprawdz("N4a cap 0 -> null", st["gracz"]["cap"] is None, st["gracz"])
+sprawdz("N4a2 cap_dla_modelu: 240 bez max_cap zostaje, 0 z max_cap 0 null",
+        mozg.cap_dla_modelu({"cap": 240}) == 240 and mozg.cap_dla_modelu({"cap": 50, "max_cap": 0}) is None)
+z = mozg.zapas_dla_modelu([])
+sprawdz("N4b puste kontenery: zapas null + notatka", z["jedzenie"] is None and z["blanki"] is None and "plecak niewidoczny" in z["uwaga"], z)
+z = mozg.zapas_dla_modelu("brak odczytu: x")
+sprawdz("N4b2 brak odczytu: null", z["jedzenie"] is None)
+z = mozg.zapas_dla_modelu([{"nazwa": "Backpack", "przedmioty": ["ham", "blank rune", "blank rune"]}])
+sprawdz("N4b3 plecak widoczny: liczy", z["jedzenie"] == 1 and z["blanki"] == 2, z)
+sprawdz("N4c SYSTEM: zakaz plecak pelny bez wolne_sloty, cap niewiarygodny",
+        "wolne_sloty" in mozg.SYSTEM and "niewiarygodne" in mozg.SYSTEM and "plecak niewidoczny" in mozg.SYSTEM)
+st_old = getattr(mozg.cavebot, "MODEL_TRASA_MIASTA", 0)
+_, a0 = mozg.waliduj({"akcje": [{"typ": "zmien_trase", "nazwa": "troll_do_miasta"}]}, trasy=["troll_do_miasta"])
+mozg.cavebot.MODEL_TRASA_MIASTA = 1
+_, a1 = mozg.waliduj({"akcje": [{"typ": "zmien_trase", "nazwa": "troll_do_miasta"}]}, trasy=["troll_do_miasta"])
+mozg.cavebot.MODEL_TRASA_MIASTA = st_old
+sprawdz("N4d trasa miasta: odrzucona (0), dozwolona (1)", a0 == [{"typ": "kontynuuj"}] and a1 == [{"typ": "zmien_trase", "nazwa": "troll_do_miasta"}], (a0, a1))
+
 import shutil; shutil.rmtree(tmp)
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

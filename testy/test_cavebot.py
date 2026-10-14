@@ -3636,7 +3636,7 @@ sprawdz("43a2 skos awaryjny policzony i zalogowany", b.skos_awaryjny_n >= 1 and 
         (b.skos_awaryjny_n, cavelog[-3:]))
 
 # 43b. pokrętło 0: dawne zachowanie (objazd, brak ruchu)
-cavebot.POSCIG_SKOS_AWARYJNY = 0
+cavebot.POSCIG_SKOS_AWARYJNY = 0; cavebot.POSCIG_SKOSY_ZAPAS = 0   # R1c: stare zachowanie bez drugiej próby
 try:
     _random.seed(11)
     s, b = swiat_rog()
@@ -3644,7 +3644,7 @@ try:
     sprawdz("43b POSCIG_SKOS_AWARYJNY=0: brak drogi, objazd, postać stoi", r is None and tuple(s.poz[:2]) == (100, 100)
             and not any(z[2] == (1, -1) for z in s.zd), (r, s.poz, s.zd))
 finally:
-    cavebot.POSCIG_SKOS_AWARYJNY = 1
+    cavebot.POSCIG_SKOS_AWARYJNY = 1; cavebot.POSCIG_SKOSY_ZAPAS = 1
 
 # 43c. pole po skosie zajęte przez potwora: nie wchodzimy (objazd), brak naciśnięcia skosu
 _random.seed(11)
@@ -3699,14 +3699,14 @@ b = zrob(s, trasa()); b.postac = P43(s); b.mapa = MapaRog(ROG_WOLNE)
 wynik = b.krok_do((101, 99, 7))
 sprawdz("43e2 skos bez efektu: False, nie ściana (sciany puste), skos_zle zapamiętany", wynik is False and sciany_ok(b)
         and b.skos_zle, (wynik, b.sciany, b.skos_zle))
-cavebot.POSCIG_SKOS_AWARYJNY = 0
+cavebot.POSCIG_SKOS_AWARYJNY = 0; cavebot.POSCIG_SKOSY_ZAPAS = 0   # R1c: stare zachowanie bez drugiej próby
 try:
     s = Swiat(poz=(100, 100, 7)); s.skos_dziala = True
     b = zrob(s, trasa()); b.postac = P43(s); b.mapa = MapaRog(ROG_WOLNE)
     wynik = b.krok_do((101, 99, 7))
     sprawdz("43e3 pokrętło 0: krok_do nie robi skosu", wynik is False and tuple(s.poz) == (100, 100, 7), (wynik, s.poz))
 finally:
-    cavebot.POSCIG_SKOS_AWARYJNY = 1
+    cavebot.POSCIG_SKOS_AWARYJNY = 1; cavebot.POSCIG_SKOSY_ZAPAS = 1
 
 # 43f. podejdz poza pętlą pościgu (klik): droga ze skosem -> klik (1,-1); trasa: A* _droga_trasy daje skos
 s = Swiat(poz=(100, 100, 7)); b = zrob_klik(s, trasa()); b.mapa = MapaRog(ROG_WOLNE)
@@ -3715,12 +3715,12 @@ sprawdz("43f podejdz (natychmiast, odl 3): klik w pole po skosie (1,-1), nie Non
 d = b.droga((100, 100, 7), (104, 96), dlugosc=0)   # to wywołuje _droga_trasy (domyślnie skosy)
 sprawdz("43f2 droga trasy (A*): przez skosy do (104,96)", d == [(101, 99, 7), (102, 98, 7), (103, 97, 7), (104, 96, 7)], d)
 s = Swiat(poz=(100, 100, 7)); b = zrob_klik(s, trasa()); b.mapa = MapaRog(ROG_WOLNE)
-cavebot.POSCIG_SKOS_AWARYJNY = 0
+cavebot.POSCIG_SKOS_AWARYJNY = 0; cavebot.POSCIG_SKOSY_ZAPAS = 0   # R1c: stare zachowanie bez drugiej próby
 try:
     wynik = b.podejdz((103, 97), (100, 100, 7), natychmiast=True, zajete=[])
     sprawdz("43f3 pokrętło 0: podejdz None (objazd), brak kliku", wynik is None and not s.kliki, (wynik, s.kliki))
 finally:
-    cavebot.POSCIG_SKOS_AWARYJNY = 1
+    cavebot.POSCIG_SKOS_AWARYJNY = 1; cavebot.POSCIG_SKOSY_ZAPAS = 1
 
 # 43g. pokrętło w pokretla.py: zakres 0..1, kierunek nie_nizej
 import pokretla as _pk

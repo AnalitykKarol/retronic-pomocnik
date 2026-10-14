@@ -204,10 +204,11 @@ class _Ops:
         o.n += 1
         if o.brak: raise Exception("nie widzę łopaty (shovel) w oknie plecaka")
 def _lopata(z, tylko_z7, brak=False, powtorz=1):
-    cb = _CB(z); pt = pietra.Pietra(cb, konf=types.SimpleNamespace(PIETRA_LOPATA=1, PIETRA_LOPATA_TYLKO_Z7=tylko_z7,
+    cb = _CB(z); pt = pietra.Pietra(cb, konf=types.SimpleNamespace(PIETRA_LOPATA=1, PIETRA_LOPATA_TYLKO_Z7=tylko_z7, PIETRA_TRYBY_Z_DANYCH=0,   # R1b: te testy dotyczą dawnych zasad łopaty
+                                                                  
                                                                   PIETRA_LOPATA_BRAK_S=600.0), log=lambda *a: None)
     cb.pietra_ops = _Ops(brak); pt._tele = lambda *a, **k: None
-    pt._po_przejsciu = lambda *a: False
+    pt._po_przejsciu = lambda *a, **k: False
     k = {"pole": (101, 100, z), "lad": (101, 100, z + 1), "pewne": True}
     for _ in range(powtorz):
         st = {"cel": (0, 0, z + 1), "tryby": ["lopata"], "proby": 0, "kand": [k], "ki": 0, "od": 0.0, "nast": 0.0,

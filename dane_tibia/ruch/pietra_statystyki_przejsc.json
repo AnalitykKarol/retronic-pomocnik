@@ -1,0 +1,386 @@
+[
+ {
+  "pole": [
+   32474,
+   32286
+  ],
+  "z_od": 8,
+  "z_do": 9,
+  "n": 5,
+  "ok": 3,
+  "pierwsza_proba_ok": 3,
+  "porazki": 0,
+  "najczestsze_starty": {
+   "(32474, 32287, 8)": 5
+  },
+  "ladowanie": {
+   "(32474, 32286, 9)": 3
+  },
+  "tryby": {
+   "krok": 3
+  },
+  "mediana_s": 1.0
+ },
+ {
+  "pole": [
+   32474,
+   32286
+  ],
+  "z_od": 9,
+  "z_do": 8,
+  "n": 3,
+  "ok": 3,
+  "pierwsza_proba_ok": 3,
+  "porazki": 0,
+  "najczestsze_starty": {
+   "(32474, 32285, 9)": 2,
+   "(32474, 32286, 9)": 1
+  },
+  "ladowanie": {
+   "(32474, 32287, 8)": 3
+  },
+  "tryby": {
+   "R": 3
+  },
+  "mediana_s": 1.0
+ },
+ {
+  "pole": [
+   32476,
+   32272
+  ],
+  "z_od": 8,
+  "z_do": 9,
+  "n": 66,
+  "ok": 66,
+  "pierwsza_proba_ok": 59,
+  "porazki": 0,
+  "najczestsze_starty": {
+   "(32477, 32272, 8)": 59,
+   "(32476, 32273, 8)": 7
+  },
+  "ladowanie": {
+   "(32476, 32272, 9)": 66
+  },
+  "tryby": {
+   "krok": 66
+  },
+  "mediana_s": 1.0
+ },
+ {
+  "pole": [
+   32476,
+   32272
+  ],
+  "z_od": 9,
+  "z_do": 8,
+  "n": 54,
+  "ok": 52,
+  "pierwsza_proba_ok": 50,
+  "porazki": 1,
+  "najczestsze_starty": {
+   "(32476, 32273, 9)": 46,
+   "(32476, 32272, 9)": 8
+  },
+  "ladowanie": {
+   "(32476, 32273, 8)": 52
+  },
+  "tryby": {
+   "R": 50,
+   "krok->use_wlasne": 2
+  },
+  "mediana_s": 1.0
+ },
+ {
+  "pole": [
+   32478,
+   32269
+  ],
+  "z_od": 8,
+  "z_do": 9,
+  "n": 1,
+  "ok": 1,
+  "pierwsza_proba_ok": 0,
+  "porazki": 0,
+  "najczestsze_starty": {
+   "(32478, 32270, 8)": 1
+  },
+  "ladowanie": {
+   "(32478, 32269, 9)": 1
+  },
+  "tryby": {
+   "krok": 1
+  },
+  "mediana_s": 6.0
+ },
+ {
+  "pole": [
+   32478,
+   32269
+  ],
+  "z_od": 9,
+  "z_do": 8,
+  "n": 4,
+  "ok": 4,
+  "pierwsza_proba_ok": 4,
+  "porazki": 0,
+  "najczestsze_starty": {
+   "(32479, 32269, 9)": 4
+  },
+  "ladowanie": {
+   "(32478, 32270, 8)": 4
+  },
+  "tryby": {
+   "R": 4
+  },
+  "mediana_s": 1.0
+ },
+ {
+  "pole": [
+   32482,
+   32296
+  ],
+  "z_od": 8,
+  "z_do": 9,
+  "n": 147,
+  "ok": 145,
+  "pierwsza_proba_ok": 121,
+  "porazki": 0,
+  "najczestsze_starty": {
+   "(32482, 32295, 8)": 141,
+   "(32482, 32297, 8)": 6
+  },
+  "ladowanie": {
+   "(32482, 32296, 9)": 145
+  },
+  "tryby": {
+   "krok": 145
+  },
+  "mediana_s": 1.0
+ },
+ {
+  "pole": [
+   32482,
+   32296
+  ],
+  "z_od": 9,
+  "z_do": 8,
+  "n": 131,
+  "ok": 131,
+  "pierwsza_proba_ok": 93,
+  "porazki": 0,
+  "najczestsze_starty": {
+   "(32483, 32297, 9)": 102,
+   "(32482, 32296, 9)": 28,
+   "(32483, 32296, 9)": 1
+  },
+  "ladowanie": {
+   "(32482, 32297, 8)": 131
+  },
+  "tryby": {
+   "R": 131
+  },
+  "mediana_s": 1.0
+ },
+ {
+  "pole": [
+   32483,
+   32285
+  ],
+  "z_od": 8,
+  "z_do": 9,
+  "n": 33,
+  "ok": 33,
+  "pierwsza_proba_ok": 30,
+  "porazki": 0,
+  "najczestsze_starty": {
+   "(32482, 32285, 8)": 32,
+   "(32483, 32286, 8)": 1
+  },
+  "ladowanie": {
+   "(32483, 32285, 9)": 33
+  },
+  "tryby": {
+   "krok": 33
+  },
+  "mediana_s": 1.0
+ },
+ {
+  "pole": [
+   32483,
+   32285
+  ],
+  "z_od": 9,
+  "z_do": 8,
+  "n": 33,
+  "ok": 33,
+  "pierwsza_proba_ok": 32,
+  "porazki": 0,
+  "najczestsze_starty": {
+   "(32484, 32284, 9)": 32,
+   "(32483, 32285, 9)": 1
+  },
+  "ladowanie": {
+   "(32483, 32286, 8)": 33
+  },
+  "tryby": {
+   "R": 33
+  },
+  "mediana_s": 1.0
+ },
+ {
+  "pole": [
+   32484,
+   32265
+  ],
+  "z_od": 8,
+  "z_do": 9,
+  "n": 2,
+  "ok": 2,
+  "pierwsza_proba_ok": 2,
+  "porazki": 0,
+  "najczestsze_starty": {
+   "(32485, 32265, 8)": 2
+  },
+  "ladowanie": {
+   "(32484, 32265, 9)": 2
+  },
+  "tryby": {
+   "krok": 2
+  },
+  "mediana_s": 1.0
+ },
+ {
+  "pole": [
+   32484,
+   32265
+  ],
+  "z_od": 9,
+  "z_do": 8,
+  "n": 1,
+  "ok": 1,
+  "pierwsza_proba_ok": 1,
+  "porazki": 0,
+  "najczestsze_starty": {
+   "(32484, 32265, 9)": 1
+  },
+  "ladowanie": {
+   "(32484, 32266, 8)": 1
+  },
+  "tryby": {
+   "R": 1
+  },
+  "mediana_s": 1.0
+ },
+ {
+  "pole": [
+   32493,
+   32259
+  ],
+  "z_od": 7,
+  "z_do": 8,
+  "n": 7,
+  "ok": 2,
+  "pierwsza_proba_ok": 2,
+  "porazki": 1,
+  "najczestsze_starty": {
+   "(32492, 32259, 7)": 7
+  },
+  "ladowanie": {
+   "(32493, 32259, 8)": 2
+  },
+  "tryby": {
+   "krok": 2
+  },
+  "mediana_s": 1.0
+ },
+ {
+  "pole": [
+   32494,
+   32289
+  ],
+  "z_od": 8,
+  "z_do": 9,
+  "n": 88,
+  "ok": 88,
+  "pierwsza_proba_ok": 69,
+  "porazki": 0,
+  "najczestsze_starty": {
+   "(32494, 32290, 8)": 88
+  },
+  "ladowanie": {
+   "(32494, 32289, 9)": 88
+  },
+  "tryby": {
+   "krok": 88
+  },
+  "mediana_s": 1.0
+ },
+ {
+  "pole": [
+   32494,
+   32289
+  ],
+  "z_od": 9,
+  "z_do": 8,
+  "n": 75,
+  "ok": 73,
+  "pierwsza_proba_ok": 68,
+  "porazki": 2,
+  "najczestsze_starty": {
+   "(32495, 32289, 9)": 75
+  },
+  "ladowanie": {
+   "(32494, 32290, 8)": 73
+  },
+  "tryby": {
+   "R": 73
+  },
+  "mediana_s": 1.0
+ },
+ {
+  "pole": [
+   32498,
+   32270
+  ],
+  "z_od": 8,
+  "z_do": 9,
+  "n": 31,
+  "ok": 31,
+  "pierwsza_proba_ok": 28,
+  "porazki": 0,
+  "najczestsze_starty": {
+   "(32499, 32270, 8)": 31
+  },
+  "ladowanie": {
+   "(32498, 32271, 9)": 31
+  },
+  "tryby": {
+   "krok": 31
+  },
+  "mediana_s": 1.0
+ },
+ {
+  "pole": [
+   32498,
+   32270
+  ],
+  "z_od": 9,
+  "z_do": 8,
+  "n": 40,
+  "ok": 39,
+  "pierwsza_proba_ok": 3,
+  "porazki": 1,
+  "najczestsze_starty": {
+   "(32498, 32271, 9)": 40
+  },
+  "ladowanie": {
+   "(32498, 32269, 8)": 39
+  },
+  "tryby": {
+   "krok": 36,
+   "R": 3
+  },
+  "mediana_s": 5.0
+ }
+]

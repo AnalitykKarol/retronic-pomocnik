@@ -164,6 +164,7 @@ MAKS_SCALEN = 2                  # ile scaleń rozbitych stosów w plecaku przy 
 PLECAKI = ("bag", "backpack")    # nazwy wzorców tytułu, które oznaczają plecak gracza
 ID_PLECAKOW = {NAZWA_ID["bag"]}  # ID przedmiotu-kontenera, który jest plecakiem gracza
 # Pojemnik na runy (np. Purple backpack): drugi kontener obok plecaka, NIE zwłoki i NIE plecak lootu.
+ID_MONET_W_POJEMNIKU = {3031, 3035, 3043}   # gold, platinum, crystal coin
 ID_RUN_W_POJEMNIKU = {3147, 3198, 3160, 3155, 3191, 3200, 3152}   # blank, HMM, UH, SD, GFB, explosion, IH: kontener tylko z nimi = pojemnik na runy
 ID_TARCZ_W_POJEMNIKU = {3409, 3426}      # steel shield, tarcza z UH_STAN_PLIK: dozwolone w pojemniku na runy chwilowo
 ID_POJEMNIKOW_RUN = {2868}              # ID przedmiotu-kontenera (Purple backpack)
@@ -479,7 +480,13 @@ def czy_runy(kontener):
     # zwykły plecak (id 2854) z samymi runami (blank 3147 / gotowe 3198, 3160 ...) to też pojemnik na runy
     ids = {p.get("id") for p in kontener.get("przedmioty", [])}
     # tarcza odłożona na czas runy (uh.py, gdy w głównym plecaku brak widocznego wolnego pola) nie zmienia roli bagu
-    return bool(ids & ID_RUN_W_POJEMNIKU) and ids <= (ID_RUN_W_POJEMNIKU | ID_TARCZ_W_POJEMNIKU)
+    # 14.10: monety (gold/platinum/crystal) też nie zmieniają roli: loot wrzucił gold do pustego bagu na runy i bot
+    # brał go potem za drugi plecak (UH "kilka okien plecaka", łopata "niejednoznaczne dopasowanie okien")
+    if not (ids & ID_RUN_W_POJEMNIKU) or not ids <= (ID_RUN_W_POJEMNIKU | ID_TARCZ_W_POJEMNIKU | ID_MONET_W_POJEMNIKU):
+        return False
+    przedm = kontener.get("przedmioty", [])
+    monety = sum(1 for p in przedm if p.get("id") in ID_MONET_W_POJEMNIKU)
+    return monety < sum(1 for p in przedm if p.get("id") in ID_RUN_W_POJEMNIKU)   # pojedynczy stos złota w bagu na runy
 
 
 def rola_z_tytulu(tytul):
@@ -552,6 +559,8 @@ def _plan_z_pamieci(obraz, wynik, kontenery, idy, nazwy):
         o.kontener = k
         o.rola = rola_kontenera(k)
     plecaki = [o for o in okna if o.rola == "plecak"]
+    # 14.10: kilka okien "plecak" (np. pusty bag na runy po depo): główny to ten z największą liczbą rzeczy, nie pierwszy
+    plecaki.sort(key=lambda o: -len((o.kontener or {}).get("przedmioty", [])))
     zwloki = [o for o in okna if o.rola == "zwloki"]
     runy = [o for o in okna if o.rola == "runy"]
     wynik.update(zrodlo="pamiec", plecak=plecaki[0] if plecaki else None,
@@ -935,6 +944,19 @@ def _ile_w_kontenerze(numer, ident):
     return suma_id(k, ident) if k is not None else None
 
 
+def blanki_i_miejsce(ids=tuple(sorted(ID_RUN_W_POJEMNIKU))):
+    """Z pamięci (bez myszy): (sztuk runy/blanków w głównym plecaku, wolnych pól w pojemniku na runy albo None,
+    gdy pojemnik nie jest otwarty). None: odczyt nie działa."""
+    kon, _ = kontenery_z_pamieci()
+    if kon is None:
+        return None
+    ile = sum(max(1, q.get("ilosc", 1)) for k in kon if czy_plecak(k) and not czy_runy(k)
+              for q in k.get("przedmioty", []) if q["id"] in ids)
+    runy = next((k for k in kon if czy_runy(k)), None)
+    wolne = None if runy is None else max(0, int(runy.get("pojemnosc", 0)) - len(runy.get("przedmioty", [])))
+    return ile, wolne
+
+
 def przenies_do_runow(ids=tuple(sorted(ID_RUN_W_POJEMNIKU)), maks=30, log=print):
     """Przenosi runy (domyślnie blanki i gotowe runy: ID_RUN_W_POJEMNIKU) z głównego plecaka do pojemnika na runy
     (drugi bag, tylko z runami): drag z slotu na pierwszy wolny widoczny slot. Zwraca liczbę przeniesionych sztuk.
@@ -958,7 +980,7 @@ def przenies_do_runow(ids=tuple(sorted(ID_RUN_W_POJEMNIKU)), maks=30, log=print)
             zajete = {q["slot"] for q in k.get("przedmioty", [])}
             wolny = next((i for i in range(min(len(runy.sloty), k.get("pojemnosc", 0))) if i not in zajete), None)
             if wolny is None:
-                log("przenoszenie run: pojemnik na runy pełny albo bez wolnego widocznego slotu")
+                log("przenoszenie run: brak wolnego widocznego pola w pojemniku na runy")
                 break
             przed = sum(1 for q in k.get("przedmioty", []))
             mysz.przeciagnij(*plecak.sloty[zrodlo[0]["slot"]].srodek, *runy.sloty[wolny].srodek, drganie=4)

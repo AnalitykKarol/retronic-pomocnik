@@ -193,8 +193,10 @@ WYPAD_BLOK_S = 3.0                 # s: tyle stoimy w miejscu ze stworem obok = 
 WYPAD_WALKA_S = 8.0                # s: po zablokowaniu walczymy tak długo, zanim znów ocenimy "biegnij"
 WYPAD_PETLA_S = 8.0                # s: stwór obok i brak postępu (kręcimy się w promieniu WYPAD_PETLA_PROMIEN, np. dziura/drabina) = droga zablokowana, walka; 0 = wyłączone
 WYPAD_PETLA_PROMIEN = 2            # pola (Chebyshev): tyle bot może się ruszać w oknie WYPAD_PETLA_S, a i tak liczy się jako brak postępu
-WYPRAWA_DEPO_BLANKI = 0            # P7b: 1 = w trybie WYPRAWA_TYLKO_DEPO sam brak blanków też jest powodem wyprawy (domyślnie 0: do depo nie kupujemy blanków, tylko powiadomienie)
+WYPRAWA_DEPO_BLANKI = 1            # P7b: 1 = w trybie WYPRAWA_TYLKO_DEPO sam brak blanków też jest powodem wyprawy (domyślnie 1, jak działało 13.10; 0 = tylko powiadomienie)
 WYPRAWA_PO_DEPO_S = 900            # P7c: s: minimalna karencja kolejnej wyprawy po wyprawie zakończonej w depo (liczy się większa z tego i WYPRAWA_CO_MIN)
+BLANKI_AUTO_BAG = 1                # N9: 1 = blanki z głównego plecaka do bagu na runy także poza wyprawą (start bota, potem co BLANKI_AUTO_BAG_MIN min w spokoju)
+BLANKI_AUTO_BAG_MIN = 10           # N9: min odstępu między próbami przeniesienia blanków do bagu
 WYPRAWA_PO_DOJSCIU_S = 300         # P7a: s: po dojściu z depo na spot pierwsza ocena wyprawy najwcześniej po tylu sekundach (0 = bez karencji)
 DOJSCIE_WALKA_PRZEJSCIE_S = 60     # P7d: s: w dojściu stwór obok przy zmianie piętra (dziura/schody) = walka do skutku, ale max tyle s (0 = dawne WYPAD_WALKA_S)
 DOJSCIE_BEZ_UNIKANIA_POL = 0       # P7f: >0 = w dojściu, gdy postać jest w tylu polach od początku dojścia (depo), unikanie graczy wyłączone; 0 = bez zmiany (domyślnie wył.)
@@ -204,12 +206,24 @@ DOJSCIE_BIEGNIJ = 1                # 1 = w dojściu na spot (--dojscie, CavebotD
 PIETRA_LOPATA_TYLKO_Z7 = 1         # pokrętło 0/1: łopata tylko na z7 (wejście do jaskini z powierzchni); 0 = na każdym piętrze (dawne)
 PIETRA_LOPATA_BRAK_S = 600.0       # s: po "nie widzę łopaty" w plecaku nie próbujemy łopaty ponownie
 PIETRA_LOPATA = 1                  # 1 = przy wejściu w dół dziurą (pole z flagą 2) po nieudanym kroku odkopujemy ją łopatą z plecaka (Use with, ID 3457)
+PIETRA_TRYBY_Z_DANYCH = 1          # R1b pokrętło 0/1: przejścia pięter tylko trybami, które działają w danych (schody: krok w obie strony; drabina: R ze skosu bez pre-kroków; łopata tylko zasypana dziura z pola sąsiedniego); ortogonalne pole startowe tylko przed krokiem; slot bez zastosowania nie zużywa próby; 0 = dawny porządek prób
+PIETRA_CZEKAJ_KROK_S = 1.2         # R1b: s czekania na zmianę piętra po kroku (p99 udanych 1,5 s), potem ponowny odczyt pozycji; 0 = dawne 2,0 s + odstępy 1,2,4,6 s
+PIETRA_CZEKAJ_R_S = 2.0            # R1b: s czekania na zmianę piętra po R (Ctrl+klik); p99 udanych 1,8 s
+PIETRA_DOMYSL_PROMIEN = 3          # R1b: kandydat "domysł" tylko w tylu polach od gracza i z flagami mapy zgodnymi z przejściem; 0 = dawne (kotwica na punkcie trasy, bez sprawdzenia)
+PIETRA_PRE_MAX = 1                 # R1b: najwyżej tyle pre-kroków strzałką na pole startowe na przejście; pole, na które nie dotarliśmy START_KROK_NIE_MAX (2) razy, idzie do pietra_zle.json (liczone po pozycji); 0 = dawne (8 ruchów, licznik "krok zwrócił None")
+PIETRA_STARTY_DOMYSLNE = 1         # R1b: zasiane dobre pola startowe z trasy/pietra_starty_domyslne.json (poniżej pamięci z pietra_start.json); 0 = bez zasiewu
 WYPRAWA_DEPO_POWROT = 0            # 1 = po dojściu do depo wyprawa sama wraca na spot (faza "z" po trasie depo_troll_cave) zamiast STOP
 WYPRAWA_DEPO_POSTOJ_S = 0          # s: postój w depo przed powrotem (czas na ręczne odłożenie rzeczy)
+JEDZENIE_BRAK_WALIDUJ = 1          # 1 = "Zjedzono: nic" przy nieczytelnych kontenerach to NIE brak jedzenia (14.10: fałszywy głód -> wyprawa do depo)
+JEDZENIE_BRAK_PROBY = 2            # ile razy ponownie odczytać kontenery po nieudanym jedzeniu, zanim uznamy odczyt za nieczytelny
+GLOD_ZAPAS_WAZNY_S = 120           # s: potwierdzony głód (wyprawa) ważny tylko, gdy zapas był odczytany wiarygodnie w tym oknie
+WYPRAWA_WZNOW_WALIDUJ = 1          # 1 = po restarcie wyprawa po jedzenie sprawdza powód (zapas/kontenery) i wygasa, gdy już nie zachodzi
 WYPRAWA_CZEKAJ_NA_GLOD = 0         # 1 = wyprawa po jedzenie dopiero po potwierdzonym głodzie (nieudana próba jedzenia), nie od razu przy zapasie 0
 WYPRAWA_DEPO_W_WALCE = 1           # 1 = wyprawa do depo (po potwierdzonym głodzie) startuje także w walce i biegnie; 0 = tylko w spokoju
 WYPRAWA_DEPO_ZLOZ = 0                # 1 = zwykła wyprawa zaczyna od depo: składa UH w skrzyni, potem Frodo/Xodet
 WYPRAWA_TYLKO_DEPO = 0              # 1 = wyprawa idzie tylko do depo (troll_do_miasta + A* do pola depo), tam STOP + powiadomienie; bez zakupów i powrotu
+RUCH_OKNO = 1                      # pokrętło 0/1 (R0b): rekord telemetrii ruch_okno co 30 s (czas marszu/stania, przyczyny, luki)
+RUCH_PROBKA_WCZESNA = 1            # pokrętło 0/1 (R0b): próbka telemetrii także przy wczesnym zakończeniu obiegu (bez A*, bez RPC)
 TICK_WOLNY = 1.0                   # s: tick wolniejszy loguje podział czasu na fazy (debug)
 POKRETLA_CO = 2.0                  # s: pokretla.odswiez nie częściej
 # --- ML: automatyczne rzucanie czaru dla magic levelu (ML rośnie od wydanej many). Domyślnie WYŁĄCZONE ---
@@ -288,6 +302,7 @@ UH_W_WALCE_DYSTANS = 0             # pokrętło 0-3: w trybie walki stwór w tej
 UH_W_WALCE_SPADEK_HP = 25          # pokrętło: w trakcie runy w walce przerwij, gdy HP spadło o tyle pp od startu runy (kilka trolli naraz)
 UH_W_WALCE_MIN_HP = 90             # pokrętło: % HP wymagane do startu runy w walce (w trakcie: ta wartość minus 10)
 # --- ogłoszenia sprzedaży UH na kanale Trade (mozg.py: TradeOgloszenia; szablon trade_ogloszenie.txt) ---
+MODEL_TRASA_MIASTA = 0            # pokrętło 0/1: 1 = model może zmien_trase na trasę *miasta* (domyślnie 0: powrót do miasta decyduje tylko wyprawa.py)
 TRADE_OGLOSZENIA = 0               # pokrętło 0/1 (na_zywo.json): 1 = ogłoszenie [SELL] UH na zakładce Trade (domyślnie WYŁĄCZONE)
 TRADE_MIN_S = 180                  # pokrętło: s min. odstępu między ogłoszeniami (losowo równomiernie MIN-MAX)
 TRADE_MAX_S = 300                  # pokrętło: s max. odstępu między ogłoszeniami
@@ -307,6 +322,8 @@ OGIEN_LOG_S = 10.0                 # s: min. odstęp między wpisami "[OGIEN] po
 OGIEN_STALY = 1                    # pokrętło 0/1: 1 = maska stałych pól ognia (nie logujemy, nie blokują drogi)
 OGIEN_STALY_N = 20                 # tyle wykryć tego samego pola ...
 OGIEN_STALY_S = 600.0              # ... w ciągu co najmniej tylu sekund = pole stałe (nie run-fire z 1-2 min)
+OGIEN_MASKA_TYLKO_SCIANY = 1       # pokrętło 0/1 (R1a): 1 = do maski stałych pól trafiają tylko pola-ściany wg mapy (flaga 4 / niechodliwe), nigdy pole przechodnie
+PLIK_OGIEN_STALE = None if os.environ.get("RETRONIC_TESTY") else Path(__file__).resolve().parent / "trasy" / "ogien_stale.json"   # zasiew i zapis maski
 OGIEN_PODSUMOWANIE_S = 600.0       # s: odstęp podsumowania "[OGIEN] ogień: N stałych, M zmiennych"
 OGIEN_ODSWIEZ_WALKA_S = 0.8        # s: odstęp wykryć w WALKA, gdy w widoku nie ma zmiennych pól (domyślnie jak OGIEN_ODSWIEZ_S = bez zmiany; spec P6 sugeruje 3, pokrętło 0.8-5)
 
@@ -374,6 +391,7 @@ POGON_IGNOROWANIE = 20             # s ignorowania odpuszczonego celu
 PLIK_UCIEKANIA = instancja.S.uciekanie   # bez RETRONIC_ID: pomocnik/uciekanie.json
 KATALOG_TRAS = Path(__file__).resolve().parent / "trasy"
 # poza trasy/: mozg.py traktuje każdy trasy/*.json jako trasę do wyboru
+PLIK_DRZWI = KATALOG_TRAS / "drzwi_jaskinia.json"   # R1c: drzwi w jaskini (przejście dla pościgu i patrolu)
 PLIK_ZNANYCH = Path(__file__).resolve().parent / "znane_pola.json"
 ZNANE_ZAPIS_CO = 120               # s między zapisami nowych znanych pól (tylko na żywo)
 RUCH_PRZED_SMIERCIA = 1.5          # s: krok celu tak niedawno = zwłoki mogą być na polu, na które wchodził
@@ -419,6 +437,14 @@ POSCIG_SKOS_KOSZT = 3.0            # czas kroku po skosie / czas kroku prostego 
 POSCIG_SKOS_ODL = 3                # skos tylko, gdy cel jest co najmniej tyle pól (Chebyshev) dalej
 POSCIG_SKOS_AWARYJNY = 1           # 12.10: 1 = gdy drogi prostej nie ma (albo to długi objazd), a po skosie jest (róg: dwa pola
                                    # w osiach to ściana, pole po skosie wolne) - skos numpadem/klikiem, niezależnie od KOSZT
+POSCIG_SKOSY_ZAPAS = 1             # R1c: 1 = gdy drogi bez skosów nie ma (korytarz (32492,32295)-(32500,32303) z8 chodliwy tylko po skosie), druga
+                                   # próba z skosami (krok_skos numpadem) i do ignorowanego "za ścianą" też; niezależnie od POSCIG_SKOS_AWARYJNY
+POSCIG_SKOSY_MAX_DL = 40           # R1c: najdłuższa droga ze skosami (pola), którą ta druga próba przyjmuje
+PATROL_DRZWI = 1                   # R1c: 1 = drzwi z trasy/drzwi_jaskinia.json to przejście dla pościgu i patrolu (zamknięte: Use z pola obok)
+DRZWI_KROK_S = 1.0                 # R1c: s bez ruchu przy drzwiach (zwykły krok/klik) = zamknięte, wtedy Use
+DRZWI_STARA_S = 20.0             # R1c: s od ostatniej próby, po których epizod przy drzwiach zaczyna się od nowa (licznik prób do zera)
+DRZWI_PROB = 3                     # R1c: max Use na drzwiach, potem odpuszczenie z jedną notatką
+DRZWI_ODPUSC_S = 60.0              # R1c: s, przez które odpuszczone drzwi nie są przejściem
 SKOS_ZLY_S = 30.0                  # s: pole po skosie, na które nie weszliśmy (brak zmiany pozycji), nie jest ponawiane
 SKOS_LOG_S = 3.0                   # s: min. odstęp wpisów "Skos awaryjny" w logu
 POSCIG_HP_SPADEK = 8               # pp HP gracza: tyle straty w oknie kończy pętlę
@@ -693,6 +719,7 @@ class Cavebot:
         self.mana_ostatnia = None      # poprzedni odczyt many (śledzenie "mana nie rośnie")
         self.mana_wzrost = zegar()     # kiedy mana ostatnio rosła, była pełna albo po jedzeniu/rzucie czaru
         self.jedzenie_nie_do = float("-inf")   # do kiedy nie ponawiamy jedzenia (brak jedzenia w plecaku)
+        self.jedzenie_nieczytelne_do = float("-inf")   # do kiedy ostatnie "brak jedzenia" uznajemy za niewiarygodne (kontenery niewidoczne)
         self.brak_jedzenia_log = float("-inf") # kiedy ostatnio zalogowano "brak jedzenia" (raz na JEDZENIE_LOG_S)
         self.ostatni_alarm_hp = float("-inf")
         self.hp_gracza_spadek = float("-inf")  # kiedy HP gracza ostatnio spadło o >= GRYZIE_SPADEK_PP w GRYZIE_OKNO
@@ -736,6 +763,8 @@ class Cavebot:
         self.atak_weryf = None         # (id celu, czas kliku): flagę sprawdzamy w następnym obrocie pętli pościgu
         self._poscig_rpc = True        # False: rdzeń bez komendy "poscig" (dwa zapytania zamiast jednego)
         self._ruch_przechwyt = None    # lista (kierunek, droga) w trybie trzymania; None = strzałki idą od razu
+        self.drzwi_def = None          # R1c: lista drzwi z PLIK_DRZWI (wczytywana przy pierwszym użyciu)
+        self.drzwi_stan = {}           # R1c: pole drzwi -> {"poz","t0","proby","zle_do","nota"}
         self.skos_zle = {}             # (z_pola, na_pole) -> do kiedy: skos, który nie przesunął postaci (nie ściana!)
         self.skos_ost = None           # (z_pola, na_pole) ostatniego skosu awaryjnego
         self.skos_awaryjny_n = 0       # ile razy droga poszła skosem awaryjnym (telemetria / test)
@@ -796,6 +825,7 @@ class Cavebot:
         self.ogien_blad_t = float("-inf")
         self.ogien_widz = {}                   # P6: pole -> [ile wykryć, pierwsze, ostatnie] (do maski stałych pól)
         self.ogien_stale = set()               # P6: pola stałe (widziane >= OGIEN_STALY_N razy przez >= OGIEN_STALY_S albo ściana mapy)
+        self._ogien_stale_wczytaj()
         self.ogien_podsum_t = None             # P6: czas ostatniego podsumowania w logu
         self.ogien_odczyt = self._ogien_odczyt_domyslny \
             if ((klik is not None or not atak) and not os.environ.get("RETRONIC_TESTY")) else None
@@ -819,9 +849,12 @@ class Cavebot:
         # sama (brak pliku = None, wtedy jak dawniej tylko znane pola); w testach tylko wstrzyknięta
         self.mapa = mapa if mapa is not None else (
             self._wczytaj_mape() if (klik is not None or not atak) else None)
+        self._ogien_stale_wczytaj()    # R1a: zasiew maski stałych pól (wymaga mapy)
         self.ostatni_objazd = ""       # opis ostatniego odrzuconego celu (do logu)
         self._klucze, self._klucze_n = {}, -1   # pamięć podręczna droga(): piętro -> klucze pól
         self.pietra = None             # pietra.Pietra: przejścia pięter z trasy wielopiętrowej (tworzone przy pierwszym użyciu)
+        self.ruch_kliki = self.ruch_strzalki = 0   # R0b: liczniki do ruch_okno (klik w mapę / krok strzałką)
+        self.ruch_pietra_t = float("-inf")         # R0b: kiedy ostatnio pietra.py zużyło obieg
         self.pietra_ops = None         # operacje na ekranie (Use/lina); None = z wypadu / wypad.OperacjeZywe; testy wstrzykują atrapę
         self.pietra_porazki = 0        # kolejne nieudane przejścia pięter
         self._pietra_cache = None      # (id listy punktów, długość, wynik): czy trasa ma > 1 piętro
@@ -895,6 +928,9 @@ class Cavebot:
             import pokretla  # noqa: PLC0415
             import telemetria  # noqa: PLC0415
             self.tele = telemetria.Telemetria()
+            nz = getattr(self.postac, "nazwa", None)
+            if isinstance(nz, str):
+                self.tele.nazwa_postaci = nz     # R0a: atrapa "Ja" z testów/skryptów nie zapisuje telemetrii
             self.tele.sprzatnij_stare()
             if not os.environ.get("RETRONIC_TESTY"):     # testy nie karmią telemetrii liniami logu (P4)
                 HAKI_LOGU.append(self.tele.linia)
@@ -1713,10 +1749,37 @@ class Cavebot:
     # --- jedzenie czarem exevo pan ---
     def jedzenie_znane_brak(self, teraz):
         """Wiemy, że w plecaku nie ma jedzenia: nieudana próba jedzenia albo odczyt plecaka przez wypad.py."""
+        if JEDZENIE_BRAK_WALIDUJ and self.jedzenie_odczyt_watpliwy(teraz):
+            return False
         if teraz < self.jedzenie_nie_do:
             return True
         w = self.jedzenie_plecak
         return bool(w is not None and w[1] == 0 and teraz - w[0] <= JEDZENIE_CZAR_PLECAK_WAZNE_S)
+
+    def jedzenie_odczyt_watpliwy(self, teraz):
+        """True: ostatnia nieudana próba jedzenia nastąpiła przy nieczytelnych kontenerach (brak otwartych
+        kontenerów w pamięci), więc nie wiemy, czy w plecaku jest jedzenie."""
+        return bool(JEDZENIE_BRAK_WALIDUJ and teraz < self.jedzenie_nieczytelne_do)
+
+    def _kontenery_czytelne_po_porazce(self):
+        """Po nieudanym jedzeniu: czy pamięć widzi plecak? Do JEDZENIE_BRAK_PROBY odczytów (tylko odczyt,
+        bez inputu do gry); najpierw próba otwarcia plecaka, jeśli loot ma taką funkcję."""
+        fn = getattr(self.loot, "ile_jedzenia", None)
+        if not callable(fn):
+            return True                              # brak odczytu własnego: nie podważamy wyniku zjedz
+        otworz = getattr(self.loot, "otworz_plecak", None)
+        for i in range(max(1, int(JEDZENIE_BRAK_PROBY))):
+            try:
+                if i > 0 and callable(otworz):
+                    otworz()
+                if fn() is not None:
+                    return True
+            except bot.Zatrzymano:
+                raise
+            except Exception:
+                pass
+            self.spij(0.3)
+        return False
 
     def jedzenie_czar_zastepuje_wypad(self, g, teraz):
         """True: czar jedzenia jest włączony i mana wystarcza, więc wypad po jedzenie nie startuje."""
@@ -1943,6 +2006,43 @@ class Cavebot:
         self.pauza(0.2, 0.5)
         return True
 
+    def _ruch_powod(self, poz, teraz):
+        """R0b: przyczyna stania w odstępie przed tym obiegiem, z gotowego stanu bota (bez RPC)."""
+        stan = str(self.stan)
+        if teraz - self.ruch_pietra_t < 2.0:
+            return "schody"
+        if teraz - self.ogien_krok_t < 2.0:
+            return "ogien"
+        if self.tele is not None and getattr(self.tele, "utknieto", False):
+            return "utkniecie"
+        if stan == "WALKA" or self.cel is not None:
+            return "walka"
+        if stan == "LOOT":
+            return "loot"
+        p = self.patrol
+        if isinstance(p, dict) and p.get("faza") == "postoj":
+            return "patrol_postoj"
+        return "inne"
+
+    def _ruch_tick(self, poz, teraz):
+        """R0b: wołane na początku obiegu, przed wczesnymi return True; tylko arytmetyka, bez RPC."""
+        if not RUCH_OKNO or self.tele is None:
+            return
+        try:
+            self.tele.ruch_tick(teraz, poz, self.stan, self._ruch_powod(poz, teraz), self.ruch_kliki, self.ruch_strzalki)
+        except Exception as e:
+            log(f"debug: ruch_okno błąd {e!r}")
+
+    def _tele_wczesny(self, g, poz, powod):
+        """R0b: próbka telemetrii przed wczesnym return True w tick (postoje nie znikają między próbkami co 1,2 s).
+        Bez nowych RPC i bez A*: lista stworów z poprzedniego obiegu, najwyżej raz na sekundę."""
+        if not RUCH_PROBKA_WCZESNA or self.tele is None:
+            return
+        try:
+            self.tele.probka(self, g, poz, self.ostatnie_stwory or [], wczesna=powod)
+        except Exception as e:
+            log(f"debug: telemetria (wczesna) błąd {e!r}")
+
     def _tele_tick(self, g, poz, lista):
         try:
             if self.pokretla and self.zegar() - self.pokretla_ost >= POKRETLA_CO:
@@ -2100,26 +2200,63 @@ class Cavebot:
         st = self._ogien_stale_ef() if bez_stalych else ()
         return {(x, y) for (x, y, pz) in self.ogien_pola if pz == z and (x, y, pz) not in st}
 
+    def _ogien_pole_sciana(self, p):
+        """R1a: czy mapa uznaje pole za ścianę/niechodliwe (flaga 4 albo przechodnie == False). Brak mapy: False."""
+        if self.mapa is None:
+            return False
+        try:
+            return bool(self.mapa.flagi(*p) & 4) or self.mapa.przechodnie(*p) is False
+        except Exception:
+            return False
+
+    def _ogien_stale_wczytaj(self):
+        """R1a: zasiew maski z trasy/ogien_stale.json (przy pokrętle tylko ściany: tylko pola, które mapa uznaje za ścianę)."""
+        if PLIK_OGIEN_STALE is None:
+            return
+        try:
+            dane = json.loads(Path(PLIK_OGIEN_STALE).read_text())
+            for x, y, z in dane.get("pola", []):
+                p = (int(x), int(y), int(z))
+                if not OGIEN_MASKA_TYLKO_SCIANY or self._ogien_pole_sciana(p):
+                    self.ogien_stale.add(p)
+        except FileNotFoundError:
+            pass
+        except Exception as e:
+            log(f"[OGIEN] nie wczytam maski stałych pól: {e!r}")
+
+    def _ogien_stale_zapisz(self):
+        """R1a: zapis maski po każdej zmianie (atomowo); błąd zapisu nie zatrzymuje bota."""
+        if PLIK_OGIEN_STALE is None:
+            return
+        try:
+            cel = Path(PLIK_OGIEN_STALE)
+            tmp = cel.with_suffix(".tmp")
+            tmp.write_text(json.dumps({"opis": "pola ognia stale (sciany wg mapy), zapis bota",
+                                       "pola": sorted([x, y, z] for x, y, z in self.ogien_stale)}, indent=0))
+            tmp.replace(cel)
+        except Exception as e:
+            log(f"[OGIEN] nie zapiszę maski stałych pól: {e!r}")
+
     def _ogien_stale_aktualizuj(self, widziane, teraz):
         """P6: liczy wykrycia pól; pole widziane >= OGIEN_STALY_N razy w ciągu >= OGIEN_STALY_S, albo będące
         ścianą mapy (flaga 4), trafia do ogien_stale. Wpisy nie widziane od OGIEN_STALY_S są zapominane."""
+        przed = len(self.ogien_stale)
         for p in widziane:
             w = self.ogien_widz.get(p)
             if w is None:
                 w = self.ogien_widz[p] = [0, teraz, teraz]
-                if p not in self.ogien_stale and self.mapa is not None:
-                    try:
-                        if self.mapa.flagi(*p) & 4:
-                            self.ogien_stale.add(p)
-                    except Exception:
-                        pass
+                if p not in self.ogien_stale and self._ogien_pole_sciana(p):
+                    self.ogien_stale.add(p)
             w[0] += 1
             w[2] = teraz
-            if w[0] >= OGIEN_STALY_N and teraz - w[1] >= OGIEN_STALY_S:
-                self.ogien_stale.add(p)
+            if w[0] >= OGIEN_STALY_N and teraz - w[1] >= OGIEN_STALY_S \
+                    and (not OGIEN_MASKA_TYLKO_SCIANY or self._ogien_pole_sciana(p)):
+                self.ogien_stale.add(p)       # R1a: pole przechodnie wg mapy nigdy nie trafia do maski
         for p, w in list(self.ogien_widz.items()):
             if p not in self.ogien_stale and teraz - w[2] > OGIEN_STALY_S:
                 del self.ogien_widz[p]
+        if len(self.ogien_stale) != przed:
+            self._ogien_stale_zapisz()
 
     def _ogien_na(self, pole):
         """Czy pole (x, y, z) jest polem ognia."""
@@ -2292,14 +2429,19 @@ class Cavebot:
             zakaz = self._zakaz_lista(start, cel)       # schody/dziury: nigdy po nich (poza wypadem)
             ogien = self._ogien_blok(start)             # pola ognia: nie wchodzimy (zamykają też drogę zapasową)
             blok = list(zajete) + zakaz + ogien + [p for p in list(self.sciany) if p[2] == z and self.sciana(p)]
+            dz = self._drzwi_xy(z)                      # R1c: drzwi to przejście (nie ściana, nie nauczona ściana)
+            przep = {x * _K + y for x, y in dz} or None
+            if dz:
+                blok = [p for p in blok if tuple(p[:2]) not in dz]
             znane = self._pola_pietra(z)
-            d = self.mapa.droga(start, cel, blok, dlugosc, skosy, limit=MAPA_LIMIT, znane=znane)
+            d = self.mapa.droga(start, cel, blok, dlugosc, skosy, limit=MAPA_LIMIT, znane=znane, **({"przepusc": przep} if przep else {}))
             prosto = max(abs(cel[0] - start[0]), abs(cel[1] - start[1]))
             if blok and (d is None or len(d) > 2 * prosto + MAPA_OBJAZD):
                 # stwory i nauczone ściany (często fałszywe: stwór na polu) nie mogą zamykać
                 # wąskiego korytarza ani zmuszać do objazdu: liczymy też drogę po samej mapie
                 # i bierzemy krótszą (gdy bez blokad nie jest to objazd)
-                d2 = self.mapa.droga(start, cel, zakaz + ogien, dlugosc, skosy, limit=MAPA_LIMIT, znane=znane)
+                d2 = self.mapa.droga(start, cel, zakaz + ogien, dlugosc, skosy, limit=MAPA_LIMIT, znane=znane,
+                                     **({"przepusc": przep} if przep else {}))
                 if BLOK_WYJSCIE and d2:
                     # 13.10 (22:07): droga po samej mapie przez pole zajęte stworem to nie droga do marszu
                     zset = {tuple(p[:2]) for p in zajete}
@@ -2459,16 +2601,18 @@ class Cavebot:
         # strzałki chodzą tylko prosto, więc dla nich droga bez skosów; skosem (klikiem) tylko blisko celu
         skosy = self.klik is not None and not poscig and (not natychmiast or prosto <= DIAGONAL_ODL)
         d = self.droga(poz, cel, zajete, dlugosc, skosy=skosy)
-        if POSCIG_SKOS_AWARYJNY and not skosy and self._skos_mozliwy():
+        if (POSCIG_SKOS_AWARYJNY or POSCIG_SKOSY_ZAPAS) and not skosy and self._skos_mozliwy():
             # 12.10: róg, w którym jedyne przejście jest po skosie (dwa pola w osiach = ściana): bez drogi prostej
             # (albo przy długim objazdzie) bierzemy drogę ze skosami, jeśli jest; skos tylko awaryjnie
             limit_d = 2 * prosto + (MAPA_OBJAZD if self.mapa_zna(poz, cel) else DROGA_OBJAZD)
-            if d is None or (d and len(d) > limit_d):
+            if (POSCIG_SKOS_AWARYJNY and (d is None or (d and len(d) > limit_d))) or (POSCIG_SKOSY_ZAPAS and d is None):
                 teraz_s = self.zegar()
                 zle = [q for (z0, q), do in self.skos_zle.items() if z0 == tuple(poz[:2]) and do > teraz_s]
                 d2 = self.droga(poz, cel, list(zajete) + zle, dlugosc, skosy=True)
                 if BLOK_WYJSCIE and d2 and tuple(d2[0][:2]) in {tuple(p[:2]) for p in zajete}:
                     d2 = None          # pierwszy krok skosu w pole zajęte przez stwora: nie idziemy
+                if POSCIG_SKOSY_ZAPAS and d2 and len(d2) > POSCIG_SKOSY_MAX_DL:
+                    d2 = None          # R1c: druga próba ze skosami tylko do limitu długości
                 if d2 and (d is None or len(d2) < len(d)):
                     d = d2
                     self.skos_awaryjny_n += 1
@@ -2505,6 +2649,13 @@ class Cavebot:
                 self.ostatni_objazd = f"droga {len(d)} pól po znanych polach, prosto {prosto}"
                 if os.environ.get("CAVEBOT_DEBUG"):
                     log(f"debug: droga {len(d)} pól do celu {prosto} pól w linii prostej - objazd, nie gonię")
+                return None
+        if d and PATROL_DRZWI and self._ruch_przechwyt is None:
+            dr_ = self._drzwi_hak(poz, d[:3])        # R1c: zamknięte drzwi na drodze: Use z pola obok
+            if dr_ is True:
+                return True
+            if dr_ is False:
+                self.ostatni_objazd = "drzwi nie działają (odpuszczone)"
                 return None
         if d and natychmiast and self.klik is not None:
             # pościg: strzałka na następne pole drogi od razu, bez czekania na potwierdzenie
@@ -2675,6 +2826,7 @@ class Cavebot:
         if os.environ.get("CAVEBOT_DEBUG"):
             log(f"debug: klik ({dx},{dy}) cel {cel} z {poz} stan {self.stan}")
         self.klik(dx, dy)
+        self.ruch_kliki += 1
         self.klik_cel, self.klik_czas = cel_kliku, teraz
         self.pauza(0.15, 0.3)
         return True
@@ -2695,6 +2847,7 @@ class Cavebot:
         oscyluje w ślepej kieszeni), a krok wstecz nie zeruje licznika nieudanych."""
         x, y, z = self.postac.pozycja()
         teraz = self.zegar()
+        self.ruch_strzalki += 1
         wstecz = None
         if self.krok_z is not None and teraz - self.krok_z[1] <= KROK_WSTECZ_S:
             wstecz = self.krok_z[0]
@@ -2745,7 +2898,7 @@ class Cavebot:
     def _skos_kandydat(self, x, y, z, cel, pietra_on):
         """(dx, dy) skosu w stronę celu, gdy skos awaryjny jest włączony, postać umie skos, a pole po skosie nie jest
         zablokowane (ściana z mapy/nauczona, zmiana piętra, świeżo nieudany skos); inaczej None."""
-        if not POSCIG_SKOS_AWARYJNY or not hasattr(self.postac, "krok_skos"):
+        if not (POSCIG_SKOS_AWARYJNY or POSCIG_SKOSY_ZAPAS) or not hasattr(self.postac, "krok_skos"):
             return None
         dx, dy = cel[0] - x, cel[1] - y
         if not dx or not dy:
@@ -2771,6 +2924,121 @@ class Cavebot:
         if self.zablokowane.get(((x, y, z), "skos")):
             return None
         return v
+
+    # --- drzwi (R1c): przejście dla pościgu i patrolu, zamknięte = Use z pola obok ---
+
+    def _drzwi_lista(self):
+        """Drzwi z PLIK_DRZWI: [{"pole": (x,y,z)}]; brak pliku albo błąd = pusta lista."""
+        if self.drzwi_def is None:
+            wynik = []
+            try:
+                for e in json.loads(Path(PLIK_DRZWI).read_text()).get("drzwi") or []:
+                    q = e["pole"]
+                    h = (int(q[0]), int(q[1]), int(q[2]))
+                    dx, dy = (1, 0) if e.get("os", "x") == "x" else (0, 1)
+                    wynik.append({"pole": h, "id": e.get("id", str(q)),
+                                  "strony": [(h[0] - dx, h[1] - dy, h[2]), (h[0] + dx, h[1] + dy, h[2])]})
+            except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError):
+                wynik = []
+            self.drzwi_def = wynik
+        return self.drzwi_def
+
+    def _drzwi_xy(self, z):
+        """Zbiór (x, y) drzwi na piętrze z, które teraz są przejściem (PATROL_DRZWI=1, nie odpuszczone)."""
+        if not PATROL_DRZWI:
+            return frozenset()
+        t = self.zegar()
+        return frozenset(e["pole"][:2] for e in self._drzwi_lista()
+                         if e["pole"][2] == z and self.drzwi_stan.get(e["pole"], {}).get("zle_do", float("-inf")) <= t)
+
+    def _drzwi_na_krokach(self, e):
+        """Czy któryś krok łącznika to odpuszczone drzwi."""
+        t = self.zegar()
+        zle = {h["pole"] for h in self._drzwi_lista() if self.drzwi_stan.get(h["pole"], {}).get("zle_do", float("-inf")) > t}
+        return bool(zle) and any(tuple(q) in zle for q in e["kroki"])
+
+    def _drzwi_hak(self, poz, dalej, podejscie=False):
+        """Drzwi na najbliższych polach drogi `dalej`, stoimy obok (w osi): zwykły krok/klik, a bez ruchu przez
+        DRZWI_KROK_S s drzwi są zamknięte: Use z tego pola (max DRZWI_PROB), potem odpuszczenie z jedną notatką na
+        DRZWI_ODPUSC_S s. None = nic (idź normalnie), True = obieg zużyty (Use), False = drzwi nie działają.
+        podejscie=True (patrol, marsz klikiem): drzwi na drodze, jeszcze niepotwierdzone jako otwarte, dochodzimy do
+        nich krokami strzałek (klik za zamknięte drzwi nie prowadzi nigdzie)."""
+        if not PATROL_DRZWI:
+            return None
+        poz = tuple(poz[:3])
+        t = self.zegar()
+        for e in self._drzwi_lista():
+            h = e["pole"]
+            if poz[2] != h[2]:
+                continue
+            st = self.drzwi_stan.setdefault(h, {"poz": None, "t0": t, "proby": 0, "zle_do": float("-inf"), "nota": False,
+                                                "otw": False})
+            odl = self.dystans(poz, h)
+            na_drodze = any(tuple(q[:2]) == h[:2] for q in dalej if len(q) < 3 or q[2] == h[2])
+            if st["zle_do"] <= t and st["nota"]:
+                st["nota"] = False             # odpuszczenie wygasło: kolejne może znów dać notatkę
+            if st["poz"] is not None and st["zle_do"] <= t and t - st["t0"] > DRZWI_STARA_S:
+                st["proby"], st["poz"] = 0, None   # stary epizod (odeszliśmy): zaczynamy od nowa
+            if poz[:2] == h[:2]:
+                st["otw"] = True               # staliśmy na kafelku drzwi: są otwarte
+                st["proby"], st["poz"] = 0, None
+            if odl >= 2 or poz[:2] == h[:2]:
+                if podejscie and na_drodze and odl >= 2 and not st["otw"] and st["zle_do"] <= t and odl <= 8:
+                    nast = next((q for q in dalej if self.dystans(poz, q) >= 1 and (len(q) < 3 or q[2] == poz[2])), None)
+                    if nast is not None:
+                        self.krok_do(nast)     # klik za zamknięte drzwi nie prowadzi: podchodzimy strzałkami
+                        return True
+                continue
+            if not na_drodze:
+                continue
+            if poz[0] != h[0] and poz[1] != h[1]:
+                # Use tylko z pola obok w osi: ze skosu (krok_do potrafi zejść w bok) wracamy na pole po tej stronie drzwi
+                if podejscie and not st["otw"] and st["zle_do"] <= t:
+                    bok = min(e["strony"], key=lambda q: self.dystans(poz, q))
+                    if self.dystans(poz, bok) == 1:
+                        self.krok_do(bok)
+                        return True
+                continue
+            if st["zle_do"] > t:
+                return False
+            self.sciany.pop(h, None)        # zamknięte drzwi nie są ścianą (sprawdz_krok mógł ją nauczyć)
+            if st["poz"] is None:
+                st["poz"], st["t0"] = poz, t       # nowy epizod: najpierw zwykły krok/klik
+                return None
+            if t - st["t0"] < DRZWI_KROK_S:
+                return None
+            if st["proby"] >= DRZWI_PROB:
+                st["zle_do"] = t + DRZWI_ODPUSC_S
+                st["proby"] = 0
+                st["poz"] = None
+                st["otw"] = False
+                if not st["nota"]:
+                    st["nota"] = True
+                    log(f"Drzwi {h[:2]} z{h[2]} nie otwierają się po {DRZWI_PROB} próbach, odpuszczam na {DRZWI_ODPUSC_S:.0f} s.")
+                return False
+            st["proby"] += 1
+            log(f"Drzwi {h[:2]} z{h[2]}: zamknięte, Use z {poz[:2]} (próba {st['proby']}/{DRZWI_PROB}).")
+            try:
+                self._drzwi_ops().uzyj_pole(h, poz)
+            except bot.Zatrzymano:
+                raise
+            except Exception as ex:
+                log(f"Drzwi {h[:2]}: Use nie wyszło ({ex!r}).")
+            self.pauza(0.6, 1.0)
+            st["t0"] = self.zegar()
+            return True
+        return None
+
+    def _drzwi_ops(self):
+        """Operacje na ekranie (Use na polu): jak w pietra.py (wstrzyknięte, z wyprawy albo wypad.OperacjeZywe)."""
+        o = self.pietra_ops
+        if o is None:
+            o = getattr(self.wyprawa, "ops", None)
+        if o is None:
+            import wypad  # noqa: PLC0415
+            o = wypad.OperacjeZywe(log=lambda t: log(t))
+        self.pietra_ops = o
+        return o
 
     def _krok_do_skos(self, x, y, z, v, teraz, wstecz):
         """Jeden krok po skosie numpadem (postac.krok_skos). True, gdy postać się ruszyła; porażka zapisuje się
@@ -2856,6 +3124,10 @@ class Cavebot:
             dr = self.droga(tuple(poz[:3]), c_xy, zajete, 1, skosy=False)
             limit = 2 * d + (MAPA_OBJAZD if self.mapa_zna(poz, c_xy) else DROGA_OBJAZD)
             ok = dr is not None and len(dr) <= limit
+            if dr is None and POSCIG_SKOSY_ZAPAS and self._skos_mozliwy():
+                # R1c: korytarz chodliwy tylko po skosie: droga ze skosami też otwiera ignorowanego "za ścianą"
+                dr = self.droga(tuple(poz[:3]), c_xy, zajete, 1, skosy=True)
+                ok = dr is not None and len(dr) <= min(limit, POSCIG_SKOSY_MAX_DL)
         except bot.Zatrzymano:
             raise
         except Exception:
@@ -2933,6 +3205,7 @@ class Cavebot:
         poz = self.postac.pozycja()
         teraz = self.zegar()
         fazy = {"gracz": teraz - t_start}
+        self._ruch_tick(poz, teraz)
         self.zapamietaj_pole(poz)
         self.exp_przed, self.exp_teraz = self.exp_teraz, g.get("exp")
         if self.ruch_poz != tuple(poz):
@@ -2999,15 +3272,18 @@ class Cavebot:
             self.ostrozny = False
         # leczenie czarem (exura): także w walce/pościgu; ucieczka (HP <= próg) ma pierwszeństwo, bo wtedy proc <= prog
         if self._zdrowie_czar_tick(g, poz, teraz):
+            self._tele_wczesny(g, poz, "zdrowie_czar")
             return True
 
         # pola ognia: odświeżenie wykrycia (co OGIEN_ODSWIEZ_S) i zejście z pola, na którym stoimy;
         # po leczeniu, przed ucieczką, lootem, ML i walką (każdy obieg w ogniu to kolejne 10 HP)
         self._ogien_tick(poz, teraz)
         if self._ogien_wyjdz(poz, teraz):
+            self._tele_wczesny(g, poz, "ogien_wyjdz")
             return True
 
         if self.ucieczka:
+            self._tele_wczesny(g, poz, "ucieczka")
             self.cel = None
             if self.lww:
                 self._lww_przerwij("ucieczka", teraz, pilne=True)
@@ -3024,9 +3300,11 @@ class Cavebot:
 
         # jedzenie czarem (exevo pan): gdy brak jedzenia w plecaku; potem istniejące jedzenie
         if self._jedzenie_czar_tick(g, poz, teraz):
+            self._tele_wczesny(g, poz, "jedzenie_czar")
             return True
         # jedzenie: także w walce, bo regeneracja (i głód) nie zależy od walki
         if self.jedzenie_potrzebne(g, teraz, poz):
+            self._tele_wczesny(g, poz, "jedzenie")
             self.zjedz(teraz, g)
             return True
 
@@ -3607,11 +3885,23 @@ class Cavebot:
 
     def _droga_do(self, start, cel, zajete, skosy=False):
         """Droga (bez skosów, do pola przy celu) po mapie/znanych polach z `zajete`, bez ucieczki do drogi
-        bez blokad (jak w droga()): None = brak drogi."""
+        bez blokad (jak w droga()): None = brak drogi. R1c: bez drogi prostej druga próba ze skosami (limit długości)."""
+        d = self._droga_do1(start, cel, zajete, skosy)
+        if d is None and not skosy and POSCIG_SKOSY_ZAPAS and self._skos_mozliwy():
+            d2 = self._droga_do1(start, cel, zajete, True)
+            if d2 is not None and len(d2) <= POSCIG_SKOSY_MAX_DL:
+                return d2
+        return d
+
+    def _droga_do1(self, start, cel, zajete, skosy):
         if self.mapa_zna(start, cel):
             z = start[2]
             blok = list(zajete) + [p for p in list(self.sciany) if p[2] == z and self.sciana(p)]
-            return self.mapa.droga(start, cel, blok, 1, skosy, limit=MAPA_LIMIT, znane=self._pola_pietra(z))
+            dz = self._drzwi_xy(z)
+            if dz:
+                blok = [p for p in blok if tuple(p[:2]) not in dz]
+            return self.mapa.droga(start, cel, blok, 1, skosy, limit=MAPA_LIMIT, znane=self._pola_pietra(z),
+                                   **({"przepusc": {x * _K + y for x, y in dz}} if dz else {}))
         return self._droga_znane(start, cel, zajete, 1, skosy)
 
     def blokujacy_na_drodze(self, cel, poz, lista, kand):
@@ -5643,6 +5933,12 @@ class Cavebot:
                 # plecak pusty (albo najedzony): bez ponawiania przez JEDZENIE_PONOW s,
                 # każda próba to 3-5 s ślepego bloku
                 self.jedzenie_nie_do = self.zegar() + JEDZENIE_PONOW
+                if JEDZENIE_BRAK_WALIDUJ and not self._kontenery_czytelne_po_porazce():
+                    # kontenery niewidoczne: to nie dowód braku jedzenia (nie wołamy wyprawy ani F3 "głód")
+                    self.jedzenie_nieczytelne_do = self.zegar() + JEDZENIE_PONOW
+                    log("JEDZENIE: pamięć nie widzi plecaka, brak jedzenia niepotwierdzony")
+                else:
+                    self.jedzenie_nieczytelne_do = float("-inf")
         self.hp_wzrost = teraz
         self.hp_regen = teraz
         self.mana_wzrost = teraz        # po jedzeniu dajemy manie JEDZENIE_MANA_BRAK_S na ruszenie
@@ -5834,7 +6130,10 @@ class Cavebot:
             except Exception as e:   # moduł nigdy nie wywraca bota
                 log(f"debug: pietra.py niedostępne ({e!r}), trasa po staremu")
                 return None
-        return self.pietra.tick(poz, cel)
+        wynik = self.pietra.tick(poz, cel)
+        if wynik is not None:
+            self.ruch_pietra_t = self.zegar()      # R0b: obieg zużyty przez przejście pięter (przyczyna stania "schody")
+        return wynik
 
     def _pietra_zawroc(self, poz):
         """Po nieudanym przejściu: trasa w drugą stronę od punktu przed przejściem (inne schody / spokojne pole)."""
@@ -6242,6 +6541,8 @@ class Cavebot:
         for e in self.przejscia + self.laczniki:
             if e["id"] in zle or self.patrol_przejscie_blok.get(e["id"], float("-inf")) > teraz:
                 continue
+            if PATROL_DRZWI and not e["pieta"] and self._drzwi_na_krokach(e):
+                continue                   # R1c: łącznik przez odpuszczone drzwi
             if e["pieta"]:
                 if not self._patrol_pietra_ok():
                     continue
@@ -6851,6 +7152,12 @@ class Cavebot:
                 return r
         if self._utknieto_na_trasie((x, y, z), cel) and self._wroc_na_trase((x, y, z)):
             return True
+        if PATROL_DRZWI and self.__dict__.get("_w_segmencie"):
+            dr_ = self._drzwi_hak((x, y, z), [self.punkty[(self.idx + i) % n] for i in range(8)], True)   # R1c
+            if dr_ is True:
+                return True
+            if dr_ is False:
+                return False                  # drzwi nie działają: patrol porzuca to miejsce
         prowadz = self._droga_trasy((x, y, z), cel)
         if prowadz and self._unikanie_krokami():
             self.klik_j = None
