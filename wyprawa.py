@@ -735,6 +735,14 @@ class Wyprawa(Wypad):
             powody.append("glod")
         blanki = self._ile(plecak, "blank")
         cel_blank = int(self._kw("WYPRAWA_BLANKI"))
+        if blanki is not None and blanki > 0:
+            # 14.10: pamięć P7c ("ostatnie depo po blanki nic nie dało") ważna tylko, dopóki blanków nie przybyło;
+            # inaczej po zakupie i zużyciu blanków bot czekał na człowieka zamiast iść do depo
+            st_p = self._stan_czytaj()
+            if "blanki" in (st_p.get("depo_powody") or ()) and blanki > int(st_p.get("depo_blanki") or 0):
+                self._stan_zapisz(depo_powody=[p for p in st_p.get("depo_powody") or () if p != "blanki"])
+                self.ostrzezenia.discard("blanki_pamiec")
+                self.log(f"Wyprawa: blanków przybyło ({blanki}), kasuję pamięć ostatniego depo po blanki")
         if cel_blank > 0 and blanki is not None and blanki < int(self._kw("WYPRAWA_BLANKI_PROG")):
             if self._tryb_depo() and not int(self._kw("WYPRAWA_DEPO_BLANKI")):
                 # P7b: do depo nie kupujemy blanków, sam brak nie jest powodem marszu (jednorazowa notatka)
