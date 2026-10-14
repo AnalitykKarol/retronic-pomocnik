@@ -1,5 +1,5 @@
 {
-  "wygenerowano": "2026-10-14T18:35:17",
+  "wygenerowano": "2026-10-14T18:40:21",
   "uwagi": "liczba = unikalne pewne oferty (nadawca+intencja+przedmiot+cena+ilosc); mediana/min/max tylko z cena za sztuke (ea)",
   "okna": {
     "24h": {
@@ -201,7 +201,7 @@
       },
       "coconut": {
         "sprzedaz": {
-          "liczba": 3,
+          "liczba": 4,
           "mediana": 600,
           "min": 600.0,
           "max": 600.0
@@ -747,7 +747,7 @@
       },
       "magic plate armor": {
         "sprzedaz": {
-          "liczba": 1,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
@@ -1407,7 +1407,7 @@
       },
       "coconut": {
         "sprzedaz": {
-          "liczba": 3,
+          "liczba": 4,
           "mediana": 600,
           "min": 600.0,
           "max": 600.0
@@ -1953,7 +1953,7 @@
       },
       "magic plate armor": {
         "sprzedaz": {
-          "liczba": 1,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null

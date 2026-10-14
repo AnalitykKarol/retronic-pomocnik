@@ -625,14 +625,6 @@
    },
    {
     "pole": [
-     32485,
-     32274,
-     9
-    ],
-    "komp": 7
-   },
-   {
-    "pole": [
      32503,
      32284,
      9
@@ -769,12 +761,12 @@
    ],
    [
     8,
-    37,
+    36,
     19
    ],
    [
     8,
-    38,
+    37,
     20
    ],
    [
@@ -784,12 +776,12 @@
    ],
    [
     9,
-    37,
+    36,
     18
    ],
    [
     9,
-    38,
+    37,
     19
    ],
    [
@@ -953,16 +945,6 @@
     2
    ],
    [
-    16,
-    36,
-    13
-   ],
-   [
-    17,
-    36,
-    11
-   ],
-   [
     18,
     19,
     14
@@ -1049,22 +1031,22 @@
    ],
    [
     23,
-    37,
+    36,
     22
    ],
    [
     23,
-    38,
+    37,
     25
    ],
    [
     24,
-    37,
+    36,
     21
    ],
    [
     24,
-    38,
+    37,
     24
    ],
    [
@@ -1089,12 +1071,12 @@
    ],
    [
     26,
-    39,
+    38,
     9
    ],
    [
     27,
-    39,
+    38,
     7
    ],
    [
@@ -1143,8 +1125,8 @@
     9
    ],
    [
+    36,
     37,
-    38,
     11
    ]
   ]
@@ -1171,7 +1153,7 @@
    "udzial_zabic": 0.13,
    "mobow": 3,
    "zrodlo": "troll",
-   "waga": 0.091,
+   "waga": 0.095,
    "gniazdo": false,
    "sasiedzi": [
     {
@@ -1204,27 +1186,20 @@
     },
     {
      "id": 6,
-     "droga": 23,
-     "przez": [
-      "schody_32483_32285"
-     ]
-    },
-    {
-     "id": 7,
      "droga": 45,
      "przez": [
       "schody_32494_32289"
      ]
     },
     {
-     "id": 8,
+     "id": 7,
      "droga": 48,
      "przez": [
       "schody_32494_32289"
      ]
     },
     {
-     "id": 9,
+     "id": 8,
      "droga": 19,
      "przez": [
       "schody_32482_32296"
@@ -1245,7 +1220,7 @@
    "udzial_zabic": 0.137,
    "mobow": 3,
    "zrodlo": "troll",
-   "waga": 0.091,
+   "waga": 0.095,
    "gniazdo": false,
    "sasiedzi": [
     {
@@ -1278,27 +1253,20 @@
     },
     {
      "id": 6,
-     "droga": 34,
-     "przez": [
-      "schody_32483_32285"
-     ]
-    },
-    {
-     "id": 7,
      "droga": 30,
      "przez": [
       "schody_32494_32289"
      ]
     },
     {
-     "id": 8,
+     "id": 7,
      "droga": 33,
      "przez": [
       "schody_32494_32289"
      ]
     },
     {
-     "id": 9,
+     "id": 8,
      "droga": 22,
      "przez": [
       "schody_32482_32296"
@@ -1319,7 +1287,7 @@
    "udzial_zabic": 0.0,
    "mobow": 0,
    "zrodlo": "troll",
-   "waga": 0.091,
+   "waga": 0.095,
    "gniazdo": false,
    "sasiedzi": [
     {
@@ -1354,29 +1322,20 @@
     },
     {
      "id": 6,
-     "droga": 64,
-     "przez": [
-      "schody_32498_32270",
-      "schody_32494_32289",
-      "schody_32483_32285"
-     ]
-    },
-    {
-     "id": 7,
      "droga": 21,
      "przez": [
       "schody_32498_32270"
      ]
     },
     {
-     "id": 8,
+     "id": 7,
      "droga": 22,
      "przez": [
       "schody_32498_32270"
      ]
     },
     {
-     "id": 9,
+     "id": 8,
      "droga": 52,
      "przez": [
       "schody_32498_32270",
@@ -1399,7 +1358,7 @@
    "udzial_zabic": 0.0,
    "mobow": 0,
    "zrodlo": "troll",
-   "waga": 0.091,
+   "waga": 0.095,
    "gniazdo": false,
    "sasiedzi": [
     {
@@ -1434,29 +1393,20 @@
     },
     {
      "id": 6,
-     "droga": 73,
-     "przez": [
-      "schody_32498_32270",
-      "schody_32494_32289",
-      "schody_32483_32285"
-     ]
-    },
-    {
-     "id": 7,
      "droga": 30,
      "przez": [
       "schody_32498_32270"
      ]
     },
     {
-     "id": 8,
+     "id": 7,
      "droga": 31,
      "przez": [
       "schody_32498_32270"
      ]
     },
     {
-     "id": 9,
+     "id": 8,
      "droga": 61,
      "przez": [
       "schody_32498_32270",
@@ -1479,7 +1429,7 @@
    "udzial_zabic": 0.425,
    "mobow": 4,
    "zrodlo": "troll",
-   "waga": 0.182,
+   "waga": 0.19,
    "gniazdo": true,
    "sasiedzi": [
     {
@@ -1516,14 +1466,6 @@
     },
     {
      "id": 6,
-     "droga": 40,
-     "przez": [
-      "schody_32476_32272",
-      "schody_32483_32285"
-     ]
-    },
-    {
-     "id": 7,
      "droga": 72,
      "przez": [
       "schody_32476_32272",
@@ -1531,7 +1473,7 @@
      ]
     },
     {
-     "id": 8,
+     "id": 7,
      "droga": 75,
      "przez": [
       "schody_32476_32272",
@@ -1539,7 +1481,7 @@
      ]
     },
     {
-     "id": 9,
+     "id": 8,
      "droga": 46,
      "przez": [
       "schody_32476_32272",
@@ -1552,88 +1494,6 @@
   },
   {
    "id": 6,
-   "nazwa": "z9_spawn_32485_32274",
-   "x": 32485,
-   "y": 32274,
-   "z": 9,
-   "opis": "spawn 1x troll",
-   "zabicia": 0,
-   "udzial_zabic": 0.0,
-   "mobow": 1,
-   "zrodlo": "troll",
-   "waga": 0.045,
-   "gniazdo": false,
-   "sasiedzi": [
-    {
-     "id": 1,
-     "droga": 21,
-     "przez": [
-      "schody_32483_32285"
-     ]
-    },
-    {
-     "id": 2,
-     "droga": 32,
-     "przez": [
-      "schody_32483_32285"
-     ]
-    },
-    {
-     "id": 3,
-     "droga": 64,
-     "przez": [
-      "schody_32483_32285",
-      "schody_32494_32289",
-      "schody_32498_32270"
-     ]
-    },
-    {
-     "id": 4,
-     "droga": 73,
-     "przez": [
-      "schody_32483_32285",
-      "schody_32494_32289",
-      "schody_32498_32270"
-     ]
-    },
-    {
-     "id": 5,
-     "droga": 40,
-     "przez": [
-      "schody_32483_32285",
-      "schody_32476_32272"
-     ]
-    },
-    {
-     "id": 7,
-     "droga": 60,
-     "przez": [
-      "schody_32483_32285",
-      "schody_32494_32289"
-     ]
-    },
-    {
-     "id": 8,
-     "droga": 63,
-     "przez": [
-      "schody_32483_32285",
-      "schody_32494_32289"
-     ]
-    },
-    {
-     "id": 9,
-     "droga": 34,
-     "przez": [
-      "schody_32483_32285",
-      "schody_32482_32296"
-     ]
-    }
-   ],
-   "od_startu": 56,
-   "komp": 7
-  },
-  {
-   "id": 7,
    "nazwa": "z9_spawn_32503_32284",
    "x": 32503,
    "y": 32284,
@@ -1643,7 +1503,7 @@
    "udzial_zabic": 0.0,
    "mobow": 0,
    "zrodlo": "troll",
-   "waga": 0.182,
+   "waga": 0.19,
    "gniazdo": false,
    "sasiedzi": [
     {
@@ -1683,20 +1543,12 @@
      ]
     },
     {
-     "id": 6,
-     "droga": 61,
-     "przez": [
-      "schody_32494_32289",
-      "schody_32483_32285"
-     ]
-    },
-    {
-     "id": 8,
+     "id": 7,
      "droga": 11,
      "przez": []
     },
     {
-     "id": 9,
+     "id": 8,
      "droga": 49,
      "przez": [
       "schody_32494_32289",
@@ -1708,7 +1560,7 @@
    "komp": 5
   },
   {
-   "id": 8,
+   "id": 7,
    "nazwa": "z9_spawn_32508_32278",
    "x": 32508,
    "y": 32278,
@@ -1718,7 +1570,7 @@
    "udzial_zabic": 0.0,
    "mobow": 0,
    "zrodlo": "troll",
-   "waga": 0.091,
+   "waga": 0.095,
    "gniazdo": false,
    "sasiedzi": [
     {
@@ -1759,19 +1611,11 @@
     },
     {
      "id": 6,
-     "droga": 64,
-     "przez": [
-      "schody_32494_32289",
-      "schody_32483_32285"
-     ]
-    },
-    {
-     "id": 7,
      "droga": 11,
      "przez": []
     },
     {
-     "id": 9,
+     "id": 8,
      "droga": 52,
      "przez": [
       "schody_32494_32289",
@@ -1783,7 +1627,7 @@
    "komp": 5
   },
   {
-   "id": 9,
+   "id": 8,
    "nazwa": "z9_spawn_32488_32299",
    "x": 32488,
    "y": 32299,
@@ -1793,7 +1637,7 @@
    "udzial_zabic": 0.308,
    "mobow": 3,
    "zrodlo": "troll",
-   "waga": 0.136,
+   "waga": 0.143,
    "gniazdo": false,
    "sasiedzi": [
     {
@@ -1838,14 +1682,6 @@
     },
     {
      "id": 6,
-     "droga": 38,
-     "przez": [
-      "schody_32482_32296",
-      "schody_32483_32285"
-     ]
-    },
-    {
-     "id": 7,
      "droga": 50,
      "przez": [
       "schody_32482_32296",
@@ -1853,7 +1689,7 @@
      ]
     },
     {
-     "id": 8,
+     "id": 7,
      "droga": 53,
      "przez": [
       "schody_32482_32296",
