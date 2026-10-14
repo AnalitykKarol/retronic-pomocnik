@@ -51,6 +51,7 @@ UH_MAKS_PROB = 2             # prób rzutu i prób każdego przeciągnięcia
 UH_POTWIERDZ_S = 1.6         # czas na potwierdzenie przeciągnięcia w pamięci
 UH_CAST_S = 2.2              # czas na potwierdzenie rzutu
 UH_MAKS_AKCJI = 14           # twardy limit obiegów maszyny stanów
+UH_PONOW_BRAK_MIEJSCA_S = 60.0   # s do kolejnej próby, gdy nie ma gdzie odłożyć tarczy (zamiast serii porażek)
 UH_SPADEK_MANY = 0.5         # spadek many >= UH_KOSZT * tyle uznajemy za rzut
 
 # Środki slotów ręki względem prostokąta panelu: wyznaczane z zrzutu (geometria_z_obrazu), nie stałe.
@@ -75,6 +76,9 @@ def ustaw(czar, klawisz=None, koszt=None):
     if klawisz:
         UH_KLAWISZ = klawisz
     return UH_CZAR, UH_RUNA, UH_KOSZT, UH_KLAWISZ
+
+
+_brak_miejsca_od = None      # zegar środowiska z ostatniej odmowy "brak miejsca na tarczę" (mozna_robic: pauza)
 
 
 # --- decyzja: czy wolno zacząć ----------------------------------------------------
@@ -120,6 +124,8 @@ def mozna_robic(g, stwory, *, aktywny=None, min_hp=None, mana_min=None, ja=None,
         return False, f"mana {mana} < {mana_min}"
     if ostatnia is not None and teraz is not None and teraz - ostatnia < odstep:
         return False, f"odstęp {teraz - ostatnia:.0f}s < {odstep:.0f}s"
+    if teraz is not None and _brak_miejsca_od is not None and 0 <= teraz - _brak_miejsca_od < UH_PONOW_BRAK_MIEJSCA_S:
+        return False, f"brak miejsca na tarczę, ponowię za {UH_PONOW_BRAK_MIEJSCA_S - (teraz - _brak_miejsca_od):.0f}s"
     return True, "ok"
 
 
@@ -347,13 +353,23 @@ def _kont_dla(rodzaj, plecak, kontenery):
     return plecak if rodzaj == "plecak" else _runy(kontenery)
 
 
-def _gdzie_blank(plecak, runy, tylko_pojedyncze=False):
-    """("plecak"|"runy", indeks pola) blank runy: najpierw główny plecak, potem pojemnik na runy."""
+def _gdzie_blank(plecak, runy, tylko_pojedyncze=False, widoczne=None):
+    """("plecak"|"runy", indeks pola) blank runy: najpierw główny plecak, potem pojemnik na runy.
+    widoczne: {"plecak": ile pól widać w oknie, "runy": ...}; blank poza oknem (okno przycięte przez panel albo
+    otwarte okno zwłok) ustępuje widocznemu, jeśli taki jest (13.10: blank na polu 13 przy 12 widocznych)."""
     for rodzaj, k in (("plecak", plecak), ("runy", runy)):
-        if k is not None:
-            n = _gdzie(k, UH_BLANK_ID, tylko_pojedyncze)
-            if n is not None:
-                return rodzaj, n
+        if k is None:
+            continue
+        lim = (widoczne or {}).get(rodzaj)
+        if lim is not None:
+            c = [p["slot"] for p in k.get("przedmioty", [])
+                 if p["id"] == UH_BLANK_ID and p["slot"] < lim
+                 and (not tylko_pojedyncze or p.get("ilosc", 1) == 1)]
+            if c:
+                return rodzaj, c[-1]
+        n = _gdzie(k, UH_BLANK_ID, tylko_pojedyncze)
+        if n is not None:
+            return rodzaj, n
     return None
 
 
@@ -365,14 +381,38 @@ def _wolne_runy(runy, geom):
     return n if n is not None and n < len(geom["runy"]) else None
 
 
+def _cel_tarczy_na_runach(runy, geom):
+    """Pole (indeks) WIDOCZNEGO pola pojemnika na runy z samą runą, na które można upuścić tarczę, gdy żadne wolne
+    pole nie jest widoczne (okno przycięte przez panel, a wolne pola leżą pod spodem). Serwer wstawia upuszczony
+    przedmiot na początek kontenera (jak dla wolnego pola), o ile kontener nie jest pełny; pole z runą, nigdy
+    z kontenerem, więc tarcza nie wpadnie do środka cudzego plecaka. None: brak takiego pola."""
+    import loot
+    if runy is None or not geom or not geom.get("runy"):
+        return None
+    if len(runy.get("przedmioty", [])) >= runy.get("pojemnosc", 0):
+        return None
+    wid = len(geom["runy"])
+    c = [p["slot"] for p in runy.get("przedmioty", []) if p["slot"] < wid and p["id"] in loot.ID_RUN_W_POJEMNIKU]
+    return c[-1] if c else None
+
+
 def _cel_odkladu(plecak, runy, geom, runy_pierwsze, bez_runy=False):
     """("runy"|"plecak", pole) miejsca na odłożenie przedmiotu z ręki albo None.
     bez_runy: pojemnik na runy już odmówił (weryfikacja/przeciągnięcie) w tej procedurze: tylko plecak."""
     kol = (("runy", None if bez_runy else _wolne_runy(runy, geom)),
            ("plecak", _wolne(plecak) if plecak else None))
+    # wolne pole plecaka poza widocznym oknem nie jest celem (okno przycięte przez panel)
+    lim = len((geom or {}).get("plecak") or ())
+    kol = tuple((r, None if r == "plecak" and n is not None and lim and n >= lim else n) for r, n in kol)
     if not runy_pierwsze:
         kol = kol[::-1]
-    return next(((r, n) for r, n in kol if n is not None), None)
+    cel = next(((r, n) for r, n in kol if n is not None), None)
+    if cel is None and not bez_runy:
+        # brak widocznego wolnego pola (tarcza zajęła ostatnie): na pole z runą w pojemniku, jak tarcza
+        n = _cel_tarczy_na_runach(runy, geom)
+        if n is not None:
+            cel = ("runy", n, "na_zajete")
+    return cel
 
 
 def _wolne(plecak):
@@ -480,7 +520,16 @@ def _przed_ruchem(p, z, do, geom, zrodlo_id, pojedyncze):
                     powod = f"pole {z[1]}: w pamięci {w['id']}, oczekiwano {zrodlo_id}"
                 elif pojedyncze and w.get("ilosc", 1) != 1:
                     powod = f"pole {z[1]}: stos {w.get('ilosc')}"
-            if powod is None and do[0] != "reka":
+            if powod is None and do[0] != "reka" and len(do) > 2:
+                # upuszczenie na zajęte pole z runą (brak widocznego wolnego): kontener nie pełny, pole = runa
+                import loot
+                kd = _kont_dla(do[0], pl, kont)
+                w = next((x for x in kd.get("przedmioty", []) if x["slot"] == do[1]), None)
+                if len(kd.get("przedmioty", [])) >= kd.get("pojemnosc", 0):
+                    powod = "kontener pełny"
+                elif w is None or w["id"] not in loot.ID_RUN_W_POJEMNIKU:
+                    powod = f"cel {do[1]} nie jest polem z runą"
+            elif powod is None and do[0] != "reka":
                 kd = _kont_dla(do[0], pl, kont)
                 if do[1] != len(kd.get("przedmioty", [])) or do[1] >= kd.get("pojemnosc", 0):
                     powod = f"cel {do[1]} nie jest pierwszym wolnym polem ({len(kd.get('przedmioty', []))})"
@@ -495,6 +544,8 @@ def _przed_ruchem(p, z, do, geom, zrodlo_id, pojedyncze):
                 try:
                     powod = f(geom, pl if rodzaj == "plecak" else _runy(kont))
                 except Exception as ex:
+                    if type(ex).__name__ == "ZrzutNiedostepny":
+                        raise            # zrob_runa: powód "brak_zrzutu" (bez liczenia porażki UH)
                     powod = f"weryfikacja zrzutu: {type(ex).__name__}: {ex}"
         if powod is None:
             return None
@@ -593,8 +644,19 @@ def zrob_runa(env, slot=None, klawisz=None, koszt=None):
     except Exception as ex:
         if type(ex).__name__ == "Zatrzymano":
             raise
+        if type(ex).__name__ == "ZrzutNiedostepny":
+            # 13.10: grim wisiał (okno niewidoczne/obciążenie): osobny powód, cavebot nie liczy porażki UH
+            p.przerwij(f"brak_zrzutu: {ex}", alarm=p.zdjeto)
+            return _wynik(p, "przerwane", p.powod)
         p.przerwij(f"wyjątek {type(ex).__name__}: {ex}", alarm=p.zdjeto)
         return _wynik(p, "przerwane", p.powod)
+
+
+def _odmowa_miejsca(p):
+    """Nie ma widocznego miejsca na tarczę: przerwanie bez alarmu i pauza UH_PONOW_BRAK_MIEJSCA_S w mozna_robic."""
+    global _brak_miejsca_od
+    _brak_miejsca_od = p.env.zegar()
+    p.przerwij("brak_miejsca w plecaku na tarczę")
 
 
 def _przebieg(p):
@@ -628,8 +690,8 @@ def _przebieg(p):
                 return _wynik(p, "przerwane", p.powod)
             p.krok("brak_blank", ok=False)
             return _wynik(p, "brak_blank", "w plecaku brak blank runy")
-        if _wolne(plecak) is None:
-            p.przerwij("brak_miejsca w plecaku na tarczę")
+        if _wolne(plecak) is None and (runy is None or _wolne(runy) is None):
+            _odmowa_miejsca(p)
             return _wynik(p, "przerwane", p.powod)
         powod = env.przerwanie()
         if powod:
@@ -684,32 +746,50 @@ def _przebieg(p):
             if p.proby.get("tarcza_do_plecaka", 0) >= UH_MAKS_PROB:
                 p.przerwij("tarcza nie schodzi ze slotu")
                 break
-            if wolne is None:
-                p.przerwij("brak_miejsca w plecaku na tarczę")
+            # 13.10: okno plecaka pokazuje tylko część pól (np. 8 z 20): wolne pole poza oknem = nie do trafienia;
+            # wtedy tarcza idzie na widoczne wolne pole pojemnika na runy (stamtąd wraca do ręki)
+            cel_t = None
+            if wolne is not None and wolne < len(geom.get("plecak") or ()):
+                cel_t = ("plecak", wolne)
+            else:
+                r_w = _wolne_runy(runy, geom)
+                if r_w is not None:
+                    cel_t = ("runy", r_w)
+            if cel_t is None:
+                r_z = _cel_tarczy_na_runach(runy, geom)
+                if r_z is not None:
+                    cel_t = ("runy", r_z, "na_zajete")
+                    p.krok("tarcza_na_zajete_pole_runy", pole=r_z)
+            if cel_t is None:
+                _odmowa_miejsca(p)
                 break
             if isinstance(stan, dict):
                 stan["tarcza_id"] = p.tarcza_id      # zapis zamiaru przed ruchem (restart w środku)
-            if _przeciagnij(p, ("reka",), ("plecak", wolne), geom, plecak,
+            if _przeciagnij(p, ("reka",), cel_t, geom, plecak,
                          lambda e, k, s=slot, t=p.tarcza_id: _ekw_slot(e, s) != t,
-                         "tarcza_do_plecaka", zrodlo_id=p.tarcza_id, id=p.tarcza_id, pole=wolne):
+                         "tarcza_do_plecaka", zrodlo_id=p.tarcza_id, id=p.tarcza_id, pole=cel_t[1], dokad=cel_t[0]):
                 p.zdjeto = True
             continue
 
         if wid is None:
             if wracaj:
                 n = _gdzie(plecak, p.tarcza_id)
+                skad_t = "plecak"
+                if n is None and runy is not None:
+                    n, skad_t = _gdzie(runy, p.tarcza_id), "runy"
                 if n is None:
                     p.przerwij("tarcza_zgubiona (brak w slocie i w plecaku)", alarm=True)
                     break
                 if p.proby.get("tarcza_do_reki", 0) >= UH_MAKS_PROB:
                     p.przerwij("tarcza nie wróciła do slotu", alarm=True)
                     break
-                _przeciagnij(p, ("plecak", n), ("reka",), geom, plecak,
+                _przeciagnij(p, (skad_t, n), ("reka",), geom, plecak,
                              lambda e, k, s=slot, t=p.tarcza_id: _ekw_slot(e, s) == t,
-                             "tarcza_do_reki", zrodlo_id=p.tarcza_id, id=p.tarcza_id, pole=n)
+                             "tarcza_do_reki", zrodlo_id=p.tarcza_id, id=p.tarcza_id, pole=n, skad=skad_t)
                 continue
             # slot pusty, tarcza w plecaku: blank do ręki
-            zb = _gdzie_blank(plecak, runy, tylko_pojedyncze=True)
+            zb = _gdzie_blank(plecak, runy, tylko_pojedyncze=True,
+                              widoczne={"plecak": len(geom.get("plecak") or ()), "runy": len(geom.get("runy") or ())})
             if zb is None:
                 p.przerwij("brak blank runy po zdjęciu tarczy")
                 continue

@@ -103,7 +103,7 @@ def maska_gracza(v):
     zostaw(lambda w: (w("procent") >= 0) & (w("procent") <= 100) & calkowite(w("procent")))
     zostaw(lambda w: (w("max_hp") >= 100) & (w("max_hp") <= 200000) & calkowite(w("max_hp")))
     zostaw(lambda w: (w("hp") >= 0) & (w("hp") <= w("max_hp")) & calkowite(w("hp")))
-    zostaw(lambda w: (w("max_cap") > 0) & (w("max_cap") <= 100000) & (w("cap") >= 0) & (w("cap") <= w("max_cap")))
+    zostaw(lambda w: (w("max_cap") >= 0) & (w("max_cap") <= 100000) & (w("cap") >= 0) & (w("cap") <= w("max_cap")))
     zostaw(lambda w: (w("max_mana") >= 0) & (w("max_mana") <= 200000) & calkowite(w("max_mana")))
     zostaw(lambda w: (w("mana") >= 0) & (w("mana") <= w("max_mana")) & calkowite(w("mana")))
     # exp musi pasować do levelu

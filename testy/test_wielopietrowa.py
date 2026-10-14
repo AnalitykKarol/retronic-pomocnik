@@ -191,5 +191,63 @@ b = zrob(s, [tuple(p) for p in z_], okrazenia=1)
 n = bieg(b, s, 6000)
 sprawdz("7 troll_z_miasta wraca do jaskini", s.poz[2] in (8,) and s.nielegalne <= 3, f"{s.poz}")
 
+# 8. pole startowe przy schodach (13.10): przed próbą stajemy ortogonalnie ze schodami, po nieudanym Ctrl+klik
+# zmieniamy pole zamiast krokować po skosie, a pole, z którego się udało, zapamiętujemy per schody
+import tempfile
+class SwiatS(Swiat):
+    """Ctrl+klik działa tylko z pola `dobre` (None = z każdego); zapisuje pozycje, z których użyto."""
+    def __init__(s, *a, dobre=None, **kw):
+        super().__init__(*a, **kw); s.dobre = dobre; s.z_pol = []
+    def uzyj(s, pole):
+        s.z_pol.append((s.poz[0], s.poz[1]))
+        if s.dobre is None or (s.poz[0], s.poz[1]) == s.dobre:
+            super().uzyj(pole)
+        else:
+            s.uzycia.append(tuple(pole))
+def _orto(R): return [(R[0] + dx, R[1] + dy) for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)) if idzie(R[0] + dx, R[1] + dy, R[2])]
+def _dobre(i):
+    k = pietra.kandydaci(M, troll[i - 1], troll[i])[0]
+    return troll[i][2] < troll[i - 1][2] and k["pewne"] and len(_orto(k["pole"])) >= 2
+i8 = next(i for i in range(1, len(troll)) if _dobre(i))
+R8 = pietra.kandydaci(M, troll[i8 - 1], troll[i8])[0]["pole"]
+orto = _orto(R8)
+sprawdz("8 schody w teście mają >=2 pola ortogonalne", len(orto) >= 2, f"R={R8[:2]} orto={orto}")
+poz0 = next((R8[0] + dx, R8[1] + dy, R8[2]) for dx in (-1, 1) for dy in (-1, 1) if idzie(R8[0] + dx, R8[1] + dy, R8[2]))
+def ortog(p): return max(abs(p[0] - R8[0]), abs(p[1] - R8[1])) == 1 and (p[0] == R8[0] or p[1] == R8[1])
+def przejscie(s):
+    LOG.clear()
+    tr = list(troll); tr[i8 - 1] = poz0          # punkt przed schodami po skosie od schodów (jak (32483,32297) przy (32482,32296))
+    b = zrob(s, tr, okrazenia=1)
+    b.idx = i8
+    for _ in range(400):
+        if s.zmiany or not b.tick(): break
+    return b
+plik = Path(tempfile.mkdtemp()) / "pietra_start.json"
+pietra.PLIK_STARTOW = plik
+try:
+    # a) start po skosie, Ctrl+klik działa wszędzie: pierwsza próba z pola ortogonalnego, brak kroków po skosie
+    s = SwiatS(poz0, gora="use"); przejscie(s)
+    sprawdz("8a przejście wyszło", len(s.zmiany) == 1 and s.poz[2] == 8, f"{s.zmiany}")
+    sprawdz("8a pierwsza próba z pola ortogonalnego", s.z_pol and ortog(s.z_pol[0]), f"{s.z_pol}")
+    sprawdz("8a bez 'po skosie' w logu", not any("po skosie" in l for l in LOG))
+    zap = json.loads(plik.read_text()) if plik.exists() else {}
+    sprawdz("8a zapamiętane pole startowe", zap.get(f"{R8[0]},{R8[1]},{R8[2]}") == list(s.z_pol[0]), f"{zap}")
+    # b) pamięć: zapamiętane pole (nie to, które wybrałby bez pamięci) jest pierwsze
+    daleko = [c for c in orto if max(abs(c[0] - poz0[0]), abs(c[1] - poz0[1])) == 1][-1]   # sąsiad poz0, ostatni w kolejności
+    plik.write_text(json.dumps({f"{R8[0]},{R8[1]},{R8[2]}": list(daleko)}))
+    s = SwiatS(poz0, gora="use"); przejscie(s)
+    sprawdz("8b zapamiętane pole użyte jako pierwsze", s.z_pol and s.z_pol[0] == daleko, f"{s.z_pol} oczekiwane {daleko}")
+    # c) Ctrl+klik działa tylko z jednego pola: zmieniamy pole ortogonalne (bez kroków po skosie), próby <= 8
+    plik.write_text("{}")
+    dobre = daleko
+    s = SwiatS(poz0, gora="use", dobre=dobre); przejscie(s)
+    sprawdz("8c po nieudanym Ctrl+klik przejście z innego pola", len(s.zmiany) == 1 and len(s.z_pol) >= 2 and s.z_pol[-1] == dobre,
+            f"{s.z_pol} zmiany={s.zmiany}")
+    sprawdz("8c bez serii kroków po skosie", not any("po skosie" in l for l in LOG), f"{[l for l in LOG if 'skosie' in l][:2]}")
+    sprawdz("8c limit prób 8 zachowany", not any("próba 9/" in l for l in LOG))
+    sprawdz("8c po sukcesie zapamiętane dobre pole", json.loads(plik.read_text()).get(f"{R8[0]},{R8[1]},{R8[2]}") == list(dobre))
+finally:
+    pietra.PLIK_STARTOW = None
+
 print(f"\nOK={sum(ok)} FAIL={len(ok) - sum(ok)}")
 sys.exit(0 if all(ok) else 1)

@@ -16,16 +16,32 @@ mkdir -p "$INST_LOGI"
 cd "$DIR" || exit 1
 # na powierzchni (z7, np. przy depo) bot najpierw przechodzi nagrane dojście do troll_cave (dziura 32493,32259), na z8 startuje od razu
 DOJSCIE=()
-Z=$(python3 -I -c "
+LOG="$INST_LOGI/mozg-stdout-$(date +%m%d-%H%M).log"
+# P7g (13.10): odczyt piętra ponawiamy 3 razy po 1 s i logujemy wartość; gdy nadal pusty, dojście i tak jest
+# przekazane (--dojscie-jesli-z7: mozg.py sam sprawdza piętro po starcie i pomija dojście, gdy z != 7)
+Z=""
+for _p in 1 2 3; do
+  Z=$(python3 -I -c "
 import os,socket,json
 s=socket.socket(socket.AF_UNIX);s.settimeout(3);s.connect('$SOCK')
 s.sendall(b'{\"cmd\":\"pozycja\",\"nazwa\":\"${RETRONIC_POSTAC:-Jointoramix}\"}\n');print(json.loads(s.recv(400))['pozycja']['z'])" 2>/dev/null)
-[ "$Z" = "7" ] && DOJSCIE=(--dojscie depo_troll_cave)
-LOG="$INST_LOGI/mozg-stdout-$(date +%m%d-%H%M).log"
+  [ -n "$Z" ] && break
+  sleep 1
+done
+echo "$(date +%T) uruchom_trolle: odczytane piętro Z='${Z}'" >> "$LOG" 2>/dev/null
+if [ "$Z" = "7" ]; then
+  DOJSCIE=(--dojscie depo_troll_cave)
+elif [ -z "$Z" ]; then
+  notify-send "$TYTUL" "Nie znam piętra postaci: dojście z depo zdecyduje mozg po starcie"
+  DOJSCIE=(--dojscie depo_troll_cave --dojscie-jesli-z7)
+fi
 # Opcjonalnie MAPA=trolle_nowe (mapy.json) zamiast TRASA, TRYB=sredni,runy (tryby.json). Bez obu zmiennych bez zmian.
 if [ -n "$MAPA$TRYB" ]; then
+  printf 'MAPA=%q\nTRYB=%q\n' "$MAPA" "$TRYB" > "$DIR/ostatni_start${RETRONIC_ID:+.$RETRONIC_ID}.env"   # guzik/panel (uruchom.sh) startuje ostatni tryb
   WYN=$(python3 -I "$DIR/tryb.py" --mapa "${MAPA:-trolle}" --tryb "${TRYB:-}") || exit 1
   eval "$WYN"; [ -n "$MAPA" ] && TRASA="$MAPA_TRASA"
 fi
-setsid nohup python3 -I -u mozg.py --tryb hybryda --model haiku --trasa "${TRASA:-troll_cave}" "${DOJSCIE[@]}" --potwory "${MAPA_POTWORY:-Troll}" --prog-hp "${MAPA_PROG_HP:-60}" > "$LOG" 2>&1 < /dev/null &
+# P4 (13.10): telemetria pisze tylko z tą zmienną (testy i skrypty pomocnicze jej nie mają)
+export RETRONIC_TELEMETRIA=1
+setsid nohup python3 -I -u mozg.py --tryb hybryda --model haiku --trasa "${TRASA:-troll_cave}" "${DOJSCIE[@]}" --potwory "${MAPA_POTWORY:-Troll}" --prog-hp "${MAPA_PROG_HP:-60}" >> "$LOG" 2>&1 < /dev/null &
 notify-send "$TYTUL" "Start (mozg hybryda, ${TRASA:-troll_cave}${DOJSCIE:+ + dojście z depo})"

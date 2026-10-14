@@ -34,13 +34,52 @@ _cache_mapy = {}                 # (szerokość, wysokość) -> (L, T, R, B)
 
 # --- zrzut i wykrywanie mapy -------------------------------------------------
 
-def zrzut():
-    """PIL.Image ekranu sesji gry (grim na gnieździe Wayland sesji)."""
-    gniazdo = SESJA.read_text().strip()
+GRIM_TIMEOUT = {"png": 4.0, "ppm": 2.0, "jpeg": 5.0}   # s na jedną próbę (13.10: 10 s x5 = zawieszenie bota)
+GRIM_PROBY = 2                   # liczba prób zrzutu
+GRIM_PAUZA = 0.3                 # s między próbami
+GRIM_BLEDY = 0                   # licznik zrzutów, które nie udały się mimo ponowień
+GRIM_OSTATNI_OK = 0.0            # time.time() ostatniego udanego zrzutu
+
+
+class ZrzutNiedostepny(subprocess.TimeoutExpired):
+    """Zrzut ekranu (grim) nie powiódł się mimo ponowień. Podklasa TimeoutExpired (cmd = grim), więc
+    dotychczasowe pętle "okno gry niewidoczne" w mozg.py i cavebot.py traktują go jak wiszący grim;
+    uh.py rozpoznaje go po nazwie i nie liczy porażki."""
+
+    def __init__(self, cmd, timeout, czas=0.0, proby=1):
+        super().__init__(cmd, timeout)
+        self.czas = czas
+        self.proby = proby
+
+    def __str__(self):
+        return f"zrzut ekranu niedostępny: {self.proby} prób, {self.czas:.1f} s (timeout {self.timeout} s)"
+
+
+def grim(format="png", timeout=None, proby=None, gniazdo=None):
+    """Bajty zrzutu sesji gry (grim na gnieździe Wayland sesji). `proby` prób z `timeout` s każda
+    i pauzą GRIM_PAUZA; po porażce wszystkich: ZrzutNiedostepny."""
+    global GRIM_BLEDY, GRIM_OSTATNI_OK
+    timeout = GRIM_TIMEOUT.get(format, 5.0) if timeout is None else timeout
+    proby = max(1, int(GRIM_PROBY if proby is None else proby))
+    gniazdo = gniazdo or SESJA.read_text().strip()
     srodowisko = dict(os.environ, WAYLAND_DISPLAY=gniazdo)
-    wynik = subprocess.run(["grim", "-t", "png", "-"], env=srodowisko, capture_output=True,
-                           timeout=10, check=True)
-    return Image.open(io.BytesIO(wynik.stdout)).convert("RGB")
+    cmd = ["grim", "-t", format, "-"]
+    t0 = time.time()
+    for n in range(proby):
+        try:
+            wynik = subprocess.run(cmd, env=srodowisko, capture_output=True, timeout=timeout, check=True)
+            GRIM_OSTATNI_OK = time.time()
+            return wynik.stdout
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+            if n + 1 < proby:
+                time.sleep(GRIM_PAUZA)
+    GRIM_BLEDY += 1
+    raise ZrzutNiedostepny(cmd, timeout, czas=time.time() - t0, proby=proby)
+
+
+def zrzut():
+    """PIL.Image ekranu sesji gry (grim na gnieździe Wayland sesji; timeout 4 s, 2 próby)."""
+    return Image.open(io.BytesIO(grim("png"))).convert("RGB")
 
 
 def _rozmiar_ekranu(ekran=None):
@@ -86,6 +125,19 @@ def prostokat_mapy(obraz):
     T, B = max(_przedzialy(wypelnienie), key=lambda p: p[1] - p[0])
     # 3. dopasowanie do proporcji 15:11 (kafelek kwadratowy)
     wysokosc = round((R - L) * POLA_Y / POLA_X)
+    # 2b. 13.10: ciemna scena (jaskinia) ma szare wiersze wzięte za tło i blok wychodzi za niski/przesunięty;
+    # mapa ma 1-px czarną ramkę nad i pod sobą otoczoną jednolitym szarym UI: szukamy pary ramek w odstępie ~wysokosc
+    wiersz_czarny = mx[:, L:R].mean(1) <= 8
+    wiersz_tlo = tlo[:, L:R].mean(1) >= 0.97
+    for y in range(1, wys - wysokosc - 2):
+        if wiersz_czarny[y] and wiersz_tlo[y - 1]:
+            for y2 in range(y + wysokosc - 6, y + wysokosc + 2):
+                if y2 < wys - 1 and wiersz_czarny[y2] and wiersz_tlo[y2 + 1]:
+                    T, B = y + 1, y + 1 + wysokosc
+                    break
+            else:
+                continue
+            break
     if abs((B - T) - wysokosc) > max(6, wysokosc // 25):
         print(f"UWAGA: blok mapy {B - T} px zamiast {wysokosc} px, przyjmuję górę bloku", file=sys.stderr)
     B = T + wysokosc

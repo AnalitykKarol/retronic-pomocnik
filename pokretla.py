@@ -76,6 +76,7 @@ ZAKRESY = {
     "POSCIG_BEZ_ZMIANY_PIETRA": (0, 1), # 1 = pościg nigdy nie wchodzi na schody/dziury (poza wypadem do miasta)
     "TRASA_PIETRA": (0, 2),             # trasa wielopiętrowa w pętli łowiska: 0 = wył., 1 = zawsze, 2 = tylko gdy trasa ma > 1 piętro (domyślnie)
     "LOOT_PONOW_LOKALNIE": (0, 2),      # ile razy ponowić loot od razu po brak_okna, gdy w widoku brak żywych mobów
+    "LOOT_POMIN_CIEZKIE": (0, 1),       # 1 = przedmiot za ciężki (cap) pomijamy w lootcie 300 s; 0 = tylko klasyfikacja w logu
     "UNIKANIE": (0, 1),                 # 1 = omijanie zwykłych graczy (zmiana punktu rotacji, pomijanie celów przy graczu)
     "UNIKANIE_PROMIEN": (5, 12),        # pola: gracz tak blisko włącza unikanie
     "UNIKANIE_PROMIEN_MAX": (10, 20),   # pola: dalej gracz się nie liczy
@@ -114,8 +115,30 @@ ZAKRESY = {
     "WYPRAWA_MAX_CZAS_S": (300, 7200),  # s: twardy limit czasu wyprawy
     "WYPRAWA_MAX_KROKOW": (500, 50000), # twardy limit obiegów wyprawy
     "WYPRAWA_STOP_PRZY_UTKNIECIU": (0, 1),  # 1 = alarm + STOP przy utknięciu w mieście
+    "WYPAD_BIEGNIJ": (0, 1),            # 1 = w wypadzie biegniemy, walka tylko gdy droga zablokowana
+    "WYPAD_BLOK_S": (1.0, 10.0), "WYPAD_WALKA_S": (3.0, 20.0), "WYPAD_PETLA_S": (0.0, 30.0), "WYPAD_PETLA_PROMIEN": (1, 6),
+    "WYPRAWA_DEPO_BLANKI": (0, 1),      # P7b: 1 = w trybie TYLKO_DEPO sam brak blanków = wyprawa do depo (domyślnie 0)
+    "WYPRAWA_PO_DEPO_S": (0, 7200),     # P7c: s karencji wyprawy po depo (liczy się max z WYPRAWA_CO_MIN)
+    "WYPRAWA_PO_DOJSCIU_S": (0, 3600),  # P7a: s karencji wyprawy po dojściu z depo na spot
+    "DOJSCIE_WALKA_PRZEJSCIE_S": (0, 120),  # P7d: s walki do skutku przy blokującym stworze przy dziurze/schodach w dojściu (0 = 8 s jak dawniej)
+    "DOJSCIE_BEZ_UNIKANIA_POL": (0, 60),    # P7f: >0 = w tylu polach od początku dojścia (depo) bez unikania graczy (domyślnie 0)
+    "DOJSCIE_PROBY": (3, 8),            # P7e: liczba prób dojścia od aktualnej pozycji
+    "DOJSCIE_PAUZA_PROBY_S": (0.0, 15.0),   # P7e: s pauzy przed kolejną próbą dojścia
+    "DOJSCIE_BIEGNIJ": (0, 1),          # 1 = w dojściu na spot (powrót z depo) biegniemy bez walki/lootu; bijemy tylko blokujące moby
+    "PIETRA_LOPATA_TYLKO_Z7": (0, 1),   # 1 = łopata tylko na z7 (wejście z powierzchni), 0 = na każdym piętrze
+    "PIETRA_LOPATA_BRAK_S": (60.0, 3600.0),  # s przerwy w próbach łopaty po braku jej w plecaku
+    "PIETRA_LOPATA": (0, 1),            # 1 = wejście dziurą w dół: po nieudanym kroku odkopanie dziury łopatą z plecaka
+    "WYPRAWA_DEPO_POWROT": (0, 1),      # 1 = po dojściu do depo wyprawa sama wraca na spot (bez STOP)
+    "WYPRAWA_DEPO_POSTOJ_S": (0, 600),  # s: postój w depo przed powrotem
+    "WYPRAWA_DEPO_W_WALCE": (0, 1),   # 1 = wyprawa do depo po głodzie startuje także w walce (biegnie, bije tylko zablokowana)
+    "WYPRAWA_DEPO_ZLOZ": (0, 1),        # 1 = wyprawa najpierw składa UH w depo (skrzynia obok pola depo), potem Frodo/Xodet
+    "WYPRAWA_CZEKAJ_NA_GLOD": (0, 1),   # 1 = powody zapas/glod dopiero po potwierdzonym głodzie (nieudana próba jedzenia)
+    "WYPRAWA_TYLKO_DEPO": (0, 1),       # 1 = wyprawa kończy się w depo (bez zakupów, bez powrotu): alarm + STOP (tryb wyprawa_depo)
     "JEDZENIE_ZAPAS_MIN": (1, 20),      # poniżej tylu sztuk jedzenia w plecaku rzucamy exevo pan (przy JEDZENIE_CZAR_AKTYWNY=1)
     "OGIEN_UNIKAJ": (0, 1),             # 1 = omijaj pola ognia (wykrywane ze zrzutu), schodź z nich i nie lootuj z ognia (domyślnie 1)
+    "OGIEN_STALY": (0, 1),              # 1 = maska stałych pól ognia (widziane >= 20 razy przez >= 10 min): bez logu i bez bloku drogi (domyślnie 1)
+    "OGIEN_LOG_S": (1.0, 60.0),         # s: min. odstęp między wpisami "[OGIEN] pola" (domyślnie 10)
+    "OGIEN_ODSWIEZ_WALKA_S": (0.8, 5.0),  # s: odstęp wykryć ognia w WALKA bez zmiennych pól (domyślnie 0.8 = bez zmiany)
     "RUNA_AKTYWNA": (0, 1),             # 1 = strzał runą (hotkey RUNA_KLAWISZ) w celu w walce (domyślnie 0)
     "RUNA_TRYB_KLIK": (0, 1),           # 1 = strzał runą kliknięciami (plecak -> Use with -> mob) zamiast hotkeya
     "RUNA_ID": (1, 65535),              # ID runy w plecaku do strzału (HMM 3198)
@@ -129,8 +152,33 @@ ZAKRESY = {
     "UH_MANA_MIN": (1, 500),            # mana wymagana do startu runy
     "UH_MIN_HP": (50, 100),             # % HP gracza wymagane do startu runy
     "UH_MOB_DYSTANS": (1, 10),          # pola (Chebyshev): stwory dalej nie blokują ani nie przerywają runy (gracz zawsze)
+    "LOOT_DYNAMICZNY": (0, 1),          # 1 = loot dynamiczny w walce (zwłoki obok od razu, bez powtórek brak_okna, bez innego piętra; 0 = dawne)
+    "UH_W_WALCE": (0, 1),               # 1 = runa także w trakcie walki, gdy mana prawie pełna (domyślnie 0)
+    "UH_W_WALCE_MANA_MARGINES": (0, 50),  # w walce start przy mana >= max_mana - tyle (i >= UH_KOSZT)
+    "UH_W_WALCE_DYSTANS": (0, 3),       # w walce stwór tak blisko blokuje/przerywa runę (0 = moby ignorowane)
+    "UH_W_WALCE_SPADEK_HP": (5, 60),    # pp: spadek HP w trakcie runy w walce, od którego przerywamy
+    "UH_W_WALCE_MIN_HP": (50, 100),     # % HP wymagane do startu runy w walce (w trakcie: minus 10)
     "UH_ODSTEP_S": (5.0, 600.0),        # s: min. odstęp między próbami
+    "TRADE_OGLOSZENIA": (0, 1),         # 1 = ogłoszenia [SELL] UH na zakładce Trade (domyślnie 0; mozg.py)
+    "TRADE_MIN_S": (120, 900),          # s: min. odstęp między ogłoszeniami
+    "TRADE_MAX_S": (120, 1800),         # s: max. odstęp między ogłoszeniami
+    "TRADE_MIN_UH": (20, 2000),         # run UH w plecakach wymaganych do ogłoszenia (min. 20 = 1 pełny BP)
     "RUNA_MIN_HP_CELU": (0, 100),       # nie strzelaj do celu o HP% poniżej tego (0 = bez limitu)
+    # 13.10 (G2: spec P1/P2): twarde ignorowanie, strażnicy, blokujący na wyjściu
+    "IGNOR_TWARDE": (0, 1),             # 1 = ignorowanie celu nie znika przy podejściu na IGNOROWANIE_BLISKO (domyślnie 1)
+    "IGNOR_DROGA_CO_S": (0.5, 3.0),     # s: jak często sprawdzamy, czy za ścianą otworzyła się droga
+    "ODPUSZCZ_LOG_S": (1.0, 30.0),      # s: log "Odpuszczam ... za ścianą" najwyżej raz na tyle s na id
+    "BLOK_WYJSCIE": (0, 1),             # 1 = bij blokującego jedyne wyjście (zaułek) zamiast iść w stwora (domyślnie 0)
+    "BLOK_KROKI": (1, 4),               # pola drogi sprawdzane pod kątem stworów
+    "STRAZNIK_CEL": (0, 1),             # 1 = strażnik celu: Escape i klik po S1, twarde ignorowanie po S2 (domyślnie 1)
+    "STRAZNIK_CEL_S1": (8.0, 20.0),     # s bez postępu przy celu obok: Escape + ponowny klik
+    "STRAZNIK_CEL_PRZERWA": (2.0, 10.0),  # s przerwy między wywołaniami strażnika celu, po której okno liczy się od nowa
+    "STRAZNIK_CEL_S2": (15.0, 40.0),    # s bez postępu: kontrola pozycji + ignorowanie
+    "STRAZNIK_IGNOR_S": (20.0, 120.0),  # s ignorowania celu po S2
+    "STRAZNIK_POSTEP": (0, 1),          # 1 = strażnik postępu globalny (domyślnie 0)
+    "STRAZNIK_POSTEP_S1": (60.0, 180.0),   # s: reset stanu walki
+    "STRAZNIK_POSTEP_S2": (120.0, 300.0),  # s: zmiana celu patrolu / skok na trasę
+    "STRAZNIK_POSTEP_S3": (240.0, 600.0),  # s: powiadomienie krytyczne
 }
 # Pokrętła tekstowe (tylko ręcznie w na_zywo.json): nazwa -> dozwolone wartości
 TEKSTY = {
@@ -162,6 +210,7 @@ KIERUNEK = {
     # unikanie graczy: analityk nie może go wyłączyć ani poluzować (tylko zaostrzyć); ręczny plik tylko ZAKRESY
     "POSCIG_BEZ_ZMIANY_PIETRA": "nie_nizej",
     "TRASA_PIETRA": "nie_nizej",        # analityk nie może wyłączyć przejść pięter (tylko Karol w na_zywo.json)
+    "LOOT_POMIN_CIEZKIE": "nie_wyzej",  # analityk nie może włączyć pomijania ciężkich (tylko Karol w na_zywo.json)
     # patrol po miejscach: analityk nie może poluzować bezpieczeństwa druida ani pamięci graczy (tylko Karol w na_zywo.json)
     "PATROL_GNIAZDO_HP": "nie_nizej", "PATROL_GNIAZDO_MANA": "nie_nizej", "PATROL_GNIAZDO_MOBOW": "nie_wyzej",
     "PATROL_MOBY_KARA": "nie_nizej", "PATROL_MOBY_BEZP": "nie_wyzej",
@@ -190,10 +239,21 @@ KIERUNEK = {
     "WYPRAWA_AKTYWNA": "nie_wyzej", "WYPRAWA_BLANKI": "nie_wyzej", "WYPRAWA_BLANKI_MAX_KOSZT": "nie_wyzej",
     "WYPRAWA_JEDZENIE_CEL": "nie_wyzej", "WYPRAWA_JEDZENIE_DOKUP": "nie_wyzej", "WYPRAWA_MIN_HP": "nie_nizej",
     "WYPRAWA_CO_MIN": "nie_nizej", "WYPRAWA_MAX_CZAS_S": "nie_wyzej", "WYPRAWA_MAX_KROKOW": "nie_wyzej",
-    "WYPRAWA_STOP_PRZY_UTKNIECIU": "nie_nizej", "WYPRAWA_ZLOTO_MIN": "nie_nizej", "WYPRAWA_CAP_REZERWA": "nie_nizej",
+    "WYPRAWA_STOP_PRZY_UTKNIECIU": "nie_nizej", "WYPRAWA_CZEKAJ_NA_GLOD": "nie_wyzej", "WYPAD_BIEGNIJ": "nie_nizej", "DOJSCIE_BIEGNIJ": "nie_nizej", "PIETRA_LOPATA": "nie_nizej", "WYPRAWA_DEPO_POWROT": "nie_wyzej", "WYPRAWA_DEPO_POSTOJ_S": "nie_wyzej", "WYPRAWA_TYLKO_DEPO": "nie_wyzej", "WYPRAWA_ZLOTO_MIN": "nie_nizej", "WYPRAWA_CAP_REZERWA": "nie_nizej",
+    # ogłoszenia Trade: analityk nie może ich włączyć ani skrócić odstępów (tylko Karol w na_zywo.json)
+    "TRADE_OGLOSZENIA": "nie_wyzej", "TRADE_MIN_S": "nie_nizej", "TRADE_MAX_S": "nie_nizej", "TRADE_MIN_UH": "nie_nizej",
     "UH_AKTYWNY": "nie_wyzej", "UH_MIN_HP": "nie_nizej", "UH_MOB_DYSTANS": "nie_nizej", "UH_MANA_MIN": "nie_nizej", "UH_ODSTEP_S": "nie_nizej",
+    "LOOT_DYNAMICZNY": "nie_nizej",
+    "UH_W_WALCE": "nie_wyzej", "UH_W_WALCE_MANA_MARGINES": "nie_wyzej", "UH_W_WALCE_MIN_HP": "nie_nizej",
+    "UH_W_WALCE_DYSTANS": "nie_nizej", "UH_W_WALCE_SPADEK_HP": "nie_wyzej",
     # pola ognia: analityk nie może wyłączyć omijania (tylko Karol w na_zywo.json)
-    "OGIEN_UNIKAJ": "nie_nizej",
+    "OGIEN_UNIKAJ": "nie_nizej", "OGIEN_STALY": "nie_nizej", "OGIEN_ODSWIEZ_WALKA_S": "nie_wyzej",
+    # ignorowanie/strażnicy/blokujący: analityk nie może wyłączyć strażników ani włączyć bicia blokującego (tylko Karol)
+    # dojście z depo: analityk nie może włączyć wypraw po blanki w depo ani wyłączyć karencji/walki przy przejściu (tylko Karol)
+    "WYPRAWA_DEPO_BLANKI": "nie_wyzej", "WYPRAWA_PO_DEPO_S": "nie_nizej", "WYPRAWA_PO_DOJSCIU_S": "nie_nizej",
+    "DOJSCIE_WALKA_PRZEJSCIE_S": "nie_wyzej", "DOJSCIE_BEZ_UNIKANIA_POL": "nie_wyzej", "DOJSCIE_PROBY": "nie_nizej",
+    "DOJSCIE_PAUZA_PROBY_S": "nie_nizej",
+    "IGNOR_TWARDE": "nie_nizej", "STRAZNIK_CEL": "nie_nizej", "BLOK_WYJSCIE": "nie_wyzej", "STRAZNIK_POSTEP": "nie_wyzej",
 }
 COFNIECIE_S = 300
 

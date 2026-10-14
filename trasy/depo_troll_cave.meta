@@ -1,17 +1,17 @@
 {
  "specjalne": [
   {
-   "idx": 0,
+   "idx": 31,
    "typ": "start",
    "komentarz": "początek nagrania"
   },
   {
-   "idx": 75,
+   "idx": 106,
    "typ": "przed_zmiana_pietra",
    "komentarz": "ostatnie pole na piętrze 7, potem piętro 8"
   },
   {
-   "idx": 76,
+   "idx": 107,
    "typ": "schody_w_dol",
    "komentarz": "zmiana piętra 7 -> 8 (w dół), z (32492,32259)"
   }

@@ -1,0 +1,1466 @@
+{
+  "wygenerowano": "2026-10-14T09:55:11",
+  "uwagi": "liczba = unikalne pewne oferty (nadawca+intencja+przedmiot+cena+ilosc); mediana/min/max tylko z cena za sztuke (ea)",
+  "okna": {
+    "24h": {
+      "blue robe": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "club ring": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "coconut": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": 600,
+          "min": 600.0,
+          "max": 600.0
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "crown armor": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "crown shield": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "daramanian waraxe": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "demon shield": {
+        "sprzedaz": {
+          "liczba": 3,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "destroy field rune": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "double axe": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "dragon hammer": {
+        "sprzedaz": {
+          "liczba": 5,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "dragon shield": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "dwarven axe": {
+        "sprzedaz": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "dwarven shield": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "energy ring": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "envenom rune": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "fire axe": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "fire field rune": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "fire sword": {
+        "sprzedaz": {
+          "liczba": 4,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "fireball rune": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": 100,
+          "min": 100.0,
+          "max": 100.0
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "giant sword": {
+        "sprzedaz": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "great fireball rune": {
+        "sprzedaz": {
+          "liczba": 8,
+          "mediana": 2500,
+          "min": 145.0,
+          "max": 2500.0
+        },
+        "kupno": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "guardian shield": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "heavy magic missile rune": {
+        "sprzedaz": {
+          "liczba": 9,
+          "mediana": 90,
+          "min": 90.0,
+          "max": 90.0
+        },
+        "kupno": {
+          "liczba": 4,
+          "mediana": 1200,
+          "min": 1200.0,
+          "max": 1200.0
+        }
+      },
+      "ice rapier": {
+        "sprzedaz": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "knight armor": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "knight axe": {
+        "sprzedaz": {
+          "liczba": 6,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "knight legs": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "life ring": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 2,
+          "mediana": 800,
+          "min": 800.0,
+          "max": 800.0
+        }
+      },
+      "mace": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "magic plate armor": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "magic wall rune": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "might ring": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "naginata": {
+        "sprzedaz": {
+          "liczba": 3,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "obsidian lance": {
+        "sprzedaz": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "plate armor": {
+        "sprzedaz": {
+          "liczba": 3,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "plate legs": {
+        "sprzedaz": {
+          "liczba": 3,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "platinum amulet": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "scale armor": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "scarf": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "serpent sword": {
+        "sprzedaz": {
+          "liczba": 3,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "skull staff": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "soldier helmet": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "spike sword": {
+        "sprzedaz": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "stealth ring": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "steel helmet": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "sudden death rune": {
+        "sprzedaz": {
+          "liczba": 4,
+          "mediana": 4500,
+          "min": 4500.0,
+          "max": 4500.0
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "sword ring": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "time ring": {
+        "sprzedaz": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "two handed sword": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "ultimate healing rune": {
+        "sprzedaz": {
+          "liczba": 11,
+          "mediana": 2500,
+          "min": 2500.0,
+          "max": 2600.0
+        },
+        "kupno": {
+          "liczba": 7,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "vampire shield": {
+        "sprzedaz": {
+          "liczba": 6,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "war hammer": {
+        "sprzedaz": {
+          "liczba": 4,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      }
+    },
+    "7d": {
+      "blue robe": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "club ring": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "coconut": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": 600,
+          "min": 600.0,
+          "max": 600.0
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "crown armor": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "crown shield": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "daramanian waraxe": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "demon shield": {
+        "sprzedaz": {
+          "liczba": 3,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "destroy field rune": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "double axe": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "dragon hammer": {
+        "sprzedaz": {
+          "liczba": 5,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "dragon shield": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "dwarven axe": {
+        "sprzedaz": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "dwarven shield": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "energy ring": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "envenom rune": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "fire axe": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "fire field rune": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "fire sword": {
+        "sprzedaz": {
+          "liczba": 4,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "fireball rune": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": 100,
+          "min": 100.0,
+          "max": 100.0
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "giant sword": {
+        "sprzedaz": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "great fireball rune": {
+        "sprzedaz": {
+          "liczba": 8,
+          "mediana": 2500,
+          "min": 145.0,
+          "max": 2500.0
+        },
+        "kupno": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "guardian shield": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "heavy magic missile rune": {
+        "sprzedaz": {
+          "liczba": 9,
+          "mediana": 90,
+          "min": 90.0,
+          "max": 90.0
+        },
+        "kupno": {
+          "liczba": 4,
+          "mediana": 1200,
+          "min": 1200.0,
+          "max": 1200.0
+        }
+      },
+      "ice rapier": {
+        "sprzedaz": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "knight armor": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "knight axe": {
+        "sprzedaz": {
+          "liczba": 6,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "knight legs": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "life ring": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 2,
+          "mediana": 800,
+          "min": 800.0,
+          "max": 800.0
+        }
+      },
+      "mace": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "magic plate armor": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "magic wall rune": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "might ring": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "naginata": {
+        "sprzedaz": {
+          "liczba": 3,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "obsidian lance": {
+        "sprzedaz": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "plate armor": {
+        "sprzedaz": {
+          "liczba": 3,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "plate legs": {
+        "sprzedaz": {
+          "liczba": 3,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "platinum amulet": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "scale armor": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "scarf": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "serpent sword": {
+        "sprzedaz": {
+          "liczba": 3,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "skull staff": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "soldier helmet": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "spike sword": {
+        "sprzedaz": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "stealth ring": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "steel helmet": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "sudden death rune": {
+        "sprzedaz": {
+          "liczba": 4,
+          "mediana": 4500,
+          "min": 4500.0,
+          "max": 4500.0
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "sword ring": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "time ring": {
+        "sprzedaz": {
+          "liczba": 2,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "two handed sword": {
+        "sprzedaz": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "ultimate healing rune": {
+        "sprzedaz": {
+          "liczba": 11,
+          "mediana": 2500,
+          "min": 2500.0,
+          "max": 2600.0
+        },
+        "kupno": {
+          "liczba": 7,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "vampire shield": {
+        "sprzedaz": {
+          "liczba": 6,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "war hammer": {
+        "sprzedaz": {
+          "liczba": 4,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      }
+    }
+  }
+}

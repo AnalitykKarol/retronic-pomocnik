@@ -4,7 +4,9 @@ loot, utknięcie), agregaty i wykrywanie anomalii (czysty Python, bez modelu). T
 Rekordy: {"t": czas epoch, "typ": "probka"|<zdarzenie>, ...}. Tym samym rekordom służy analityk.py."""
 import json
 import math
+import os
 import re
+import sys
 import time
 from collections import deque, Counter
 from pathlib import Path
@@ -25,7 +27,10 @@ STANY_POSTOJU = ("PRZERWA", "PAUZA", "JEDZENIE", "LOOT", "GRACZ", "UCIECZKA")
 RE_CEL = re.compile(r"Nowy cel: (.+?) \((\d+),(\d+)\) HP (\d+)%")
 RE_ODP = re.compile(r"Odpuszczam (.+?)(?: poza ekranem)?: (.*)")
 RE_ZAB = re.compile(r"Cel (.+?) zabity na")
-RE_LOOT = re.compile(r"^Loot: (\w+)")
+# 13.10 (P4): tylko prawdziwy wynik lootu (status z loot.py, log(f"Loot: {wynik}") w cavebot._loot_...);
+# "Loot: 4 pola puste", "Loot: stoję na zwłokach" itd. to komunikaty pośrednie, nie wynik
+RE_LOOT = re.compile(r"^Loot: (ok|brak_okna|okno_niewidoczne|daleko|brak_plecaka|pelny_plecak|przerwany)$")
+RE_LOOT_WSTRZYMANY = re.compile(r"^Loot: zwłoki \((-?\d+), (-?\d+)\) bez okna \((\d+)x\)")
 RE_STAN = re.compile(r"^\[(\w+)\]")
 RE_ZMIANA = re.compile(r"Zmiana celu: (.+?) stoi obok, (.+?) jest")
 RE_ZGUB = re.compile(r"Cel (.+?) (?:wyszedł z widoku|zniknął poza ekranem)")
@@ -37,12 +42,35 @@ EXP_PRZED_S = 1.5                  # exp sprzed zabicia: ostatni odczyt starszy 
 EXP_CZEKAJ_S = 6                   # tyle sekund czekamy na wzrost exp po zabiciu
 
 
+_BLOKADY = {}                      # katalog -> otwarty deskryptor blokady zapisu (trzymany przez życie procesu)
+
+
+def _zapis_wlaczony():
+    """13.10 (P4): zapis do prawdziwego pliku tylko na żywo: RETRONIC_TELEMETRIA=1 i bez RETRONIC_TESTY."""
+    return os.environ.get("RETRONIC_TELEMETRIA") == "1" and not os.environ.get("RETRONIC_TESTY")
+
+
+def _src():
+    if os.environ.get("RETRONIC_TESTY"):
+        return "test"
+    nazwa = os.path.basename(sys.argv[0]) if sys.argv and sys.argv[0] else ""
+    return "mozg" if nazwa.startswith("mozg") else "cavebot"
+
+
 class Telemetria:
-    def __init__(self, katalog=LOGI, zegar=time.time, max_bajtow=MAX_BAJTOW, zapis=True):
+    def __init__(self, katalog=LOGI, zegar=time.time, max_bajtow=MAX_BAJTOW, zapis=None):
+        """zapis=None: decyduje środowisko (_zapis_wlaczony) i blokada pisarza (jeden proces na katalog);
+        True/False: jawnie (testy, analityk), bez blokady."""
         self.katalog = Path(katalog)
         self.zegar = zegar
         self.max_bajtow = max_bajtow
-        self.zapis = zapis
+        self._blokada = zapis is None          # zapis z domyślnych: wymaga flock na katalog/telemetria.lock
+        self.zapis = _zapis_wlaczony() if zapis is None else bool(zapis)
+        self.pid = os.getpid()
+        self.sesja = round(time.time(), 1)     # czas startu procesu (obiektu): odróżnia pisarzy w jednym pliku
+        self.src = _src()
+        if self.zapis and self._blokada:
+            self._zajmij_blokade()
         self.rek = deque()               # rekordy z ostatniej godziny
         self.ostatnia_probka = float("-inf")
         self.cel_start = None
@@ -64,10 +92,45 @@ class Telemetria:
         self.pierwszy_krok_sesja = deque(maxlen=200)  # 11.10: t_pierwszy_krok z poscig_koniec (do mediany w analizie)
 
     # --- zapis ---
+    def _zajmij_blokade(self):
+        """flock(LOCK_EX|LOCK_NB) na katalog/telemetria.lock, trzymany do końca procesu. Zajęty przez inny proces:
+        zapis=False i jedna linia na stdout (bez log(), żeby nie wchodzić w HAKI_LOGU)."""
+        k = str(self.katalog)
+        if k in _BLOKADY:
+            return                              # ten proces już pisze do tego katalogu (drugi obiekt)
+        try:
+            import fcntl  # noqa: PLC0415
+            self.katalog.mkdir(parents=True, exist_ok=True)
+            fd = os.open(self.katalog / "telemetria.lock", os.O_RDWR | os.O_CREAT, 0o644)
+        except (OSError, ImportError) as e:
+            print(f"telemetria: brak blokady ({e!r}), nie zapisuję", flush=True)
+            self.zapis = False
+            return
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            try:
+                kto = os.read(fd, 32).decode(errors="replace").strip() or "?"
+            except OSError:
+                kto = "?"
+            os.close(fd)
+            print(f"telemetria: inny proces pisze (pid {kto}), nie zapisuję", flush=True)
+            self.zapis = False
+            return
+        try:
+            os.ftruncate(fd, 0)
+            os.write(fd, str(self.pid).encode())
+        except OSError:
+            pass
+        _BLOKADY[k] = fd
+        print(f"telemetria: zapis (pid {self.pid}, src {self.src})", flush=True)
+
     def _plik(self, t):
         return self.katalog / f"telemetria-{time.strftime('%Y%m%d', time.localtime(t))}.jsonl"
 
     def _zapisz(self, r):
+        if self.zapis:
+            r["pid"], r["sesja"], r["src"] = self.pid, self.sesja, self.src
         self.rek.append(r)
         while self.rek and r["t"] - self.rek[0]["t"] > PAMIEC_S:
             self.rek.popleft()
@@ -364,6 +427,10 @@ class Telemetria:
             if self.ep and self.ep["n"] == m[1]:
                 self._ep_zamknij(t, "zabity")
             self._exp_zabicie(m[1], t)
+            return
+        m = RE_LOOT_WSTRZYMANY.match(txt)
+        if m:
+            self.zdarzenie("loot_wstrzymany", zwloki=[int(m[1]), int(m[2])], n=int(m[3]))
             return
         m = RE_LOOT.match(txt)
         if m:

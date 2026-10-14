@@ -761,6 +761,7 @@ class Czat:
         self.wyslane_teksty = deque(maxlen=30)
         self.reczne = 0                # ile nowych wpisów od własnej postaci, których bot nie wysłał
         self.reczne_czas = float("-inf")
+        self.atak_ts = float("-inf")   # nowa wiadomość o ataku gracza/PK (blokuje ogłoszenia Trade)
 
     @staticmethod
     def _norm(tekst):
@@ -892,6 +893,9 @@ class Czat:
             if len(kandydaci) > CZAT_HURT_MAKS and any(not self._swiezy(w, wall) for w in kandydaci):
                 poczatek = True
                 self.log(f"Czat: odświeżenie bufora, {len(kandydaci)} wpisów pominiętych")
+        for w in lista:
+            if not poczatek and atak_pk(w.get("tekst", "")) and self._swiezy(w):
+                self.atak_ts = teraz       # dowolny kanał (Server Log też): tylko znacznik, nie zdarzenie
         for w in lista:
             if not kanal_rozmowy(w["kanal"], w["autor"]) and not (
                     w["autor"] == self.nazwa and w["kanal"] in self.prywatne):
@@ -1050,6 +1054,271 @@ def wpisz_na_czacie(tekst, ekran=None, spij=time.sleep):
     finally:
         dpy.close()
     return True
+
+
+# --- ogłoszenia sprzedaży UH na kanale Trade ------------------------------------------
+# Pokrętła (cavebot.py / na_zywo.json): TRADE_OGLOSZENIA (domyślnie 0), TRADE_MIN_S, TRADE_MAX_S, TRADE_MIN_UH.
+# Wysyłka idzie z pętli mózgu (obieg_hybrydy, między tickami cavebota: ten sam wątek co odpowiedzi na Default),
+# więc żaden krok bota nie trwa w trakcie wpisywania; dodatkowo przed wpisaniem puszczamy klawisze ruchu
+# i sprawdzamy, że żaden nie jest trzymany (pole czatu pochłonęłoby strzałki/numpad).
+TRADE_SZABLON_PLIK = KATALOG / "trade_ogloszenie.txt"
+TRADE_SZABLON_DOMYSLNY = "[SELL] {bp} BP [UH] 2.4k each"
+TRADE_MAX_ZNAKOW = 80
+TRADE_RUN_W_BP = 20                # run UH w pełnym plecaku (stack = 20 run w tym wątku, patrz {bp})
+TRADE_ID_UH = 3160                 # id runy UH (loot.ID_RUN_W_POJEMNIKU)
+TRADE_START_S = (60, 120)          # s po starcie mózgu: pierwsze ogłoszenie najwcześniej
+TRADE_ODLOZ_S = (10, 20)           # s: odroczenie, gdy warunki nie spełnione w terminie (bez kolejkowania)
+TRADE_PORAZKI_MAX = 3              # kolejne porażki wysyłki -> funkcja wyłączona do końca sesji
+TRADE_PO_ATAKU_S = 60              # s po komunikacie o ataku gracza/PK bez ogłoszeń
+TRADE_OBCY_ODL = 8                 # pola: obcy gracz bliżej (Chebyshev, dowolne piętro) = odroczenie
+TRADE_MOB_ODL = 7                  # pola: żywy potwór bliżej = odroczenie
+TRADE_HP_MIN = 70                  # % HP gracza
+TRADE_PO_PIETRZE_S = 8             # s po zmianie piętra bez ogłoszeń
+TRADE_ZREDUKUJ_LOG_S = 120         # s: ten sam powód odroczenia logujemy najwyżej tak często
+# Zakładki czatu jako UŁAMKI rozmiaru ekranu (wzorzec: zrzut sesji 734x910, pasek zakładek nad polem czatu)
+TRADE_PASEK_Y = (768 / 910, 786 / 910)
+TRADE_ZAKLADKI_X = {"Default": (36 / 734, 104 / 734), "Trade": (280 / 734, 332 / 734)}
+TRADE_KLIK = {"Default": (70 / 734, 776 / 910), "Trade": (306 / 734, 776 / 910)}
+TRADE_MYSZ_PO = (0.30, 0.935)      # spokojny punkt (historia czatu): kursor nie wisi nad zakładką (hover)
+TRADE_PROG_PIKSELI = 30            # tyle jasnych pikseli tekstu zakładki, by uznać jej kolor
+
+
+def atak_pk(tekst):
+    """Komunikat o ataku innego gracza / PK / czaszce (nie o ataku potwora: "an attack by a rat")."""
+    t = str(tekst or "")
+    if re.search(r"\b(?:pk|pker|player killer|skull|skulled|unjustified|frag|frags)\b", t, re.IGNORECASE):
+        return True
+    if re.search(r"\b(?:attacked you|attacks you)\b", t, re.IGNORECASE):
+        return True
+    return bool(re.search(r"\b(?:attacked by|attack by)\s+(?!(?:an?|the)\s)[A-Z][A-Za-z']+", t))
+
+
+def klasyfikuj_zakladke(obraz, nazwa):
+    """"aktywna" (biały/jasnoszary tekst), "nieaktywna" (czerwony tekst) albo "brak" (ani jedno, ani drugie)."""
+    w, h = obraz.size
+    x0, x1 = TRADE_ZAKLADKI_X[nazwa]
+    y0, y1 = TRADE_PASEK_Y
+    pole = obraz.convert("RGB").crop((int(x0 * w), int(y0 * h), int(x1 * w) + 1, int(y1 * h) + 1))
+    biale = czerwone = 0
+    for r, g, b in pole.getdata():
+        if max(r, g, b) < 150:
+            continue
+        if min(r, g, b) >= 150 and max(r, g, b) - min(r, g, b) <= 70:
+            biale += 1
+        elif r >= 150 and g <= 120 and b <= 120:
+            czerwone += 1
+    if biale >= TRADE_PROG_PIKSELI and biale > czerwone:
+        return "aktywna"
+    if czerwone >= TRADE_PROG_PIKSELI:
+        return "nieaktywna"
+    return "brak"
+
+
+def stan_zakladek(obraz):
+    return {n: klasyfikuj_zakladke(obraz, n) for n in TRADE_ZAKLADKI_X}
+
+
+def _zloz_ogloszenie(szablon, bp):
+    """Tekst gotowy do wpisania albo None (szablon pusty/wielolinijkowy/nie-ASCII/z nieznanym polem/za długi)."""
+    if not szablon or "\n" in szablon or "\r" in szablon:
+        return None
+    if any(ord(c) < 32 or ord(c) > 126 for c in szablon):
+        return None
+    tekst = szablon.replace("{bp}", str(bp))
+    if "{" in tekst or "}" in tekst:
+        return None
+    tekst = oczysc_wiadomosc(tekst)
+    if not tekst or len(tekst) > TRADE_MAX_ZNAKOW or not bezpieczna_wiadomosc(tekst)[0]:
+        return None
+    return tekst
+
+
+def tresc_ogloszenia(uh, plik=None):
+    """(tekst, zrodlo) albo (None, powód). Szablon z pliku wczytywany przy każdym wysłaniu (hot reload),
+    z fallbackiem do domyślnego, gdy plik brak/niepoprawny. {bp} = max(1, uh // 20)."""
+    bp = max(1, int(uh) // TRADE_RUN_W_BP)
+    szablon = None
+    try:
+        linie = [l for l in Path(plik or TRADE_SZABLON_PLIK).read_text(encoding="utf-8").splitlines() if l.strip()]
+        if len(linie) == 1:
+            szablon = linie[0].strip()
+    except (OSError, ValueError):
+        szablon = None
+    tekst = _zloz_ogloszenie(szablon, bp) if szablon else None
+    if tekst is not None:
+        return tekst, "plik"
+    tekst = _zloz_ogloszenie(TRADE_SZABLON_DOMYSLNY, bp)
+    return (tekst, "domyslny") if tekst is not None else (None, "szablon domyslny odrzucony")
+
+
+def policz_uh(kontenery):
+    """Suma run UH w otwartych plecakach (nie zwłoki). None, gdy brak odczytu kontenerów."""
+    if not isinstance(kontenery, (list, tuple)) or not kontenery:
+        return None
+    suma = 0
+    for k in kontenery:
+        if not isinstance(k, dict):
+            continue
+        nazwa = str(k.get("nazwa") or "").casefold()
+        # tylko plecaki gracza (po nazwie): zwłoki z samymi runami też wyglądają jak "pojemnik na runy"
+        if not ("backpack" in nazwa or nazwa in ("bag", "bag of holding", "plecak")):
+            continue
+        for p in k.get("przedmioty") or []:
+            if isinstance(p, dict) and p.get("id") == TRADE_ID_UH:
+                suma += max(1, int(p.get("ilosc", 1) or 1))
+    return suma
+
+
+def wyslij_na_trade(tekst, *, zrzut, kliknij, rusz_mysz, wpisz, anuluj, puszczone, spij=time.sleep,
+                    losuj=random.uniform):
+    """Wysyła `tekst` na zakładce Trade: (a) klik zakładki, (b) weryfikacja zrzutem, (c) Enter-tekst-Enter,
+    (d) powrót na Default. Zwraca (ok, powód, wrocilem_na_default). Bez pewnej weryfikacji NIE wpisuje nic
+    (Default to publiczny czat). Zależności wstrzykiwane (testy bez gry): zrzut() -> PIL.Image,
+    kliknij("Trade"|"Default"), rusz_mysz(), wpisz(tekst), anuluj() (Escape po wyjątku w trakcie pisania),
+    puszczone() -> True, gdy żaden klawisz ruchu nie jest trzymany."""
+    if not puszczone():
+        return False, "klawisz ruchu trzymany", True
+    st = stan_zakladek(zrzut())
+    if st["Default"] == "aktywna" and st["Trade"] == "nieaktywna":
+        trzeba_klik = True
+    elif st["Trade"] == "aktywna" and st["Default"] != "aktywna":
+        trzeba_klik = False          # zostało po poprzednim przebiegu: nie klikamy, weryfikacja już jest
+    else:
+        return False, f"zakladki nierozpoznane {st}", True
+
+    def wroc():
+        for _ in range(2):
+            kliknij("Default")
+            rusz_mysz()
+            spij(losuj(0.3, 0.6))
+            if stan_zakladek(zrzut())["Default"] == "aktywna":
+                return True
+        return False
+
+    try:
+        if trzeba_klik:
+            kliknij("Trade")
+            rusz_mysz()
+            spij(losuj(0.3, 0.6))
+            st = stan_zakladek(zrzut())
+            if not (st["Trade"] == "aktywna" and st["Default"] != "aktywna"):
+                return False, f"weryfikacja zakladki Trade nieudana {st}", wroc()
+        if not puszczone():
+            return False, "klawisz ruchu trzymany", wroc()
+        spij(losuj(0.2, 0.5))
+        try:
+            ok = wpisz(tekst)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            try:
+                anuluj()
+            except Exception:
+                pass
+            return False, f"wpisywanie nieudane {e!r}", wroc()
+        spij(losuj(0.3, 0.7))
+        wrocilem = wroc()
+        if ok is False:
+            return False, "tresc odrzucona przez filtr", wrocilem
+        return True, "", wrocilem
+    except bot.Zatrzymano:
+        raise
+
+
+class TradeOgloszenia:
+    """Planista ogłoszeń: termin co losowe 180-300 s (równomiernie), pierwsze 60-120 s po starcie.
+    Termin nie spełnionych warunków = odroczenie o 10-20 s (jedno ogłoszenie, nie kolejka).
+    Zależności: spokoj() -> "" albo powód odroczenia; uh_ile() -> int/None; wyslij(tekst) -> (ok, powód, wrocilem).
+    TRADE_OGLOSZENIA == 0 (domyślnie): nic nie robi, niczego nie czyta."""
+
+    def __init__(self, zegar, log, uh_ile, spokoj, wyslij, losuj=random.uniform, konf=None, plik=None,
+                 po_alarmie=None):
+        self.zegar, self.log, self.uh_ile, self.spokoj, self.wyslij = zegar, log, uh_ile, spokoj, wyslij
+        self.losuj, self.konf, self.plik, self.po_alarmie = losuj, konf, plik, po_alarmie
+        self.nastepne = zegar() + losuj(*TRADE_START_S)
+        self.porazki = 0
+        self.wylaczone = False
+        self.wyslane = 0
+        self.ostatni_powod = (None, float("-inf"))
+
+    def _k(self, nazwa, domyslna):
+        konf = self.konf if self.konf is not None else cavebot
+        return getattr(konf, nazwa, domyslna)
+
+    def ustawienia(self):
+        mn = max(1.0, float(self._k("TRADE_MIN_S", 180)))
+        mx = max(mn, float(self._k("TRADE_MAX_S", 300)))
+        return bool(self._k("TRADE_OGLOSZENIA", 0)), mn, mx, max(TRADE_RUN_W_BP, int(self._k("TRADE_MIN_UH", 20)))
+
+    def odstep(self):
+        _, mn, mx, _ = self.ustawienia()
+        return self.losuj(mn, mx)
+
+    def _odloz(self, teraz, powod, uh=None):
+        self.nastepne = teraz + self.losuj(*TRADE_ODLOZ_S)
+        p, t = self.ostatni_powod
+        if p != powod or teraz - t >= TRADE_ZREDUKUJ_LOG_S:
+            self.ostatni_powod = (powod, teraz)
+            self.log(f"Trade: odroczone {self.nastepne - teraz:.0f} s ({powod})"
+                     + (f", run UH {uh}" if uh is not None else ""))
+
+    def tick(self):
+        """None = nic się nie stało; "wyslane" / "odroczone" / "brak_uh" / "porazka" / "wylaczone"."""
+        wlaczone, mn, mx, min_uh = self.ustawienia()
+        if self.wylaczone or not wlaczone:
+            return None
+        bot.sprawdz_stop()
+        teraz = self.zegar()
+        if teraz < self.nastepne:
+            return None
+        powod = self.spokoj()
+        if powod:
+            self._odloz(teraz, powod)
+            return "odroczone"
+        uh = self.uh_ile()
+        if uh is None:
+            self._odloz(teraz, "brak odczytu kontenerow")
+            return "odroczone"
+        if uh < min_uh:
+            self.nastepne = teraz + self.losuj(mn, mx)
+            self.log(f"Trade: brak zapasu UH ({uh} < {min_uh}), nie ogłaszam; następne sprawdzenie za "
+                     f"{self.nastepne - teraz:.0f} s")
+            return "brak_uh"
+        tekst, zrodlo = tresc_ogloszenia(uh, self.plik)
+        if tekst is None:
+            self._odloz(teraz, f"tresc: {zrodlo}", uh)
+            return "odroczone"
+        try:
+            ok, powod, wrocilem = self.wyslij(tekst)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            ok, powod, wrocilem = False, f"wyjatek {e!r}", True
+        self.nastepne = teraz + self.losuj(mn, mx)
+        if ok:
+            self.porazki = 0
+            self.wyslane += 1
+            self.log(f"Trade: wysłano ({uh} run UH, szablon {zrodlo}, #{self.wyslane}): {tekst!r}; "
+                     f"następne za {self.nastepne - teraz:.0f} s"
+                     + ("" if wrocilem else "; ALARM: nie wróciłem na zakładkę Default"))
+        else:
+            self.porazki += 1
+            self.log(f"Trade: NIE wysłano ({powod}), porażka {self.porazki}/{TRADE_PORAZKI_MAX}, run UH {uh}")
+        if not wrocilem:
+            self.wylaczone = True
+            self.log("Trade: ALARM zakładka Default nie wróciła, funkcja wyłączona do końca sesji "
+                     "(odpowiedzi na Default mogłyby iść na Trade)")
+            if self.po_alarmie:
+                try:
+                    self.po_alarmie("trade: zakladka nie wrocila na Default")
+                except Exception:
+                    pass
+            return "wylaczone"
+        if not ok and self.porazki >= TRADE_PORAZKI_MAX:
+            self.wylaczone = True
+            self.log(f"Trade: ALARM {TRADE_PORAZKI_MAX} porażki z rzędu, ogłoszenia wyłączone do końca sesji")
+            return "wylaczone"
+        return "wyslane" if ok else "porazka"
 
 
 # --- model ---------------------------------------------------------------------
@@ -1524,6 +1793,9 @@ class Mozg:
         self.wywolania_czasy = deque()  # czasy wszystkich wywołań modelu (MODEL_NA_GODZINE)
         self.limit_modelu_zgloszony = False
         self.koszt_usd = 0.0
+        self._trade_z = (None, float("-inf"))   # (piętro, od kiedy) do blokady po zmianie piętra
+        self.trade = TradeOgloszenia(zegar, self.log, self.trade_uh_ile, self.trade_spokoj, self.trade_wyslij,
+                                     losuj=losuj, po_alarmie=lambda t: self.alarm(t))
 
     # --- stan ---
 
@@ -1992,6 +2264,119 @@ class Mozg:
         hp_ok = g is None or not g.get("max_hp") or 100 * g["hp"] / g["max_hp"] >= 60
         return cb is None or (cb.stan not in ("WALKA", "UCIECZKA", "LOOT") and not cb.ucieczka and hp_ok)
 
+    # --- ogłoszenia Trade (TradeOgloszenia; wszystkie wyjątki poza STOP są połykane, bot gra dalej) ---
+
+    def trade_uh_ile(self):
+        """Run UH w otwartych plecakach (odczyt z pamięci gry, bez inputu) albo None."""
+        try:
+            return policz_uh(self.zapytaj({"cmd": "kontenery"}).get("kontenery"))
+        except bot.Zatrzymano:
+            raise
+        except Exception:
+            return None
+
+    def trade_spokoj(self):
+        """Powód odroczenia ogłoszenia albo "" (wolno). Te same warunki co odpowiedzi czatowe (bezpiecznie()),
+        zaostrzone: HP >= 70%, brak potworów/obcych w pobliżu, bez ruchu, pietra, UH, lootu i wypraw."""
+        cb, teraz = self.cb, self.zegar()
+        if cb is None:
+            return "tryb doradcy (brak cavebota)"
+        if self.alarm_gm or self.czat.zablokowany:
+            return "alarm_gm"
+        if self.zalegly_czat or self.rozmowa_od is not None:
+            return "rozmowa / odpowiedz w toku"
+        if self.czat.wyslane_czasy and teraz - self.czat.wyslane_czasy[-1] < CZAT_ODSTEP:
+            return "swieza odpowiedz na Default"
+        if teraz - self.czat.atak_ts < TRADE_PO_ATAKU_S:
+            return "komunikat o ataku/PK < 60 s temu"
+        stan = str(cb.stan)
+        if stan.startswith(("WALKA", "UCIECZKA", "POGON", "LOOT", "GRACZ", "JEDZENIE", "UH", "WYPAD", "POCHODNIA",
+                            "WYPRAWA", "PRZERWA", "ZDROWIE", "ML", "MOZG", "PIETR")):
+            return f"stan bota {stan}"
+        if getattr(cb, "cel", None) is not None or getattr(cb, "ucieczka", False) or getattr(cb, "ostrozny", False):
+            return "walka / ucieczka"
+        if getattr(cb, "w_poscigu", False) or getattr(cb, "w_lootcie", False) \
+                or getattr(cb, "lww", None) is not None or getattr(cb, "lww_zalegle", None) is not None:
+            return "poscig / loot"
+        if getattr(cb, "wypad_aktywny", False) or getattr(cb, "dojscie_aktywne", False) \
+                or getattr(getattr(cb, "wyprawa", None), "aktywny", False):
+            return "wypad / wyprawa / dojscie"
+        if getattr(cb, "uh_tryb_walki", False) or getattr(cb, "uh_hold_od", None) is not None:
+            return "UH w toku"
+        if getattr(cb, "wstrzymany_do", None) is not None and teraz < cb.wstrzymany_do:
+            return "bot wstrzymany (pauza)"
+        og = getattr(cb, "ostatni_gracz", None)
+        g = og[1] if og and teraz - og[0] < 10 else None
+        if not g or not g.get("max_hp"):
+            return "brak swiezego odczytu HP"
+        hp = 100.0 * g["hp"] / g["max_hp"]
+        if hp < TRADE_HP_MIN:
+            return f"HP {hp:.0f}% < {TRADE_HP_MIN}%"
+        odczyt = getattr(cb, "odczyt_stworow", None)
+        if not odczyt or teraz - odczyt[0] >= 10:
+            return "brak swiezego odczytu stworow"
+        lista = odczyt[1] or []
+        ja = next((s for s in lista if s.get("nazwa") == self.nazwa), None)
+        if ja is None:
+            return "postaci nie ma w odczycie stworow"
+        poz = (ja["x"], ja["y"], ja["z"])
+        if self._trade_z[0] != poz[2]:
+            self._trade_z = (poz[2], teraz)
+        if teraz - self._trade_z[1] < TRADE_PO_PIETRZE_S and self._trade_z[1] > self.start + 1:
+            return "swieza zmiana pietra"
+        for s in lista:
+            if s is ja or s.get("nazwa") == self.nazwa:
+                continue
+            d = max(abs(s["x"] - poz[0]), abs(s["y"] - poz[1]))
+            if s.get("gracz"):
+                if s.get("nazwa") not in self.czat.npc and d <= TRADE_OBCY_ODL:
+                    return f"obcy gracz w odleglosci {d}"
+            elif s["z"] == poz[2] and s.get("hp", 100) > 0 and s.get("nazwa") not in self.czat.npc \
+                    and d <= TRADE_MOB_ODL:
+                return f"potwor w odleglosci {d}"
+        try:
+            import klawisz_x11  # noqa: PLC0415
+            if klawisz_x11.trzymany() is not None:
+                return "klawisz ruchu trzymany"
+        except Exception:
+            pass
+        return ""
+
+    def trade_wyslij(self, tekst):
+        """Żywa wysyłka na Trade (klik zakładki XTEST + zrzut sesji + wpisz_na_czacie). -> (ok, powód, wrocilem)."""
+        import ekran  # noqa: PLC0415
+        import klawisz_x11  # noqa: PLC0415
+        cb = self.cb
+        ekran_x = getattr(cb.postac, "ekran", None) or bot.ekran_gry()
+
+        def puszczone():
+            cb._poscig_puszcz()
+            return klawisz_x11.trzymany() is None
+
+        with ekran.Mysz(ekran_x) as mysz:
+            scr = mysz.dpy.screen()
+            szer, wys = scr.width_in_pixels, scr.height_in_pixels
+
+            def kliknij(nazwa):
+                fx, fy = TRADE_KLIK[nazwa]
+                mysz.lewy(round(fx * szer), round(fy * wys))
+
+            def rusz_mysz():
+                mysz.ruch(round(TRADE_MYSZ_PO[0] * szer), round(TRADE_MYSZ_PO[1] * wys))
+
+            return wyslij_na_trade(
+                tekst, zrzut=ekran.zrzut, kliknij=kliknij, rusz_mysz=rusz_mysz,
+                wpisz=lambda t: wpisz_na_czacie(t, ekran=ekran_x),
+                anuluj=lambda: mysz.klawisz("Escape"), puszczone=puszczone)
+
+    def trade_tick(self):
+        try:
+            self.trade.tick()
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            self.log(f"Trade: błąd {e!r}")
+
     def wyslij_zalegly_czat(self):
         if not self.zalegly_czat or self.alarm_gm:
             return
@@ -2222,6 +2607,7 @@ class Mozg:
             except OSError as e:
                 self.log(f"Nie zapisałem pamięci: {e}")
         self.wyslij_zalegly_czat()
+        self.trade_tick()
         teraz = self.zegar()
         if self.model is not None and teraz - getattr(self, "_czat_odczyt", float("-inf")) >= czat_co:
             self._czat_odczyt = teraz
@@ -2398,17 +2784,61 @@ def przedzial(tekst):
     return a, b
 
 
+DOJSCIE_PROBY = 3                  # tyle razy ponawiamy dojście (od aktualnej pozycji), zanim uznamy porażkę
+DOJSCIE_BLISKO_TRASY = 30          # pola: po nieudanym dojściu postać tak blisko trasy głównej = zaczynamy patrol
+
+
+def dojscie_od_pozycji(punkty, poz):
+    """Trasa dojścia do przejścia jednym ciągiem od pozycji `poz`: bez pętli i cofnięć (trasa_io.uprosc_petle),
+    od najbliższego punktu na piętrze postaci (kolejne punkty to droga do celu, nigdy z powrotem do depo)."""
+    import trasa_io  # noqa: PLC0415
+    p = trasa_io.uprosc_petle(punkty)
+    if not p:
+        return p
+    z = poz[2]
+    i = min(range(len(p)), key=lambda k: (p[k][2] != z, abs(p[k][0] - poz[0]) + abs(p[k][1] - poz[1])))
+    # najbliższy punkt bywa tuż za postacią (już minięty): bierzemy następny, o ile nie jest ostatni ani na innym piętrze
+    return p[i:]
+
+
 def przejdz_dojscie(postac, punkty, prog_hp=40, jedzenie=None, potwory=None, graczy=True,
-                    stop_przy_graczach=False, fabryka=None, tolerancja=4):
-    """Dojście przed główną trasą: zwykły Cavebot (walka, ucieczka, loot jak zawsze) przechodzi punkty
-    dojścia jedno okrążenie. True, gdy postać stoi przy ostatnim punkcie (<= tolerancja pól, to samo piętro)."""
-    fabryka = fabryka or cavebot.Cavebot
+                    stop_przy_graczach=False, fabryka=None, tolerancja=2, proby=None):
+    """Dojście przed główną trasą (cavebot.CavebotDojscie): bez patrolu, lootu i walki po drodze (biegnie,
+    DOJSCIE_BIEGNIJ), z ucieczką/leczeniem jak zawsze. Trasa jest upraszczana do jednego przejścia od aktualnej
+    pozycji; po przerwaniu ponawiana (`proby` razy). True, gdy postać stoi przy ostatnim punkcie
+    (<= tolerancja pól, to samo piętro)."""
+    fabryka = fabryka or cavebot.CavebotDojscie
+    proby = int(getattr(cavebot, "DOJSCIE_PROBY", DOJSCIE_PROBY)) if proby is None else proby   # P7e: pokrętło
     punkty = [tuple(p) for p in punkty]
-    fabryka(postac, punkty, 1, None, prog_hp, jedzenie, potwory, graczy,
-            stop_przy_graczach=stop_przy_graczach).uruchom()
-    x, y, z = postac.pozycja()
     cel = punkty[-1]
-    return z == cel[2] and max(abs(x - cel[0]), abs(y - cel[1])) <= tolerancja
+    for nr in range(1, max(1, proby) + 1):
+        poz = tuple(postac.pozycja())
+        if poz[2] == cel[2] and max(abs(poz[0] - cel[0]), abs(poz[1] - cel[1])) <= tolerancja:
+            return True
+        trasa = dojscie_od_pozycji(punkty, poz)
+        if nr > 1:
+            print(f"Dojście: próba {nr}/{proby} od {poz}, {len(trasa)} pkt.", flush=True)
+        fabryka(postac, trasa, 1, None, prog_hp, jedzenie, potwory, graczy,
+                stop_przy_graczach=stop_przy_graczach, tolerancja=tolerancja).uruchom()
+        x, y, z = postac.pozycja()
+        if z == cel[2] and max(abs(x - cel[0]), abs(y - cel[1])) <= tolerancja:
+            return True
+        try:
+            if bot.STOP.exists() and not os.environ.get("RETRONIC_TESTY"):
+                break                  # STOP: nie ponawiamy
+        except Exception:
+            pass
+        pauza = float(getattr(cavebot, "DOJSCIE_PAUZA_PROBY_S", 0))
+        if pauza > 0 and nr < max(1, proby) and not os.environ.get("RETRONIC_TESTY"):
+            # P7e: troll mógł zejść z pola przejścia; krótka pauza przed kolejną próbą
+            time.sleep(random.uniform(0.75 * pauza, 1.5 * pauza))
+    return False
+
+
+def blisko_trasy(postac, punkty, odl=DOJSCIE_BLISKO_TRASY):
+    """True, gdy postać stoi na piętrze trasy w odległości <= odl pól (Chebyshev) od któregoś jej punktu."""
+    x, y, z = postac.pozycja()
+    return any(p[2] == z and max(abs(p[0] - x), abs(p[1] - y)) <= odl for p in punkty)
 
 
 def rozwiaz_patrol(trasa):
@@ -2436,6 +2866,8 @@ def main(argv):
     p.add_argument("--trasa", default="kanaly", help="trasa cavebota w trybach hybryda/ai/skrypt (kanaly)")
     p.add_argument("--dojscie", help="trasa dojścia (trasy/<nazwa>.json), np. miasto_spot: najpierw przejdź ją "
                    "do końca (z walką jak cavebot), potem główna --trasa")
+    p.add_argument("--dojscie-jesli-z7", action="store_true",
+                   help="dojście tylko, gdy postać po starcie stoi na z7 (gdy skrypt startowy nie odczytał piętra)")
     p.add_argument("--co", type=przedzial, help="odstęp pytań modelu w s, np. 30-60")
     p.add_argument("--model", default="haiku", help="model dla claude -p (haiku)")
     p.add_argument("--timeout", type=float, default=TIMEOUT_MODELU, help="s na odpowiedź modelu (60)")
@@ -2455,6 +2887,8 @@ def main(argv):
                    help="przy zdarzeniach lootu/drogi dołącz zrzut ekranu (obraz w wiadomości, model bez narzędzi)")
     a = p.parse_args(argv)
 
+    if a.tryb != "doradca" and not os.environ.get("RETRONIC_TESTY"):
+        os.environ.setdefault("RETRONIC_TELEMETRIA", "1")   # P4 (13.10): żywy bot pisze telemetrię także bez skryptu startowego
     LOGI.mkdir(parents=True, exist_ok=True)
     log = Dziennik(LOGI / f"mozg-{time.strftime('%Y%m%d-%H%M')}.log")
 
@@ -2484,16 +2918,44 @@ def main(argv):
     punkty = json.loads((bot.TRASY / f"{a.trasa}.json").read_text())
     potwory = [n.strip() for n in a.potwory.split(",") if n.strip()] if a.potwory else None
     postac = bot.Postac()
+    if a.dojscie and a.dojscie_jesli_z7:
+        try:
+            z_start = tuple(postac.pozycja())[2]
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            z_start = None
+            log(f"Dojście: nie odczytałem piętra po starcie ({e!r}), próbuję dojścia.")
+        if z_start is not None and z_start != 7:
+            log(f"Dojście: postać na z{z_start}, pomijam dojście {a.dojscie}.")
+            a.dojscie = None
     if a.dojscie:
         dojscie = json.loads((bot.TRASY / f"{a.dojscie}.json").read_text())
         log(f"Dojście: trasa {a.dojscie} ({len(dojscie)} pkt), potem {a.trasa}.")
         if not przejdz_dojscie(postac, dojscie, a.prog_hp, a.jedzenie, potwory, not a.ignoruj_graczy,
                                a.stop_przy_graczach):
-            log("Dojście nieukończone (przerwane albo nie dotarłem do końca), nie zaczynam głównej trasy.")
-            return
-        log("Dojście zakończone, zaczynam główną trasę.")
+            if not blisko_trasy(postac, punkty):
+                log("Dojście nieukończone (przerwane albo nie dotarłem do końca) i postać jest daleko od trasy "
+                    f"{a.trasa}, nie zaczynam głównej trasy.")
+                try:
+                    powiadom.powiadom("Bot: dojście na spot nieudane", "Dojście po trasie " + a.dojscie
+                                      + " nie dotarło do celu; potrzebny człowiek.", "critical", "dojscie")
+                except Exception:
+                    pass
+                return
+            log(f"Dojście nieukończone, ale postać stoi przy trasie {a.trasa}: zaczynam główną trasę (patrol).")
+        else:
+            log("Dojście zakończone, zaczynam główną trasę.")
     cb = CavebotMozgu(postac, punkty, None, 10 ** 9, a.prog_hp, a.jedzenie, potwory, not a.ignoruj_graczy,
                       nazwa_trasy=nazwa_trasy, stop_przy_graczach=a.stop_przy_graczach)
+    if a.dojscie:           # P7a: karencja wyprawy po dojściu (pierwsza ocena najwcześniej po WYPRAWA_PO_DOJSCIU_S)
+        try:
+            wp = getattr(cb, "wyprawa", None)
+            kar = float(getattr(cavebot, "WYPRAWA_PO_DOJSCIU_S", 0))
+            if wp is not None and kar > 0 and hasattr(wp, "nast_wyprawa"):
+                wp.nast_wyprawa = max(wp.nast_wyprawa, cb.zegar() + kar)
+        except Exception:
+            pass
     czat = (lambda t: log(f"[bez czatu] napisałbym: {t!r}")) \
         if a.bez_czatu else \
         (lambda t: wpisz_na_czacie(t, ekran=postac.ekran))

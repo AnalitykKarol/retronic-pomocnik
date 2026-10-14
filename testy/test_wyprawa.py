@@ -68,6 +68,8 @@ class Konf:
     WYPRAWA_MAX_CZAS_S = 1800
     WYPRAWA_MAX_KROKOW = 6000
     WYPRAWA_STOP_PRZY_UTKNIECIU = 1
+    WYPRAWA_CZEKAJ_NA_GLOD = 0
+    WYPRAWA_TYLKO_DEPO = 0
     UH_STAN_PLIK = None
 
 
@@ -435,6 +437,10 @@ sprawdz("0c w cavebot.py są stałe WYPRAWA_*, WYPRAWA_AKTYWNA domyślnie 0",
 tryby = json.loads((Path(W.KATALOG) / "tryby.json").read_text())
 okt, blt = pokretla.waliduj(tryby["wyprawa"]["pokretla"])
 sprawdz("0d tryb 'wyprawa' w tryby.json jest poprawny i włącza WYPRAWA_AKTYWNA", not blt and okt.get("WYPRAWA_AKTYWNA") == 1, blt)
+okd, bld = pokretla.waliduj(tryby["wyprawa_depo"]["pokretla"])
+sprawdz("0d2 tryb 'wyprawa_depo' poprawny: AKTYWNA, CZEKAJ_NA_GLOD i TYLKO_DEPO = 1",
+        not bld and okd.get("WYPRAWA_AKTYWNA") == 1 and okd.get("WYPRAWA_TYLKO_DEPO") == 1
+        and okd.get("WYPRAWA_CZEKAJ_NA_GLOD") == 1, bld)
 okb, blb = pokretla.waliduj(tryby["wyprawa_blanki"]["pokretla"])
 sprawdz("0e tryb 'wyprawa_blanki' poprawny", not blb and okb.get("WYPRAWA_BLANKI") == 30, blb)
 ok_, bl_ = pokretla.waliduj({"WYPRAWA_AKTYWNA": 1, "WYPRAWA_CO_MIN": 5}, {"WYPRAWA_AKTYWNA": 0, "WYPRAWA_CO_MIN": 20})
@@ -452,6 +458,34 @@ sprawdz("1c zapas 6 >= 5: brak startu", not pre(s, cb, w, 5))
 s, cb, w, k = nowy(jedzenie=0)
 cb.jedzenie_nie_do = s.t + 1000
 sprawdz("1d brak jedzenia (głód): start", pre(s, cb, w) and "zapas" in w.powod or "glod" in w.powod, w.powod)
+# 1d2. WYPRAWA_CZEKAJ_NA_GLOD: start dopiero po potwierdzonym głodzie
+def konf_glod(v=1):
+    kk = Konf(); kk.WYPRAWA_CZEKAJ_NA_GLOD = v
+    return kk
+s, cb, w, k = nowy(jedzenie=0, konf=konf_glod())
+sprawdz("1d2 CZEKAJ_NA_GLOD=1, najedzony + zapas 0: nie rusza", not pre(s, cb, w, 6) and not cb.wypad_aktywny)
+s, cb, w, k = nowy(jedzenie=2, konf=konf_glod())
+sprawdz("1d3 CZEKAJ_NA_GLOD=1, najedzony + zapas 2 < prog: nie rusza", not pre(s, cb, w, 6))
+s, cb, w, k = nowy(jedzenie=0, konf=konf_glod())
+cb.jedzenie_nie_do = s.t + 1000
+sprawdz("1d4 CZEKAJ_NA_GLOD=1, po nieudanej próbie jedzenia: rusza (glod/zapas)",
+        pre(s, cb, w) and ("zapas" in w.powod or "glod" in w.powod), w.powod)
+s, cb, w, k = nowy(jedzenie=0, konf=konf_glod())
+cb.jedzenie_nie_do = s.t + 100
+pre(s, cb, w, 1)                      # 1 odczyt: potwierdzony głód zapamiętany
+cb.jedzenie_nie_do = float("-inf")    # okno cavebota minęło, pamięć wyprawy trzyma
+s.t += 200
+sprawdz("1d5 CZEKAJ_NA_GLOD=1, głód zapamiętany po wygaśnięciu okna cavebota: rusza", pre(s, cb, w, 3) and cb.wypad_aktywny, w.powod)
+s, cb, w, k = nowy(jedzenie=0, konf=konf_glod())
+cb.jedzenie_nie_do = s.t + 100
+pre(s, cb, w, 1)
+cb.jedzenie_nie_do = float("-inf")
+s.t += 5000
+sprawdz("1d6 CZEKAJ_NA_GLOD=1, stary głód (> 10 min): nie rusza", not pre(s, cb, w, 4))
+s, cb, w, k = nowy(jedzenie=0, konf=konf_glod(0))
+sprawdz("1d7 CZEKAJ_NA_GLOD=0: dawne zachowanie, zapas 0 rusza od razu", pre(s, cb, w) and cb.wypad_aktywny, w.powod)
+okg, blg = pokretla.waliduj({"WYPRAWA_CZEKAJ_NA_GLOD": 1}, {"WYPRAWA_CZEKAJ_NA_GLOD": 0})
+sprawdz("1d8 analityk nie podniesie CZEKAJ_NA_GLOD (nie_wyzej), zakres 0/1", not okg and len(blg) == 1, f"{okg} {blg}")
 k = Konf(); k.WYPRAWA_AKTYWNA = 0
 s, cb, w, k = nowy(jedzenie=0, konf=k)
 sprawdz("1e WYPRAWA_AKTYWNA=0 (domyślnie): brak startu", not pre(s, cb, w, 5))
@@ -529,7 +563,7 @@ n, wyst = bieg(s, cb, w, maks=9000) if pre(s, cb, w) else (0, False)
 sprawdz("3a mało złota (50 gp, ham 8): oferta ponad budżet obcięta z góry do mieszczącej się, złoto >= 0",
         wyst and s.ile_zlota() >= 0 and s.plecak.get(3582, 0) >= 3 and ev(s, "wyprawa_koniec")[-1]["wynik"] == "ok",
         (s.mowa, s.plecak))
-s, cb, w, k = nowy(jedzenie=1, zloto=35, torch=5)
+s, cb, w, k = nowy(jedzenie=1, zloto=35, torch=5, cap=120.0)   # P5 13.10: domyślna waga ham 20 oz (dane), cap nie ma ograniczać
 n, wyst = bieg(s, cb, w, maks=9000) if pre(s, cb, w) else (0, False)
 sprawdz("3b złoto 35: kupione tyle ile starcza (4 szt. = 32 gp), bez pętli próśb", "buy 4 ham" in s.mowa and s.ile_zlota() >= 0 and s.mowa.count("hi") <= 3, (s.plecak, s.mowa))
 
@@ -671,6 +705,7 @@ s, cb, w, k = nowy(jedzenie=1, torch=5)
 pre(s, cb, w)
 stan_plik = w.plik_stanu
 stare_stop, stare_env = bot.STOP, _os.environ.pop("RETRONIC_TESTY", None)
+bot.STOP = TMP / "STOP10"            # nie zależymy od prawdziwego pliku STOP w katalogu bota
 for i in range(3000):
     s.t += 0.3; s.wall += 0.3
     cb.ruch_poz = tuple(s.poz)
@@ -766,6 +801,205 @@ wystartowal = pre(s, cb, w, 4)
 sprawdz("11a WYPRAWA_AKTYWNA=0: torch-trip startuje jak w wypadzie (powód pochodnie)", wystartowal and w.powod == "pochodnie" and w.w is None, w.powod)
 n, wyst = bieg(s, cb, w, maks=9000)
 sprawdz("11b torch-trip dokończony: 5 pochodni u Gorna, bez jedzenia (domyślne zakupy)", wyst and s.plecak.get(2920) == 5 and s.mowa[:3] == ["hi", "buy 5 torch", "yes"], (s.mowa, s.plecak))
+
+# --- 12. tryb wyprawa_depo: tylko do depo, STOP, bez zakupów ---------------------------------
+DEPO = (32348, 32225, 7)   # początek trasy/depo_troll_cave.json (13.10: prawdziwe depo)
+def konf_depo(**kw):
+    kk = Konf(); kk.WYPRAWA_TYLKO_DEPO = 1; kk.WYPRAWA_CZEKAJ_NA_GLOD = 1
+    for a, b in kw.items():
+        setattr(kk, a, b)
+    return kk
+sp_bez = konfig_sklepow(frodo=None, xodet=None, nazwa="bez_npc.json")
+
+
+def krok_dokladny(cb):
+    """krok_do atrapy: gdy cel obok na tym samym piętrze, staje na nim (jak prawdziwy krok)."""
+    def kd(cel, cb=cb):
+        sw = cb.s
+        sw.t += 0.3
+        if len(cel) > 2 and cel[2] == sw.poz[2] and max(abs(sw.poz[0] - cel[0]), abs(sw.poz[1] - cel[1])) == 1:
+            sw.poz[:] = [cel[0], cel[1], cel[2]]
+    cb.krok_do = kd
+    return cb
+
+
+powiad12 = []
+_pw.powiadom = lambda *a, **kw: powiad12.append(a)
+try:
+    s, cb, w, k = nowy(jedzenie=0, konf=konf_depo(), sklepy=sp_bez)
+    krok_dokladny(cb)
+    cb.jedzenie_nie_do = s.t + 100000
+    stop12 = TMP / f"STOP{_n[0]}"
+    plecak0 = dict(s.plecak)
+    startuje = pre(s, cb, w)
+    sprawdz("12a start bez pozycji Frodo, po potwierdzonym głodzie, powód depo", startuje and w.powod.startswith("wyprawa:depo")
+            and w.w is not None and w.w["potrzeby"] == {"depo": True} and [st["id"] for st in w.w["stops"]] == ["depo"], (w.powod, w.w and w.w["potrzeby"]))
+    n, wyst = bieg(s, cb, w, maks=12000)
+    kon = ev(s, "wyprawa_koniec")
+    stan = json.loads(w.plik_stanu.read_text())
+    sprawdz("12b dojście do pola depo: koniec 'depo', STOP zapisany, stan wyczyszczony, wypad nieaktywny",
+            wyst and tuple(s.poz) == DEPO and kon and kon[-1]["wynik"] == "depo" and stop12.exists()
+            and stan.get("aktywna") is False and w.w is None and not cb.wypad_aktywny and w.zablokowany,
+            (s.poz, kon, stop12.exists(), stan.get("aktywna")))
+    sprawdz("12c bez zakupów i bez rozmowy z NPC, bez powrotu na spot, jedzenie bez zmian",
+            s.mowa == [] and s.plecak == plecak0 and cb.wroty == [] and not ev(s, "wypad_zakup_odmowa") and w.kupione == {},
+            (s.mowa, s.plecak, cb.wroty))
+    sprawdz("12d powiadomienie o dotarciu do depo (critical) i brak alarmu utknięcia",
+            any(a[0] == "Wyprawa: jestem w depo" and a[2] == "critical" for a in powiad12) and not s.alarmy, (powiad12, s.alarmy))
+    sprawdz("12e nie wraca do jaskini: ostatnia pozycja z7, nigdy z8 po wyjściu z miasta",
+            s.poz[2] == 7 and s.pietra[-1] == 7, s.pietra)
+    # zwykła wyprawa z brakiem Frodo nadal nie startuje (kontrola zgodności)
+    s, cb, w, k = nowy(jedzenie=0, konf=konf_glod(), sklepy=sp_bez)
+    cb.jedzenie_nie_do = s.t + 100000
+    sprawdz("12f TYLKO_DEPO=0 i brak Frodo: wyprawa po zakupy nie startuje jak dawniej", not pre(s, cb, w, 5) and not cb.wypad_aktywny)
+    # bez głodu (zapas 0, najedzony): tryb depo nie rusza
+    s, cb, w, k = nowy(jedzenie=0, konf=konf_depo(WYPRAWA_CZEKAJ_NA_GLOD=0), sklepy=sp_bez)
+    sprawdz("12g tryb depo zawsze czeka na potwierdzony głód (nawet gdy CZEKAJ_NA_GLOD=0)", not pre(s, cb, w, 6) and not cb.wypad_aktywny)
+    # utknięcie w marszu: alarm + STOP, bez powrotu
+    s, cb, w, k = nowy(jedzenie=0, konf=konf_depo(WYPRAWA_STOP_PRZY_UTKNIECIU=0), sklepy=sp_bez)
+    cb.jedzenie_nie_do = s.t + 100000
+    stop12b = TMP / f"STOP{_n[0]}"
+    if pre(s, cb, w):
+        s.blokada_marszu = True
+        bieg(s, cb, w, maks=3000)
+    kon = ev(s, "wyprawa_koniec")
+    sprawdz("12h utknięcie w marszu do depo: alarm + STOP (nawet przy STOP_PRZY_UTKNIECIU=0), wyprawa zakończona, bez powrotu",
+            kon and kon[-1]["wynik"] == "blad" and s.alarmy and stop12b.exists() and not cb.wypad_aktywny and w.zablokowany
+            and cb.wroty == [] and w.faza != "z", (kon, s.alarmy, stop12b.exists()))
+    # limit czasu
+    s, cb, w, k = nowy(jedzenie=0, konf=konf_depo(WYPRAWA_MAX_CZAS_S=60), sklepy=sp_bez)
+    cb.jedzenie_nie_do = s.t + 100000
+    stop12c = TMP / f"STOP{_n[0]}"
+    if pre(s, cb, w):
+        bieg(s, cb, w, maks=5000)
+    kon = ev(s, "wyprawa_koniec")
+    sprawdz("12i limit czasu w marszu do depo: alarm + STOP", kon and kon[-1]["wynik"] == "blad" and s.alarmy and stop12c.exists(), kon)
+    # walka i ucieczka w drodze mają pierwszeństwo, wyprawa dochodzi
+    s, cb, w, k = nowy(jedzenie=0, konf=konf_depo(), sklepy=sp_bez)
+    krok_dokladny(cb)
+    cb.jedzenie_nie_do = s.t + 100000
+    stop12d = TMP / f"STOP{_n[0]}"
+    st12 = {"walka": 0, "uciekl": 0}
+    def fn12(i):
+        if w.aktywny and s.poz[2] == 9 and st12["walka"] < 20:
+            s.cel = {"id": 77}; st12["walka"] += 1
+        else:
+            s.cel = None
+        if w.aktywny and s.poz[2] == 7 and 5 < st12["uciekl"] < 20:
+            s.ucieczka = True
+        else:
+            s.ucieczka = False
+        if w.aktywny and s.poz[2] == 7:
+            st12["uciekl"] += 1
+    n, wyst = bieg(s, cb, w, maks=12000, fn=fn12) if pre(s, cb, w) else (0, False)
+    sprawdz("12j walka i ucieczka po drodze: wyprawa mimo to dochodzi do depo i kończy STOP-em",
+            wyst and st12["walka"] >= 5 and st12["uciekl"] > 20 and tuple(s.poz) == DEPO and stop12d.exists(), (st12, s.poz))
+    # restart w środku marszu wznawia i kończy w depo
+    s, cb, w, k = nowy(jedzenie=0, konf=konf_depo(), sklepy=sp_bez)
+    krok_dokladny(cb)
+    cb.jedzenie_nie_do = s.t + 100000
+    pre(s, cb, w)
+    for i in range(3000):
+        s.t += 0.3; s.wall += 0.3
+        cb.ruch_poz = tuple(s.poz)
+        w.tick()
+        if s.poz[2] == 7 and len(s.pietra) > 3:
+            break
+    st_r = json.loads(w.plik_stanu.read_text())
+    w.przerwij("STOP")
+    cbr = krok_dokladny(CB(s))
+    logr = []
+    opsr = Ops(s); opsr.log = logr.append
+    stopr = TMP / "STOP_depo_r"
+    wr = W.Wyprawa(cbr, opsr, konf=konf_depo(), log=logr.append, plik_stanu=w.plik_stanu, plik_sklepow=sp_bez,
+                   plik_npc=TMP / "npc_depo_r.json", plik_stop=stopr, czas=lambda: s.wall)
+    startr = False
+    for i in range(9000):
+        s.t += 0.3; s.wall += 0.3
+        cbr.ruch_poz = tuple(s.poz); cbr.ostatnie_stwory = []
+        wr.tick()
+        if wr.aktywny:
+            startr = True
+        elif startr:
+            break
+    sprawdz("12k restart w środku marszu (stan: depo): wznowiona, dochodzi do depo, STOP, bez powrotu na spot",
+            st_r.get("aktywna") and st_r.get("potrzeby") == {"depo": True} and startr
+            and any("WZNOWIONA" in l for l in logr) and tuple(s.poz) == DEPO and stopr.exists() and s.mowa == [],
+            (st_r.get("aktywna"), logr[-3:], s.poz))
+finally:
+    _pw.powiadom = _stare
+ok_, bl_ = pokretla.waliduj({"WYPRAWA_TYLKO_DEPO": 1}, {"WYPRAWA_TYLKO_DEPO": 0})
+sprawdz("12l analityk nie włączy WYPRAWA_TYLKO_DEPO", not ok_ and len(bl_) == 1, f"{ok_} {bl_}")
+sprawdz("12m cavebot.WYPRAWA_TYLKO_DEPO domyślnie 0", cavebot.WYPRAWA_TYLKO_DEPO == 0)
+
+# --- 13. start wyprawy do depo w walce (WYPRAWA_DEPO_W_WALCE) ---
+_pw.powiadom = lambda *a, **kw: None
+for opis13, wl13, oczek13 in (("13a w walce startuje (potwory obok, cel, głód)", 1, True),
+                             ("13b WYPRAWA_DEPO_W_WALCE=0: w walce nie startuje", 0, False)):
+    s, cb, w, k = nowy(jedzenie=0, konf=konf_depo(WYPRAWA_DEPO_W_WALCE=wl13), sklepy=sp_bez)
+    krok_dokladny(cb)
+    cb.jedzenie_nie_do = s.t + 100000
+    s.stwory.append({"id": 77, "nazwa": "Troll", "gracz": False, "x": s.poz[0] + 1, "y": s.poz[1], "z": s.poz[2], "hp": 100})
+    s.cel = s.stwory[-1]
+    wyn13 = False
+    for _ in range(5):
+        s.t += 20
+        s.wall += 20
+        cb.ruch_poz, cb.ostatnie_stwory, cb.cel = tuple(s.poz), list(s.stwory), s.cel
+        cb.ucieczka = False
+        wyn13 = wyn13 or w.okazja_w_walce(s.t)
+    sprawdz(f"{opis13}", wyn13 == oczek13 and cb.wypad_aktywny == oczek13, (wyn13, cb.wypad_aktywny))
+sprawdz("13c cavebot.WYPRAWA_DEPO_W_WALCE w pokretla.ZAKRESY", "WYPRAWA_DEPO_W_WALCE" in pokretla.ZAKRESY)
+
+# --- 14. składanie UH w depo na początku zwykłej wyprawy (WYPRAWA_DEPO_ZLOZ) ---
+_pw.powiadom = lambda *a, **kw: None
+class OpsZ(Ops):
+    zlozone = []
+    def zloz_w_depo(o, pozycja):
+        OpsZ.zlozone.append(tuple(pozycja()))
+        o.s.t += 3
+        return {"otwarte": True, "przeniesione": 4, "powod": None}
+kk14 = konf_glod(); kk14.WYPRAWA_DEPO_ZLOZ = 1
+s, cb, w, k = nowy(jedzenie=0, konf=kk14)
+krok_dokladny(cb)
+cb.jedzenie_nie_do = s.t + 100000
+w.ops = OpsZ(s)
+w.ops.log = w.logi.append
+st14 = pre(s, cb, w)
+ids14 = [st["id"] for st in w.w["stops"]] if w.w else None
+sprawdz("14a start: pierwszy przystanek depo_zloz, potem frodo/xodet", st14 and ids14 and ids14[0] == "depo_zloz" and "frodo" in ids14, ids14)
+n, wyst = bieg(s, cb, w, maks=14000)
+sprawdz("14b skladanie wykonane raz, na polu depo", len(OpsZ.zlozone) == 1 and OpsZ.zlozone[0] == (32343, 32226, 7), OpsZ.zlozone)
+sprawdz("14c po depo wyprawa kupuje ham u Frodo i konczy", wyst and s.plecak.get(3582, 0) > 0, (s.plecak, s.mowa[:6]))
+kk14b = konf_glod(); kk14b.WYPRAWA_DEPO_ZLOZ = 0
+OpsZ.zlozone.clear()
+s, cb, w, k = nowy(jedzenie=0, konf=kk14b)
+cb.jedzenie_nie_do = s.t + 100000
+w.ops = OpsZ(s); w.ops.log = w.logi.append
+pre(s, cb, w)
+sprawdz("14d knob 0: brak przystanku depo_zloz", w.w and all(st["id"] != "depo_zloz" for st in w.w["stops"]), w.w and [st["id"] for st in w.w["stops"]])
+sprawdz("14e WYPRAWA_DEPO_ZLOZ w pokretla.ZAKRESY", "WYPRAWA_DEPO_ZLOZ" in pokretla.ZAKRESY)
+
+# --- 15. P7 (14.10): dojście bez wyprawy, blanki w trybie depo, pamięć depo --------------------
+s, cb, w, k = nowy(jedzenie=5, torch=5, konf=konf_depo(WYPRAWA_BLANKI=10, WYPRAWA_BLANKI_PROG=1))
+cb.dojscie_aktywne = True
+sprawdz("15a dojscie_aktywne: _blokada_startu = 'dojscie'", w._blokada_startu(s.t, tuple(s.poz), []) == "dojscie")
+sprawdz("15a2 dojście: wyprawa nie startuje mimo blanków 0", not pre(s, cb, w, 6))
+s, cb, w, k = nowy(jedzenie=5, torch=5, konf=konf_depo(WYPRAWA_BLANKI=10, WYPRAWA_BLANKI_PROG=1))
+sprawdz("15b tryb depo, blanki 0, zapas ok, WYPRAWA_DEPO_BLANKI=0: brak wyprawy", not pre(s, cb, w, 6) and not cb.wypad_aktywny)
+sprawdz("15b2 jednorazowa notatka o braku blanków", sum("brak blanków" in l for l in w.logi) == 1, w.logi[-3:])
+s, cb, w, k = nowy(jedzenie=5, torch=5, konf=konf_depo(WYPRAWA_BLANKI=10, WYPRAWA_BLANKI_PROG=1, WYPRAWA_DEPO_BLANKI=1))
+sprawdz("15c WYPRAWA_DEPO_BLANKI=1: wyprawa 'depo:blanki' startuje", pre(s, cb, w, 6) and w.powod.startswith("wyprawa:depo:blanki"), w.powod)
+stan15 = TMP / "stan15.json"
+stan15.write_text(json.dumps({"depo_powody": ["blanki"], "depo_blanki": 0, "nast_wall": 0}))
+s, cb, w, k = nowy(jedzenie=5, torch=5, konf=konf_depo(WYPRAWA_BLANKI=10, WYPRAWA_BLANKI_PROG=1, WYPRAWA_DEPO_BLANKI=1), stan=stan15)
+sprawdz("15d pamięć depo: te same braki jak przy ostatnim depo = brak wyprawy (log)", not pre(s, cb, w, 6)
+        and any("jak przy ostatnim depo" in l for l in w.logi), w.logi[-3:])
+sprawdz("15e nowe pokrętła P7 w pokretla.ZAKRESY", all(x in pokretla.ZAKRESY for x in (
+    "WYPRAWA_DEPO_BLANKI", "WYPRAWA_PO_DEPO_S", "WYPRAWA_PO_DOJSCIU_S", "DOJSCIE_WALKA_PRZEJSCIE_S",
+    "DOJSCIE_BEZ_UNIKANIA_POL", "DOJSCIE_PROBY", "DOJSCIE_PAUZA_PROBY_S")) and all(hasattr(cavebot, x) for x in (
+    "WYPRAWA_DEPO_BLANKI", "WYPRAWA_PO_DEPO_S", "WYPRAWA_PO_DOJSCIU_S", "DOJSCIE_WALKA_PRZEJSCIE_S",
+    "DOJSCIE_BEZ_UNIKANIA_POL", "DOJSCIE_PROBY", "DOJSCIE_PAUZA_PROBY_S")))
 
 if _os.environ.get("DBG"):
     print(DBGLOG)

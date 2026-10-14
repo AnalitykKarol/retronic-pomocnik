@@ -14,7 +14,10 @@ Pościg NIGDY nie wchodzi tu: moduł jest wołany tylko z idz() (brak celu), a z
 Przy porażce przejścia: log + telemetria + powiadomienie, trasa zawraca (inna strona okrążenia); po
 PIETRA_PORAZKI_STOP porażkach z rzędu bot przerywa (jak przy "Trzy punkty z rzędu nieosiągalne").
 """
+import json
+import os
 import time
+from pathlib import Path
 
 import bot
 
@@ -22,6 +25,12 @@ try:
     import wypad
 except Exception:       # wypad nigdy nie wywraca bota
     wypad = None
+
+
+# 13.10: pole startowe (ortogonalne do schodów), z którego przejście wyszło; per schody, klucz "x,y,z" pola T.
+# W testach (RETRONIC_TESTY) bez zapisu, chyba że test sam ustawi PLIK_STARTOW.
+PLIK_STARTOW = None if os.environ.get("RETRONIC_TESTY") else Path(__file__).resolve().parent / "trasy" / "pietra_start.json"
+START_RUCHY_MAX = 8                 # ticków na dojście do jednego pola startowego, potem je pomijamy
 
 
 def cheb(a, b):
@@ -74,8 +83,10 @@ def kandydaci(mapa, a, b):
     return wyn[:3]
 
 
-TRYBY_DOL = {True: ("krok", "krok", "use", "krok", "use", "use_wlasne"),
-             False: ("use", "krok", "use_wlasne", "krok", "use", "use_wlasne")}
+# "lopata" = odkopanie zasypanej dziury łopatą z plecaka (Use with na polu dziury, albo na własnym, gdy już na nim stoimy);
+# potem kolejny "krok" wchodzi w odkopaną dziurę. Wyłączane pokrętłem PIETRA_LOPATA=0 (próba jest wtedy pomijana).
+TRYBY_DOL = {True: ("krok", "lopata", "krok", "use", "lopata", "krok", "use_wlasne"),
+             False: ("use", "krok", "use_wlasne", "lopata", "krok", "use", "use_wlasne")}
 TRYBY_GORA = ("R", "krok", "R", "lina", "wlasne", "E", "W", "N")
 
 
@@ -89,6 +100,7 @@ class Pietra:
         self.st = None                  # stan bieżącego przejścia
         self.resync = []                # czasy ostatnich resynchronizacji (pętla zabezpieczająca)
         self.ostrzezenia = set()
+        self._starty = None             # {"x,y,z": [x, y]} z PLIK_STARTOW (wczytywane przy pierwszym użyciu)
 
     # --- konfiguracja (stałe modułu cavebot) ---
 
@@ -159,7 +171,103 @@ class Pietra:
         if teraz < st["nast"]:
             cb.pauza(0.2, 0.5)
             return True
+        S = self._start(poz, T, st)
+        if S is not None:
+            return self._na_start(poz, S, T, st)
         return self._proba(poz, st, k, teraz)
+
+    # --- pole startowe: ortogonalnie ze schodami (po skosie Ctrl+klik i krok bywają wolne albo bez skutku) ---
+
+    def _wczytaj_starty(self):
+        if self._starty is None:
+            self._starty = {}
+            try:
+                if PLIK_STARTOW is not None and Path(PLIK_STARTOW).exists():
+                    d = json.loads(Path(PLIK_STARTOW).read_text())
+                    self._starty = {str(k): [int(v[0]), int(v[1])] for k, v in d.items()}
+            except Exception:
+                self._starty = {}
+        return self._starty
+
+    def _zapamietaj_start(self, T, poz):
+        """Przejście wyszło z pola ortogonalnego do T: zapamiętaj je jako pierwsze na następny raz (per schody)."""
+        d = self._wczytaj_starty()
+        klucz = f"{T[0]},{T[1]},{T[2]}"
+        if d.get(klucz) == [poz[0], poz[1]]:
+            return
+        d[klucz] = [poz[0], poz[1]]
+        if PLIK_STARTOW is None:
+            return
+        try:
+            tmp = Path(str(PLIK_STARTOW) + ".tmp")
+            tmp.write_text(json.dumps(d, indent=1, sort_keys=True))
+            os.replace(tmp, PLIK_STARTOW)
+        except Exception:
+            pass                        # zapis pamięci nigdy nie wywraca przejścia
+
+    def _start(self, poz, T, st):
+        """Pole, na które trzeba się ustawić przed próbą (None = próbujemy stąd, gdzie stoimy). Kolejność: pole
+        zapamiętane dla tych schodów, potem pole, na którym stoimy, potem najbliższe; tylko chodliwe wg mapy,
+        bez schodów/dziur i bez zajętych. Pole z nieudaną próbą Ctrl+klik jest odhaczone (st['zmien'])."""
+        cb = self.cb
+        p = (poz[0], poz[1])
+        if p == (T[0], T[1]):
+            return None
+        if st.get("starty_dla") != T:
+            zaj = set()
+            try:
+                zaj = {tuple(q[:2]) for q in cb.zajete_bez_nas(poz)}
+            except Exception:
+                pass
+            mem = tuple(self._wczytaj_starty().get(f"{T[0]},{T[1]},{T[2]}", ()))
+            pola = []
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                c = (T[0] + dx, T[1] + dy)
+                f = _flaga(cb.mapa, c[0], c[1], T[2])
+                if f & 1 and not f & (2 | 4) and (c not in zaj or c == p):
+                    pola.append(c)
+            pola.sort(key=lambda c: (c != mem, cheb(c, p)))
+            st.update(starty_dla=T, starty=pola, odw=set(), biezacy=None, zmien=False, ruchy=0)
+        if st["biezacy"] == p and not st["zmien"]:
+            return None
+        for S in st["starty"]:
+            if S in st["odw"]:
+                continue
+            if S == p:
+                st.update(biezacy=S, zmien=False, ruchy=0)
+                st["odw"].add(S)
+                return None
+            return S
+        return None
+
+    def _na_start(self, poz, S, T, st):
+        """Jeden obieg dojścia na pole startowe S: strzałka, gdy sąsiaduje w osi, inaczej zwykłe podejście."""
+        cb = self.cb
+        st["ruchy"] += 1
+        if st["ruchy"] > START_RUCHY_MAX:
+            st["odw"].add(S)
+            st["ruchy"] = 0
+            self.log(f"Przejście pięter: nie dochodzę na pole {S} przy schodach {T[:2]}, pomijam")
+            return True
+        dx, dy = S[0] - poz[0], S[1] - poz[1]
+        if cheb(poz, S) == 1 and not (dx and dy) and not _flaga(cb.mapa, S[0], S[1], poz[2]) & 4:
+            kier = ("Right" if dx > 0 else "Left") if dx else ("Down" if dy > 0 else "Up")
+            self.log(f"Przejście pięter: ustawiam się ortogonalnie ze schodami {T[:2]}: krok {kier} z {tuple(poz)} na {S}")
+            try:
+                cb.zatrzymaj_klik(poz)
+                cb.klik_cel = None
+                cb.postac.krok(kier)
+            except bot.Zatrzymano:
+                raise
+            except Exception:
+                pass
+            cb.pauza(0.15, 0.3)
+            return True
+        r = cb.podejdz(S, poz, objazd=False, dlugosc=0)
+        if r is None or r is False:
+            cb.nieudane += 1
+            cb.pauza(0.2, 0.5)
+        return True
 
     # --- dojście do pola przejścia ---
 
@@ -276,6 +384,50 @@ class Pietra:
                     return True                 # to samo pole co R (już próbowane)
                 self.log(f"Przejście pięter: próba {n + 1}/{len(tryby)} ({tryb}) z {tuple(poz)}, pole {q[:2]}")
                 self._use(q, poz, poz)
+            elif tryb == "lopata":
+                if not self._k("PIETRA_LOPATA", 1):
+                    return True
+                if self._k("PIETRA_LOPATA_TYLKO_Z7", 1) and z0 != 7:
+                    return True                 # 13.10: łopata tylko przy wejściu z powierzchni (z7); jaskinia nie ma zasypanych dziur
+                if teraz < getattr(self, "brak_lopaty_do", float("-inf")):
+                    return True                 # brak łopaty w plecaku: nie ponawiamy przez PIETRA_LOPATA_BRAK_S
+                uzyj = getattr(self.ops, "uzyj_lopate", None)
+                if uzyj is None:
+                    return True
+                cel_k = T
+                if na_polu:
+                    # 13.10: z własnego pola dziury nie da się jej odkopać: schodzimy o 1 kratkę (poziomo/pionowo,
+                    # nie w ścianę ani w inną dziurę) i kopiemy stamtąd
+                    for kier, (kx, ky) in (("Left", (poz[0] - 1, poz[1])), ("Right", (poz[0] + 1, poz[1])),
+                                           ("Up", (poz[0], poz[1] - 1)), ("Down", (poz[0], poz[1] + 1))):
+                        if _flaga(cb.mapa, kx, ky, z0) & (4 | 2):
+                            continue
+                        self.log(f"Przejście pięter: stoję na dziurze {T[:2]}, schodzę {kier} o kratkę, żeby ją odkopać")
+                        try:
+                            cb.postac.krok(kier)
+                        except bot.Zatrzymano:
+                            raise
+                        except Exception:
+                            pass
+                        cb.pauza(0.3, 0.5)
+                        nowa = tuple(cb.postac.pozycja())
+                        if nowa != tuple(poz):
+                            poz = nowa
+                            break
+                self.log(f"Przejście pięter: próba {n + 1}/{len(tryby)} (łopata na {cel_k[:2]}, odkopuję dziurę) "
+                         f"z {tuple(poz)}")
+                self._tele("pietra_lopata", poz=list(poz), pole=list(cel_k), proba=n + 1)
+                try:
+                    uzyj(cel_k, poz)
+                except bot.Zatrzymano:
+                    raise
+                except Exception as ex_l:
+                    if "nie widzę" in str(ex_l):
+                        self.brak_lopaty_do = teraz + float(self._k("PIETRA_LOPATA_BRAK_S", 600.0))
+                        self.log(f"Przejście pięter: brak łopaty w plecaku, nie próbuję ponownie przez "
+                                 f"{self._k('PIETRA_LOPATA_BRAK_S', 600.0):.0f} s")
+                    raise
+                cb.spij(0.6)                    # dziura otwiera się po chwili; kolejna próba to krok w nią
             elif tryb == "lina":
                 self.log(f"Przejście pięter: próba {n + 1}/{len(tryby)} (lina z plecaka) z {tuple(poz)}, pole {T[:2]}")
                 self.ops.uzyj_line(T, poz)
@@ -290,6 +442,8 @@ class Pietra:
             return True
         if self._po_przejsciu(z0, st, poz, teraz, k, opis):
             return True
+        if tryb in ("use", "R") and not na_polu:
+            st["zmien"] = True          # Ctrl+klik bez skutku: następna próba z innego pola ortogonalnego (jeśli jest)
         st["nast"] = cb.zegar() + self._odstep(n)
         return True
 
@@ -315,6 +469,9 @@ class Pietra:
                          f"{'' if oczekiwane else ', NIEOCZEKIWANE piętro'})")
                 self._tele("pietra_krok", z_od=z0, z_do=p[2], poz=list(p), idx=cb.idx, proba=n, tryb=opis,
                            oczekiwane=oczekiwane, czas_s=round(teraz - st["od"], 1))
+                T = k["pole"]
+                if cheb(poz_przed, T) == 1 and (poz_przed[0] == T[0] or poz_przed[1] == T[1]) and poz_przed[2] == T[2]:
+                    self._zapamietaj_start(T, poz_przed)
                 self._sukces(p)
                 return True
         return False

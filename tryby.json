@@ -69,6 +69,7 @@
    "WYPRAWA_JEDZENIE_CEL": 20,
    "WYPRAWA_JEDZENIE_DOKUP": 5,
    "WYPRAWA_JEDZ_NA_MIEJSCU": 1,
+   "WYPRAWA_CZEKAJ_NA_GLOD": 1,
    "WYPRAWA_BLANKI": 0
   }
  },
@@ -76,9 +77,20 @@
   "opis": "Jak 'wyprawa', plus dokup blank run u Xodeta do 30 sztuk (limit 600 gp). Wymaga pozycji Xodeta.",
   "pokretla": {
    "WYPRAWA_AKTYWNA": 1,
+   "WYPRAWA_CZEKAJ_NA_GLOD": 1,
    "WYPRAWA_BLANKI": 30,
    "WYPRAWA_BLANKI_PROG": 3,
    "WYPRAWA_BLANKI_MAX_KOSZT": 600
+  }
+ },
+ "wyprawa_depo": {
+  "opis": "Wyprawa tylko do depo (wyprawa.py, WYPRAWA_TYLKO_DEPO=1): po wyczerpaniu jedzenia i potwierdzonym głodzie bot idzie nagraną trasą troll_do_miasta, potem po mapie do pola depo (32366,32215,z7), tam kończy: log, powiadomienie, czyści stan wyprawy i zapisuje plik STOP. Bez zakupów, bez powrotu na spot. Nie wymaga pozycji Frodo. Utknięcie, teleport lub limit czasu: alarm + STOP w miejscu. Restart w trakcie wznawia marsz (wyprawa_stan.json).",
+  "pokretla": {
+   "WYPRAWA_AKTYWNA": 1,
+   "WYPRAWA_CZEKAJ_NA_GLOD": 1,
+   "WYPRAWA_TYLKO_DEPO": 1,
+   "WYPRAWA_POCHODNIE": 0,
+   "WYPRAWA_BLANKI": 0
   }
  }
 }

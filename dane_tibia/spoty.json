@@ -1,0 +1,1403 @@
+{
+ "meta": "Spoty wyliczone z mapy spawnow Tibia74-spawns.xml (zgodnej z oryginalnym monster.db CipSoft). exp/h to MODEL, nie pomiar. Wejscia nieznane.",
+ "spoty": [
+  {
+   "id": "E1",
+   "nazwa": "Edron Orc Cave, gorne pietra (z7-9)",
+   "miasto": "Edron",
+   "lokalizacja_srodek": {
+    "x": 33158,
+    "y": 31903,
+    "z": 9
+   },
+   "obszar": {
+    "x1": 33120,
+    "y1": 31860,
+    "x2": 33215,
+    "y2": 31945,
+    "pietra": [
+     7,
+     8,
+     9
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Edron 33191,31818,7)",
+   "potwory": [
+    {
+     "nazwa": "orc warrior",
+     "spawnow": 38,
+     "hp": 125,
+     "exp": 50,
+     "atak_max_szac": 60,
+     "ucieczka_hp": 10
+    },
+    {
+     "nazwa": "orc spearman",
+     "spawnow": 47,
+     "hp": 105,
+     "exp": 38,
+     "atak_max_szac": 25,
+     "ucieczka_hp": 10
+    },
+    {
+     "nazwa": "poison spider",
+     "spawnow": 36,
+     "hp": 26,
+     "exp": 22,
+     "atak_max_szac": 20,
+     "ucieczka_hp": 6
+    },
+    {
+     "nazwa": "orc berserker",
+     "spawnow": 3,
+     "hp": 210,
+     "exp": 195,
+     "atak_max_szac": 200,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "orc",
+     "spawnow": 22,
+     "hp": 70,
+     "exp": 25,
+     "atak_max_szac": 35,
+     "ucieczka_hp": 15
+    },
+    {
+     "nazwa": "orc shaman",
+     "spawnow": 2,
+     "hp": 115,
+     "exp": 110,
+     "atak_max_szac": 15,
+     "ucieczka_hp": 15
+    },
+    {
+     "nazwa": "rotworm",
+     "spawnow": 4,
+     "hp": 65,
+     "exp": 40,
+     "atak_max_szac": 40,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "deer",
+     "spawnow": 3,
+     "hp": 25,
+     "exp": 0,
+     "atak_max_szac": 1,
+     "ucieczka_hp": 25
+    }
+   ],
+   "liczba_spawnow": 156,
+   "sredni_exp_na_potwora": 38,
+   "sredni_hp": 86,
+   "ryzykowne_potwory": [],
+   "exp_h_szac": {
+    "od": 4745,
+    "do": 8369,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 13,
+   "ryzyko": "niskie-srednie; poison spider zatruwa, orc warrior do ~60 na traf",
+   "odleglosc_do_depo_kratek": 91,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Edron (33191,31818); realna trasa dluzsza, pietra liczone osobno (z=9 wzgledem z=7)",
+   "opis": "Duza jaskinia orkow pod/za Edron. Gorne pietra: orc, orc spearman, orc warrior, poison spider. Dobre pod miecz + UH; orki zrzucaja miesa/szynke (jedzenie za darmo).",
+   "pewnosc": "srednia",
+   "ranking_druid_lvl13_25": 1
+  },
+  {
+   "id": "E2",
+   "nazwa": "Edron Orc Cave, dolne pietra (z10-11)",
+   "miasto": "Edron",
+   "lokalizacja_srodek": {
+    "x": 33173,
+    "y": 31907,
+    "z": 10
+   },
+   "obszar": {
+    "x1": 33120,
+    "y1": 31860,
+    "x2": 33215,
+    "y2": 31945,
+    "pietra": [
+     10,
+     11
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Edron 33191,31818,7)",
+   "potwory": [
+    {
+     "nazwa": "orc berserker",
+     "spawnow": 27,
+     "hp": 210,
+     "exp": 195,
+     "atak_max_szac": 200,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "orc shaman",
+     "spawnow": 19,
+     "hp": 115,
+     "exp": 110,
+     "atak_max_szac": 15,
+     "ucieczka_hp": 15
+    },
+    {
+     "nazwa": "orc leader",
+     "spawnow": 7,
+     "hp": 450,
+     "exp": 270,
+     "atak_max_szac": 185,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "orc warrior",
+     "spawnow": 26,
+     "hp": 125,
+     "exp": 50,
+     "atak_max_szac": 60,
+     "ucieczka_hp": 10
+    },
+    {
+     "nazwa": "poison spider",
+     "spawnow": 41,
+     "hp": 26,
+     "exp": 22,
+     "atak_max_szac": 20,
+     "ucieczka_hp": 6
+    },
+    {
+     "nazwa": "orc spearman",
+     "spawnow": 8,
+     "hp": 105,
+     "exp": 38,
+     "atak_max_szac": 25,
+     "ucieczka_hp": 10
+    }
+   ],
+   "liczba_spawnow": 128,
+   "sredni_exp_na_potwora": 92,
+   "sredni_hp": 126,
+   "ryzykowne_potwory": [],
+   "exp_h_szac": {
+    "od": 8872,
+    "do": 15716,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 22,
+   "ryzyko": "srednie-wysokie; potrzeba ok. 250+ hp i zapasu UH, rozwazyc ucieczke po SD/trapy",
+   "odleglosc_do_depo_kratek": 90,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Edron (33191,31818); realna trasa dluzsza, pietra liczone osobno (z=10 wzgledem z=7)",
+   "opis": "Glebiej: orc berserker, orc leader, orc shaman, warrior. Wiecej exp/h, ale berserkery i leaderzy hp 210-450 i mocne bicie; shamany rzucaja czary.",
+   "pewnosc": "srednia",
+   "ranking_druid_lvl13_25": 5
+  },
+  {
+   "id": "E3",
+   "nazwa": "Edron Cyclops i dwarf soldier (z8)",
+   "miasto": "Edron",
+   "lokalizacja_srodek": {
+    "x": 33243,
+    "y": 31683,
+    "z": 8
+   },
+   "obszar": {
+    "x1": 33200,
+    "y1": 31655,
+    "x2": 33285,
+    "y2": 31715,
+    "pietra": [
+     8
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Edron 33191,31818,7)",
+   "potwory": [
+    {
+     "nazwa": "cyclops",
+     "spawnow": 27,
+     "hp": 260,
+     "exp": 150,
+     "atak_max_szac": 105,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "dwarf guard",
+     "spawnow": 9,
+     "hp": 245,
+     "exp": 165,
+     "atak_max_szac": 140,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "dwarf soldier",
+     "spawnow": 13,
+     "hp": 135,
+     "exp": 70,
+     "atak_max_szac": 70,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "orc berserker",
+     "spawnow": 3,
+     "hp": 210,
+     "exp": 195,
+     "atak_max_szac": 200,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "minotaur guard",
+     "spawnow": 2,
+     "hp": 185,
+     "exp": 160,
+     "atak_max_szac": 100,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "scorpion",
+     "spawnow": 6,
+     "hp": 45,
+     "exp": 45,
+     "atak_max_szac": 50,
+     "ucieczka_hp": 5
+    },
+    {
+     "nazwa": "orc leader",
+     "spawnow": 1,
+     "hp": 450,
+     "exp": 270,
+     "atak_max_szac": 185,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "wild warrior",
+     "spawnow": 3,
+     "hp": 135,
+     "exp": 60,
+     "atak_max_szac": 70,
+     "ucieczka_hp": 10
+    }
+   ],
+   "liczba_spawnow": 70,
+   "sredni_exp_na_potwora": 124,
+   "sredni_hp": 200,
+   "ryzykowne_potwory": [],
+   "exp_h_szac": {
+    "od": 8579,
+    "do": 15267,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 20,
+   "ryzyko": "srednie; cyclop do ~50-100 na traf wg szacunku, wymaga UH co 2-3 tury",
+   "odleglosc_do_depo_kratek": 144,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Edron (33191,31818); realna trasa dluzsza, pietra liczone osobno (z=8 wzgledem z=7)",
+   "opis": "Cyclopy (150 exp, hp 260) i dwarf soldierzy w jednej jaskini. Najlepszy exp/h na lvl 20+ przy bezpiecznym pull po jednym.",
+   "pewnosc": "srednia",
+   "ranking_druid_lvl13_25": null
+  },
+  {
+   "id": "E4",
+   "nazwa": "Edron troll caves NW (z8-10)",
+   "miasto": "Edron",
+   "lokalizacja_srodek": {
+    "x": 33094,
+    "y": 31737,
+    "z": 9
+   },
+   "obszar": {
+    "x1": 33030,
+    "y1": 31700,
+    "x2": 33140,
+    "y2": 31790,
+    "pietra": [
+     8,
+     9,
+     10
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Edron 33191,31818,7)",
+   "potwory": [
+    {
+     "nazwa": "troll",
+     "spawnow": 118,
+     "hp": 50,
+     "exp": 20,
+     "atak_max_szac": 15,
+     "ucieczka_hp": 15
+    },
+    {
+     "nazwa": "bear",
+     "spawnow": 8,
+     "hp": 80,
+     "exp": 23,
+     "atak_max_szac": 25,
+     "ucieczka_hp": 15
+    },
+    {
+     "nazwa": "swamp troll",
+     "spawnow": 2,
+     "hp": 55,
+     "exp": 25,
+     "atak_max_szac": 13,
+     "ucieczka_hp": 15
+    },
+    {
+     "nazwa": "frost troll",
+     "spawnow": 1,
+     "hp": 55,
+     "exp": 23,
+     "atak_max_szac": 20,
+     "ucieczka_hp": 10
+    },
+    {
+     "nazwa": "rat",
+     "spawnow": 4,
+     "hp": 20,
+     "exp": 5,
+     "atak_max_szac": 8,
+     "ucieczka_hp": 5
+    }
+   ],
+   "liczba_spawnow": 133,
+   "sredni_exp_na_potwora": 20,
+   "sredni_hp": 51,
+   "ryzykowne_potwory": [],
+   "exp_h_szac": {
+    "od": 3214,
+    "do": 5634,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 8,
+   "ryzyko": "niskie",
+   "odleglosc_do_depo_kratek": 126,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Edron (33191,31818); realna trasa dluzsza, pietra liczone osobno (z=9 wzgledem z=7)",
+   "opis": "Troll (20 exp, hp 50), swamp/frost troll, niedzwiedzie. Wolno ale bezpiecznie, dobre na lvl 8-14.",
+   "pewnosc": "srednia",
+   "ranking_druid_lvl13_25": null
+  },
+  {
+   "id": "E5",
+   "nazwa": "Edron goblin i bug cave (z10)",
+   "miasto": "Edron",
+   "lokalizacja_srodek": {
+    "x": 33092,
+    "y": 31823,
+    "z": 10
+   },
+   "obszar": {
+    "x1": 33060,
+    "y1": 31790,
+    "x2": 33135,
+    "y2": 31860,
+    "pietra": [
+     10
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Edron 33191,31818,7)",
+   "potwory": [
+    {
+     "nazwa": "goblin",
+     "spawnow": 41,
+     "hp": 50,
+     "exp": 25,
+     "atak_max_szac": 10,
+     "ucieczka_hp": 15
+    },
+    {
+     "nazwa": "bug",
+     "spawnow": 14,
+     "hp": 29,
+     "exp": 18,
+     "atak_max_szac": 23,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "wasp",
+     "spawnow": 2,
+     "hp": 35,
+     "exp": 24,
+     "atak_max_szac": 20,
+     "ucieczka_hp": null
+    }
+   ],
+   "liczba_spawnow": 57,
+   "sredni_exp_na_potwora": 23,
+   "sredni_hp": 44,
+   "ryzykowne_potwory": [],
+   "exp_h_szac": {
+    "od": 4011,
+    "do": 7018,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 8,
+   "ryzyko": "niskie",
+   "odleglosc_do_depo_kratek": 99,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Edron (33191,31818); realna trasa dluzsza, pietra liczone osobno (z=10 wzgledem z=7)",
+   "opis": "Gobliny (25 exp) i bugi (18 exp), nisko. Startowe.",
+   "pewnosc": "niska-srednia",
+   "ranking_druid_lvl13_25": null
+  },
+  {
+   "id": "T1",
+   "nazwa": "Thais Orc Cave (pod miastem, z11)",
+   "miasto": "Thais",
+   "lokalizacja_srodek": {
+    "x": 32388,
+    "y": 32204,
+    "z": 11
+   },
+   "obszar": {
+    "x1": 32355,
+    "y1": 32165,
+    "x2": 32415,
+    "y2": 32235,
+    "pietra": [
+     11
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Thais 32369,32215,7)",
+   "potwory": [
+    {
+     "nazwa": "orc spearman",
+     "spawnow": 9,
+     "hp": 105,
+     "exp": 38,
+     "atak_max_szac": 25,
+     "ucieczka_hp": 10
+    },
+    {
+     "nazwa": "slime",
+     "spawnow": 2,
+     "hp": 150,
+     "exp": 160,
+     "atak_max_szac": 110,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "orc",
+     "spawnow": 9,
+     "hp": 70,
+     "exp": 25,
+     "atak_max_szac": 35,
+     "ucieczka_hp": 15
+    },
+    {
+     "nazwa": "orc warrior",
+     "spawnow": 4,
+     "hp": 125,
+     "exp": 50,
+     "atak_max_szac": 60,
+     "ucieczka_hp": 10
+    },
+    {
+     "nazwa": "poison spider",
+     "spawnow": 9,
+     "hp": 26,
+     "exp": 22,
+     "atak_max_szac": 20,
+     "ucieczka_hp": 6
+    }
+   ],
+   "liczba_spawnow": 33,
+   "sredni_exp_na_potwora": 39,
+   "sredni_hp": 79,
+   "ryzykowne_potwory": [
+    {
+     "nazwa": "fire devil",
+     "spawnow": 1
+    }
+   ],
+   "exp_h_szac": {
+    "od": 5040,
+    "do": 8880,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 10,
+   "ryzyko": "niskie; poison spider i orc warrior",
+   "odleglosc_do_depo_kratek": 21,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Thais (32369,32215); realna trasa dluzsza, pietra liczone osobno (z=11 wzgledem z=7)",
+   "opis": "Orc, orc spearman, orc warrior i poison spider tuz pod Thais. Najblizej depo ze wszystkich spotow. Mieszany spawn, dobre od lvl 10.",
+   "pewnosc": "srednia",
+   "ranking_druid_lvl13_25": 2
+  },
+  {
+   "id": "T2",
+   "nazwa": "Thais polnoc: cyclopy i pajaki (z9)",
+   "miasto": "Thais",
+   "lokalizacja_srodek": {
+    "x": 32365,
+    "y": 32114,
+    "z": 9
+   },
+   "obszar": {
+    "x1": 32340,
+    "y1": 32090,
+    "x2": 32390,
+    "y2": 32135,
+    "pietra": [
+     9
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Thais 32369,32215,7)",
+   "potwory": [
+    {
+     "nazwa": "cyclops",
+     "spawnow": 8,
+     "hp": 260,
+     "exp": 150,
+     "atak_max_szac": 105,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "spider",
+     "spawnow": 12,
+     "hp": 20,
+     "exp": 12,
+     "atak_max_szac": 9,
+     "ucieczka_hp": 6
+    },
+    {
+     "nazwa": "poison spider",
+     "spawnow": 3,
+     "hp": 26,
+     "exp": 22,
+     "atak_max_szac": 20,
+     "ucieczka_hp": 6
+    },
+    {
+     "nazwa": "scorpion",
+     "spawnow": 1,
+     "hp": 45,
+     "exp": 45,
+     "atak_max_szac": 50,
+     "ucieczka_hp": 5
+    }
+   ],
+   "liczba_spawnow": 24,
+   "sredni_exp_na_potwora": 61,
+   "sredni_hp": 102,
+   "ryzykowne_potwory": [],
+   "exp_h_szac": {
+    "od": 6744,
+    "do": 11919,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 20,
+   "ryzyko": "srednie",
+   "odleglosc_do_depo_kratek": 101,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Thais (32369,32215); realna trasa dluzsza, pietra liczone osobno (z=9 wzgledem z=7)",
+   "opis": "Spider, poison spider i cyklopy w jednej jaskini na polnoc od Thais. Cyclop 150 exp przy lvl 20+.",
+   "pewnosc": "niska-srednia",
+   "ranking_druid_lvl13_25": 4
+  },
+  {
+   "id": "T3",
+   "nazwa": "Thais pd-wsch: wasp i rotworm (z9-11)",
+   "miasto": "Thais",
+   "lokalizacja_srodek": {
+    "x": 32462,
+    "y": 32287,
+    "z": 9
+   },
+   "obszar": {
+    "x1": 32425,
+    "y1": 32270,
+    "x2": 32490,
+    "y2": 32315,
+    "pietra": [
+     9,
+     11
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Thais 32369,32215,7)",
+   "potwory": [
+    {
+     "nazwa": "rotworm",
+     "spawnow": 7,
+     "hp": 65,
+     "exp": 40,
+     "atak_max_szac": 40,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "wasp",
+     "spawnow": 8,
+     "hp": 35,
+     "exp": 24,
+     "atak_max_szac": 20,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "troll",
+     "spawnow": 8,
+     "hp": 50,
+     "exp": 20,
+     "atak_max_szac": 15,
+     "ucieczka_hp": 15
+    },
+    {
+     "nazwa": "skeleton",
+     "spawnow": 3,
+     "hp": 50,
+     "exp": 35,
+     "atak_max_szac": 17,
+     "ucieczka_hp": null
+    }
+   ],
+   "liczba_spawnow": 26,
+   "sredni_exp_na_potwora": 28,
+   "sredni_hp": 49,
+   "ryzykowne_potwory": [],
+   "exp_h_szac": {
+    "od": 4662,
+    "do": 8169,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 10,
+   "ryzyko": "niskie",
+   "odleglosc_do_depo_kratek": 117,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Thais (32369,32215); realna trasa dluzsza, pietra liczone osobno (z=9 wzgledem z=7)",
+   "opis": "Wasp (24 exp, trucizna) i rotworm (40 exp) z szkieletami. Daleko od Thais (ok. 110-120 kratek).",
+   "pewnosc": "niska",
+   "ranking_druid_lvl13_25": null
+  },
+  {
+   "id": "T4",
+   "nazwa": "Mintwallin: minotaury (z14-15)",
+   "miasto": "Thais",
+   "lokalizacja_srodek": {
+    "x": 32429,
+    "y": 32139,
+    "z": 15
+   },
+   "obszar": {
+    "x1": 32400,
+    "y1": 32090,
+    "x2": 32470,
+    "y2": 32195,
+    "pietra": [
+     14,
+     15
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Thais 32369,32215,7)",
+   "potwory": [
+    {
+     "nazwa": "minotaur guard",
+     "spawnow": 24,
+     "hp": 185,
+     "exp": 160,
+     "atak_max_szac": 100,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "minotaur",
+     "spawnow": 39,
+     "hp": 100,
+     "exp": 50,
+     "atak_max_szac": 45,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "minotaur mage",
+     "spawnow": 6,
+     "hp": 155,
+     "exp": 150,
+     "atak_max_szac": 20,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "minotaur archer",
+     "spawnow": 11,
+     "hp": 100,
+     "exp": 65,
+     "atak_max_szac": 25,
+     "ucieczka_hp": 10
+    },
+    {
+     "nazwa": "poison spider",
+     "spawnow": 2,
+     "hp": 26,
+     "exp": 22,
+     "atak_max_szac": 20,
+     "ucieczka_hp": 6
+    },
+    {
+     "nazwa": "dog",
+     "spawnow": 2,
+     "hp": 20,
+     "exp": 0,
+     "atak_max_szac": null,
+     "ucieczka_hp": 8
+    }
+   ],
+   "liczba_spawnow": 84,
+   "sredni_exp_na_potwora": 89,
+   "sredni_hp": 125,
+   "ryzykowne_potwory": [
+    {
+     "nazwa": "dragon",
+     "spawnow": 4
+    },
+    {
+     "nazwa": "giant spider",
+     "spawnow": 1
+    }
+   ],
+   "exp_h_szac": {
+    "od": 8649,
+    "do": 15319,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 22,
+   "ryzyko": "wysokie dla lvl <22; mage rzucaja czary obszarowe",
+   "odleglosc_do_depo_kratek": 96,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Thais (32369,32215); realna trasa dluzsza, pietra liczone osobno (z=15 wzgledem z=7)",
+   "opis": "Minotaur (50 exp, hp 100), minotaur guard (160 exp), archer i mage. Bardzo dobry exp/h, ale miasto Mintwallin wymaga dojscia i ma w srodku mocne potwory (guard, mage z czarami). Dla druida lvl 22-30.",
+   "pewnosc": "srednia",
+   "ranking_druid_lvl13_25": null
+  },
+  {
+   "id": "C1",
+   "nazwa": "Amazon Camp pn-zach od Carlin (z1-7)",
+   "miasto": "Carlin",
+   "lokalizacja_srodek": {
+    "x": 32358,
+    "y": 31651,
+    "z": 7
+   },
+   "obszar": {
+    "x1": 32330,
+    "y1": 31625,
+    "x2": 32385,
+    "y2": 31680,
+    "pietra": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Carlin 32341,31789,7)",
+   "potwory": [
+    {
+     "nazwa": "amazon",
+     "spawnow": 13,
+     "hp": 110,
+     "exp": 60,
+     "atak_max_szac": 45,
+     "ucieczka_hp": 10
+    },
+    {
+     "nazwa": "valkyrie",
+     "spawnow": 9,
+     "hp": 190,
+     "exp": 85,
+     "atak_max_szac": 70,
+     "ucieczka_hp": 10
+    },
+    {
+     "nazwa": "wasp",
+     "spawnow": 7,
+     "hp": 35,
+     "exp": 24,
+     "atak_max_szac": 20,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "witch",
+     "spawnow": 1,
+     "hp": 300,
+     "exp": 120,
+     "atak_max_szac": 20,
+     "ucieczka_hp": 30
+    },
+    {
+     "nazwa": "rabbit",
+     "spawnow": 3,
+     "hp": 15,
+     "exp": 0,
+     "atak_max_szac": null,
+     "ucieczka_hp": 15
+    }
+   ],
+   "liczba_spawnow": 33,
+   "sredni_exp_na_potwora": 56,
+   "sredni_hp": 113,
+   "ryzykowne_potwory": [],
+   "exp_h_szac": {
+    "od": 5778,
+    "do": 10223,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 13,
+   "ryzyko": "srednie; valkyrie rzucaja wlocznie z dystansu, bicie do ok. 70",
+   "odleglosc_do_depo_kratek": 139,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Carlin (32341,31789); realna trasa dluzsza, pietra liczone osobno (z=7 wzgledem z=7)",
+   "opis": "Amazon (60 exp, hp 110) i valkyrie (85 exp, hp 190); lootuja dagger, skull, leather armor, spear. Dobre pod lvl 13-25.",
+   "pewnosc": "srednia",
+   "ranking_druid_lvl13_25": 3
+  },
+  {
+   "id": "C2",
+   "nazwa": "Carlin: ghoule, szczury i szkielety (z8-12)",
+   "miasto": "Carlin",
+   "lokalizacja_srodek": {
+    "x": 32229,
+    "y": 31854,
+    "z": 12
+   },
+   "obszar": {
+    "x1": 32195,
+    "y1": 31790,
+    "x2": 32270,
+    "y2": 31900,
+    "pietra": [
+     8,
+     10,
+     11,
+     12
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Carlin 32341,31789,7)",
+   "potwory": [
+    {
+     "nazwa": "ghoul",
+     "spawnow": 31,
+     "hp": 100,
+     "exp": 85,
+     "atak_max_szac": 70,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "skeleton",
+     "spawnow": 48,
+     "hp": 50,
+     "exp": 35,
+     "atak_max_szac": 17,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "slime",
+     "spawnow": 2,
+     "hp": 150,
+     "exp": 160,
+     "atak_max_szac": 110,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "scorpion",
+     "spawnow": 5,
+     "hp": 45,
+     "exp": 45,
+     "atak_max_szac": 50,
+     "ucieczka_hp": 5
+    },
+    {
+     "nazwa": "poison spider",
+     "spawnow": 10,
+     "hp": 26,
+     "exp": 22,
+     "atak_max_szac": 20,
+     "ucieczka_hp": 6
+    },
+    {
+     "nazwa": "cave rat",
+     "spawnow": 20,
+     "hp": 30,
+     "exp": 10,
+     "atak_max_szac": 10,
+     "ucieczka_hp": 3
+    },
+    {
+     "nazwa": "wild warrior",
+     "spawnow": 1,
+     "hp": 135,
+     "exp": 60,
+     "atak_max_szac": 70,
+     "ucieczka_hp": 10
+    }
+   ],
+   "liczba_spawnow": 117,
+   "sredni_exp_na_potwora": 46,
+   "sredni_hp": 60,
+   "ryzykowne_potwory": [
+    {
+     "nazwa": "demon skeleton",
+     "spawnow": 10
+    },
+    {
+     "nazwa": "mummy",
+     "spawnow": 1
+    },
+    {
+     "nazwa": "stalker",
+     "spawnow": 6
+    },
+    {
+     "nazwa": "ghost",
+     "spawnow": 3
+    },
+    {
+     "nazwa": "beholder",
+     "spawnow": 2
+    }
+   ],
+   "exp_h_szac": {
+    "od": 6846,
+    "do": 12022,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 15,
+   "ryzyko": "srednie-wysokie jesli zejdzie sie nizej",
+   "odleglosc_do_depo_kratek": 129,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Carlin (32341,31789); realna trasa dluzsza, pietra liczone osobno (z=12 wzgledem z=7)",
+   "opis": "Ghoul (85 exp, hp 100), skeleton (35 exp), cave rat, poison spider. Problem: w poblizu demon skeleton, stalker, ghost (poza zakresem druida). Trzymac sie gornych pieter.",
+   "pewnosc": "niska-srednia",
+   "ranking_druid_lvl13_25": null
+  },
+  {
+   "id": "C3",
+   "nazwa": "Carlin: jaskinia skorpionow (z11-13)",
+   "miasto": "Carlin",
+   "lokalizacja_srodek": {
+    "x": 32241,
+    "y": 31931,
+    "z": 11
+   },
+   "obszar": {
+    "x1": 32215,
+    "y1": 31905,
+    "x2": 32275,
+    "y2": 31955,
+    "pietra": [
+     11,
+     12,
+     13
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Carlin 32341,31789,7)",
+   "potwory": [
+    {
+     "nazwa": "scorpion",
+     "spawnow": 35,
+     "hp": 45,
+     "exp": 45,
+     "atak_max_szac": 50,
+     "ucieczka_hp": 5
+    }
+   ],
+   "liczba_spawnow": 35,
+   "sredni_exp_na_potwora": 45,
+   "sredni_hp": 45,
+   "ryzykowne_potwory": [
+    {
+     "nazwa": "stalker",
+     "spawnow": 3
+    },
+    {
+     "nazwa": "demon skeleton",
+     "spawnow": 4
+    },
+    {
+     "nazwa": "ghost",
+     "spawnow": 5
+    }
+   ],
+   "exp_h_szac": {
+    "od": 7714,
+    "do": 13500,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 15,
+   "ryzyko": "srednie; trucizna, brak lootu wartosciowego",
+   "odleglosc_do_depo_kratek": 173,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Carlin (32341,31789); realna trasa dluzsza, pietra liczone osobno (z=11 wzgledem z=7)",
+   "opis": "Skorpiony (45 exp, hp 45) gesto, ok. 40+ spawnow. Szybki exp przy duzej liczbie kills/h; trucizna.",
+   "pewnosc": "niska-srednia",
+   "ranking_druid_lvl13_25": null
+  },
+  {
+   "id": "C4",
+   "nazwa": "Carlin: goblin cave E (z10)",
+   "miasto": "Carlin",
+   "lokalizacja_srodek": {
+    "x": 32422,
+    "y": 31666,
+    "z": 10
+   },
+   "obszar": {
+    "x1": 32400,
+    "y1": 31645,
+    "x2": 32445,
+    "y2": 31690,
+    "pietra": [
+     10
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Carlin 32341,31789,7)",
+   "potwory": [
+    {
+     "nazwa": "goblin",
+     "spawnow": 8,
+     "hp": 50,
+     "exp": 25,
+     "atak_max_szac": 10,
+     "ucieczka_hp": 15
+    }
+   ],
+   "liczba_spawnow": 8,
+   "sredni_exp_na_potwora": 25,
+   "sredni_hp": 50,
+   "ryzykowne_potwory": [],
+   "exp_h_szac": {
+    "od": 4090,
+    "do": 7168,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 8,
+   "ryzyko": "niskie",
+   "odleglosc_do_depo_kratek": 147,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Carlin (32341,31789); realna trasa dluzsza, pietra liczone osobno (z=10 wzgledem z=7)",
+   "opis": "Gobliny (25 exp).",
+   "pewnosc": "niska",
+   "ranking_druid_lvl13_25": null
+  },
+  {
+   "id": "K1",
+   "nazwa": "Kazordoon: kopalnie krasnali (z11-13)",
+   "miasto": "Kazordoon",
+   "lokalizacja_srodek": {
+    "x": 32500,
+    "y": 31942,
+    "z": 14
+   },
+   "obszar": {
+    "x1": 32485,
+    "y1": 31880,
+    "x2": 32515,
+    "y2": 31985,
+    "pietra": [
+     11,
+     12,
+     13,
+     14
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Kazordoon 32632,31916,8)",
+   "potwory": [
+    {
+     "nazwa": "dwarf guard",
+     "spawnow": 97,
+     "hp": 245,
+     "exp": 165,
+     "atak_max_szac": 140,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "dwarf soldier",
+     "spawnow": 59,
+     "hp": 135,
+     "exp": 70,
+     "atak_max_szac": 70,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "dwarf geomancer",
+     "spawnow": 8,
+     "hp": 380,
+     "exp": 245,
+     "atak_max_szac": 100,
+     "ucieczka_hp": 150
+    }
+   ],
+   "liczba_spawnow": 164,
+   "sredni_exp_na_potwora": 135,
+   "sredni_hp": 212,
+   "ryzykowne_potwory": [],
+   "exp_h_szac": {
+    "od": 8915,
+    "do": 15872,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 20,
+   "ryzyko": "wysokie; guard melee szac. do 140",
+   "odleglosc_do_depo_kratek": 134,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Kazordoon (32632,31916); realna trasa dluzsza, pietra liczone osobno (z=14 wzgledem z=7)",
+   "opis": "Dwarf soldier (70), dwarf guard (165), dwarf geomancer (245 exp, hp 380, leczy sie i ucieka przy hp<=150). Najwiekszy exp/h w okolicy, ale geomancer i guard bija mocno. Dojazd lodzia z Thais/Carlin.",
+   "pewnosc": "srednia",
+   "ranking_druid_lvl13_25": null
+  },
+  {
+   "id": "K2",
+   "nazwa": "Kazordoon: troll/rotworm/dwarf (z7-15)",
+   "miasto": "Kazordoon",
+   "lokalizacja_srodek": {
+    "x": 32614,
+    "y": 31977,
+    "z": 15
+   },
+   "obszar": {
+    "x1": 32575,
+    "y1": 31940,
+    "x2": 32650,
+    "y2": 32010,
+    "pietra": [
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Kazordoon 32632,31916,8)",
+   "potwory": [
+    {
+     "nazwa": "dwarf soldier",
+     "spawnow": 26,
+     "hp": 135,
+     "exp": 70,
+     "atak_max_szac": 70,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "dwarf guard",
+     "spawnow": 5,
+     "hp": 245,
+     "exp": 165,
+     "atak_max_szac": 140,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "rotworm",
+     "spawnow": 20,
+     "hp": 65,
+     "exp": 40,
+     "atak_max_szac": 40,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "troll",
+     "spawnow": 28,
+     "hp": 50,
+     "exp": 20,
+     "atak_max_szac": 15,
+     "ucieczka_hp": 15
+    },
+    {
+     "nazwa": "dwarf",
+     "spawnow": 12,
+     "hp": 90,
+     "exp": 45,
+     "atak_max_szac": 30,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "minotaur guard",
+     "spawnow": 3,
+     "hp": 185,
+     "exp": 160,
+     "atak_max_szac": 100,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "minotaur mage",
+     "spawnow": 3,
+     "hp": 155,
+     "exp": 150,
+     "atak_max_szac": 20,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "bug",
+     "spawnow": 17,
+     "hp": 29,
+     "exp": 18,
+     "atak_max_szac": 23,
+     "ucieczka_hp": null
+    }
+   ],
+   "liczba_spawnow": 137,
+   "sredni_exp_na_potwora": 44,
+   "sredni_hp": 77,
+   "ryzykowne_potwory": [],
+   "exp_h_szac": {
+    "od": 5811,
+    "do": 10235,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 12,
+   "ryzyko": "niskie-srednie",
+   "odleglosc_do_depo_kratek": 63,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Kazordoon (32632,31916); realna trasa dluzsza, pietra liczone osobno (z=15 wzgledem z=7)",
+   "opis": "Mieszany: troll (20), dwarf (45), dwarf soldier (70), rotworm (40), bug. Standardowy \"dwarf mine\" dla lvl 12-25.",
+   "pewnosc": "srednia",
+   "ranking_druid_lvl13_25": null
+  },
+  {
+   "id": "V1",
+   "nazwa": "Venore: rotworm cave (z9)",
+   "miasto": "Venore",
+   "lokalizacja_srodek": {
+    "x": 33053,
+    "y": 32099,
+    "z": 9
+   },
+   "obszar": {
+    "x1": 33030,
+    "y1": 32070,
+    "x2": 33090,
+    "y2": 32130,
+    "pietra": [
+     8,
+     9,
+     10
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Venore 32955,32076,6)",
+   "potwory": [
+    {
+     "nazwa": "rotworm",
+     "spawnow": 35,
+     "hp": 65,
+     "exp": 40,
+     "atak_max_szac": 40,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "slime",
+     "spawnow": 2,
+     "hp": 150,
+     "exp": 160,
+     "atak_max_szac": 110,
+     "ucieczka_hp": null
+    }
+   ],
+   "liczba_spawnow": 37,
+   "sredni_exp_na_potwora": 46,
+   "sredni_hp": 70,
+   "ryzykowne_potwory": [],
+   "exp_h_szac": {
+    "od": 6456,
+    "do": 11359,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 10,
+   "ryzyko": "niskie",
+   "odleglosc_do_depo_kratek": 100,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Venore (32955,32076); realna trasa dluzsza, pietra liczone osobno (z=9 wzgledem z=7)",
+   "opis": "~19 rotwormow (40 exp, hp 65) w jednym miejscu. Rotwormy dropia meat/ham, wiec jedzenie samo wraca. Klasyk na lvl 10-20.",
+   "pewnosc": "srednia",
+   "ranking_druid_lvl13_25": null
+  },
+  {
+   "id": "D1",
+   "nazwa": "Darashia: rotwormy i osy (z7+)",
+   "miasto": "Darashia",
+   "lokalizacja_srodek": {
+    "x": 33183,
+    "y": 32445,
+    "z": 9
+   },
+   "obszar": {
+    "x1": 33150,
+    "y1": 32350,
+    "x2": 33300,
+    "y2": 32500,
+    "pietra": [
+     7,
+     8,
+     9,
+     10,
+     11
+    ]
+   },
+   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Darashia 33224,32428,7)",
+   "potwory": [
+    {
+     "nazwa": "rotworm",
+     "spawnow": 34,
+     "hp": 65,
+     "exp": 40,
+     "atak_max_szac": 40,
+     "ucieczka_hp": null
+    },
+    {
+     "nazwa": "scarab",
+     "spawnow": 2,
+     "hp": 320,
+     "exp": 120,
+     "atak_max_szac": 75,
+     "ucieczka_hp": 80
+    },
+    {
+     "nazwa": "poison spider",
+     "spawnow": 5,
+     "hp": 26,
+     "exp": 22,
+     "atak_max_szac": 20,
+     "ucieczka_hp": 6
+    },
+    {
+     "nazwa": "rat",
+     "spawnow": 4,
+     "hp": 20,
+     "exp": 5,
+     "atak_max_szac": 8,
+     "ucieczka_hp": 5
+    },
+    {
+     "nazwa": "cave rat",
+     "spawnow": 2,
+     "hp": 30,
+     "exp": 10,
+     "atak_max_szac": 10,
+     "ucieczka_hp": 3
+    },
+    {
+     "nazwa": "deer",
+     "spawnow": 3,
+     "hp": 25,
+     "exp": 0,
+     "atak_max_szac": 1,
+     "ucieczka_hp": 25
+    }
+   ],
+   "liczba_spawnow": 50,
+   "sredni_exp_na_potwora": 35,
+   "sredni_hp": 64,
+   "ryzykowne_potwory": [
+    {
+     "nazwa": "blue djinn",
+     "spawnow": 5
+    },
+    {
+     "nazwa": "fire elemental",
+     "spawnow": 3
+    },
+    {
+     "nazwa": "marid",
+     "spawnow": 1
+    }
+   ],
+   "exp_h_szac": {
+    "od": 5084,
+    "do": 8936,
+    "zalozenia": "druid ~lvl 20 z mieczem, dps 5-9, 7-12 s na zabicie i dojscie; model, nie pomiar"
+   },
+   "min_lvl_zalecany": 10,
+   "ryzyko": "niskie",
+   "odleglosc_do_depo_kratek": 44,
+   "odleglosc_uwagi": "linia prosta od znacznika miasta Darashia (33224,32428); realna trasa dluzsza, pietra liczone osobno (z=9 wzgledem z=7)",
+   "opis": "Najwieksze skupisko rotwormow na mapie (34 homes wg monster.db), plus wasp. Daleko od Thais/Carlin (lodz/dojscie przez pustynie).",
+   "pewnosc": "srednia",
+   "ranking_druid_lvl13_25": null
+  }
+ ]
+}

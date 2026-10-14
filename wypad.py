@@ -25,6 +25,7 @@ limity prób na każdym kroku, po porażkach bot wraca na łowisko "po ciemku" z
 
 import json
 import os
+import random
 import re
 import time
 from pathlib import Path
@@ -38,6 +39,7 @@ PLIK_IDS = KATALOG / "pochodnia_ids.json"
 NPC = "Al Dee"
 ID_TORCH = {2920}                       # niezapalona pochodnia (pochodnia.ID_NOWA)
 ID_LINA = 3003                          # rope (loot.NAZWA_ID)
+ID_LOPATA = 3457                        # shovel (ID klienta, jak rope 3003 / ham 3582; 2554 to ID serwera): odkopanie zasypanej dziury (Use with)
 ID_JEDZENIE_DOMYSLNE = {3582, 3583, 3577, 3578, 3579, 3600, 3602, 3607, 3601}   # gdy loot.py niedostępny
 NAZWY_PRZEDMIOTOW = {"torch": "torch", "ham": "ham"}   # klucz WYPAD_ZAKUPY -> słowo w "buy N ..."
 ID_PRZEDMIOTOW_DOMYSLNE = {"torch": ID_TORCH, "ham": {3582}}
@@ -54,6 +56,10 @@ MAX_PORAZEK = 2
 ETAP_UTK_S = 60.0           # s bez postępu w etapie = utknięcie
 ETAP_PRZEJSCIE_PROB = 6     # prób przejścia pięter (lina/dziura) zanim uznamy awarię
 PRZEJSCIE_ODSTEP = (1.0, 3.0, 6.0, 8.0)   # s przerwy między kolejnymi próbami
+DRZWI_PROB = 6              # prób otwarcia i wejścia w drzwi (typ etapu DRZWI), potem awaria jak przy linie/dziurze
+DRZWI_ODSTEP = (1.5, 3.0, 4.0)   # s przerwy między kolejnymi próbami przy drzwiach
+DRZWI_CZEKAJ_S = (0.6, 1.0)      # s oczekiwania po Use na drzwiach (zanim sprawdzimy otwarcie / zrobimy krok)
+DRZWI_DALEKO_MAX = 3        # tyle razy "stoi za daleko od drzwi" zanim awaria (nigdy pętla bez końca)
 AWARIA_PO_S = 120.0         # utknięcie w mieście na dziurze: ponawiamy co tyle
 ODP_NPC_S = 6.0             # s czekania na odpowiedź NPC
 WERYF_S = 9.0               # s czekania na wzrost liczby sztuk po "yes"
@@ -80,13 +86,27 @@ def cheb(a, b):
 
 # --- budowa planu -------------------------------------------------------------
 
-def zbuduj_etapy(punkty, mapa=None):
+def zbuduj_etapy(punkty, mapa=None, drzwi=()):
     """Lista punktów (x,y,z) -> etapy: {"typ":"IDZ","punkty":[...]} (jedno piętro) przedzielone przejściami
-    {"typ":"LINA","stoi","cel","ladunek"} (w górę) albo {"typ":"DZIURA","stoi","dziura","ladunek","pewna"}."""
+    {"typ":"LINA","stoi","cel","ladunek"} (w górę), {"typ":"DZIURA","stoi","dziura","ladunek","pewna"} albo
+    {"typ":"DRZWI","stoi","drzwi"} (zamknięte drzwi na trasie; `drzwi` = zbiór pól (x,y,z)). Kafelek drzwi
+    zaczyna następny etap IDZ (po otwarciu bot staje na nim i idzie dalej)."""
+    drzwi = {(int(d[0]), int(d[1]), int(d[2])) for d in (drzwi or ())}
     etapy, biez = [], []
     for p in punkty:
         p = (int(p[0]), int(p[1]), int(p[2]))
-        if biez and p[2] != biez[-1][2]:
+        if biez and p in drzwi and p[2] == biez[-1][2] and biez[-1] != p:
+            a = biez[-1]
+            if cheb(a, p) > 1:
+                # nagranie bywa rzadkie (co 2 pola): pole stania = sąsiad drzwi na prostej od poprzedniego punktu
+                dx, dy = a[0] - p[0], a[1] - p[1]
+                if dx == 0 or dy == 0 or abs(dx) == abs(dy):
+                    q = (p[0] + (dx > 0) - (dx < 0), p[1] + (dy > 0) - (dy < 0), p[2])
+                    biez.append(q)
+            etapy.append({"typ": "IDZ", "punkty": biez})
+            etapy.append({"typ": "DRZWI", "stoi": biez[-1], "drzwi": p})
+            biez = [p]
+        elif biez and p[2] != biez[-1][2]:
             a, b = biez[-1], p
             etapy.append({"typ": "IDZ", "punkty": biez})
             if b[2] < a[2]:
@@ -107,6 +127,25 @@ def zbuduj_etapy(punkty, mapa=None):
     if biez:
         etapy.append({"typ": "IDZ", "punkty": biez})
     return etapy
+
+
+def drzwi_z_mapy(punkty, mapa):
+    """Pola trasy (jedno piętro z sąsiadem przed i po na tym samym piętrze), które mapa uważa za nieprzechodnie
+    (ściana/woda): to zamknięte drzwi nagrane przez gracza. Mapa niedostępna / pole niewidziane = nic."""
+    wynik = set()
+    if mapa is None:
+        return wynik
+    pts = [(int(p[0]), int(p[1]), int(p[2])) for p in punkty]
+    for i in range(1, len(pts) - 1):
+        a, p, b = pts[i - 1], pts[i], pts[i + 1]
+        if a[2] != p[2] or b[2] != p[2]:
+            continue
+        try:
+            if mapa.flagi(*p) & 1 and mapa.przechodnie(*p) is False:
+                wynik.add(p)
+        except Exception:
+            continue
+    return wynik
 
 
 def zbuduj_plan(do, z, mapa=None):
@@ -172,11 +211,17 @@ def wybierz_plan(plany, poz, zasieg=PLAN_ZASIEG):
     return najl[1] if najl else None
 
 
-def sprawdz_plan(etapy, mapa=None):
-    """Lista problemów planu (pusta = ok): przejścia obok pola liny/dziury, stoi na ostatnim punkcie etapu."""
+def sprawdz_plan(etapy, mapa=None, drzwi=()):
+    """Lista problemów planu (pusta = ok): przejścia obok pola liny/dziury/drzwi, stoi na ostatnim punkcie etapu.
+    Kafelki drzwi (etapy DRZWI i lista `drzwi`) są przechodnie, nawet gdy mapa uważa je za ścianę."""
     bledy = []
     for i, e in enumerate(etapy):
-        if e["typ"] == "LINA":
+        if e["typ"] == "DRZWI":
+            if cheb(e["stoi"], e["drzwi"]) > 1:
+                bledy.append(f"etap {i}: stoi {e['stoi']} nie sąsiaduje z drzwiami {e['drzwi']}")
+            if i + 1 < len(etapy) and etapy[i + 1]["typ"] == "IDZ" and tuple(etapy[i + 1]["punkty"][0]) != tuple(e["drzwi"]):
+                bledy.append(f"etap {i}: po drzwiach {e['drzwi']} etap zaczyna się w {etapy[i + 1]['punkty'][0]}")
+        elif e["typ"] == "LINA":
             if cheb(e["stoi"], e["cel"]) > 1:
                 bledy.append(f"etap {i}: stoi {e['stoi']} nie sąsiaduje z liną {e['cel']}")
         elif e["typ"] == "DZIURA":
@@ -272,7 +317,7 @@ class OperacjeZywe:
         self.wyslij(tekst)
 
     # ekran
-    def _lina_na_ekranie(self, obraz):
+    def _przedmiot_na_ekranie(self, obraz, id_przedmiotu, nazwa="przedmiotu"):
         import loot  # noqa: PLC0415
         okna = loot.znajdz_okna(obraz)
         kontenery, powod = loot.kontenery_z_pamieci()
@@ -285,23 +330,34 @@ class OperacjeZywe:
             if not loot.czy_plecak(k):
                 continue
             for p in k.get("przedmioty", []):
-                if p["id"] == ID_LINA and p["slot"] < len(o.sloty):
+                if p["id"] == id_przedmiotu and p["slot"] < len(o.sloty):
                     return o.sloty[p["slot"]].srodek
-        raise BrakEkranu("nie widzę liny (rope) w oknie plecaka")
+        raise BrakEkranu(f"nie widzę {nazwa} w oknie plecaka")
 
-    def uzyj_line(self, cel, poz):
-        """Ctrl+klik na linie w plecaku (Use), potem klik na polu `cel` (pole-lina)."""
+    def _lina_na_ekranie(self, obraz):
+        return self._przedmiot_na_ekranie(obraz, ID_LINA, "liny (rope)")
+
+    def _uzyj_na_polu(self, id_przedmiotu, nazwa, cel, poz):
+        """Ctrl+klik na przedmiocie w plecaku (Use with), potem klik na polu `cel` (<= 1 pola od `poz`)."""
         import ekran  # noqa: PLC0415
         import loot  # noqa: PLC0415
         dx, dy = cel[0] - poz[0], cel[1] - poz[1]
         if abs(dx) > 1 or abs(dy) > 1:
-            raise BrakEkranu(f"pole liny {cel} za daleko od {tuple(poz)}")
+            raise BrakEkranu(f"pole {nazwa} {cel} za daleko od {tuple(poz)}")
         with ekran.Mysz() as mysz:
             obraz = loot._zrzut(mysz)
-            x, y = self._lina_na_ekranie(obraz)
+            x, y = self._przedmiot_na_ekranie(obraz, id_przedmiotu, nazwa)
             mysz.klik(x, y, 1, "Control_L", drganie=3)
             time.sleep(0.45)
             mysz.klik(*ekran.pole_na_ekran(dx, dy, ekran.aktualny_prostokat(mysz.ekran)), 1, None, drganie=2)
+
+    def uzyj_line(self, cel, poz):
+        """Ctrl+klik na linie w plecaku (Use), potem klik na polu `cel` (pole-lina)."""
+        self._uzyj_na_polu(ID_LINA, "liny (rope)", cel, poz)
+
+    def uzyj_lopate(self, cel, poz):
+        """Ctrl+klik na łopacie w plecaku (Use with), potem klik na polu `cel` (zasypana dziura) albo własnym."""
+        self._uzyj_na_polu(ID_LOPATA, "łopaty (shovel)", cel, poz)
 
     def uzyj_pole(self, pole, poz):
         """Ctrl+klik (Use) na polu mapy `pole` względem naszej pozycji `poz`."""
@@ -358,6 +414,7 @@ class Wypad:
         self.ostrzezenia = set()
         self.awaria_log = float("-inf")
         self._przyst_ei = None
+        self.drzwi_otwarte = set()  # kafelki drzwi, które w tym wypadzie już się otworzyły (powrót: najpierw krok)
 
     # --- konfiguracja (stałe z modułu cavebot: pokrętła ustawiają je w locie) ---
 
@@ -660,6 +717,10 @@ class Wypad:
         if self.ucieczka_flaga:
             self.ucieczka_flaga = False
             return self._resync_globalny(poz)
+        if e["typ"] == "DRZWI":
+            if poz[2] == e["stoi"][2]:
+                return True
+            return self._resync_globalny(poz)
         if e["typ"] in ("LINA", "DZIURA"):
             if poz[2] == e["ladunek"][2]:
                 self.ei = min(self.ei + 1, len(self.etapy) - 1)
@@ -686,6 +747,8 @@ class Wypad:
             return self._lina(poz, e, teraz)
         if e["typ"] == "DZIURA":
             return self._dziura(poz, e, teraz)
+        if e["typ"] == "DRZWI":
+            return self._drzwi(poz, e, teraz)
         pkt = e["punkty"]
         ost = pkt[-1]
         nastepny = self.etapy[self.ei + 1] if self.ei + 1 < len(self.etapy) else None
@@ -698,6 +761,8 @@ class Wypad:
             cel_blisko = nastepny["cel"]
         elif nastepny is not None and nastepny["typ"] == "DZIURA":
             cel_blisko = nastepny["dziura"]
+        elif nastepny is not None and nastepny["typ"] == "DRZWI":
+            cel_blisko = nastepny["drzwi"]
         na_miejscu = tuple(poz) == tuple(ost) or (
             cel_blisko is not None and poz[2] == ost[2] and cheb(poz, cel_blisko) <= 1
             and teraz - self.przystanek_od > 15.0 and cheb(poz, ost) <= 2) or (
@@ -862,8 +927,9 @@ class Wypad:
         n = e.get("proby", 0)
         e["proby"] = n + 1
         # kolejność prób: pewna dziura = krok; niepewna (kratka/właz bez flagi) = Use, krok, Use na własnym polu
-        tryby = ("krok", "krok", "use") if e["pewna"] else ("use", "krok", "use_wlasne")
-        tryb = tryby[n % 3]
+        tryby = ("krok", "lopata", "krok", "use", "lopata", "krok") if e["pewna"] else \
+            ("use", "krok", "use_wlasne", "lopata", "krok", "use")
+        tryb = tryby[n % len(tryby)]
         if tryb == "krok" and na_dziurze:
             tryb = "use_wlasne"
         try:
@@ -872,6 +938,16 @@ class Wypad:
                 # strzałki nie chodzą po skosie: z pola po skosie najpierw w poziomie (potem dziura jest obok)
                 kier = ("Right" if dx > 0 else "Left") if dx else ("Down" if dy > 0 else "Up")
                 cb.postac.krok(kier)
+            elif tryb == "lopata":
+                uzyj = getattr(self.ops, "uzyj_lopate", None)
+                if not self._k("PIETRA_LOPATA", 1) or uzyj is None:
+                    cb.pauza(0.2, 0.5)
+                    return True
+                cel_k = (poz[0], poz[1], poz[2]) if na_dziurze else h
+                self.log(f"Wypad: dziura {tuple(h)[:2]} zasypana? próba {n + 1}: odkopuję łopatą ({cel_k[:2]}) z {tuple(poz)}")
+                self._tele("wypad_krok", rodzaj="lopata", poz=list(poz), pole=list(cel_k), proba=n + 1)
+                uzyj(cel_k, poz)
+                cb.spij(0.6)
             elif tryb == "use":
                 self.ops.uzyj_pole(h, poz)
             else:
@@ -885,6 +961,93 @@ class Wypad:
         if self._po_przejsciu(e, poz, teraz, "dziura"):
             return True
         return self._porazka_przejscia(e, teraz, "dziura_bez_zmiany_pietra", tryb=tryb)
+
+    # --- drzwi ---
+
+    @staticmethod
+    def _za_drzwiami(poz, e):
+        """Stoimy na kafelku drzwi albo na polu naprzeciw pola `stoi` (po drugiej stronie drzwi)."""
+        h, st = e["drzwi"], e["stoi"]
+        if poz[2] != h[2]:
+            return False
+        if (poz[0], poz[1]) == (h[0], h[1]):
+            return True
+        return cheb(poz, h) == 1 and cheb(poz, st) >= 2
+
+    def _drzwi_przeszlismy(self, e, poz, teraz):
+        h = e["drzwi"]
+        self.log(f"Wypad: drzwi {h[:2]} otwarte, jestem w {tuple(poz)}")
+        self._tele("wypad_krok", rodzaj="drzwi", drzwi=list(h), poz=list(poz), proba=e.get("proby", 0))
+        self.drzwi_otwarte.add(tuple(h))
+        self.cb._wypad_reset_klik()
+        self.ei = min(self.ei + 1, len(self.etapy) - 1)
+        self.pi = 0
+        e["proby"] = 0
+        e["daleko"] = 0
+        e["nast"] = float("-inf")
+        self.utk = 0
+        self.postep = None
+        self.przystanek_od = None
+        return True
+
+    def _porazka_drzwi(self, e, teraz, typ, **d):
+        n = e.get("proby", 0)
+        e["nast"] = teraz + DRZWI_ODSTEP[min(max(n, 1) - 1, len(DRZWI_ODSTEP) - 1)]
+        self._blad(typ, proba=n, drzwi=list(e["drzwi"]), **d)
+        if n >= DRZWI_PROB:
+            e["proby"] = 0
+            self.drzwi_otwarte.discard(tuple(e["drzwi"]))
+            return self._awaria(typ, f"{n} nieudanych prób otwarcia drzwi {e['drzwi']} z {e['stoi']}", e)
+        return True
+
+    def _drzwi(self, poz, e, teraz):
+        """Zamknięte drzwi: Use na kafelku drzwi z pola obok, ~0,6-1 s czekania, krok na kafelek; udane = pozycja
+        na kafelku drzwi albo za nimi. Do DRZWI_PROB prób (Use / sam krok na zmianę), potem _awaria."""
+        cb = self.cb
+        h, st = e["drzwi"], e["stoi"]
+        if poz[2] != st[2]:
+            return True
+        if self._za_drzwiami(poz, e):
+            return self._drzwi_przeszlismy(e, poz, teraz)
+        if cheb(poz, h) > 1:
+            e["daleko"] = e.get("daleko", 0) + 1
+            if e["daleko"] >= DRZWI_DALEKO_MAX:
+                e["daleko"] = 0
+                return self._awaria("drzwi_daleko", f"poz {poz}, drzwi {h}", e)
+            if self.ei > 0 and self.etapy[self.ei - 1]["typ"] == "IDZ":
+                self.ei -= 1
+                self.pi = 0
+                return True
+            return self._awaria("drzwi_daleko", f"poz {poz}, drzwi {h}", e)
+        if self._nie_czas(e, teraz):
+            cb.pauza(0.2, 0.5)
+            return True
+        n = e.get("proby", 0)
+        e["proby"] = n + 1
+        # drzwi, które już otwieraliśmy, bywają otwarte (powrót): najpierw sam krok; inaczej Use
+        tryby = ("krok", "use", "krok") if tuple(h) in self.drzwi_otwarte else ("use", "krok", "use")
+        tryb = tryby[n % len(tryby)]
+        self.log(f"Wypad: drzwi {h[:2]} próba {n + 1}/{DRZWI_PROB} ({tryb}) z {tuple(poz)}")
+        try:
+            if tryb == "use":
+                self.ops.uzyj_pole(h, poz)
+                cb.spij(random.uniform(*DRZWI_CZEKAJ_S))
+            dx, dy = h[0] - poz[0], h[1] - poz[1]
+            # strzałki nie chodzą po skosie: najpierw w poziomie
+            kier = ("Right" if dx > 0 else "Left") if dx else ("Down" if dy > 0 else "Up")
+            cb.postac.krok(kier)
+        except bot.Zatrzymano:
+            raise
+        except BrakEkranu as ex:
+            return self._porazka_drzwi(e, teraz, "drzwi_ekran", powod=str(ex), tryb=tryb)
+        except Exception as ex:
+            return self._porazka_drzwi(e, teraz, "drzwi_wyjatek", powod=repr(ex), tryb=tryb)
+        for _ in range(3):
+            p = cb.postac.pozycja()
+            if self._za_drzwiami(p, e):
+                return self._drzwi_przeszlismy(e, p, teraz)
+            cb.spij(0.3)
+        return self._porazka_drzwi(e, teraz, "drzwi_bez_wejscia", tryb=tryb)
 
     # --- sklep ---
 

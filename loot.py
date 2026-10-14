@@ -165,6 +165,7 @@ PLECAKI = ("bag", "backpack")    # nazwy wzorców tytułu, które oznaczają ple
 ID_PLECAKOW = {NAZWA_ID["bag"]}  # ID przedmiotu-kontenera, który jest plecakiem gracza
 # Pojemnik na runy (np. Purple backpack): drugi kontener obok plecaka, NIE zwłoki i NIE plecak lootu.
 ID_RUN_W_POJEMNIKU = {3147, 3198, 3160, 3155, 3191, 3200, 3152}   # blank, HMM, UH, SD, GFB, explosion, IH: kontener tylko z nimi = pojemnik na runy
+ID_TARCZ_W_POJEMNIKU = {3409, 3426}      # steel shield, tarcza z UH_STAN_PLIK: dozwolone w pojemniku na runy chwilowo
 ID_POJEMNIKOW_RUN = {2868}              # ID przedmiotu-kontenera (Purple backpack)
 NAZWY_POJEMNIKOW_RUN = ("purple backpack",)   # prefiks nazwy kontenera (pamięć) i wzorzec tytułu okna
 
@@ -477,7 +478,8 @@ def czy_runy(kontener):
         return True
     # zwykły plecak (id 2854) z samymi runami (blank 3147 / gotowe 3198, 3160 ...) to też pojemnik na runy
     ids = {p.get("id") for p in kontener.get("przedmioty", [])}
-    return bool(ids) and ids <= ID_RUN_W_POJEMNIKU
+    # tarcza odłożona na czas runy (uh.py, gdy w głównym plecaku brak widocznego wolnego pola) nie zmienia roli bagu
+    return bool(ids & ID_RUN_W_POJEMNIKU) and ids <= (ID_RUN_W_POJEMNIKU | ID_TARCZ_W_POJEMNIKU)
 
 
 def rola_z_tytulu(tytul):
@@ -565,6 +567,8 @@ def _plan_z_pamieci(obraz, wynik, kontenery, idy, nazwy):
         widoczny = p["slot"] < len(okno.sloty)
         slot = okno.sloty[p["slot"]] if widoczny else None
         chcemy = ident in idy
+        if chcemy and POMIN_CIEZKIE and POMINIETE_CIEZKIE.get(ident, 0) > time.monotonic():
+            chcemy = False                         # za_ciezki: pomijamy do końca POMIN_CIEZKIE_S
         if not chcemy and ident not in ID_NAZWA:
             # nieznane ID: może obrazek rozpozna przedmiot z listy, wtedy uczymy się jego ID
             nazwa_obrazka = rozpoznaj(obraz, slot)[0] if widoczny else None
@@ -619,6 +623,93 @@ def _cel_w_plecaku(plecak, ident, ilosc):
 
 
 NIEUDANE_SCALENIA = set()        # ID, których scalenie w plecaku nie wyszło (nie próbujemy znowu)
+
+# --- P5 (13.10): klasyfikacja braku miejsca i wagi z danych ----------------------------
+POMIN_CIEZKIE = 0          # 1 = przedmiot `za_ciezki` pomijamy przez POMIN_CIEZKIE_S (cavebot: LOOT_POMIN_CIEZKIE, domyślnie 0)
+POMIN_CIEZKIE_S = 300.0
+POMINIETE_CIEZKIE = {}     # ID -> zegar (time.monotonic), do kiedy pomijany
+PLIK_PRZEDMIOTOW = KATALOG / "dane_tibia" / "przedmioty.json"
+WAGI_ZAPASOWE = {          # oz, wg dane_tibia/przedmioty.json; tylko gdy pliku brak
+    "ham": 20.0, "dragon ham": 30.0, "bread": 5.0, "cheese": 4.0, "meat": 13.0, "fish": 5.2,
+    "gold coin": 0.1, "blank rune": 1.2,
+}
+_WAGI_ID = None
+
+
+def _wagi_po_id():
+    """{id_klienta: waga oz} z przedmioty.json (raz); przy błędzie pliku z WAGI_ZAPASOWE po nazwie."""
+    global _WAGI_ID
+    if _WAGI_ID is None:
+        wagi = {}
+        try:
+            import json
+            with open(PLIK_PRZEDMIOTOW, encoding="utf-8") as f:
+                dane = json.load(f)
+            for lista in (dane.get("kategorie") or {}).values():
+                for it in lista:
+                    i, w = it.get("id_klienta"), it.get("waga_oz")
+                    if isinstance(i, int) and isinstance(w, (int, float)):
+                        wagi[i] = float(w)
+        except Exception:
+            wagi = {}
+        for nazwa, w in WAGI_ZAPASOWE.items():
+            i = NAZWA_ID.get(nazwa)
+            if i is not None:
+                wagi.setdefault(i, w)
+        _WAGI_ID = wagi
+    return _WAGI_ID
+
+
+def waga_id(ident):
+    """Waga jednej sztuki (oz) albo None, gdy nieznana."""
+    return _wagi_po_id().get(ident)
+
+
+def klasyfikuj_brak_miejsca(plecak, ident, ilosc, cap):
+    """Powód braku miejsca na przedmiot: (powod, szczegoly). powod: "sloty_pelne" (zajęte >= pojemność),
+    "slot_ukryty" (są wolne sloty, ale żaden nie jest widoczny: pod suwakiem okna), "za_ciezki"
+    (cap = wolne oz < waga * ilość), "nieznany". Tylko odczyt, bez inputu do gry; cap to wolne oz."""
+    k = (plecak.kontener if plecak is not None else None) or {}
+    zajete = {p["slot"] for p in k.get("przedmioty", [])}
+    pojemnosc = k.get("pojemnosc", 0)
+    widoczne = len(plecak.sloty) if plecak is not None else 0
+    waga = waga_id(ident)
+    det = {"zajete": len(zajete), "pojemnosc": pojemnosc, "widoczne": widoczne, "cap": cap,
+           "waga": waga, "ilosc": ilosc, "id": ident}
+    if pojemnosc and len(zajete) >= pojemnosc:
+        return "sloty_pelne", det
+    if pojemnosc and not any(i not in zajete for i in range(min(widoczne, pojemnosc))):
+        return "slot_ukryty", det
+    if waga is not None and cap is not None and cap < waga * ilosc:
+        return "za_ciezki", det
+    return "nieznany", det
+
+
+def _cap_gracza():
+    """Wolne oz gracza z pamięci (pole cap; max_cap nie jest używany do decyzji) albo None."""
+    try:
+        g = _zapytaj({"cmd": "gracz"}).get("gracz") or {}
+        c = g.get("cap")
+        return float(c) if isinstance(c, (int, float)) else None
+    except Exception:
+        return None
+
+
+def _powod_braku_miejsca(p, log, kiedy):
+    """Klasyfikuje i loguje brak miejsca dla przedmiotu z planu `p`; przy za_ciezki i POMIN_CIEZKIE
+    dopisuje ID do POMINIETE_CIEZKIE. Zwraca powód albo None (brak danych)."""
+    try:
+        if not p.get("przedmiot_id") or not p.get("plecak"):
+            return None
+        ident, ilosc = p["przedmiot_id"]
+        powod, d = klasyfikuj_brak_miejsca(p["plecak"], ident, ilosc, _cap_gracza())
+        log(f"loot: {kiedy}: powód {powod} ({nazwa_id(ident)} x{ilosc}; zajęte {d['zajete']}/{d['pojemnosc']}, "
+            f"widoczne {d['widoczne']}, cap {d['cap']}, waga {d['waga']})")
+        if powod == "za_ciezki" and POMIN_CIEZKIE:
+            POMINIETE_CIEZKIE[ident] = time.monotonic() + POMIN_CIEZKIE_S
+        return powod
+    except Exception:
+        return None
 
 
 def scalenie(plecak):
@@ -844,6 +935,111 @@ def _ile_w_kontenerze(numer, ident):
     return suma_id(k, ident) if k is not None else None
 
 
+def przenies_do_runow(ids=tuple(sorted(ID_RUN_W_POJEMNIKU)), maks=30, log=print):
+    """Przenosi runy (domyślnie blanki i gotowe runy: ID_RUN_W_POJEMNIKU) z głównego plecaka do pojemnika na runy
+    (drugi bag, tylko z runami): drag z slotu na pierwszy wolny widoczny slot. Zwraca liczbę przeniesionych sztuk.
+    Bez otwartego pojemnika na runy (albo bez wolnego widocznego slotu) nic nie robi."""
+    ruszono = 0
+    with ekran.Mysz() as mysz:
+        for _ in range(maks):
+            bot.sprawdz_stop()
+            obraz = _zrzut(mysz)
+            p = plan(obraz, [])
+            plecak, runy = p.get("plecak"), p.get("runy")
+            if plecak is None or plecak.kontener is None or runy is None or runy.kontener is None:
+                log("przenoszenie run: nie widzę plecaka albo pojemnika na runy (otwarte oba okna)")
+                break
+            widoczne = len(plecak.sloty)
+            zrodlo = [q for q in plecak.kontener.get("przedmioty", [])
+                      if q["id"] in ids and q["slot"] < widoczne]
+            if not zrodlo:
+                break
+            k = runy.kontener
+            zajete = {q["slot"] for q in k.get("przedmioty", [])}
+            wolny = next((i for i in range(min(len(runy.sloty), k.get("pojemnosc", 0))) if i not in zajete), None)
+            if wolny is None:
+                log("przenoszenie run: pojemnik na runy pełny albo bez wolnego widocznego slotu")
+                break
+            przed = sum(1 for q in k.get("przedmioty", []))
+            mysz.przeciagnij(*plecak.sloty[zrodlo[0]["slot"]].srodek, *runy.sloty[wolny].srodek, drganie=4)
+            _pauza(0.4, 0.7)
+            _okno_ilosci_ok(mysz, "runy", log, obraz)
+            po = kontenery_z_pamieci()[0]
+            kon = next((c for c in (po or []) if c.get("numer") == k.get("numer")), None)
+            if kon is None or len(kon.get("przedmioty", [])) <= przed:
+                log("przenoszenie run: przeciągnięcie nie podziałało, przerywam")
+                break
+            ruszono += 1
+            log(f"przenoszenie run: {nazwa_id(zrodlo[0]['id'])} -> pojemnik na runy ({ruszono})")
+    return ruszono
+
+
+def okna_z_kontenerami(obraz):
+    """[(okno, kontener)] otwartych okien kontenerów (pamięć + ekran) albo (None, powód)."""
+    okna = znajdz_okna(obraz)
+    kontenery, powod = kontenery_z_pamieci()
+    if kontenery is None:
+        return None, f"pamięć: {powod}"
+    przypisane, powod = dopasuj_okna(obraz, okna, kontenery)
+    if przypisane is None:
+        return None, f"okna: {powod}"
+    return list(zip(okna, przypisane)), None
+
+
+def przenies_miedzy(ids, skad, dokad, maks=25, log=print):
+    """Przeciąga przedmioty o ID z `ids` z okna kontenera spełniającego `skad(kontener)` na pierwsze wolne widoczne
+    pole okna spełniającego `dokad(kontener)`. Po każdym ruchu weryfikuje w pamięci (ubyło w źródle, przybyło w celu).
+    Zwraca (przeniesione, powód_stopu albo None)."""
+    ruszono = 0
+    with ekran.Mysz() as mysz:
+        for _ in range(maks):
+            bot.sprawdz_stop()
+            obraz = _zrzut(mysz)
+            pary, powod = okna_z_kontenerami(obraz)
+            if pary is None:
+                return ruszono, powod
+            z = next(((o, k) for o, k in pary if skad(k)), None)
+            do = next(((o, k) for o, k in pary if dokad(k)), None)
+            if z is None or do is None:
+                return ruszono, "brak okna źródła albo celu"
+            oz, kz = z
+            od, kd = do
+            zrodlo = [q for q in kz.get("przedmioty", []) if q["id"] in ids and q["slot"] < len(oz.sloty)]
+            if not zrodlo:
+                return ruszono, None
+            zajete = {q["slot"] for q in kd.get("przedmioty", [])}
+            wolny = next((i for i in range(min(len(od.sloty), kd.get("pojemnosc", 0))) if i not in zajete), None)
+            if wolny is None:
+                return ruszono, "cel pełny albo bez wolnego widocznego pola"
+            przed_cel = len(kd.get("przedmioty", []))
+            przed_zrodlo = len(kz.get("przedmioty", []))
+            mysz.przeciagnij(*oz.sloty[zrodlo[0]["slot"]].srodek, *od.sloty[wolny].srodek, drganie=4)
+            _pauza(0.4, 0.7)
+            _okno_ilosci_ok(mysz, "przenoszenie", log, obraz)
+            kon, _ = kontenery_z_pamieci()
+            kz2 = next((c for c in (kon or []) if c.get("numer") == kz.get("numer")), None)
+            kd2 = next((c for c in (kon or []) if c.get("numer") == kd.get("numer")), None)
+            if kz2 is None or kd2 is None or len(kd2.get("przedmioty", [])) <= przed_cel \
+                    or len(kz2.get("przedmioty", [])) >= przed_zrodlo:
+                return ruszono, "przeciągnięcie nie zadziałało"
+            ruszono += 1
+            log(f"przenoszenie: {nazwa_id(zrodlo[0]['id'])} ({ruszono})")
+    return ruszono, "limit ruchów"
+
+
+def zamknij_kontener(numer, log=print):
+    """Zamyka okno kontenera o numerze z pamięci (klik w X). True, gdy po chwili już go nie ma."""
+    with ekran.Mysz() as mysz:
+        pary, _ = okna_z_kontenerami(_zrzut(mysz))
+        for o, k in pary or []:
+            if k.get("numer") == numer:
+                if zamknij_okno(mysz, o):
+                    _pauza(0.4, 0.7)
+                break
+    kon, _ = kontenery_z_pamieci()
+    return not any(c.get("numer") == numer for c in (kon or []))
+
+
 def zjedz(ile=2, log=print):
     """Je jedzenie z plecaka: Ctrl+klik (Use). Z pamięci: jedzenie po ID (KOLEJNOSC_JEDZENIA), slot na
     ekranie z dopasowania okien, po Use sprawdzenie w pamięci, czy ubyło (nie ubyło = najedzony, koniec).
@@ -1048,6 +1244,7 @@ def _opis_ilosci(ilosci):
 # i nigdy nie klikamy drugi raz pola, którego zwłoki są otwarte. Klik w trakcie kroku postaci trafia
 # w pole obok (kamera w pół kroku), więc przed pierwszym klikiem czekamy na postój.
 
+ODCZYTY_OTWARCIA_DALSZE = 4   # 13.10: odczyty po kolejnym pustym kliku w tym samym otwieraniu (pole zgadywane, ~0,5 s; 1. klik: pełne)
 ODCZYTY_OTWARCIA = 8      # odczyty pamięci co ~0,1 s po Ctrl+kliku (razem ~1 s)
 ODCZYTY_ZAMKNIECIA = 6    # po zamknięciu okna zwłok: tyle odczytów (~0,6 s) na zniknięcie z pamięci
 POSTOJ_ODCZYTOW = 5       # postój = ta sama pozycja w tylu kolejnych odczytach co ~0,13 s (> 0,6 s)
@@ -1137,11 +1334,11 @@ def _pola_proby(dx, dy, powtorz):
     return [(dx, dy)] * (2 if powtorz else 1) + reszta
 
 
-def _czekaj_na_otwarcie(przed):
+def _czekaj_na_otwarcie(przed, odczyty=None):
     """Po Ctrl+kliku: (nowy kontener zwłok albo None, zamknięte), gdzie zamknięte = klucze okien zwłok,
     które były otwarte przed klikiem, a zniknęły (klik trafił w już otwarte zwłoki i je zamknął)."""
     zamkniete = set()
-    for _ in range(ODCZYTY_OTWARCIA):
+    for _ in range(ODCZYTY_OTWARCIA if odczyty is None else odczyty):
         _pauza(0.1, 0.12)
         kontenery = _odczyt_kontenerow()
         if kontenery is None:
@@ -1232,7 +1429,7 @@ def _otworz_z_pamiecia(dx, dy, gracz, przed, powtorz, log):
         ostatnie = (sx, sy)
         bot.sprawdz_stop()
         ekran.otworz(sx, sy)
-        nowy, zamkniete = _czekaj_na_otwarcie(przed)
+        nowy, zamkniete = _czekaj_na_otwarcie(przed, ODCZYTY_OTWARCIA_DALSZE if klikniec > 1 else None)
         if nowy is None and zamkniete:
             # te zwłoki miały już otwarte okno i klik je zamknął: otwieramy jeszcze raz (już na pewno nowe)
             proby.append(f"({sx},{sy}) zamknięte {sorted(zamkniete)}")
@@ -1461,6 +1658,7 @@ def zbierz_szczegoly(pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA, log=print)
                 break
             if not p["cel"]:
                 wynik["status"] = "pelny_plecak"
+                wynik["powod"] = _powod_braku_miejsca(p, log, "pełny plecak")
                 break
             slot, nazwa = p["przedmiot"]
             przed = _zrzut(mysz)
@@ -1474,10 +1672,12 @@ def zbierz_szczegoly(pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA, log=print)
             if ile is not None:
                 if ile <= 0:
                     log(f"loot: {nazwa} nie przeszedł (slot {slot.srodek}, pamięć bez zmian), przerywam")
+                    _powod_braku_miejsca(p, log, "nie przeszedł")
                     p = nowy
                     break
             elif nowy["przedmiot"] and nowy["przedmiot"][0].srodek == slot.srodek and nowy["przedmiot"][1] == nazwa:
                 log(f"loot: {nazwa} nie przeszedł (slot {slot.srodek}), przerywam")
+                _powod_braku_miejsca(p, log, "nie przeszedł")
                 p = nowy
                 break
             wynik["zebrano"].append(nazwa)
@@ -1604,6 +1804,7 @@ def krok_w_walce(stan, pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA, log=prin
             elif not p["plecak"]:
                 stan.update(faza="zamknij", koniec_powod="brak_plecaka")
             elif not p["cel"]:
+                _powod_braku_miejsca(p, log, "pełny plecak w walce")
                 stan.update(faza="zamknij", koniec_powod="pelny_plecak")
             else:
                 slot, nazwa = p["przedmiot"]
@@ -1640,6 +1841,7 @@ def krok_w_walce(stan, pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA, log=prin
             stan["p"] = nowy
             if nie_przeszedl:
                 log(f"loot w walce: {nazwa} nie przeszedł (slot {slot.srodek}), kończę")
+                _powod_braku_miejsca(p, log, "nie przeszedł w walce")
                 stan.update(faza="zamknij", koniec_powod="nie_przeszedl")
                 return "kontynuuj", None
             stan["ruchy"] += 1

@@ -14,6 +14,10 @@ Klasa Wyprawa dziedziczy po Wypad i dokłada tylko to, czego wypad nie ma:
   * trwały stan (wyprawa_stan.json): restart bota w środku wyprawy wznawia ją od najbliższego odcinka;
   * twarde limity czasu i obiegów, wykrycie teleportu/śmierci, alarm + plik STOP przy utknięciu w mieście.
 
+Tryb "wyprawa_depo" (WYPRAWA_TYLKO_DEPO = 1): ta sama maszyna, ale cel to samo depo w Thais. Start po potwierdzonym
+głodzie (bez pozycji Frodo), marsz nagraną trasą do Gorna i dalej A* do pola depo; na miejscu log, powiadomienie,
+czyszczenie stanu i plik STOP. Bez zakupów i bez powrotu na spot; utknięcie/teleport/limit = alarm + STOP.
+
 Wyłączona domyślnie (WYPRAWA_AKTYWNA = 0). Włącza tryb "wyprawa" z tryby.json (albo pokrętło w na_zywo.json).
 Pozycje NPC: trasy/wyprawa_sklepy.json (ręcznie) albo uczone z widoku (wyprawa_npc.json: gdy Frodo/Xodet pojawią
 się w liście stworów, bot zapisuje ich pole). Bez znanej pozycji Frodo wyprawa nie startuje (log + powiadomienie).
@@ -36,20 +40,49 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bot
 import instancja
 import wypad
-from wypad import Wypad, cheb, sprawdz_plan, zbuduj_etapy
+from wypad import Wypad, cheb, drzwi_z_mapy, sprawdz_plan, zbuduj_etapy
 
 KATALOG = Path(__file__).resolve().parent
 TRASY = KATALOG / "trasy"
 PLIK_SKLEPOW = TRASY / "wyprawa_sklepy.json"
 PLIK_STANU = instancja.S.stan / "wyprawa_stan.json"
 PLIK_NPC = instancja.S.stan / "wyprawa_npc.json"
+PLIK_DEPO = "depo_troll_cave.json"          # początek tej trasy = pole depo
+DEPO_POLE = (32366, 32215, 7)               # gdy pliku brak
 
 BAZY = ("troll", "thais_kanaly")       # plany wypadu (wypad.PLANY) kończące się u Gorna w Thais; rook ma inne miasto
-WAGI_DOMYSLNE = {                      # oz; NIEZWERYFIKOWANE na serwerze, bot poprawia je z delty cap po zakupie
-    "ham": 13.6, "dragon ham": 15.0, "meat": 13.0, "cheese": 5.0, "bread": 3.0, "fish": 5.2,
+_WAGI_ZAPAS = {                        # oz; wartości z dane_tibia/przedmioty.json, gdy pliku brak (torch: niezweryfikowane)
+    "ham": 20.0, "dragon ham": 30.0, "meat": 13.0, "cheese": 4.0, "bread": 5.0, "fish": 5.2,
     "blank": 1.2, "torch": 5.0,
 }
+
+
+def _wagi_domyslne():
+    """Wagi po nazwie z dane_tibia/przedmioty.json (P5, 13.10); brak/uszkodzony plik albo pozycji = _WAGI_ZAPAS.
+    Bot poprawia je z delty cap po zakupie (nauczone wagi w wyprawa_stan.json mają pierwszeństwo)."""
+    wagi = dict(_WAGI_ZAPAS)
+    try:
+        with open(Path(__file__).resolve().parent / "dane_tibia" / "przedmioty.json", encoding="utf-8") as f:
+            dane = json.load(f)
+        po_nazwie = {}
+        for lista in (dane.get("kategorie") or {}).values():
+            for it in lista:
+                if isinstance(it.get("waga_oz"), (int, float)) and it.get("nazwa"):
+                    po_nazwie[str(it["nazwa"]).lower()] = float(it["waga_oz"])
+        for klucz, nazwa in (("ham", "ham"), ("dragon ham", "dragon ham"), ("meat", "meat"), ("cheese", "cheese"),
+                             ("bread", "bread"), ("fish", "fish"), ("blank", "blank rune")):
+            if nazwa in po_nazwie:
+                wagi[klucz] = po_nazwie[nazwa]
+    except Exception:
+        pass
+    return wagi
+
+
+WAGI_DOMYSLNE = _wagi_domyslne()
 ID_BLANK = {3147}
+SKRZYNIA_DEPO = (32343, 32225, 7)    # skrzynia w boksie depo (13.10): korytarz x=32343, y=32226..32227, skrzynia na jego końcu
+POLE_ZLOZ_DEPO = (32343, 32226, 7)   # pole przy skrzyni (Use na północ)
+ID_DEPO_ZLOZ = {3160}                                    # UH (adura vita): to, co bot odkłada do depo w wyprawie
 WARTOSC_ID_ZLOTA = {3031: 1, 3035: 100, 3043: 10000}    # gold / platinum / crystal coin
 GOLD_WAGA = 0.1                                          # oz za monetę (poprawka delty cap po zakupie)
 SLOWA_DOMYSLNE = {"blank": "blank rune"}                 # klucz -> słowo w "buy N ..." (nadpisuje config "slowa")
@@ -60,10 +93,11 @@ DOMYSLNE = {                                             # gdy konf (cavebot) ni
     "WYPRAWA_JEDZ_NA_MIEJSCU": 1, "WYPRAWA_JEDZ_MAKS": 12, "WYPRAWA_BLANKI": 0, "WYPRAWA_BLANKI_PROG": 2,
     "WYPRAWA_BLANKI_MAX_KOSZT": 500, "WYPRAWA_POCHODNIE": 1, "WYPRAWA_CAP_REZERWA": 8, "WYPRAWA_ZLOTO_MIN": 30,
     "WYPRAWA_MIN_HP": 70, "WYPRAWA_CO_MIN": 20, "WYPRAWA_MAX_CZAS_S": 1800, "WYPRAWA_MAX_KROKOW": 6000,
-    "WYPRAWA_STOP_PRZY_UTKNIECIU": 1, "JEDZENIE_ZAPAS_MIN": 5, "WYPAD_ILE_TORCHY": 5,
+    "WYPRAWA_STOP_PRZY_UTKNIECIU": 1, "WYPRAWA_CZEKAJ_NA_GLOD": 0, "WYPRAWA_DEPO_W_WALCE": 1, "WYPRAWA_DEPO_ZLOZ": 0, "WYPRAWA_TYLKO_DEPO": 0, "WYPRAWA_DEPO_POWROT": 0, "WYPRAWA_DEPO_POSTOJ_S": 0, "WYPRAWA_DEPO_BLANKI": 0, "WYPRAWA_PO_DEPO_S": 900, "WYPRAWA_PO_DOJSCIU_S": 300, "JEDZENIE_ZAPAS_MIN": 5, "WYPAD_ILE_TORCHY": 5,
 }
 
 POTWIERDZ = 2                  # kolejne odczyty z warunkiem = start
+GLOD_WAZNY_S = 600.0           # s: jak długo pamiętamy potwierdzony głód (cb.jedzenie_nie_do trwa tylko JEDZENIE_PONOW = 240 s)
 WZNOW_MAX_S = 2400.0           # s (zegar ścienny): starszy zapis stanu = nie wznawiamy
 WZNOW_ODL = 15                 # pola od najbliższego punktu odcinka, by wznowić po restarcie
 SKOK_POZ = 25                  # pola na jednym piętrze między obiegami = teleport/śmierć
@@ -110,6 +144,23 @@ def wczytaj_npc(plik=PLIK_NPC):
         p = _punkt(v.get("poz")) if isinstance(v, dict) else None
         if p:
             wynik[nazwa] = p
+    return wynik
+
+
+def drzwi_przystankow(cfg, mapa=None):
+    """Zbiór pól drzwi z konfiguracji przystanków ("drzwi": [[x,y,z],...]) plus pola nagranych odcinków
+    "dojscie"/"powrot", które mapa uważa za nieprzechodnie (zamknięte drzwi nagrane przez gracza)."""
+    wynik = set()
+    for c in (cfg or {}).values():
+        if not isinstance(c, dict):
+            continue
+        for p in c.get("drzwi") or []:
+            q = _punkt(p)
+            if q:
+                wynik.add(q)
+        for klucz in ("dojscie", "powrot"):
+            pts = [q for q in (_punkt(p) for p in c.get(klucz) or []) if q]
+            wynik |= drzwi_z_mapy(pts, mapa)
     return wynik
 
 
@@ -204,6 +255,64 @@ class OperacjeZywe(wypad.OperacjeZywe):
                 ids[p["id"]] = ids.get(p["id"], 0) + max(1, p.get("ilosc", 1))
         return {"id": ids}
 
+    def zloz_w_depo(self, pozycja, ids=None):
+        """Otwiera skrzynię depo obok postaci (Use na sąsiednich polach, aż pojawi się nowy kontener), przenosi
+        przedmioty z `ids` (domyślnie UH) z plecaków do skrzyni i zamyka ją. Zwraca {"otwarte","przeniesione","powod"}."""
+        import loot  # noqa: PLC0415
+        import ekran  # noqa: PLC0415
+        ids = set(ids or ID_DEPO_ZLOZ)
+        wynik = {"otwarte": False, "przeniesione": 0, "powod": None}
+        kon0, powod = loot.kontenery_z_pamieci()
+        if kon0 is None:
+            wynik["powod"] = f"pamięć: {powod}"
+            return wynik
+        if not any(q["id"] in ids for k in kon0 for q in k.get("przedmioty", [])):
+            wynik["powod"] = "nic do złożenia"
+            return wynik
+        numery0 = {k.get("numer") for k in kon0}
+        poz0 = tuple(pozycja())
+        skrzynia = None
+        kolejnosc = [(0, -1), (1, 0), (0, 1), (-1, 0), (1, -1), (1, 1), (-1, 1), (-1, -1)]
+        if poz0[2] == SKRZYNIA_DEPO[2]:
+            d = (SKRZYNIA_DEPO[0] - poz0[0], SKRZYNIA_DEPO[1] - poz0[1])
+            if d in kolejnosc:                      # znana skrzynia obok: najpierw ona
+                kolejnosc.remove(d)
+                kolejnosc.insert(0, d)
+        self.log(f"Wyprawa: składanie w depo z {poz0}, skrzynia {SKRZYNIA_DEPO}, kolejność Use {kolejnosc[:3]}...")
+        for dx, dy in kolejnosc:
+            ekran.otworz(dx, dy)
+            time.sleep(0.9)
+            if tuple(pozycja()) != poz0:
+                wynik["powod"] = f"pozycja zmieniła się przy otwieraniu ({poz0} -> {tuple(pozycja())}), przerywam"
+                return wynik
+            kon, _ = loot.kontenery_z_pamieci()
+            nowe = [k for k in kon or [] if k.get("numer") not in numery0]
+            if nowe:
+                skrzynia = nowe[0]
+                break
+        if skrzynia is None:
+            wynik["powod"] = "nie otworzyłem skrzyni depo (brak nowego kontenera przy 8 sąsiednich polach)"
+            return wynik
+        wynik["otwarte"] = True
+        n = skrzynia.get("numer")
+        self.log(f"Wyprawa: skrzynia depo otwarta: {skrzynia.get('nazwa')!r}, pojemność {skrzynia.get('pojemnosc')}")
+        ile, powod = loot.przenies_miedzy(
+            ids, lambda k: k.get("numer") != n and any(q["id"] in ids for q in k.get("przedmioty", [])),
+            lambda k: k.get("numer") == n, log=self.log)
+        wynik["przeniesione"], wynik["powod"] = ile, powod
+        try:
+            loot.zamknij_kontener(n, log=self.log)
+        except bot.Zatrzymano:
+            raise
+        except Exception as ex:
+            self.log(f"Wyprawa: nie zamknąłem skrzyni depo ({ex!r})")
+        return wynik
+
+    def przenies_runy(self):
+        """Blanki/runy z plecaka do pojemnika na runy (loot.przenies_do_runow); liczba przeniesionych."""
+        import loot  # noqa: PLC0415
+        return loot.przenies_do_runow(log=self.log)
+
     def zjedz(self):
         """Jeden Use na jedzeniu z plecaka (loot.zjedz): lista zjedzonych nazw; [] = nic nie ubyło (najedzony)."""
         import loot  # noqa: PLC0415
@@ -228,6 +337,7 @@ class Wyprawa(Wypad):
         self._plan_wyprawy = None
         self._wznowiono = False
         self.potw_w = 0
+        self.glod_potw_do = float("-inf")   # do kiedy ważny potwierdzony głód (WYPRAWA_CZEKAJ_NA_GLOD)
         self.sprawdzono_w = float("-inf")
         self.nast_wyprawa = float("-inf")
         self._ost_poz_w = None
@@ -250,6 +360,24 @@ class Wyprawa(Wypad):
 
     def _kw(self, nazwa):
         return self._k(nazwa, DOMYSLNE.get(nazwa))
+
+    def _tryb_depo(self):
+        """Pokrętło: nowe wyprawy idą tylko do depo."""
+        return bool(int(self._kw("WYPRAWA_TYLKO_DEPO")))
+
+    def _w_depo(self):
+        """Trwająca wyprawa jest wyprawą do depo (flaga w zapisanych potrzebach, przeżywa restart)."""
+        return bool(self.w is not None and (self.w.get("potrzeby") or {}).get("depo"))
+
+    def _pole_depo(self):
+        try:
+            d = json.loads((Path(self.katalog) / PLIK_DEPO).read_text())
+            p = _punkt(d[0])
+            if p:
+                return p
+        except (OSError, ValueError, TypeError, IndexError):
+            pass
+        return DEPO_POLE
 
     def _max_czas(self):
         if self.w is not None:
@@ -296,10 +424,10 @@ class Wyprawa(Wypad):
             raise
         except Exception:
             return None
-        cap, mx = g.get("cap"), g.get("max_cap")
+        cap = g.get("cap")                # wolne oz; max_cap nie służy do decyzji (13.10: protokół 7.4 daje max_cap == cap)
         if cap is None:
             return None
-        if mx and mx > 5000:            # cap w setnych oz (niezweryfikowane)
+        if cap > 5000:                  # cap w setnych oz (niezweryfikowane)
             cap = cap / 100.0
         return float(cap)
 
@@ -373,10 +501,24 @@ class Wyprawa(Wypad):
 
     # --- wyzwalacz ---
 
-    def _blokada_startu(self, teraz, poz, lista):
+    def _blokada_startu(self, teraz, poz, lista, w_walce=False):
         cb = self.cb
         if getattr(cb, "wypad_aktywny", False):
             return "wypad"
+        if getattr(cb, "dojscie_aktywne", False):      # P7a: dojście z depo na spot nie startuje wyprawy
+            return "dojscie"
+        if w_walce:
+            # wyprawa do depo po potwierdzonym głodzie startuje także w walce (potem biegnie, bije tylko zablokowana):
+            # blokują tylko ucieczka/ostrożność, czar w toku i alarm GM
+            if getattr(cb, "ucieczka", False) or getattr(cb, "ostrozny", False):
+                return "ucieczka"
+            for atr in ("zd_oczekuje", "jc_oczekuje", "jz_oczekuje", "ml_oczekuje"):
+                if getattr(cb, atr, None) is not None:
+                    return "czar_w_toku"
+            czat = getattr(cb, "wypad_czat", None)
+            if czat is not None and getattr(czat, "zablokowany", False):
+                return "alarm_gm"
+            return None
         if cb.cel is not None or getattr(cb, "ucieczka", False) or getattr(cb, "ostrozny", False) \
                 or getattr(cb, "w_poscigu", False) or getattr(cb, "pamiec", None) is not None:
             return "walka"
@@ -427,7 +569,19 @@ class Wyprawa(Wypad):
             self._blad("wyprawa_okazja", opis=repr(e))
         return super()._okazja(teraz)
 
-    def _okazja_wyprawa(self, teraz):
+    def okazja_w_walce(self, teraz):
+        """Wołane z Cavebot.tick w walce: True, gdy wyprawa (po ham/blanki/do depo) właśnie wystartowała mimo potworów."""
+        if self.stan != "SPOKOJ" or not int(self._kw("WYPRAWA_DEPO_W_WALCE")):
+            return False                 # (13.10: także zwykła wyprawa po ham/blanki; w jaskini zawsze są potwory)
+        try:
+            return bool(self._okazja_wyprawa(teraz, w_walce=True))
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            self._blad("wyprawa_w_walce", opis=repr(e))
+            return False
+
+    def _okazja_wyprawa(self, teraz, w_walce=False):
         cb = self.cb
         if not self._wyprawa_wlaczona():
             self.potw_w = 0
@@ -442,7 +596,7 @@ class Wyprawa(Wypad):
         if teraz - self.sprawdzono_w < self._k("WYPAD_SPRAWDZ_S", wypad.SPRAWDZ_S):
             return False
         lista = getattr(cb, "ostatnie_stwory", [])
-        blok = self._blokada_startu(teraz, poz, lista)
+        blok = self._blokada_startu(teraz, poz, lista, w_walce)
         if blok is not None:
             self.potw_w = 0
             return False
@@ -466,19 +620,48 @@ class Wyprawa(Wypad):
         czar = getattr(cb, "jedzenie_czar_zastepuje_wypad", None)
         czar_ok = bool(czar is not None and czar(g, teraz))
         powody = []
-        if zapas is not None and zapas < prog and not czar_ok:
+        # WYPRAWA_CZEKAJ_NA_GLOD=1: "zapas"/"glod" liczą się dopiero po potwierdzonym głodzie (nieudana próba jedzenia
+        # w trybie głodu = cb.jedzenie_nie_do w przyszłości; pamiętamy to GLOD_WAZNY_S), samo zapas 0 w plecaku nie wystarcza
+        glod_ok = True
+        if int(self._kw("WYPRAWA_CZEKAJ_NA_GLOD")) or self._tryb_depo():    # do depo zawsze po potwierdzonym głodzie
+            if teraz < getattr(cb, "jedzenie_nie_do", float("-inf")):
+                self.glod_potw_do = teraz + GLOD_WAZNY_S
+            glod_ok = teraz < self.glod_potw_do
+        if glod_ok and zapas is not None and zapas < prog and not czar_ok:
             powody.append("zapas")
-        if (zapas == 0 or glod) and not czar_ok and "zapas" not in powody:
+        if glod_ok and (zapas == 0 or glod) and not czar_ok and "zapas" not in powody:
             powody.append("glod")
         blanki = self._ile(plecak, "blank")
         cel_blank = int(self._kw("WYPRAWA_BLANKI"))
         if cel_blank > 0 and blanki is not None and blanki < int(self._kw("WYPRAWA_BLANKI_PROG")):
-            powody.append("blanki")
+            if self._tryb_depo() and not int(self._kw("WYPRAWA_DEPO_BLANKI")):
+                # P7b: do depo nie kupujemy blanków, sam brak nie jest powodem marszu (jednorazowa notatka)
+                if "blanki_depo" not in self.ostrzezenia:
+                    self.ostrzezenia.add("blanki_depo")
+                    self.log("Wyprawa: brak blanków, UH wyłączone do uzupełnienia (tryb depo, bez wyprawy po blanki)")
+                    self._powiadom("Brak blanków", "Brak blanków w plecaku, UH wyłączone do uzupełnienia "
+                                   "(wyprawa po same blanki nie startuje w trybie depo).", "normal", "wyprawa_blanki")
+            else:
+                st = self._stan_czytaj()
+                if self._tryb_depo() and "blanki" in (st.get("depo_powody") or ()) \
+                        and st.get("depo_blanki") == blanki:
+                    # P7c: ostatnie depo było z tego powodu i plecak się nie zmienił, czekamy na człowieka
+                    if "blanki_pamiec" not in self.ostrzezenia:
+                        self.ostrzezenia.add("blanki_pamiec")
+                        self.log("Wyprawa: brak blanków jak przy ostatnim depo, czekam na uzupełnienie")
+                else:
+                    self.ostrzezenia.discard("blanki_pamiec")
+                    powody.append("blanki")
         self.potw_w = self.potw_w + 1 if powody else 0
         if self.potw_w < POTWIERDZ:
             return False
-        # warunki sensu: złoto i miejsce w capie (bez nich wyprawa byłaby marszem na darmo)
+        # warunki sensu: złoto i miejsce w capie (bez nich wyprawa byłaby marszem na darmo); do depo nic nie kupujemy
         zloto = self._zloto(plecak)
+        if self._tryb_depo():
+            cap = self._cap()
+            dane = {"powody": powody, "zapas": zapas, "blanki": blanki, "zloto": zloto, "cap": cap, "hp": round(proc),
+                    "pochodnie": None, "depo": True}
+            return self._start_wyprawa("depo:" + "+".join(powody), dane, teraz)
         if zloto is not None and zloto < int(self._kw("WYPRAWA_ZLOTO_MIN")):
             self._odloz(teraz, f"za mało złota ({zloto})", 1800.0)
             return False
@@ -513,6 +696,10 @@ class Wyprawa(Wypad):
         if nagranie:
             pts = [q for q in (_punkt(p) for p in nagranie) if q]
             if pts:
+                if pts[0][2] == od[2] and cheb(od, pts[0]) > 3:      # 13.10: start daleko od nagrania (np. z depo)
+                    seg = self._trasownik_get().odcinek(od, pts[0])
+                    if seg:
+                        return list(seg) + pts[1:]
                 return ([od] if pts[0] != od else []) + pts
         return self._trasownik_get().odcinek(od, do)
 
@@ -536,8 +723,12 @@ class Wyprawa(Wypad):
         if baza_nazwa not in baza:
             return None, f"brak planu bazowego {baza_nazwa}"
         do, z, npc_gorn = baza[baza_nazwa]
+        if potrzeby.get("depo"):
+            return self._zbuduj_depo(baza_nazwa, do, potrzeby)
         cfg = wczytaj_sklepy(self.plik_sklepow)
         stops = []
+        if potrzeby.get("depo_zloz"):
+            stops.append({"id": "depo_zloz", "npc": "", "stoi": POLE_ZLOZ_DEPO, "zakupy": [], "depo_zloz": True})
         cel_torch = max(int(self._kw("WYPAD_ILE_TORCHY")), int(dict(wypad.Wypad.zakupy(self)).get("torch", 0)))
         if potrzeby.get("gorn"):
             stops.append({"id": "gorn", "npc": npc_gorn, "stoi": do[-1], "dojscie": None,
@@ -564,6 +755,16 @@ class Wyprawa(Wypad):
         for st in stops:
             if st["id"] == "gorn":
                 stoi, pts = do[-1], list(do)
+            elif st.get("depo_zloz"):
+                stoi = tuple(st["stoi"])
+                pts = self._do_depo_odwrocona(do, stoi) if not legs else None
+                if pts is None:
+                    seg = self._odc(biez, stoi)
+                    if not seg:
+                        return None, f"depo: brak drogi od {biez} do {stoi}"
+                    pts = (list(do) if not legs else []) + [q for q in seg if tuple(q) != tuple(biez)]
+                if tuple(pts[-1]) != stoi:
+                    pts.append(stoi)
             else:
                 stoi, pts = self._stoisko(st["id"], st["cfg"], st["npc"], biez)
                 if stoi is None:
@@ -591,25 +792,101 @@ class Wyprawa(Wypad):
                 seg = list(seg) + [tuple(z[0])]
             powrot = list(seg) + list(z[1:])
         mapa = getattr(self.cb, "mapa", None)
-        legs_etapy = [zbuduj_etapy([_punkt(q) for q in l], mapa) for l in legs]
-        etapy_z = zbuduj_etapy([_punkt(q) for q in powrot], mapa)
+        drzwi = drzwi_przystankow({st["id"]: st.get("cfg") or {} for st in stops}, mapa)
+        legs_etapy = [zbuduj_etapy([_punkt(q) for q in l], mapa, drzwi) for l in legs]
+        etapy_z = zbuduj_etapy([_punkt(q) for q in powrot], mapa, drzwi)
         for nazwa, et in [(f"leg{i}", e) for i, e in enumerate(legs_etapy)] + [("powrot", etapy_z)]:
-            for b in sprawdz_plan(et, mapa):
+            for b in sprawdz_plan(et, mapa, drzwi):
                 self.log(f"Wyprawa: plan {nazwa}: {b}")
         return {"stops": stops, "legs": legs_etapy, "powrot": etapy_z, "k": 0, "baza": baza_nazwa,
                 "wyniki": {}, "kroki": 0, "sukces": False, "potrzeby": dict(potrzeby)}, None
+
+    def _zbuduj_depo(self, baza_nazwa, do, potrzeby):
+        """Wyprawa do depo: nagrana trasa do Gorna + A* po mapie do pola depo. Jeden przystanek bez zakupów."""
+        cel = self._pole_depo()
+        biez = tuple(do[-1])
+        pts = self._do_depo_odwrocona(do, cel)       # z jaskini prosto do depo (nie przez Gorna)
+        if pts is None:
+            if biez == cel:
+                seg = [biez]
+            else:
+                seg = self._odc(biez, cel)
+                if not seg:
+                    return None, f"depo: brak drogi po mapie od {biez} do {cel}"
+            pts = list(do) + [q for q in seg if tuple(q) != biez]
+        if tuple(pts[-1]) != cel:
+            pts.append(cel)
+        mapa = getattr(self.cb, "mapa", None)
+        etapy = zbuduj_etapy([_punkt(q) for q in pts], mapa)
+        powrot = zbuduj_etapy([cel], mapa)           # bez WYPRAWA_DEPO_POWROT nieużywany: po dojściu STOP
+        if int(self._kw("WYPRAWA_DEPO_POWROT")):
+            pw = self._powrot_z_depo(cel, mapa)
+            if pw:
+                powrot = pw
+            else:
+                self.log("Wyprawa: brak trasy powrotnej z depo (depo_troll_cave), po dojściu będzie STOP")
+        for b in sprawdz_plan(etapy, mapa):
+            self.log(f"Wyprawa: plan depo: {b}")
+        st = {"id": "depo", "npc": "", "stoi": cel, "zakupy": [], "depo": True}
+        return {"stops": [st], "legs": [etapy], "powrot": powrot, "k": 0, "baza": baza_nazwa,
+                "wyniki": {}, "kroki": 0, "sukces": False, "potrzeby": dict(potrzeby)}, None
+
+    def _do_depo_odwrocona(self, do, cel):
+        """Droga do depo: nagrana trasa wyjścia z jaskini (`do`, do pierwszego punktu na piętrze depo = pole po drabinie)
+        + trasa PLIK_DEPO (depo -> jaskinia) przejęta od końca bez pętli (to samo, co bot przeszedł w powrocie).
+        Omija objazd przez Gorna (12.10: 240 pól zamiast ok. 190). None, gdy brak pliku/niezgodność (wtedy stara droga)."""
+        try:
+            import trasa_io  # noqa: PLC0415
+            plik = [q for q in (_punkt(p) for p in json.loads((Path(self.katalog) / PLIK_DEPO).read_text())) if q]
+            plik = trasa_io.uprosc_petle(plik)
+            z = cel[2]
+            i7 = max((i for i, q in enumerate(plik) if q[2] == z), default=None)
+            if i7 is None or tuple(plik[0]) != tuple(cel):
+                return None
+            rev = list(reversed(plik[:i7 + 1]))          # od dziury w jaskinię do depo
+            i0 = next((i for i, q in enumerate(do) if q[2] == z), None)
+            if i0 is None:
+                return None
+            wej = tuple(do[i0])
+            if cheb(wej, rev[0]) > 3 or len(rev) < 2:
+                return None
+            pts = list(do[:i0 + 1]) + [q for q in rev if tuple(q) != wej]
+            return pts
+        except Exception as e:
+            self.log(f"Wyprawa: depo: nie użyję trasy odwróconej ({e!r})")
+            return None
+
+    def _powrot_z_depo(self, cel, mapa):
+        """Etapy powrotu z pola depo na początek trasy łowiska: nagrana trasa PLIK_DEPO (depo -> jaskinia) bez pętli
+        i cofnięć (trasa_io.uprosc_petle). [] gdy pliku brak albo trasa nie zaczyna się przy depo."""
+        try:
+            import trasa_io  # noqa: PLC0415
+            pts = [q for q in (_punkt(p) for p in json.loads((Path(self.katalog) / PLIK_DEPO).read_text())) if q]
+        except (OSError, ValueError, TypeError):
+            return []
+        pts = trasa_io.uprosc_petle(pts) if pts else []
+        if len(pts) < 2 or cheb(pts[0], cel) > 3 or pts[-1][2] == pts[0][2]:
+            return []
+        if tuple(pts[0]) != tuple(cel):
+            pts = [tuple(cel)] + pts
+        drzwi = wypad.drzwi_z_mapy(pts, mapa)
+        return zbuduj_etapy([_punkt(q) for q in pts], mapa, drzwi)
 
     # --- start / wznowienie ---
 
     def _start_wyprawa(self, powod, dane, teraz):
         cb = self.cb
+        self.glod_potw_do = float("-inf")
         poz = tuple(cb.postac.pozycja())
         baza = punkty_bazy(self.katalog)
         nazwa = wybierz_baze(baza, poz)
         if nazwa is None:
             self._odloz(teraz, f"pozycja {poz} poza planami {BAZY}", 900.0)
             return False
-        potrzeby = {"frodo": True,
+        if dane.get("depo"):
+            potrzeby = {"depo": True}
+        else:
+            potrzeby = {"frodo": True, "depo_zloz": bool(int(self._kw("WYPRAWA_DEPO_ZLOZ"))),
                     "gorn": bool(self._kw("WYPRAWA_POCHODNIE") and dane.get("pochodnie") is not None
                                  and dane["pochodnie"] < int(self._kw("WYPAD_ILE_TORCHY"))),
                     "xodet": bool(int(self._kw("WYPRAWA_BLANKI")) > 0 and dane.get("blanki") is not None
@@ -641,7 +918,12 @@ class Wyprawa(Wypad):
             return False
         self._ost_poz_w = poz
         self._stan_trasy()
+        if dane.get("depo"):                 # P7c: z jakiego powodu i przy jakim plecaku idziemy do depo
+            self._stan_zapisz(depo_start_powody=list(dane.get("powody") or []), depo_start_blanki=dane.get("blanki"))
         self.log(f"Wyprawa: start ({powod}), baza {nazwa}, przystanki {[st['id'] for st in w['stops']]}")
+        if dane.get("depo"):
+            self._powiadom("Wyprawa do depo: ruszam", f"Brak jedzenia i głód ({powod}), idę do depo Thais.",
+                           "normal", "wyprawa_depo_start")
         return True
 
     def _wybierz_plan(self, poz):
@@ -673,8 +955,10 @@ class Wyprawa(Wypad):
         kand = []
         for j in range(k0, len(w["legs"])):
             kand.append(("do", j, w["legs"][j]))
-        kand.append(("z", len(w["legs"]), w["powrot"]))
+        if not potrzeby.get("depo") or int(self._kw("WYPRAWA_DEPO_POWROT")):
+            kand.append(("z", len(w["legs"]), w["powrot"]))
         najl = None
+        najl_z = None
         for faza, j, etapy in kand:
             for ei, e in enumerate(etapy):
                 if e["typ"] != "IDZ" or e["punkty"][0][2] != poz[2]:
@@ -683,6 +967,11 @@ class Wyprawa(Wypad):
                     d = cheb(poz, p)
                     if najl is None or d < najl[0]:
                         najl = (d, faza, j)
+                    if faza == "z" and (najl_z is None or d < najl_z[0]):
+                        najl_z = (d, faza, j)
+        # trasa tam i z powrotem biegnie przez te same pola (chata Frodo, drzwi): zapisany powrót wygrywa remis
+        if st.get("faza") == "z" and najl_z is not None and najl_z[0] <= WZNOW_ODL:
+            najl = najl_z
         if najl is None or najl[0] > WZNOW_ODL:
             self.log(f"Wyprawa: pozycja {poz} poza planem wyprawy, nie wznawiam")
             self._stan_koniec(wynik="poza_planem")
@@ -716,6 +1005,13 @@ class Wyprawa(Wypad):
             self.w = None
             self._plan_wyprawy = None
             return False
+        # drzwi na odcinkach, które postać już przeszła, są otwarte: pierwsza próba to sam krok (Use na otwartych
+        # drzwiach mógłby je zamknąć)
+        przeszle = w["legs"][:w["k"] + 1] if self.faza in ("sklep", "z") else w["legs"][:w["k"]]
+        for et in przeszle:
+            for e in et:
+                if e["typ"] == "DRZWI":
+                    self.drzwi_otwarte.add(tuple(e["drzwi"]))
         cb.wypad_aktywny = True
         cb._wypad_reset_klik()
         try:
@@ -861,8 +1157,39 @@ class Wyprawa(Wypad):
     # --- sklep: jedzenie na miejscu, kolejka ---
 
     def _sklep(self, poz, teraz):
+        if self._w_depo():
+            stoi = tuple(self.w["stops"][0]["stoi"])
+            # tolerancja dojścia kończy etap już o pole przed celem: dokładamy krok na pole depo (do 3 prób)
+            if tuple(poz) != stoi and poz[2] == stoi[2] and cheb(poz, stoi) <= 1 \
+                    and self.w.get("dokroki", 0) < 3:
+                self.w["dokroki"] = self.w.get("dokroki", 0) + 1
+                try:
+                    self.cb.krok_do(stoi)
+                except bot.Zatrzymano:
+                    raise
+                except Exception as e:
+                    self._blad("depo_dokrok", opis=repr(e))
+                self.cb.pauza(0.2, 0.4)
+                return True
+            # 13.10 14:37: jednorazowy odczyt pozycji z depo, gdy gracz stał 140 pól dalej (fałszywe "dotarłem", STOP):
+            # koniec wyprawy dopiero po drugim, niezależnym odczycie tego samego pola
+            try:
+                self.cb.pauza(0.4, 0.6)
+                poz2 = tuple(self.cb.postac.pozycja())
+            except bot.Zatrzymano:
+                raise
+            except Exception:
+                poz2 = None
+            if poz2 != tuple(poz):
+                self.log(f"Wyprawa: odczyt pozycji w depo {tuple(poz)} niepotwierdzony ({poz2}), ignoruję")
+                self._blad("depo_odczyt", poz=list(poz), poz2=list(poz2) if poz2 else None)
+                return True
+            return self._zakoncz_depo("depo", f"jestem w depo {tuple(poz)}")
         if self.w is None:
             return super()._sklep(poz, teraz)
+        st = self.w["stops"][min(self.w["k"], len(self.w["stops"]) - 1)]
+        if st.get("depo_zloz"):
+            return self._krok_depo_zloz(st, poz, teraz)
         s = self.sklep
         if s is not None and s["i"] < len(s["lista"]) and s["lista"][s["i"]][0] == "@jedz":
             return self._krok_jedz(s, teraz)
@@ -871,6 +1198,31 @@ class Wyprawa(Wypad):
         if s is not None:
             self._kolejka(s, teraz)
         return wynik
+
+    def _krok_depo_zloz(self, st, poz, teraz):
+        """Przystanek w depo: dostawiamy się na pole depo, składamy UH do skrzyni, dalej wyprawa (Frodo, Xodet)."""
+        cb = self.cb
+        stoi = tuple(st["stoi"])
+        if tuple(poz) != stoi and poz[2] == stoi[2] and cheb(poz, stoi) <= 1 and self.w.get("dokroki_zloz", 0) < 3:
+            self.w["dokroki_zloz"] = self.w.get("dokroki_zloz", 0) + 1
+            try:
+                cb.krok_do(stoi)
+            except bot.Zatrzymano:
+                raise
+            except Exception as e:
+                self._blad("depo_dokrok", opis=repr(e))
+            cb.pauza(0.2, 0.4)
+            return True
+        try:
+            wynik = self.ops.zloz_w_depo(cb.postac.pozycja)
+        except bot.Zatrzymano:
+            raise
+        except Exception as ex:
+            wynik = {"otwarte": False, "przeniesione": 0, "powod": f"wyjątek {ex!r}"}
+        self.log(f"Wyprawa: składanie w depo: {wynik}")
+        self._tele("wypad_krok", rodzaj="depo_zloz", **{k: v for k, v in wynik.items()})
+        self.sklep = None
+        return self._koniec_sklepu(teraz)
 
     def _kolejka(self, s, teraz):
         """NPC rozmawia z kimś innym: nie liczymy tego jako brak odpowiedzi (do KOLEJKA_MAKS razy)."""
@@ -960,6 +1312,8 @@ class Wyprawa(Wypad):
         if any(v in ("kupione", "mam") for k, v in wynik.items() if k != "@jedz"):
             w["sukces"] = True
         self.log(f"Wyprawa: przystanek {st['id']} zakończony: {wynik}")
+        if st["id"] == "xodet" and wynik.get("blank") == "kupione":
+            self._runy_do_pojemnika()
         self._tele("wypad_krok", rodzaj="sklep_koniec", przystanek=st["id"], wynik=wynik,
                    kupione=dict(self.kupione), czas_s=round(teraz - self.t_start))
         self.sklep = None
@@ -980,12 +1334,34 @@ class Wyprawa(Wypad):
         self._stan_trasy()
         return True
 
+    def _runy_do_pojemnika(self):
+        """Po zakupie blanków: z głównego plecaka do pojemnika na runy (drugi bag). Błąd nie psuje wyprawy."""
+        fn = getattr(self.ops, "przenies_runy", None)
+        if fn is None:
+            return
+        try:
+            n = fn()
+            self.log(f"Wyprawa: przeniosłem {n} run do pojemnika na runy")
+            self._tele("wypad_krok", rodzaj="runy_do_pojemnika", n=n)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            self.log(f"Wyprawa: przenoszenie run do pojemnika nie wyszło ({e!r})")
+
     def _sukces(self):
         if self.w is not None:
             return bool(self.w.get("sukces"))
         return super()._sukces()
 
-    def _alarm_utknieciu(self, opis, stop=True):
+    def _zapisz_stop(self, opis):
+        try:
+            plik = self.plik_stop or bot.STOP
+            Path(plik).write_text(f"wyprawa: {opis}\n")
+            self.log(f"Wyprawa: zapisałem {plik} (zatrzymanie bota)")
+        except OSError as e:
+            self.log(f"Wyprawa: nie zapisałem STOP ({e})")
+
+    def _alarm_utknieciu(self, opis, stop=True, wymus_stop=False):
         self._powiadom("Wyprawa: UTKNĘŁA", opis + (" Bot zatrzymany, potrzebny człowiek." if stop else ""),
                        "critical", "wyprawa_utknela")
         al = getattr(self.cb, "alarm", None)
@@ -994,15 +1370,91 @@ class Wyprawa(Wypad):
                 al(f"wyprawa: {opis}")
             except Exception:
                 pass
-        if stop and int(self._kw("WYPRAWA_STOP_PRZY_UTKNIECIU")):
-            try:
-                plik = self.plik_stop or bot.STOP
-                Path(plik).write_text(f"wyprawa: {opis}\n")
-                self.log(f"Wyprawa: zapisałem {plik} (zatrzymanie bota)")
-            except OSError as e:
-                self.log(f"Wyprawa: nie zapisałem STOP ({e})")
+        if stop and (wymus_stop or int(self._kw("WYPRAWA_STOP_PRZY_UTKNIECIU"))):
+            self._zapisz_stop(opis)
+
+    def _depo_powrot(self, poz):
+        """WYPRAWA_DEPO_POWROT=1: po dojściu do depo (opcjonalny postój WYPRAWA_DEPO_POSTOJ_S na ręczne rzeczy)
+        wracamy na spot fazą "z" po zapisanej trasie depo -> jaskinia, bez STOP. Kończy się jak zwykły powrót."""
+        cb = self.cb
+        w = self.w
+        postoj = float(self._kw("WYPRAWA_DEPO_POSTOJ_S") or 0)
+        self.log(f"Wyprawa: DEPO osiągnięte w {tuple(poz)}, postój {postoj:.0f} s, potem powrót na spot")
+        self._powiadom("Wyprawa: jestem w depo", f"Bot stoi w depo {tuple(poz)}, za {postoj:.0f} s wraca na spot.",
+                       "normal", "wyprawa_depo")
+        if postoj > 0:
+            cb.pauza(postoj, postoj + 0.5)
+        w["sukces"] = True
+        w["wyniki"]["depo"] = {"depo": "jestem"}
+        self.sklep = None
+        self.wynik = None
+        self.faza, self.etapy = "z", w["powrot"]
+        self.ei = self.pi = 0
+        poz = tuple(cb.postac.pozycja())
+        if not self._resync_globalny(poz):
+            return self._awaria("zgubiona_pozycja", f"po depo poz {poz}")
+        self.postep = None
+        self.przystanek_od = None
+        self.utk = 0
+        cb._wypad_reset_klik()
+        self._stan_trasy()
+        return True
+
+    def _zakoncz_depo(self, wynik, opis):
+        """Koniec wyprawy do depo: sukces (dotarcie) albo awaria. Zawsze plik STOP, stan wyczyszczony, bez
+        powrotu na trasę łowiska i bez zakupów."""
+        cb = self.cb
+        w = self.w
+        teraz = cb.zegar()
+        poz = tuple(cb.postac.pozycja())
+        if wynik == "depo" and int(self._kw("WYPRAWA_DEPO_POWROT")) and w is not None \
+                and sum(len(e.get("punkty") or ()) for e in w["powrot"]) > 1:
+            return self._depo_powrot(poz)
+        if wynik == "depo":
+            self.log(f"Wyprawa: DEPO osiągnięte w {poz}, koniec wyprawy, zatrzymuję bota")
+            self._powiadom("Wyprawa: jestem w depo", f"Bot stoi w depo {poz} (brak jedzenia). Bot zatrzymany, "
+                           "potrzebny człowiek.", "critical", "wyprawa_depo")
+            self._zapisz_stop(f"dotarłem do depo {poz}")
+        else:
+            if opis != "teleport":          # teleport: alarm i STOP poszły już z _teleport
+                self._alarm_utknieciu(f"{opis} (poz {poz})", stop=True, wymus_stop=True)
+            else:
+                self._zapisz_stop(f"teleport/śmierć w {poz}")
+        co_min = max(float(self._kw("WYPRAWA_CO_MIN")) * 60.0, float(self._kw("WYPRAWA_PO_DEPO_S")))
+        self.nast_wyprawa = teraz + co_min
+        pam = {}
+        if wynik == "depo":                  # P7c: pamięć "depo z powodu X" (przeżywa restart)
+            st0 = self._stan_czytaj()
+            pam = {"depo_powody": st0.get("depo_start_powody") or [], "depo_blanki": st0.get("depo_start_blanki"),
+                   "depo_wall": self.czas()}
+        self._stan_koniec(wynik=wynik, opis=opis, kupione={}, nast_wall=self.czas() + co_min,
+                          wyniki=(w or {}).get("wyniki"), **pam)
+        self._tele("wyprawa_koniec", wynik=wynik, opis=opis, kupione={}, depo=True, poz=list(poz),
+                   czas_s=round(teraz - self.t_start))
+        self.w = None
+        self._plan_wyprawy = None
+        self.zablokowany = True             # bot ma zostać w depo, żadnych samoczynnych wypraw
+        self.stan = "SPOKOJ"
+        self.faza = self.etapy = None
+        self.sklep = None
+        self.wynik = None
+        cb.wypad_aktywny = False
+        try:
+            cb._wypad_reset_klik()
+            cb.ustaw_stan("IDZ", "wyprawa do depo zakończona")
+        except Exception:
+            pass
+        return True
+
+    def _awaria(self, typ, opis, etap=None):
+        if self._w_depo():
+            self._blad(typ, opis=opis)
+            return self._koniec("blad", f"{typ}: {opis}")
+        return super()._awaria(typ, opis, etap)
 
     def _koniec(self, wynik, opis):
+        if self._w_depo() and not (self.faza == "z" and wynik in ("ok", "bez_zakupow")):
+            return self._zakoncz_depo(wynik if wynik == "depo" else "blad", opis)
         w = self.w
         if w is not None:
             teraz = self.cb.zegar()
@@ -1060,7 +1512,13 @@ def raport(katalog=TRASY, plik_sklepow=PLIK_SKLEPOW, plik_npc=PLIK_NPC, mapa=Non
             nazwa = c.get("npc") or domyslny
             n0 = next(iter(baza.values()))
             do = n0[0]
-            if c.get("stoi"):
+            if c.get("stoi") and c.get("dojscie"):
+                # nagrany marsz (z drzwiami, które mapa zna jako ścianę): A* po mapie nie ma tu sensu
+                pts = [q for q in (_punkt(p) for p in c["dojscie"]) if q]
+                dz = sorted(drzwi_przystankow({klucz: c}, mapa))
+                if dz:
+                    log(f"{klucz}: drzwi na trasie (przechodnie w planie): {dz}")
+            elif c.get("stoi"):
                 pts = t.odcinek(do[-1], tuple(c["stoi"]))
             elif c.get("npc_poz") or nazwa in npc:
                 r = t.stoisko(do[-1], tuple(c.get("npc_poz") or npc[nazwa]))

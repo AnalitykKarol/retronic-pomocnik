@@ -12,6 +12,7 @@ LOSOWE = dict(REAKCJA=cavebot.REAKCJA, DRUGI_CEL=cavebot.DRUGI_CEL, ROZRZUT_PROG
               ODWROCENIE_TRASY=cavebot.ODWROCENIE_TRASY, SCINANIE=cavebot.SCINANIE,
               PAUZA_KROTKA=cavebot.PAUZA_KROTKA, PAUZA_DLUGA=cavebot.PAUZA_DLUGA)
 cavebot.REAKCJA = (0.0, 0.0); cavebot.DRUGI_CEL = 0.0; cavebot.ROZRZUT_PROGU = 0.0
+cavebot.STRAZNIK_CEL = 0     # 13.10 P2a: strażnik celu ma własny test (test_straznik_celu.py); tu długie walki ze stałym HP
 cavebot.CZEKAJ_BLISKO = 0   # testy odpuszczania objazdu: stare zachowanie (bliskie cele - sekcja 18c)
 cavebot.ODWROCENIE_TRASY = 0.0; cavebot.SCINANIE = (0.0, 2)
 cavebot.PAUZA_KROTKA = (0.0, 0.4, 1.5); cavebot.PAUZA_DLUGA = (0.0, 3.0, 8.0)
@@ -679,7 +680,19 @@ b.loot = types.SimpleNamespace(zbierz=zbierz15)
 b.tick(); b.tick()
 s.stwory[0]["y"] = 101; b.tick()          # krok w dół
 s.stwory.clear(); bieg(b, s, 6)            # ginie (znika z listy na ekranie)
-sprawdz("15 zgon w ruchu: najpierw pole w kierunku ruchu, potem ostatnie", proby[:2] == [(101, 102, 7), (101, 101, 7)], f"proby={proby}")
+sprawdz("15 zgon w ruchu (LOOT_DYNAMICZNY=1): najpierw ostatnie widziane pole, potem poprzednie pole celu",
+        proby[:2] == [(101, 101, 7), (101, 100, 7)], f"proby={proby}")
+# 15b. dawne zachowanie (LOOT_DYNAMICZNY=0): najpierw pole w kierunku ruchu
+cavebot.LOOT_DYNAMICZNY = 0
+s = Swiat(poz=(100,100,7), hp=100); s.stwory = [{"id": 91, "nazwa": "Rat", "gracz": False, "x": 101, "y": 100, "z": 7, "hp": 30}]
+b = zrob(s, trasa()); s.zabija = False
+proby = []
+b.loot = types.SimpleNamespace(zbierz=zbierz15)
+b.tick(); b.tick()
+s.stwory[0]["y"] = 101; b.tick()
+s.stwory.clear(); bieg(b, s, 6)
+cavebot.LOOT_DYNAMICZNY = 1
+sprawdz("15b zgon w ruchu (LOOT_DYNAMICZNY=0): najpierw pole w kierunku ruchu, potem ostatnie", proby[:2] == [(101, 102, 7), (101, 101, 7)], f"proby={proby}")
 
 
 # 16. pełna mapa serwera (mapa.py): atrapa wstrzykiwana do Cavebot, potem prawdziwy plik
@@ -899,7 +912,13 @@ if PRAWDZIWA is not None:
 s = Swiat(poz=(100,100,7)); s.stwory = [szczur(300, 103)]
 b = zrob(s, trasa()); b.ignorowane[300] = 10 ** 9; b.zwloki_czekajace = [((101,100,7), s.t)]
 bieg(b, s, 3)
-sprawdz("20a żywy (ignorowany) szczur 3 pola dalej wstrzymuje loot odłożonych zwłok", not b.lootlog, f"loot={b.lootlog}")
+sprawdz("20a LOOT_DYNAMICZNY=1: żywy (ignorowany) szczur 3 pola dalej nie wstrzymuje lootu zwłok obok", b.lootlog == [(101,100,7)], f"loot={b.lootlog}")
+cavebot.LOOT_DYNAMICZNY = 0
+s = Swiat(poz=(100,100,7)); s.stwory = [szczur(300, 103)]
+b = zrob(s, trasa()); b.ignorowane[300] = 10 ** 9; b.zwloki_czekajace = [((101,100,7), s.t)]
+bieg(b, s, 3)
+cavebot.LOOT_DYNAMICZNY = 1
+sprawdz("20a2 LOOT_DYNAMICZNY=0: dawne zachowanie, szczur 3 pola dalej wstrzymuje loot", not b.lootlog, f"loot={b.lootlog}")
 s = Swiat(poz=(100,100,7)); b = zrob(s, trasa()); b.zwloki_czekajace = [((101,100,7), s.t)]
 bieg(b, s, 3)
 sprawdz("20b bez żywych potworów odłożone zwłoki są zbierane", b.lootlog == [(101,100,7)], f"loot={b.lootlog}")
@@ -2455,12 +2474,21 @@ sprawdz("36j atak wyłączony kliknięciem w zwłoki: kara 1, powód atak_wylacz
 # 36k. cel poza zasięgiem w trakcie: zwykłe przerwanie, okno zamykane (niepilne)
 s, b, wyw, ev, zam = swiat36(kroki=("otwarcie",) + ("przenies x",) * 20)
 def cel_odchodzi(i, stan):
-    if i == 1: s.stwory[0]["x"] = 104
+    if i == 1: s.stwory[0]["x"] = 105
 s.po_kroku = cel_odchodzi
 licz_ticki36(b, s, 30)
 prz = [e for e in ev if e[0] == "loot_w_walce_przerwany"]
-sprawdz("36k cel odszedł poza zasięg: przerwanie (cel_daleko lub przerwa_w_krokach), brak zawieszonego lootu",
-        prz and b.lww is None and len(b.zwloki_czekajace) == 1, (prz, b.lww))
+sprawdz("36k cel odszedł daleko (5 pól): przerwanie (cel_daleko lub przerwa_w_krokach), brak zawieszonego lootu",
+        prz and prz[0][1]["powod"] == "cel_daleko" and b.lww is None, (prz, b.lww, b.zwloki_czekajace))
+# 36k2. LOOT_DYNAMICZNY=1: okno otwarte, cel odszedł na 4 pola: loot nie jest przerywany "cel_daleko"
+s, b, wyw, ev, zam = swiat36(kroki=("otwarcie",) + ("przenies x",) * 20)
+def cel_odchodzi4(i, stan):
+    if i == 1: s.stwory[0]["x"] = 104
+s.po_kroku = cel_odchodzi4
+licz_ticki36(b, s, 30)
+prz = [e for e in ev if e[0] == "loot_w_walce_przerwany"]
+sprawdz("36k2 okno otwarte, cel w odl 4: brak przerwania 'cel_daleko'",
+        not any(e[1]["powod"] == "cel_daleko" for e in prz), prz)
 # 36l. cel odchodzi (uciekający): okno zwłok NIE jest zamykane kliknięciem (pilne), nic nie opóźnia pościgu
 sprawdz("36l cel_daleko: bez zamykania okna zwłok (zam pusty)", zam == [], zam)
 # 36m. opóźnienie reakcji ("zauważanie") nie dotyczy uciekającego celu dalej niż obok; zdrowego celu dalej: nadal jest
@@ -2578,6 +2606,7 @@ s, b = swiat_wd(); b.ruch_czas = s.t - 5
 n = len(wd_log()); b.tick()
 sprawdz("W1l watchdog nie odpala po 5 s postoju", len(wd_log()) == n)
 # W1m. walka 25 s w miejscu (pozycja stoi), zgon celu, 2 świeże zwłoki: watchdog NIE odpala, zwłoki do lootu
+_lk0 = cavebot.ATAK_LIMIT_KLIKOW; cavebot.ATAK_LIMIT_KLIKOW = 0   # 13.10 P1a: po limicie klików cel jest twardo ignorowany (dawniej wybierany od razu znów)
 s = Swiat(poz=(100,100,7)); s.zabija = False
 s.stwory = [{"id": 5, "nazwa": "Rat", "gracz": False, "x": 101, "y": 100, "z": 7, "hp": 100}]
 b = zrob(s, trasa(), okrazenia=1)
@@ -2595,6 +2624,7 @@ b.tick(); b.tick()
 sprawdz("W1m 25 s walki w miejscu + zgon celu: watchdog nie odpala, zwłoki nie skasowane/zebrane",
         len(wd_log()) == n and t_walki >= 25 and (len(b.lootlog) > 0 or len(b.zwloki_czekajace) == 2),
         f"t={t_walki:.0f} wd={len(wd_log())-n} loot={b.lootlog} czek={b.zwloki_czekajace}")
+cavebot.ATAK_LIMIT_KLIKOW = _lk0
 # W1m2. bezpośrednio: ruch dawno, ale aktywność (walka) 2 s temu -> nie odpala
 s, b = swiat_wd(); b.aktywnosc_ts = s.t - 2
 n = len(wd_log()); b.tick()
@@ -2682,14 +2712,25 @@ s, b = swiat_l2(mob=(105, 100))
 cavebot.ZWLOKI_PRZED_CELEM = False
 b.tick()
 cavebot.ZWLOKI_PRZED_CELEM = True
-sprawdz("L2d2 ZWLOKI_PRZED_CELEM=False: dawne zachowanie (cel wybrany, loot po walce)", b.lootlog == [] and b.cel is not None,
+sprawdz("L2d2 ZWLOKI_PRZED_CELEM=False, LOOT_DYNAMICZNY=1: dynamiczny loot i tak zbiera zwłoki obok", b.lootlog == [(101, 100, 7)] and b.cel is None,
+        f"loot={b.lootlog} cel={b.cel}")
+s, b = swiat_l2(mob=(105, 100))
+cavebot.ZWLOKI_PRZED_CELEM = False; cavebot.LOOT_DYNAMICZNY = 0
+b.tick()
+cavebot.ZWLOKI_PRZED_CELEM = True; cavebot.LOOT_DYNAMICZNY = 1
+sprawdz("L2d2b ZWLOKI_PRZED_CELEM=False, LOOT_DYNAMICZNY=0: dawne zachowanie (cel wybrany, loot po walce)", b.lootlog == [] and b.cel is not None,
         f"loot={b.lootlog} cel={b.cel}")
 s, b = swiat_l2(mob=(103, 100, 10))     # uciekający (HP 10%) w odl 3
 b.tick()
 sprawdz("L2d3 uciekający cel w odl <= 4: pościg przed zwłokami", b.lootlog == [] and b.cel is not None, f"loot={b.lootlog} cel={b.cel}")
 s, b = swiat_l2(mob=(102, 101))         # mob w odl 2: walka pierwsza
 b.tick()
-sprawdz("L2d4 mob w odl 2: walka przed zwłokami", b.lootlog == [] and b.cel is not None, f"loot={b.lootlog} cel={b.cel}")
+sprawdz("L2d4 LOOT_DYNAMICZNY=1: mob w odl 2, zwłoki obok: zebrane przed walką", b.lootlog == [(101, 100, 7)] and b.cel is None, f"loot={b.lootlog} cel={b.cel}")
+s, b = swiat_l2(mob=(102, 101))
+cavebot.LOOT_DYNAMICZNY = 0
+b.tick()
+cavebot.LOOT_DYNAMICZNY = 1
+sprawdz("L2d4b LOOT_DYNAMICZNY=0: mob w odl 2: walka przed zwłokami", b.lootlog == [] and b.cel is not None, f"loot={b.lootlog} cel={b.cel}")
 s, b = swiat_l2(hp=45, mob=(105, 100))  # HP <= próg + 15
 b.tick()
 sprawdz("L2d5 HP 45% (próg 40): nie zbieramy przed celem", b.lootlog == [], f"loot={b.lootlog}")
@@ -3414,7 +3455,8 @@ b.tick(); b.tick()
 s.stwory[0]["y"] = 101; b.tick()
 s.stwory.clear(); bieg(b, s, 6)
 sprawdz("23f zgon w ruchu: alternatywą pierwszego pola jest ostatnia widziana pozycja",
-        len(wyw) >= 2 and wyw[0][0] == (101, 102, 7) and wyw[0][1] == [(101, 101)] and wyw[1][1] == [(101, 102)], f"{wyw}")
+        len(wyw) >= 2 and wyw[0][0] == (101, 101, 7) and (101, 100) in wyw[0][1] and (101, 102) in wyw[0][1]
+        and wyw[1][0] == (101, 100, 7), f"{wyw}")
 
 # --- 38. wymiana pochodni w trakcie zaplanowanej przerwy (PRZERWA; POCHODNIA_W_PRZERWIE) ---
 def _przerwa38():

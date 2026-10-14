@@ -73,6 +73,8 @@ POSCIG_ATAK_CO = 2.5               # s: min. odstęp między klikami ponawiając
 POSCIG_ATAK_ODCZYTY = 2            # tyle kolejnych odczytów flagi "atakowany" = False przed ponowieniem
 ATAK_INNY_CEL = False              # cel bota obok, flaga ataku False, a gra celuje w kogoś innego: klik od razu (max 1 na 1.5 s na cel)
 ATAK_INNY_CEL_CO_S = 1.5           # s: min. odstęp między takimi klikami na tego samego celu (Alt+klik bywa przełącznikiem)
+ATAK_LIMIT_KLIKOW = 5              # tyle kliknięć "ramka_false" na tym samym celu bez spadku jego HP, potem: Escape (zdejmuje stary cel), ignoruj cel
+ATAK_LIMIT_IGNOROWANIE = 30        # s ignorowania celu po przekroczeniu ATAK_LIMIT_KLIKOW (13.10: pętla ataku po przelogowaniu)
 ATAK_TYLKO_PRZY_CELU = True         # na serwerze do 8 lvla atak działa tylko tuż obok celu (dystans <= 1): bez klików z dystansu; False = dawne zachowanie
 POSCIG_ATAK_WERYF = 0.0            # s blokującej weryfikacji po kliku; 0 = flagę czytamy w następnym obrocie pętli
 POSCIG_ATAK_WERYF_MIN = 0.3        # s po kliku, zanim flaga w następnym obrocie liczy się jako weryfikacja
@@ -102,6 +104,7 @@ LOOT_POD_NOGAMI_PIERWSZE = True    # loot: Ctrl+klik własnego pola (0,0) zaraz 
 LOOT_RETRY_DALEJ = 0               # ile dodatkowych rund po wyczerpaniu budżetu LOOT_MAKS_PROB (12.10: 2 -> 0, rundy marnowały czas)
 LOOT_MAKS_PROB = 4                 # ile różnych pól maks. klikamy przy jednym otwieraniu zwłok (pokrętło 1-9; 12.10: 3 -> 4)
 LOOT_PONOW_LOKALNIE = 1            # 12.10: brak okna, budżet pól wyczerpany, w widoku brak żywych mobów: tyle razy ponów loot od razu (bez czekania na model)
+LOOT_POMIN_CIEZKIE = 0            # 13.10 (P5): 1 = przedmiot, który nie mieści się przez cap (za_ciezki), pomijamy w lootcie na 300 s (domyślnie 0: tylko klasyfikacja i log; pokrętło 0-1)
 POSCIG_BEZ_ZMIANY_PIETRA = True    # 12.10: pościg/podejście nigdy nie wchodzi na schody/dziurę (zmiana piętra); tylko wypad do miasta wolno; pokrętło 0-1
 TRASA_PIETRA = 2                   # 13.10: trasa wielopiętrowa w pętli łowiska (pietra.py): 0 = wyłączona, 1 = zawsze, 2 = tylko gdy trasa ma > 1 piętro (domyślnie); pokrętło 0-2
 PIETRA_MAX_S = 150.0               # s na jedno przejście pięter (dojście do schodów + próby), potem porażka (zawrócenie trasy)
@@ -144,6 +147,10 @@ PATROL_GRACZ_PAM = 1               # 1 = pamiętamy, gdzie niedawno widziano obc
 PATROL_GRACZ_PAM_S = 600.0         # s: tak długo ostatnia pozycja gracza zniechęca do miejsc w pobliżu
 PATROL_GRACZ_PAM_R = 14            # pola: miejsce tak blisko ostatniej pozycji gracza dostaje karę
 PATROL_GRACZ_PAM_KARA = 0.1        # mnożnik wagi takiego miejsca (0 = blokada; inne piętro: pierwiastek)
+LOOT_DYNAMICZNY = 1                # 13.10: loot dynamiczny (pokrętło 0/1; 0 = dawne zachowanie, DOMYŚLNIE 1 od decyzji Karola 13.10; 0 = dawne zasady): zwłoki w odl <= 1 zaraz po zabiciu także przy
+                                   # żywym mobie w odl >= 2; dalsze gdy mob >= 3 pola; okno lootu otwarte nie jest przerywane "cel_daleko";
+                                   # po "brak_okna" zwłoki wstrzymane do końca walki (jedna próba po walce); zwłoki z innego piętra odłożone
+LOOT_SZYBKI_ODL = 3                # LOOT_DYNAMICZNY: zwłoki tak blisko (pola) zbieramy zaraz po zabiciu, gdy żaden mob nie przylega
 LOOT_W_WALCE_MAX_S = 20.0          # s: tyle maks. na jedne zwłoki w walce (reszta po walce)
 LOOT_W_WALCE_PO_ATAKU_S = 1.0      # s po kliku ataku, zanim wolno klikać zwłoki (flaga ataku musi się ustalić)
 LOOT_W_WALCE_POSTOJ_S = 0.6        # s bez ruchu postaci (klik w zwłoki w trakcie kroku trafiłby w sąsiednie pole)
@@ -181,6 +188,28 @@ WYPRAWA_CO_MIN = 20                # min: minimalny odstęp między wyprawami (t
 WYPRAWA_MAX_CZAS_S = 1800          # s: twardy limit czasu jednej wyprawy
 WYPRAWA_MAX_KROKOW = 6000          # twardy limit obiegów maszyny wyprawy
 WYPRAWA_STOP_PRZY_UTKNIECIU = 1    # 1 = utknięcie/teleport w mieście: alarm + plik STOP (bot się zatrzymuje)
+WYPAD_BIEGNIJ = 1                  # 1 = w wypadzie/wyprawie nie walczymy po drodze (biegniemy), bijemy tylko gdy droga zablokowana
+WYPAD_BLOK_S = 3.0                 # s: tyle stoimy w miejscu ze stworem obok = droga zablokowana, wtedy walka
+WYPAD_WALKA_S = 8.0                # s: po zablokowaniu walczymy tak długo, zanim znów ocenimy "biegnij"
+WYPAD_PETLA_S = 8.0                # s: stwór obok i brak postępu (kręcimy się w promieniu WYPAD_PETLA_PROMIEN, np. dziura/drabina) = droga zablokowana, walka; 0 = wyłączone
+WYPAD_PETLA_PROMIEN = 2            # pola (Chebyshev): tyle bot może się ruszać w oknie WYPAD_PETLA_S, a i tak liczy się jako brak postępu
+WYPRAWA_DEPO_BLANKI = 0            # P7b: 1 = w trybie WYPRAWA_TYLKO_DEPO sam brak blanków też jest powodem wyprawy (domyślnie 0: do depo nie kupujemy blanków, tylko powiadomienie)
+WYPRAWA_PO_DEPO_S = 900            # P7c: s: minimalna karencja kolejnej wyprawy po wyprawie zakończonej w depo (liczy się większa z tego i WYPRAWA_CO_MIN)
+WYPRAWA_PO_DOJSCIU_S = 300         # P7a: s: po dojściu z depo na spot pierwsza ocena wyprawy najwcześniej po tylu sekundach (0 = bez karencji)
+DOJSCIE_WALKA_PRZEJSCIE_S = 60     # P7d: s: w dojściu stwór obok przy zmianie piętra (dziura/schody) = walka do skutku, ale max tyle s (0 = dawne WYPAD_WALKA_S)
+DOJSCIE_BEZ_UNIKANIA_POL = 0       # P7f: >0 = w dojściu, gdy postać jest w tylu polach od początku dojścia (depo), unikanie graczy wyłączone; 0 = bez zmiany (domyślnie wył.)
+DOJSCIE_PROBY = 5                  # P7e: tyle razy ponawiamy dojście od aktualnej pozycji, zanim uznamy porażkę (mozg.przejdz_dojscie; zakres 3-8)
+DOJSCIE_PAUZA_PROBY_S = 4.0        # P7e: s pauzy (losowo 0,75x-1,5x) przed kolejną próbą dojścia po porażce przejścia pięter
+DOJSCIE_BIEGNIJ = 1                # 1 = w dojściu na spot (--dojscie, CavebotDojscie) biegniemy: bez walki, lootu, przerw i pościgu; bijemy tylko blokujące moby (WYPAD_BLOK_S/WYPAD_WALKA_S); ucieczka i leczenie zostają
+PIETRA_LOPATA_TYLKO_Z7 = 1         # pokrętło 0/1: łopata tylko na z7 (wejście do jaskini z powierzchni); 0 = na każdym piętrze (dawne)
+PIETRA_LOPATA_BRAK_S = 600.0       # s: po "nie widzę łopaty" w plecaku nie próbujemy łopaty ponownie
+PIETRA_LOPATA = 1                  # 1 = przy wejściu w dół dziurą (pole z flagą 2) po nieudanym kroku odkopujemy ją łopatą z plecaka (Use with, ID 3457)
+WYPRAWA_DEPO_POWROT = 0            # 1 = po dojściu do depo wyprawa sama wraca na spot (faza "z" po trasie depo_troll_cave) zamiast STOP
+WYPRAWA_DEPO_POSTOJ_S = 0          # s: postój w depo przed powrotem (czas na ręczne odłożenie rzeczy)
+WYPRAWA_CZEKAJ_NA_GLOD = 0         # 1 = wyprawa po jedzenie dopiero po potwierdzonym głodzie (nieudana próba jedzenia), nie od razu przy zapasie 0
+WYPRAWA_DEPO_W_WALCE = 1           # 1 = wyprawa do depo (po potwierdzonym głodzie) startuje także w walce i biegnie; 0 = tylko w spokoju
+WYPRAWA_DEPO_ZLOZ = 0                # 1 = zwykła wyprawa zaczyna od depo: składa UH w skrzyni, potem Frodo/Xodet
+WYPRAWA_TYLKO_DEPO = 0              # 1 = wyprawa idzie tylko do depo (troll_do_miasta + A* do pola depo), tam STOP + powiadomienie; bez zakupów i powrotu
 TICK_WOLNY = 1.0                   # s: tick wolniejszy loguje podział czasu na fazy (debug)
 POKRETLA_CO = 2.0                  # s: pokretla.odswiez nie częściej
 # --- ML: automatyczne rzucanie czaru dla magic levelu (ML rośnie od wydanej many). Domyślnie WYŁĄCZONE ---
@@ -253,6 +282,16 @@ UH_PORAZKI = 3                     # tyle nieudanych prób z rzędu wyłącza UH
 UH_PRZERWA_PO_PORAZKACH_S = 1800.0 # s wyłączenia po porażkach / alarmie
 UH_PRZERWA_BRAK_BLANK_S = 600.0    # s wyłączenia, gdy brak blank run
 UH_HOLD_MAX_S = 300.0              # s: tyle ML (utevo lux) czeka na manę dla UH (potem rzuca; bez zakleszczenia)
+UH_W_WALCE = 0                     # pokrętło 0/1 (na_zywo.json): 1 = runa także W TRAKCIE WALKI, gdy mana prawie pełna (regen się marnuje)
+UH_W_WALCE_MANA_MARGINES = 5       # pokrętło: w walce start, gdy mana >= max_mana - tyle (i >= UH_KOSZT)
+UH_W_WALCE_DYSTANS = 0             # pokrętło 0-3: w trybie walki stwór w tej odległości (Chebyshev) blokuje start i przerywa runę; 0 = moby ignorowane (tylko gracz, HP, ucieczka), 1 = przylegający
+UH_W_WALCE_SPADEK_HP = 25          # pokrętło: w trakcie runy w walce przerwij, gdy HP spadło o tyle pp od startu runy (kilka trolli naraz)
+UH_W_WALCE_MIN_HP = 90             # pokrętło: % HP wymagane do startu runy w walce (w trakcie: ta wartość minus 10)
+# --- ogłoszenia sprzedaży UH na kanale Trade (mozg.py: TradeOgloszenia; szablon trade_ogloszenie.txt) ---
+TRADE_OGLOSZENIA = 0               # pokrętło 0/1 (na_zywo.json): 1 = ogłoszenie [SELL] UH na zakładce Trade (domyślnie WYŁĄCZONE)
+TRADE_MIN_S = 180                  # pokrętło: s min. odstępu między ogłoszeniami (losowo równomiernie MIN-MAX)
+TRADE_MAX_S = 300                  # pokrętło: s max. odstępu między ogłoszeniami
+TRADE_MIN_UH = 20                  # pokrętło: ogłaszamy dopiero, gdy w plecakach jest tyle run UH ({bp} = pełne po 20)
 # --- pola ognia (ogien.py): wykrywane ze zrzutu (pomijają je pamięć stworów i mapa), liczone jak zablokowane pole ---
 OGIEN_UNIKAJ = 1                   # pokrętło 0/1 (na_zywo.json): 1 = omijamy pola ognia, schodzimy z nich, nie lootujemy z ognia
 OGIEN_ODSWIEZ_S = 0.8              # s: min. odstęp między wykryciami w tickach (zrzut ppm ok. 40 ms + analiza ok. 20 ms)
@@ -264,7 +303,12 @@ OGIEN_ZLY_KROK_S = 3.0             # s: krok z ognia, który nie przesunął pos
 OGIEN_CZEKAJ_MAX_S = 30.0          # s: tyle czekamy, aż ogień zgaśnie, gdy zamyka drogę; potem go ignorujemy
 OGIEN_IGNORUJ_S = 20.0             # s ignorowania ognia po wyczerpaniu czekania
 OGIEN_LOOT_CHLOD_S = 5.0           # s: zwłoki leżące na ogniu wracają do kolejki po tym czasie
-OGIEN_LOG_S = 1.0                  # s: min. odstęp między wpisami "[OGIEN] pola"
+OGIEN_LOG_S = 10.0                 # s: min. odstęp między wpisami "[OGIEN] pola" (13.10, P6: było 1; pokrętło 1-60)
+OGIEN_STALY = 1                    # pokrętło 0/1: 1 = maska stałych pól ognia (nie logujemy, nie blokują drogi)
+OGIEN_STALY_N = 20                 # tyle wykryć tego samego pola ...
+OGIEN_STALY_S = 600.0              # ... w ciągu co najmniej tylu sekund = pole stałe (nie run-fire z 1-2 min)
+OGIEN_PODSUMOWANIE_S = 600.0       # s: odstęp podsumowania "[OGIEN] ogień: N stałych, M zmiennych"
+OGIEN_ODSWIEZ_WALKA_S = 0.8        # s: odstęp wykryć w WALKA, gdy w widoku nie ma zmiennych pól (domyślnie jak OGIEN_ODSWIEZ_S = bez zmiany; spec P6 sugeruje 3, pokrętło 0.8-5)
 
 JEDZENIE_CZAR_AKTYWNY = 0          # pokrętło 0/1 (na_zywo.json); 1 = czar zamiast wypadu po jedzenie, gdy mana wystarcza
 JEDZENIE_CZAR_TEKST = "exevo pan"
@@ -305,6 +349,26 @@ CZEKAJ_BLISKO = 5                  # pola: tak blisko cel bez drogi nie jest odp
 LOOT_PO_WALCE = 8                  # pola: żywy potwór tak blisko wstrzymuje zbieranie zwłok
 LOOT_BLOK_MAX = 8                  # s: po tylu sekundach wstrzymania loot i tak rusza
 IGNOROWANIE_BLISKO = 3             # pola: ignorowany potwór tak blisko jest znów brany pod uwagę
+# 13.10 (spec P1a): twarde ignorowanie; podejście na IGNOROWANIE_BLISKO samo go nie zdejmuje
+IGNOR_TWARDE = 1                   # 0/1: wyłącznik (0 = dawne ignorowanie zdejmowane przy d <= IGNOROWANIE_BLISKO)
+IGNOR_DROGA_CO_S = 1.0             # s: najczęściej tak sprawdzamy, czy za ścianą otworzyła się droga (na id)
+ODPUSZCZ_LOG_S = 5.0               # s: log "Odpuszczam ... za ścianą" najwyżej raz na tyle s na id
+# spec P1b: blokujący na jedynym wyjściu (domyślnie WYŁĄCZONE do pomiaru)
+BLOK_WYJSCIE = 0                   # 0/1: droga bez stworów przez zajęte pole = bij blokującego, nie idź w stwora
+BLOK_KROKI = 2                     # tyle pierwszych pól drogi bez stworów sprawdzamy pod kątem stworów
+# spec P2a: strażnik celu (cel obok bez postępu)
+STRAZNIK_CEL = 1                   # 0/1
+STRAZNIK_CEL_S1 = 12.0             # s bez postępu przy odl <= 1: Escape, ponowny klik
+STRAZNIK_CEL_S2 = 25.0             # s bez postępu: kontrola pozycji i twarde ignorowanie celu
+STRAZNIK_CEL_PRZERWA = 4.0         # s: przerwa między wywołaniami strażnika (walcz() nie wołane) resetuje okno bez postępu
+STRAZNIK_IGNOR_S = 45.0            # s ignorowania celu po S2
+STRAZNIK_S2_SERIA = 3              # tyle odpaleń S2 w STRAZNIK_S2_OKNO_S = powiadomienie
+STRAZNIK_S2_OKNO_S = 300.0
+# spec P2b (w zadaniu: P2c): strażnik postępu globalny (domyślnie WYŁĄCZONY)
+STRAZNIK_POSTEP = 0                # 0/1
+STRAZNIK_POSTEP_S1 = 90.0          # s bez postępu: reset stanu walki
+STRAZNIK_POSTEP_S2 = 180.0         # s: zmiana celu patrolu / skok na najbliższy punkt trasy
+STRAZNIK_POSTEP_S3 = 300.0         # s: powiadomienie krytyczne
 OBJAZD_IGNOROWANIE = 90            # s ignorowania potwora za ścianą (inaczej wybieramy go w kółko)
 POGON_IGNOROWANIE = 20             # s ignorowania odpuszczonego celu
 PLIK_UCIEKANIA = instancja.S.uciekanie   # bez RETRONIC_ID: pomocnik/uciekanie.json
@@ -419,7 +483,7 @@ ODWROCENIE_TRASY = 0.35            # szansa na przejście kolejnego okrążenia 
 # Przerwy: nieregularne, losowane z mieszanki przedziałów (szansa, od s, do s); ostatni przedział bierze resztę.
 # Odstęp: okazjonalnie bardzo krótki, najczęściej 20-45 min, czasem do 100 min. Długość: krótkie częściej, czasem długa.
 PRZERWA_CO_MIX = ((0.08, 8 * 60, 20 * 60), (0.41, 20 * 60, 45 * 60), (0.51, 45 * 60, 100 * 60))
-PRZERWA_DLUGOSC_MIX = ((0.55, 20, 50), (0.45, 50, 240))
+PRZERWA_DLUGOSC_MIX = ((0.55, 10, 40), (0.45, 40, 120))     # 13.10: max 120 s (było do 240 s)
 PRZERWA_CO = (PRZERWA_CO_MIX[0][1], PRZERWA_CO_MIX[-1][2])            # s gry między przerwami (granice)
 PRZERWA_DLUGOSC = (PRZERWA_DLUGOSC_MIX[0][1], PRZERWA_DLUGOSC_MIX[-1][2])  # s przerwy (granice)
 
@@ -457,7 +521,14 @@ DZWIEKI = ["/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga",
            "/usr/share/sounds/freedesktop/stereo/dialog-warning.oga"]
 
 
-HAKI_LOGU = []    # funkcje(txt) wołane z każdą linią logu (telemetria); mozg.py woła je ze swojego log_bota
+class _ListaHakow(list):
+    """Lista haków logu: ten sam hak (==) tylko raz (13.10, P4: drugi Cavebot w procesie nie dubluje zdarzeń)."""
+    def append(self, h):
+        if h not in self:
+            super().append(h)
+
+
+HAKI_LOGU = _ListaHakow()    # funkcje(txt) wołane z każdą linią logu (telemetria); mozg.py woła je ze swojego log_bota
 
 
 def log(*a):
@@ -471,6 +542,7 @@ GM_NAZWA = re.compile(r"^(gm|cm|god|tutor)\s|\[gm\]|\[cm\]", re.IGNORECASE)
 GRACZ_INFO_PONOW = 120             # s: ten sam zwykły gracz w widoku jest w logu najwyżej raz na tyle
 # unikanie zwykłych graczy (unikanie.py): zmiana punktu rotacji i pominięcie celów przy graczu, bez zatrzymywania bota
 UNIKANIE = 1                       # 1 = bot omija zwykłych graczy; analityk nie może wyłączyć (tylko w górę)
+UNIKANIE_TYLKO_SPOT = 1            # 1 = unikanie graczy tylko na spocie (piętra 8+), nie w mieście ani na powierzchni (z7)
 UNIKANIE_PROMIEN = 9               # pola: gracz tak blisko (przez UNIKANIE_DEBOUNCE s) włącza unikanie
 UNIKANIE_PROMIEN_MAX = 14          # pola: unikanie trwa, dopóki ktoś jest w tym promieniu (dalej gracz się nie liczy)
 UNIKANIE_DEBOUNCE = 1.5            # s: gracz musi być w UNIKANIE_PROMIEN tak długo
@@ -556,6 +628,8 @@ def kierunki_do(x, y, cx, cy):
 
 
 class Cavebot:
+    dojscie_aktywne = False            # True tylko w CavebotDojscie (bieg zamiast walki, bez lootu i przerw)
+
     def __init__(self, postac, punkty, okrazenia=None, czas_s=None, prog_hp=40, jedzenie=None,
                  potwory=None, zatrzymaj_przy_graczu=True, zapytaj=None, atak=None,
                  alarm=alarm_dzwiekowy, spij=time.sleep, zegar=time.monotonic, loot=None,
@@ -635,6 +709,9 @@ class Cavebot:
         self.nieosiagalne = {}         # id celu -> dystans prosty w chwili odpuszczenia (twarde ignorowanie)
         self.ostatnia_droga_dl = None  # długość drogi z ostatniego podejdz (inf = brak drogi, None = nie wiadomo)
         self.sciany = {}               # pole -> kiedy krok strzałką na nie się nie udał (ściana)
+        self.zw_grupa = {}             # LOOT_DYNAMICZNY: pole zwłok -> krotka kandydatów tego samego zabicia (po udanym lootcie znikają)
+        self.zw_brak_okna = {}         # LOOT_DYNAMICZNY: pole zwłok -> liczba "brak_okna" (1 = wstrzymane do końca walki, 2 = porzucone)
+        self.przeglad_odl = None       # LOOT_DYNAMICZNY: odległość żywego potwora przerywającego loot.zbierz (None = LOOT_PRZEGLAD_ODL)
         self.zwloki_czekajace = []     # [(pole zwłok, czas ZABICIA)] odłożone, bo walka miała pierwszeństwo
         self.zwloki_wiek = {}          # pole -> czas zabicia (przeżywa pop z listy i ponowne odłożenie po przerwaniu)
         self.zwloki_priorytet_do = float("-inf")   # do kiedy zwłoki mają pierwszeństwo przed szukaniem celu (po ucieczce)
@@ -691,6 +768,13 @@ class Cavebot:
         self.cel_hp = None
         self.cel_spadek = 0            # czas ostatniego ataku lub spadku HP
         self.ignorowane = {}           # id -> do kiedy
+        self.ignor_powod = {}          # id -> (powód, do): "sciana"|"limit_walki"|"atak_klik"|"straznik" (IGNOR_TWARDE)
+        self.ignor_droga_cache = {}    # id -> (czas, droga otwarta?)
+        self.odpuszczenie_log = {}     # id -> czas ostatniego logu "Odpuszczam ... za ścianą"
+        self.ostatni_blokujacy = None  # (pole, id stwora) gdy droga bez stworów prowadzi przez zajęte pole (BLOK_WYJSCIE)
+        self.straznik_cel = None       # stan strażnika celu {"id", "t", "hp", "odl", "exp", "s1"}
+        self.straznik_s2_t = []        # czasy odpaleń progu 2 strażnika celu
+        self.straznik_post = {"t": None, "poz": None, "exp": None, "cel_hp": None, "s": 0, "ostr": None}
         self.hp_ostatnie = None
         self.hp_wzrost = zegar()       # kiedy HP ostatnio rosło (też od leczenia) albo było pełne
         self.hp_regen = zegar()        # kiedy HP ostatnio urosło NIE od exura (regeneracja), było pełne albo jedliśmy
@@ -710,6 +794,9 @@ class Cavebot:
         self.ogien_czeka_od = None             # od kiedy ogień zamyka nam drogę (czekamy)
         self.ogien_ignoruj_do = float("-inf")  # po wyczerpaniu czekania: do kiedy ignorujemy ogień
         self.ogien_blad_t = float("-inf")
+        self.ogien_widz = {}                   # P6: pole -> [ile wykryć, pierwsze, ostatnie] (do maski stałych pól)
+        self.ogien_stale = set()               # P6: pola stałe (widziane >= OGIEN_STALY_N razy przez >= OGIEN_STALY_S albo ściana mapy)
+        self.ogien_podsum_t = None             # P6: czas ostatniego podsumowania w logu
         self.ogien_odczyt = self._ogien_odczyt_domyslny \
             if ((klik is not None or not atak) and not os.environ.get("RETRONIC_TESTY")) else None
         self.nieudane = 0
@@ -755,6 +842,7 @@ class Cavebot:
         self.zd_wylaczony_do = float("-inf")
         self.zd_rzuty = 0
         self.runa_ostatni = float("-inf")  # czas ostatniego strzału runą
+        self.klik_ramka_false = {}     # id celu -> liczba kliknięć "ramka_false" bez spadku HP (ATAK_LIMIT_KLIKOW)
         self.atak_inny_ost = {}        # id celu -> czas ostatniego kliku "inny_cel" (ATAK_INNY_CEL)
         self.runa_strzaly = 0
         self.runa_klik_env = None      # runa_klik.SrodowiskoKlik (tworzone leniwie)
@@ -779,6 +867,8 @@ class Cavebot:
         self.jz_notatka_ost = float("-inf")
         self.ml_rzuty = 0
         self.ml_mana_wydana = 0
+        self.uh_hp_start = None        # % HP w chwili startu runy w walce (do wykrycia szybkiego spadku)
+        self.uh_tryb_walki = False     # True tylko w trakcie runy startowanej w walce (UH_W_WALCE): łagodzi _uh_przerwanie
         self.uh_env = None             # uh.SrodowiskoGry (tworzone leniwie; stan["tarcza_id"] trwały w UH_STAN_PLIK)
         self.uh_ostatni = float("-inf")  # czas ostatniej próby robienia runy
         self.uh_wylaczony_do = float("-inf")
@@ -806,7 +896,8 @@ class Cavebot:
             import telemetria  # noqa: PLC0415
             self.tele = telemetria.Telemetria()
             self.tele.sprzatnij_stare()
-            HAKI_LOGU.append(self.tele.linia)
+            if not os.environ.get("RETRONIC_TESTY"):     # testy nie karmią telemetrii liniami logu (P4)
+                HAKI_LOGU.append(self.tele.linia)
             self.pokretla = pokretla.Pokretla(sys.modules[__name__], log=lambda t: log(t))
             import powiadom  # noqa: PLC0415
             HAKI_LOGU.append(powiadom.z_logu)
@@ -844,8 +935,14 @@ class Cavebot:
         if u is None:
             return
         try:
+            w_miescie = bool(UNIKANIE_TYLKO_SPOT and poz is not None and poz[2] <= 7)
+            przy_depo = False
+            if self.dojscie_aktywne and DOJSCIE_BEZ_UNIKANIA_POL > 0 and poz is not None:
+                d0 = getattr(self, "_dojscie_start", None)      # P7f: tłum przy depo nie jest zagrożeniem
+                przy_depo = bool(d0 and d0[2] == poz[2]
+                                 and max(abs(d0[0] - poz[0]), abs(d0[1] - poz[1])) <= DOJSCIE_BEZ_UNIKANIA_POL)
             u.obserwuj(lista, poz, self.postac.nazwa,
-                       wylacz=not self.zatrzymaj_przy_graczu or self.wypad_aktywny)
+                       wylacz=not self.zatrzymaj_przy_graczu or self.wypad_aktywny or w_miescie or przy_depo)
             self._patrol_pamietaj_graczy()
         except bot.Zatrzymano:
             raise
@@ -934,6 +1031,59 @@ class Cavebot:
     def _wypad_zarejestruj_tekst(self, tekst):
         if self.wypad_czat is not None:
             self.wypad_czat.wyslano(tekst)
+
+    def _wypad_bieg(self, kand, poz, teraz):
+        """True = w wypadzie/wyprawie omijamy walkę (kand puste, bot biegnie dalej). Walka tylko, gdy stoimy w miejscu
+        >= WYPAD_BLOK_S ze stworem obok (droga zablokowana); potem WYPAD_WALKA_S s walki bez ponownej oceny."""
+        bieg = DOJSCIE_BIEGNIJ if self.dojscie_aktywne else (WYPAD_BIEGNIJ and self.wypad_aktywny)
+        if not bieg:
+            self.wypad_walka_do = float("-inf")
+            return False
+        obok = [s for s in kand if self.dystans((s["x"], s["y"]), poz) <= 1]
+        if teraz < getattr(self, "wypad_walka_do", float("-inf")):
+            if getattr(self, "_walka_przejscie", False) and not obok:
+                self.wypad_walka_do = float("-inf")      # P7d: blokujący zabity/odszedł: znów biegniemy
+                self._walka_przejscie = False
+                return True
+            return False
+        self._walka_przejscie = False
+        walka_s = WYPAD_WALKA_S
+        if obok and self.dojscie_aktywne and DOJSCIE_WALKA_PRZEJSCIE_S > 0 and self._dojscie_przy_przejsciu(poz):
+            walka_s = max(WYPAD_WALKA_S, float(DOJSCIE_WALKA_PRZEJSCIE_S))   # P7d: przy dziurze nie cyklujemy co 8 s
+            self._walka_przejscie = walka_s > WYPAD_WALKA_S
+        if obok and teraz - self.ruch_czas >= WYPAD_BLOK_S:
+            self.wypad_walka_do = teraz + walka_s
+            log(f"{'Dojście' if self.dojscie_aktywne else 'Wypad'}: droga zablokowana przez {obok[0]['nazwa']}, "
+                f"walczę {walka_s:.0f} s.")
+            return False
+        # pętla dziura/drabina zmienia piętro, więc ruch_czas ciągle się zeruje: stwór obok + brak postępu w oknie
+        # (ten sam rejon mimo ruchu) też jest zablokowaniem
+        hist = getattr(self, "wypad_hist", None)
+        if hist is None:
+            hist = self.wypad_hist = []
+        hist.append((teraz, poz[0], poz[1]))
+        while hist and teraz - hist[0][0] > WYPAD_PETLA_S + 2.0:
+            hist.pop(0)
+        if WYPAD_PETLA_S > 0 and obok and hist and teraz - hist[0][0] >= WYPAD_PETLA_S \
+                and max(max(abs(x - poz[0]), abs(y - poz[1])) for _, x, y in hist) <= WYPAD_PETLA_PROMIEN:
+            self.wypad_walka_do = teraz + walka_s
+            hist.clear()
+            log(f"{'Dojście' if self.dojscie_aktywne else 'Wypad'}: brak postępu przez {WYPAD_PETLA_S:.0f} s przy "
+                f"{obok[0]['nazwa']}, walczę {walka_s:.0f} s.")
+            return False
+        return True
+
+    def _dojscie_przy_przejsciu(self, poz):
+        """P7d: najbliższe punkty trasy (idx..idx+2) zmieniają piętro, a przejście jest <= 3 pola od postaci."""
+        try:
+            n = len(self.punkty)
+            for k in range(self.idx, min(n, self.idx + 3)):
+                q = self.punkty[k]
+                if q[2] != poz[2] and max(abs(q[0] - poz[0]), abs(q[1] - poz[1])) <= 3:
+                    return True
+            return False
+        except Exception:
+            return False
 
     def _wypad_tick(self):
         """Wypad po pochodnie: True, gdy zużył obieg (wołane na początku idz(), więc dopiero po walce i locie)."""
@@ -1150,10 +1300,15 @@ class Cavebot:
             g = self.gracz()
             poz = self.postac.pozycja()
             powod = None
+            walka = bool(self.uh_tryb_walki)       # runa startowana w walce: moby nie przerywają, chyba że przylegają
+            prog_hp = (UH_W_WALCE_MIN_HP if walka else UH_MIN_HP) - 10
             if self.ucieczka or self.ostrozny:
                 powod = "ucieczka"
-            elif g.get("proc", 100.0) < UH_MIN_HP - 10:
+            elif g.get("proc", 100.0) < prog_hp:
                 powod = f"HP {g['proc']:.0f}%"
+            elif walka and self.uh_hp_start is not None \
+                    and self.uh_hp_start - g.get("proc", 100.0) >= UH_W_WALCE_SPADEK_HP:
+                powod = f"HP spada {self.uh_hp_start:.0f}% -> {g['proc']:.0f}%"
             elif self._czar_blokada() is not None:
                 powod = str(self._czar_blokada())
             else:
@@ -1162,7 +1317,7 @@ class Cavebot:
                         continue
                     if s.get("gracz") and s.get("nazwa") == self.postac.nazwa:
                         continue
-                    if self._uh_widoczny(s, poz):
+                    if self._uh_widoczny(s, poz, walka):
                         powod = f"w widoku {s.get('nazwa', '?')}"
                         break
         except bot.Zatrzymano:
@@ -1173,15 +1328,33 @@ class Cavebot:
             self.uh_przerwal_cavebot = powod
         return powod
 
-    def _uh_widoczny(self, s, poz):
+    def _uh_widoczny(self, s, poz, walka=False):
         """True: byt s blokuje/przerywa UH. Gracz: cały widok (ZASIEG_X/Y). Stwór: tylko w odległości
-        (Chebyshev) <= UH_MOB_DYSTANS; dalsze szczury krążące w pobliżu nie blokują robienia runy."""
+        (Chebyshev) <= UH_MOB_DYSTANS; dalsze szczury krążące w pobliżu nie blokują robienia runy.
+        walka=True (UH_W_WALCE): stwór blokuje/przerywa tylko gdy jest w odległości <= UH_W_WALCE_DYSTANS
+        (0 = moby nie liczą się wcale: ryzyko kilku sekund bez tarczy akceptuje użytkownik); gracz nadal w pełnym widoku."""
         dx, dy = abs(s["x"] - poz[0]), abs(s["y"] - poz[1])
         if dx > ZASIEG_X or dy > ZASIEG_Y:
             return False
         if s.get("gracz"):
             return True
+        if walka:
+            return int(UH_W_WALCE_DYSTANS) >= 1 and max(dx, dy) <= int(UH_W_WALCE_DYSTANS)
         return max(dx, dy) <= UH_MOB_DYSTANS
+
+    def _uh_walka_ok(self, g):
+        """True: tryb UH w walce włączony, a mana prawie pełna (regeneracja by się zmarnowała) i HP wysokie."""
+        if not UH_W_WALCE:
+            return False
+        mana, mx = g.get("mana"), g.get("max_mana")
+        if mana is None or not mx:
+            return False
+        if mana < max(int(UH_KOSZT), int(mx) - int(UH_W_WALCE_MANA_MARGINES)):
+            return False
+        proc = g.get("proc")
+        if proc is None and g.get("hp") is not None and g.get("max_hp"):
+            proc = 100.0 * g["hp"] / g["max_hp"]
+        return proc is not None and proc >= UH_W_WALCE_MIN_HP
 
     def _uh_cel_blisko(self, poz, lista):
         """True: aktualny cel walki jest w odległości <= UH_MOB_DYSTANS (albo nie wiadomo, gdzie jest)."""
@@ -1208,10 +1381,25 @@ class Cavebot:
             return str(b)
         if self.ucieczka or self.ostrozny:
             return "ucieczka"
-        if self.w_poscigu or self.pamiec is not None:
-            return "walka"
-        if self._uh_cel_blisko(poz, lista):        # cel dalej niż UH_MOB_DYSTANS (i stary stan WALKA) nie blokuje
-            return "walka"
+        walka_ok = self._uh_walka_ok(g)
+        if walka_ok:
+            # Tryb UH_W_WALCE: pościg/pamięć/cel w pobliżu NIE blokują (to właśnie walka). Blokuje stwór przylegający
+            # (<= 1 pole: bije w trakcie runy bez tarczy), cel o nieznanym położeniu (nie wiemy, czy przylega)
+            # oraz gracz w widoku (sprawdza go potem uh.mozna_robic). Reszta (stan, czary, exhaust, zapas) jak w spokoju.
+            for s in (lista or []):
+                if s.get("z", poz[2]) != poz[2] or s.get("hp", 100) <= 0 or s.get("gracz"):
+                    continue
+                if self._uh_widoczny(s, poz, True):
+                    return "walka_przylegly"
+            c = self.cel
+            if int(UH_W_WALCE_DYSTANS) >= 1 and c is not None and c.get("poz") is None \
+                    and not any(s.get("id") == c.get("id") for s in (lista or [])):
+                return "walka_cel_nieznany"
+        else:
+            if self.w_poscigu or self.pamiec is not None:
+                return "walka"
+            if self._uh_cel_blisko(poz, lista):    # cel dalej niż UH_MOB_DYSTANS (i stary stan WALKA) nie blokuje
+                return "walka"
         if str(self.stan).startswith(("WYPAD", "POCHODNIA", "LOOT", "JEDZENIE", "GRACZ")):
             return "stan"
         if self.zd_oczekuje is not None or self.jc_oczekuje is not None or self.jz_oczekuje is not None \
@@ -1221,8 +1409,13 @@ class Cavebot:
             return "exhaust"
         if self._ml_czeka_na_zapas(g, teraz):      # exevo pan (zapas jedzenia) ma pierwszeństwo
             return "zapas_jedzenia"
-        if self.zwloki_do_zebrania(poz) is not None:
-            return "zwloki"                        # najpierw loot
+        if not walka_ok:
+            # zwloki_do_zebrania zdejmuje wpis z listy: tylko sprawdzamy, więc przywracamy listę (inaczej UH gubił zwłoki)
+            lista_zw = list(self.zwloki_czekajace)
+            zw_jest = self.zwloki_do_zebrania(poz) is not None
+            self.zwloki_czekajace = lista_zw
+            if zw_jest:
+                return "zwloki"                    # najpierw loot (w trybie walki: zwłoki zbierzemy po walce)
         return None
 
     def _uh_trzyma_mane(self, teraz):
@@ -1262,13 +1455,18 @@ class Cavebot:
         import uh  # noqa: PLC0415
         mx = g.get("max_mana")
         mana_min = max(int(UH_KOSZT), min(int(UH_MANA_MIN), int(mx))) if mx else int(UH_MANA_MIN)
-        widoczne = [s for s in lista if s.get("z") == poz[2] and self._uh_widoczny(s, poz)]
+        walka = (not restore) and self._uh_walka_ok(g)     # ten sam warunek co w _uh_blokada (g bez zmian)
+        widoczne = [s for s in lista if s.get("z") == poz[2] and self._uh_widoczny(s, poz, walka)]
+        if walka:
+            mana_min = max(int(UH_KOSZT), int(mx) - int(UH_W_WALCE_MANA_MARGINES))
         if restore:
             ok, powod = uh.mozna_robic(g, widoczne, aktywny=1, min_hp=UH_MIN_HP - 10, mana_min=0,
                                        ja=self.postac.nazwa, teraz=teraz, ostatnia=self.uh_ostatni,
                                        odstep=UH_ODSTEP_S)
         else:
-            ok, powod = uh.mozna_robic(g, widoczne, aktywny=1, min_hp=UH_MIN_HP, mana_min=mana_min,
+            ok, powod = uh.mozna_robic(g, widoczne, aktywny=1,
+                                       min_hp=max(UH_MIN_HP, UH_W_WALCE_MIN_HP) if walka else UH_MIN_HP,
+                                       mana_min=mana_min,
                                        ja=self.postac.nazwa, teraz=teraz, ostatnia=self.uh_ostatni,
                                        odstep=UH_ODSTEP_S)
         if not ok:
@@ -1287,7 +1485,15 @@ class Cavebot:
         self.aktywnosc_ts = teraz
         self.ustaw_stan("UH", f"{'przywracam tarczę' if restore else 'robię runę ' + UH_CZAR} (mana {mana})")
         log(f"[UH] start ({'restore' if restore else 'run'}, mana {mana}, HP {g.get('proc', 0):.0f}%)")
-        wynik = uh.przywroc(env) if restore else uh.zrob_runa(env)
+        self.uh_tryb_walki = walka
+        self.uh_hp_start = g.get("proc") if walka else None
+        if walka:
+            log(f"[UH] runa W WALCE (mana {mana}/{mx}, cel {'tak' if self.cel else 'nie'})")
+        try:
+            wynik = uh.przywroc(env) if restore else uh.zrob_runa(env)
+        finally:
+            self.uh_tryb_walki = False
+            self.uh_hp_start = None
         t = self.zegar()
         self.uh_ostatni = t
         if not restore:
@@ -1311,6 +1517,18 @@ class Cavebot:
         elif w == "brak_blank":
             self.uh_wylaczony_do = t + UH_PRZERWA_BRAK_BLANK_S
             log(f"[UH] brak blank run: wyłączam UH na {UH_PRZERWA_BRAK_BLANK_S / 60:.0f} min.")
+        elif str(pw).startswith("blank w pojemniku na runy poza oknem"):
+            # chwilowe: okno z runami przycięte (otwarte okno zwłok w panelu); to nie awaria mechanizmu, nie liczymy porażki
+            self.uh_wylaczony_do = t + 15.0
+            log("[UH] blank poza widocznym oknem, ponowię za 15 s (bez porażki).")
+        elif str(pw).startswith("brak_zrzutu"):
+            # chwilowe: grim nie dał zrzutu (2 próby); to nie awaria mechanizmu UH, nie liczymy porażki
+            self.uh_wylaczony_do = t + 15.0
+            log("[UH] brak zrzutu ekranu, ponowię za 15 s (bez porażki).")
+        elif str(pw).startswith("brak_miejsca w plecaku na tarczę"):
+            # chwilowe: brak widocznego wolnego pola na tarczę (plecak z runami zapełniony); nie liczymy porażki
+            self.uh_wylaczony_do = t + 60.0
+            log("[UH] brak widocznego miejsca na tarczę, ponowię za 60 s (bez porażki).")
         elif self.uh_przerwal_cavebot is None:        # przerwanie nie z naszego callbacku = mechanizm zawiódł
             self.uh_porazki += 1
             log(f"[UH] porażka {self.uh_porazki}/{UH_PORAZKI}")
@@ -1870,11 +2088,38 @@ class Cavebot:
         """Czy w ogóle liczymy się z ogniem: pokrętło włączone, jakieś pole znane, nie trwa ignorowanie."""
         return bool(OGIEN_UNIKAJ and self.ogien_pola and self.zegar() >= self.ogien_ignoruj_do)
 
-    def _ogien_xy(self, z):
-        """Zbiór (x, y) pól ognia na piętrze z (pusty, gdy ogień nie obowiązuje)."""
+    def _ogien_stale_ef(self):
+        """Pola stałe obowiązujące teraz (pusty zbiór, gdy maska wyłączona pokrętłem OGIEN_STALY=0)."""
+        return self.ogien_stale if OGIEN_STALY else frozenset()
+
+    def _ogien_xy(self, z, bez_stalych=False):
+        """Zbiór (x, y) pól ognia na piętrze z (pusty, gdy ogień nie obowiązuje). bez_stalych=True: bez pól stałych
+        (droga, A*, klik); ze stałymi: zejście z ognia i zwłoki na ogniu (bezpieczeństwo)."""
         if not self._ogien_aktywny():
             return set()
-        return {(x, y) for (x, y, pz) in self.ogien_pola if pz == z}
+        st = self._ogien_stale_ef() if bez_stalych else ()
+        return {(x, y) for (x, y, pz) in self.ogien_pola if pz == z and (x, y, pz) not in st}
+
+    def _ogien_stale_aktualizuj(self, widziane, teraz):
+        """P6: liczy wykrycia pól; pole widziane >= OGIEN_STALY_N razy w ciągu >= OGIEN_STALY_S, albo będące
+        ścianą mapy (flaga 4), trafia do ogien_stale. Wpisy nie widziane od OGIEN_STALY_S są zapominane."""
+        for p in widziane:
+            w = self.ogien_widz.get(p)
+            if w is None:
+                w = self.ogien_widz[p] = [0, teraz, teraz]
+                if p not in self.ogien_stale and self.mapa is not None:
+                    try:
+                        if self.mapa.flagi(*p) & 4:
+                            self.ogien_stale.add(p)
+                    except Exception:
+                        pass
+            w[0] += 1
+            w[2] = teraz
+            if w[0] >= OGIEN_STALY_N and teraz - w[1] >= OGIEN_STALY_S:
+                self.ogien_stale.add(p)
+        for p, w in list(self.ogien_widz.items()):
+            if p not in self.ogien_stale and teraz - w[2] > OGIEN_STALY_S:
+                del self.ogien_widz[p]
 
     def _ogien_na(self, pole):
         """Czy pole (x, y, z) jest polem ognia."""
@@ -1882,11 +2127,11 @@ class Cavebot:
 
     def _ogien_blok(self, start, cel=None):
         """Pola ognia piętra startu jako lista (x, y, z) dla A* (bez pola, na którym stoimy)."""
-        return [(x, y, start[2]) for (x, y) in self._ogien_xy(start[2]) if (x, y) != tuple(start[:2])]
+        return [(x, y, start[2]) for (x, y) in self._ogien_xy(start[2], bez_stalych=True) if (x, y) != tuple(start[:2])]
 
     def _ogien_na_drodze(self, poz, cel_xy):
         """Czy pole ognia leży w prostokącie poz-cel (+1 pole zapasu): klik poprowadziłby klienta przez ogień."""
-        ogien = self._ogien_xy(poz[2])
+        ogien = self._ogien_xy(poz[2], bez_stalych=True)    # stałe pola: mapa/minimapa i tak je omija (P6)
         if not ogien:
             return False
         x0, x1 = sorted((poz[0], cel_xy[0]))
@@ -1900,7 +2145,11 @@ class Cavebot:
             if self.ogien_pola:
                 self.ogien_pola = {}
             return
-        if self.ogien_odczyt is None or (not wymus and teraz - self.ogien_t < OGIEN_ODSWIEZ_S):
+        odstep = OGIEN_ODSWIEZ_S
+        if OGIEN_ODSWIEZ_WALKA_S > odstep and str(self.stan) == "WALKA" \
+                and not any(p not in self._ogien_stale_ef() for p in self.ogien_pola):
+            odstep = OGIEN_ODSWIEZ_WALKA_S      # P6: w walce bez zmiennych pól ognia rzadziej (jeden zrzut ppm to ok. 60 ms)
+        if self.ogien_odczyt is None or (not wymus and teraz - self.ogien_t < odstep):
             return
         self.ogien_t = teraz
         try:
@@ -1917,6 +2166,7 @@ class Cavebot:
         x, y, z = poz[0], poz[1], poz[2]
         stare = set(self.ogien_pola)
         widziane = {(x + dx, y + dy, z) for dx, dy in wzgl}
+        self._ogien_stale_aktualizuj(widziane, teraz)
         for p in widziane:
             self.ogien_pola[p] = teraz
         for p, t in list(self.ogien_pola.items()):
@@ -1928,12 +2178,21 @@ class Cavebot:
         nowe = set(self.ogien_pola) - stare
         if nowe and self.klik_cel is not None and self._ogien_na_drodze(poz, self.klik_cel):
             self.zatrzymaj_klik(poz)       # klik w toku prowadził przez nowy ogień: stop, krok po kroku z omijaniem
-        aktualne = frozenset(self.ogien_pola)
+        stale = self._ogien_stale_ef()
+        aktualne = frozenset(p for p in self.ogien_pola if p not in stale)    # P6: stałych pól nie logujemy
         zapisany, t_log = self.ogien_log_ost
+        if zapisany is not None:
+            zapisany = zapisany - stale        # pole, które właśnie uznano za stałe, nie jest "zmianą" zbioru
         if aktualne != zapisany and teraz - t_log >= OGIEN_LOG_S and (aktualne or zapisany):
             self.ogien_log_ost = (aktualne, teraz)
             opis = " ".join(f"({a},{b})" for a, b, _ in sorted(aktualne)) or "brak"
             log(f"[OGIEN] pola: {opis} (piętro {z}, {len(aktualne)})")
+        if self.ogien_podsum_t is None:
+            self.ogien_podsum_t = teraz
+        elif teraz - self.ogien_podsum_t >= OGIEN_PODSUMOWANIE_S:
+            self.ogien_podsum_t = teraz
+            if stale or aktualne:
+                log(f"[OGIEN] ogień: {len(stale)} stałych, {len(aktualne)} zmiennych")
 
     def _ogien_przechodnie(self, pole):
         """Czy pole (x, y, z) wygląda na przechodnie (nie ściana nauczona/mapowa, nie zmiana piętra, znane)."""
@@ -2026,6 +2285,8 @@ class Cavebot:
         pola znane (stał na nich gracz) liczą się też tam, gdzie minimapa ich nie widziała, a
         nauczone ściany (self.sciany) i `zajete` omijamy; None = drogi nie ma (w MAPA_LIMIT pól).
         Bez mapy - po znanych polach (_droga_znane)."""
+        if BLOK_WYJSCIE:
+            self.ostatni_blokujacy = None
         if self.mapa_zna(start, cel):
             z = start[2]
             zakaz = self._zakaz_lista(start, cel)       # schody/dziury: nigdy po nich (poza wypadem)
@@ -2039,6 +2300,16 @@ class Cavebot:
                 # wąskiego korytarza ani zmuszać do objazdu: liczymy też drogę po samej mapie
                 # i bierzemy krótszą (gdy bez blokad nie jest to objazd)
                 d2 = self.mapa.droga(start, cel, zakaz + ogien, dlugosc, skosy, limit=MAPA_LIMIT, znane=znane)
+                if BLOK_WYJSCIE and d2:
+                    # 13.10 (22:07): droga po samej mapie przez pole zajęte stworem to nie droga do marszu
+                    zset = {tuple(p[:2]) for p in zajete}
+                    for p in d2[:max(1, int(BLOK_KROKI))]:
+                        if tuple(p[:2]) in zset:
+                            m = next((q for q in self.ostatnie_stwory if (q["x"], q["y"]) == tuple(p[:2])
+                                      and q["z"] == z and q.get("hp", 100) > 0), None)
+                            self.ostatni_blokujacy = (tuple(p[:2]), m["id"] if m else None)
+                            d2 = None
+                            break
                 if d2 is not None and (d is None or (len(d2) < len(d) and len(d2) <= 2 * prosto + MAPA_OBJAZD)):
                     d = d2
                     self.droga_bez_blokad += 1
@@ -2196,6 +2467,8 @@ class Cavebot:
                 teraz_s = self.zegar()
                 zle = [q for (z0, q), do in self.skos_zle.items() if z0 == tuple(poz[:2]) and do > teraz_s]
                 d2 = self.droga(poz, cel, list(zajete) + zle, dlugosc, skosy=True)
+                if BLOK_WYJSCIE and d2 and tuple(d2[0][:2]) in {tuple(p[:2]) for p in zajete}:
+                    d2 = None          # pierwszy krok skosu w pole zajęte przez stwora: nie idziemy
                 if d2 and (d is None or len(d2) < len(d)):
                     d = d2
                     self.skos_awaryjny_n += 1
@@ -2489,6 +2762,10 @@ class Cavebot:
                 pass
         if pietra_on and pole[:2] != (cel[0], cel[1]) and self.pole_zmiany_pietra(pole):
             return None
+        if BLOK_WYJSCIE and any((q["x"], q["y"], q["z"]) == pole and q.get("hp", 100) > 0
+                                and not (q.get("gracz") and q.get("nazwa") == self.postac.nazwa)
+                                for q in self.ostatnie_stwory):
+            return None          # pole skosu zajęte przez żywego stwora
         if self.skos_zle.get(((x, y), pole[:2]), 0) > self.zegar():
             return None
         if self.zablokowane.get(((x, y, z), "skos")):
@@ -2538,14 +2815,81 @@ class Cavebot:
             return False
         d = self.dystans((s["x"], s["y"]), poz)
         zapis = self.nieosiagalne.get(s["id"])
-        if zapis is not None:
+        pw = self.ignor_powod.get(s["id"]) if IGNOR_TWARDE else None
+        powod = pw[0] if pw and pw[1] == self.ignorowane.get(s["id"]) else None
+        if powod in ("limit_walki", "atak_klik", "straznik"):
+            # twarde ignorowanie do końca czasu bez względu na odległość; wyjątek: cel obok nas bije
+            # (straznik jest bezwzględny: cel stał obok bez postępu, ponowny wybór by zapętlił)
+            if powod == "straznik" or not (d <= 1 and teraz - self.hp_gracza_spadek < GRYZIE_OKNO):
+                return True
+        elif zapis is not None:
             if d > 1 and d > zapis - NIEOSIAGALNY_ZBLIZENIE:
                 return True
             del self.nieosiagalne[s["id"]]
+        elif powod == "sciana":
+            # za ścianą: zdejmujemy tylko, gdy stoi obok albo otworzyła się droga (nie objazd)
+            if d > 1 and not self._ignor_droga_otwarta(s, poz, d, teraz):
+                return True
         elif d > IGNOROWANIE_BLISKO:
             return True
         del self.ignorowane[s["id"]]   # podszedł blisko: oceniamy go od nowa
+        self.ignor_powod.pop(s["id"], None)
         return False
+
+    def _ignoruj(self, id_, do, powod):
+        """Ignorowanie celu do czasu `do` z powodem (IGNOR_TWARDE: patrz ignorowany())."""
+        self.ignorowane[id_] = do
+        self.ignor_powod[id_] = (powod, do)
+
+    def _ignor_droga_otwarta(self, s, poz, d, teraz):
+        """Czy do ignorowanego "za ścianą" potwora jest teraz droga (nie objazd). Cache IGNOR_DROGA_CO_S na id."""
+        c = self.ignor_droga_cache.get(s["id"])
+        if c is not None and teraz - c[0] < IGNOR_DROGA_CO_S:
+            return c[1]
+        zapas = self.ostatni_blokujacy
+        try:
+            zajete = [(m["x"], m["y"]) for m in self.ostatnie_stwory
+                      if m["z"] == poz[2] and m["id"] != s["id"] and m.get("hp", 100) > 0
+                      and (m["x"], m["y"]) != tuple(poz[:2])
+                      and not (m.get("gracz") and m.get("nazwa") == self.postac.nazwa)]
+            c_xy = (s["x"], s["y"])
+            dr = self.droga(tuple(poz[:3]), c_xy, zajete, 1, skosy=False)
+            limit = 2 * d + (MAPA_OBJAZD if self.mapa_zna(poz, c_xy) else DROGA_OBJAZD)
+            ok = dr is not None and len(dr) <= limit
+        except bot.Zatrzymano:
+            raise
+        except Exception:
+            ok = False
+        self.ostatni_blokujacy = zapas
+        self.ignor_droga_cache[s["id"]] = (teraz, ok)
+        return ok
+
+    def _log_odpuszczenia(self, cel, tekst, teraz):
+        """Log "Odpuszczam ...: za ścianą" najwyżej raz na ODPUSZCZ_LOG_S s na id (IGNOR_TWARDE)."""
+        if IGNOR_TWARDE:
+            if teraz - self.odpuszczenie_log.get(cel["id"], float("-inf")) < ODPUSZCZ_LOG_S:
+                return
+            self.odpuszczenie_log[cel["id"]] = teraz
+            if len(self.odpuszczenie_log) > 200:
+                self.odpuszczenie_log = {k: v for k, v in self.odpuszczenie_log.items() if teraz - v < 60}
+        log(tekst)
+
+    def _blokujacy_wyjscia(self, cel, kand, poz, teraz):
+        """BLOK_WYJSCIE: droga do `cel` bez stworów prowadziła przez pole zajęte przez potwora obok nas
+        (jedyne wyjście, np. zaułek): zamiast odpuszczać cel, rozprawa z blokującym (ROZPRAWA_BLOK_MAX s,
+        potem powrót do `cel`). Zwraca blokującego albo None."""
+        if not BLOK_WYJSCIE or not self.ostatni_blokujacy:
+            return None
+        pole, id_ = self.ostatni_blokujacy
+        if kand is None:
+            kand = self.kandydaci(self.ostatnie_stwory, poz)
+        m = next((s for s in kand if s["id"] == id_ and s["id"] != cel["id"]), None)
+        if m is None or self.dystans((m["x"], m["y"]), poz) > 1:
+            return None
+        log(f"Wyjście zablokowane przez {m['nazwa']} ({m['x']},{m['y']}), bije blokującego (cel {cel['nazwa']}).")
+        self.rozprawa = {"id": m["id"], "wroc": cel["id"], "do": teraz + ROZPRAWA_BLOK_MAX}
+        self.ostatni_blokujacy = None
+        return m
 
     @staticmethod
     def gracz_grozny(s):
@@ -2671,6 +3015,13 @@ class Cavebot:
                 self._pamiec_koniec("przerwany", "ucieczka", poz)
             return self.uciekaj(g, poz)
 
+        # wyprawa do depo po potwierdzonym głodzie startuje także w walce: od teraz biegniemy (bez walki), bijemy
+        # tylko gdy droga zablokowana (_wypad_bieg); bez tego trolle w jaskini blokowałyby wyjazd w nieskończoność
+        if self.wyprawa is not None and not self.wypad_aktywny:
+            fn = getattr(self.wyprawa, "okazja_w_walce", None)
+            if fn is not None and fn(teraz):
+                self.cel = None
+
         # jedzenie czarem (exevo pan): gdy brak jedzenia w plecaku; potem istniejące jedzenie
         if self._jedzenie_czar_tick(g, poz, teraz):
             return True
@@ -2697,6 +3048,9 @@ class Cavebot:
                 (t2 - t_start > 2 * TICK_WOLNY and t2 - self.tick_wolny_ost > 30):
             self.tick_wolny_ost = t2
             log("debug: wolny tick " + f"{t2 - t_start:.2f} s: " + ", ".join(f"{k} {v:.2f}" for k, v in fazy.items()))
+
+        # 1b. strażnik postępu globalny (STRAZNIK_POSTEP, domyślnie wyłączony)
+        self._straznik_postepu(g, poz, teraz)
 
         # 2. obcy gracz: zatrzymuje tylko groźny (GM/CM/God/Tutor, czaszka/PK) albo każdy przy stop_przy_graczach
         if self.zatrzymaj_przy_graczu:
@@ -2733,7 +3087,8 @@ class Cavebot:
             return True
 
         # 2b. pościg na pamięć: ranny cel zniknął z widoku żywy, idziemy za nim (do POSCIG_PAMIEC_S s)
-        if self.pamiec and self.cel is None and self._pamiec_tick(g, poz, lista, teraz):
+        if self.pamiec and self.cel is None and not (self.dojscie_aktywne and DOJSCIE_BIEGNIJ) \
+                and self._pamiec_tick(g, poz, lista, teraz):
             return True
 
         # 3. walka
@@ -2743,6 +3098,12 @@ class Cavebot:
         if self.cel and ludzie[self.cel["id"]].get("hp", 100) <= 0:
             return self.zgon_celu(g, poz, pewny=True)
         kand = self._unikanie_filtr(self.kandydaci(lista, poz), poz)   # moby przy graczu: nie kradniemy
+        biegnij = self._wypad_bieg(kand, poz, teraz)
+        if biegnij:
+            if self.cel:
+                log(f"{'Dojście' if self.dojscie_aktywne else 'Wypad'}: biegnę, nie walczę z {self.cel['nazwa']} (droga wolna).")
+                self.cel = None
+            kand = []
         if self.cel:
             cel = ludzie[self.cel["id"]]
             if self.ignorowany(cel, poz, teraz) or cel["z"] != poz[2]:
@@ -2762,8 +3123,12 @@ class Cavebot:
                     self.cel = None
                     return True
                 if self.podejdz((cel["x"], cel["y"]), poz, pilne=True, natychmiast=True) is None:
-                    log(f"Odpuszczam {cel['nazwa']}: za ścianą (droga naokoło: {self.ostatni_objazd}).")
-                    self.ignorowane[cel["id"]] = teraz + self.objazd_ignorowanie(cel, odl_celu)
+                    m_ = self._blokujacy_wyjscia(cel, kand, poz, teraz)
+                    if m_ is not None:
+                        self.cel = None
+                        return True
+                    self._log_odpuszczenia(cel, f"Odpuszczam {cel['nazwa']}: za ścianą (droga naokoło: {self.ostatni_objazd}).", teraz)
+                    self._ignoruj(cel["id"], teraz + self.objazd_ignorowanie(cel, odl_celu), "sciana")
                     self.cel = None
                 return True
             elif not self.w_widoku(cel, poz):
@@ -2892,6 +3257,8 @@ class Cavebot:
             self.nieudane = 0
             self.ignorowane = {k: v for k, v in self.ignorowane.items() if v > teraz}
             self.nieosiagalne = {k: v for k, v in self.nieosiagalne.items() if k in self.ignorowane}
+            self.ignor_powod = {k: v for k, v in self.ignor_powod.items() if k in self.ignorowane}
+            self.ignor_droga_cache = {k: v for k, v in self.ignor_droga_cache.items() if k in self.ignorowane}
             log(f"Nowy cel: {cel['nazwa']} ({cel['x']},{cel['y']}) HP {cel['hp']}%")
         if cel is not None:
             self.zapamietaj_ruch_celu(cel)
@@ -2903,7 +3270,7 @@ class Cavebot:
         if self.lww_zalegle is not None:
             self._lww_zamknij_zalegle(teraz, poz, lista)
         # przerwa od gry (nieregularnie, patrz PRZERWA_CO_MIX); kończy się wcześniej, gdy coś podejdzie
-        if teraz >= self.przerwa_od and not self.wypad_aktywny:
+        if teraz >= self.przerwa_od and not self.wypad_aktywny and not (self.dojscie_aktywne and DOJSCIE_BIEGNIJ):
             if self.przerwa_do is None:
                 self.przerwa_do = teraz + losuj_z_mieszanki(PRZERWA_DLUGOSC_MIX)
                 log(f"Przerwa na {self.przerwa_do - teraz:.0f} s.")
@@ -2921,8 +3288,8 @@ class Cavebot:
 
         self._watchdog_bezczynnosci(g, poz, lista, teraz)
 
-        # zwłoki odłożone w czasie walki (atak ma pierwszeństwo przed lootem)
-        if self.loot:
+        # zwłoki odłożone w czasie walki (atak ma pierwszeństwo przed lootem); w biegu wypadu nie zbieramy
+        if self.loot and not (WYPAD_BIEGNIJ and self.wypad_aktywny) and not (self.dojscie_aktywne and DOJSCIE_BIEGNIJ):
             zw = None
             zyje = self.zywy_w_poblizu(lista, poz)
             if zyje and self.loot_blok_od is None:
@@ -2958,6 +3325,36 @@ class Cavebot:
         # 5. trasa
         return self.idz()
 
+    def _zw_brak_okna_n(self, zw):
+        """LOOT_DYNAMICZNY: ile razy zwłoki dały "brak_okna" (0 = nie wstrzymane)."""
+        if not LOOT_DYNAMICZNY:
+            return 0
+        return self.zw_brak_okna.get(tuple(zw), 0)
+
+    def _zw_oznacz_brak_okna(self, zw):
+        if LOOT_DYNAMICZNY:
+            k = tuple(zw)
+            self.zw_brak_okna[k] = self.zw_brak_okna.get(k, 0) + 1
+            self.lww_pomin[k] = self.zegar() + ZWLOKI_WAZNE      # w walce: bez powtórek do końca TTL
+            log(f"Loot: zwłoki {k[:2]} bez okna ({self.zw_brak_okna[k]}x): wstrzymane do końca walki"
+                + (", porzucone." if self.zw_brak_okna[k] >= 2 else ", jedna próba po walce."))
+
+    def _zw_usun_grupe(self, zw):
+        """LOOT_DYNAMICZNY: zwłoki obsłużone: kandydaci tego samego zabicia znikają z listy (nie próbujemy ich)."""
+        grupa = self.zw_grupa.pop(tuple(zw), None)
+        if not grupa:
+            return
+        for g_ in grupa:
+            self.zw_grupa.pop(tuple(g_), None)
+        reszta = set(tuple(g_) for g_ in grupa)
+        self.zwloki_czekajace = [(a, t) for a, t in self.zwloki_czekajace if tuple(a) not in reszta]
+
+    def _lww_okno_otwarte(self):
+        """LOOT_DYNAMICZNY: trwa loot w walce z już otwartym oknem zwłok (przenoszenie/weryfikacja/zamknięcie)."""
+        lw = self.lww
+        return bool(LOOT_DYNAMICZNY and lw is not None
+                    and lw["stan"].get("faza") in ("plan", "przenies", "weryfikuj", "weryfikuj_jedzenie", "zamknij"))
+
     def _zwloki_przed_celem(self, cel, kand, g, poz, lista, teraz):
         """Zbiera odłożone zwłoki ZANIM ruszymy w pościg za (nowym) celem: (a) zwłoki w odl <= ZWLOKI_PRZED_CELEM_ODL,
         gdy nic nie styka i żaden cel nie ucieka w odl <= ZWLOKI_PRZED_CELEM_UCIEKAJACY; (b) tuż po ucieczce
@@ -2965,7 +3362,8 @@ class Cavebot:
         if not self.loot or not self.zwloki_czekajace or self.w_lootcie or self.lww is not None:
             return False
         priorytet = ZWLOKI_PO_UCIECZCE and teraz < self.zwloki_priorytet_do
-        if not (ZWLOKI_PRZED_CELEM or priorytet):
+        dyn = bool(LOOT_DYNAMICZNY)
+        if not (ZWLOKI_PRZED_CELEM or priorytet or dyn):
             return False
         if self.ucieczka or teraz < self.loot_chlod_do or self._poscig_przerwanie():
             return False
@@ -2973,15 +3371,20 @@ class Cavebot:
             return False
         if cel is None and not kand:
             return False                        # brak celów: zbierze zwykły blok odłożonych zwłok (z watchdogiem)
-        if self._zywe_w_promieniu(lista, poz, ZWLOKI_PRZED_CELEM_STYK):
+        if self._zywe_w_promieniu(lista, poz, 1 if dyn else ZWLOKI_PRZED_CELEM_STYK):
             return False                        # coś styka/jest tuż obok (loot i tak by przerwał): walka pierwsza
         if any(self.dystans((s["x"], s["y"]), poz) <= ZWLOKI_PRZED_CELEM_UCIEKAJACY and self.uciekajacy(s)
                for s in kand):
             return False                        # uciekający blisko: każda chwila się liczy
         odl_max = ZWLOKI_ZASIEG if priorytet else ZWLOKI_PRZED_CELEM_ODL
+        if dyn:
+            # zwłoki w odl <= 1 zawsze (żywy w odl >= 2 jeszcze nie bije); dalsze tylko gdy żaden mob nie jest bliżej niż 3 pola
+            # (nie biegniemy po nie przez środek walki), wtedy do ZWLOKI_ZASIEG (po walce najpierw zwłoki, potem patrol)
+            odl_max = ZWLOKI_ZASIEG if not self._zywe_w_promieniu(lista, poz, 2) else 1
         mozliwe = [z for z, t in self.zwloki_czekajace
                    if z[2] == poz[2] and teraz - t < ZWLOKI_WAZNE and self.dystans(z, poz) <= odl_max
-                   and self.zwloki_chlod.get(tuple(z), float("-inf")) <= teraz]
+                   and self.zwloki_chlod.get(tuple(z), float("-inf")) <= teraz
+                   and self._zw_brak_okna_n(z) == 0]
         if not mozliwe:
             return False
         zw = min(mozliwe, key=lambda z: self.dystans(z, poz))
@@ -3015,6 +3418,150 @@ class Cavebot:
             v = getattr(self, nazwa, None)
             if v and not callable(v):
                 return True
+        return False
+
+    def _escape(self):
+        """Escape (zdjęcie celu w kliencie); błąd klawisza nie wywraca obiegu."""
+        klawisz = getattr(self.postac, "klawisz", None)
+        if klawisz is None:
+            return
+        try:
+            klawisz("Escape")
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"Escape nie poszedł: {e}")
+
+    def _straznik_celu(self, cel, odl, poz, teraz):
+        """Strażnik celu (13.10, spec P2a): cel bez postępu (spadek HP celu, przyrost exp, zmiana odległości
+        o >= 1). S1 (STRAZNIK_CEL_S1 s, odl <= 1): Escape, odświeżenie pozycji własnej, ponowny klik.
+        S2 (STRAZNIK_CEL_S2 s): kontrola pozycji (log + telemetria) i twarde ignorowanie celu na
+        STRAZNIK_IGNOR_S s. Seria S2: powiadomienie. True = cel porzucony (self.cel = None)."""
+        if not STRAZNIK_CEL:
+            self.straznik_cel = None
+            return False
+        st = self.straznik_cel
+        exp = self.exp_teraz
+        if st is None or st["id"] != cel["id"]:
+            self.straznik_cel = {"id": cel["id"], "t": teraz, "hp": cel["hp"], "odl": odl, "exp": exp, "s1": False,
+                                 "ost": teraz}
+            return False
+        if teraz - st.get("ost", teraz) > STRAZNIK_CEL_PRZERWA:
+            # walcz() nie było wołane (PAUZA, UCIECZKA, JEDZENIE, wypad, loot): okno liczymy od nowa
+            st.update(t=teraz, hp=cel["hp"], odl=odl, exp=exp, s1=False)
+        st["ost"] = teraz
+        postep = cel["hp"] < st["hp"] or abs(odl - st["odl"]) >= 1 \
+            or (exp is not None and st["exp"] is not None and exp > st["exp"])
+        if postep:
+            st.update(t=teraz, hp=cel["hp"], odl=odl, exp=exp, s1=False)
+            return False
+        st["hp"] = max(st["hp"], cel["hp"]) if cel["hp"] > st["hp"] else st["hp"]
+        if exp is not None:
+            st["exp"] = exp if st["exp"] is None else st["exp"]
+        bez = teraz - st["t"]
+        if bez >= STRAZNIK_CEL_S2:
+            wlasna = tuple(self.postac.pozycja()[:3])
+            wpis = next((m for m in self.ostatnie_stwory if m.get("gracz") and m.get("nazwa") == self.postac.nazwa), None)
+            wp = (wpis["x"], wpis["y"], wpis["z"]) if wpis else None
+            niespojna = wp is not None and wp != wlasna
+            na_naszym = any((m["x"], m["y"], m["z"]) == wlasna and not m.get("gracz") and m.get("hp", 100) > 0
+                            for m in self.ostatnie_stwory)
+            log(f"[STRAZNIK] cel {cel['nazwa']} id{self._koncowka_id(cel['id'])} bez postępu {bez:.0f} s, "
+                f"pozycja {'NIESPÓJNA ' if niespojna or na_naszym else ''}(postac {wlasna}, stwory {wp}), "
+                f"ignoruję na {STRAZNIK_IGNOR_S:.0f} s.")
+            self._tele_poscig("straznik_celu", id=cel["id"], nazwa=cel["nazwa"], sekundy=round(bez, 1),
+                              poz_postac=list(wlasna), poz_stwory=list(wp) if wp else None,
+                              niespojna=bool(niespojna or na_naszym), hp=cel["hp"], odl=odl)
+            self.straznik_s2_t = [t for t in self.straznik_s2_t if teraz - t < STRAZNIK_S2_OKNO_S] + [teraz]
+            if len(self.straznik_s2_t) >= STRAZNIK_S2_SERIA:
+                self.straznik_s2_t = []
+                log(f"[STRAZNIK] {STRAZNIK_S2_SERIA} utknięcia walki w {STRAZNIK_S2_OKNO_S:.0f} s.")
+                self._tele_poscig("utkniecie_walki", poz=list(wlasna), nazwa=cel["nazwa"])
+                try:
+                    self.alarm(f"Walka: {STRAZNIK_S2_SERIA} utknięcia w {STRAZNIK_S2_OKNO_S / 60:.0f} min ({cel['nazwa']})")
+                except Exception:
+                    pass
+            self._escape()
+            self._ignoruj(cel["id"], teraz + STRAZNIK_IGNOR_S, "straznik")
+            self.straznik_cel = None
+            self.klik_ramka_false.pop(cel["id"], None)
+            self.cel = None
+            return True
+        if bez >= STRAZNIK_CEL_S1 and not st["s1"] and odl <= 1:
+            st["s1"] = True
+            log(f"[STRAZNIK] cel {cel['nazwa']} bez postępu {bez:.0f} s: Escape i ponowny klik.")
+            self._escape()
+            self.pauza(0.3, 0.6)
+            try:
+                bot._wlasny["t"] = float("-inf")       # wymuszone odświeżenie pozycji własnej
+            except Exception:
+                pass
+            teraz = self.zegar()
+            gracz = {"x": poz[0], "y": poz[1]}
+            self._log_klik_ataku(cel, odl, None, "straznik")
+            self.atak(cel, gracz)
+            self.atak_czas = teraz
+            self.cel_spadek = teraz
+            self.pauza(0.05, 0.15)
+        return False
+
+    def _straznik_postepu(self, g, poz, teraz):
+        """Strażnik postępu globalny (spec P2b, domyślnie WYŁĄCZONY: STRAZNIK_POSTEP). Postęp = zmiana
+        pozycji, przyrost exp, spadek HP celu albo mniej zwłok do zebrania. S1: reset stanu walki;
+        S2: zmiana celu patrolu albo skok na najbliższy punkt trasy; S3: powiadomienie krytyczne.
+        Nie działa w PRZERWA/PAUZA/UH/WYPAD/JEDZENIE/LOOT i przy pliku STOP."""
+        st = self.straznik_post
+        poz3 = tuple(poz[:3])
+        exp = g.get("exp")
+        cel_hp = self.cel.get("hp") if self.cel else None
+        n_zw = len(self.zwloki_czekajace)
+        if not STRAZNIK_POSTEP or self._watchdog_wyjatek() \
+                or (bot.STOP.exists() and not os.environ.get("RETRONIC_TESTY")) \
+                or str(self.stan).startswith(("UH", "LOOT")):
+            st.update(t=None)
+            return False
+        ref = st
+        if ref["t"] is None or ref["poz"] != poz3 or (exp is not None and ref["exp"] is not None and exp > ref["exp"]) \
+                or (cel_hp is not None and ref["cel_hp"] is not None and cel_hp < ref["cel_hp"]) \
+                or n_zw < (ref.get("zw") or 0):
+            st.update(t=teraz, poz=poz3, exp=exp, cel_hp=cel_hp, zw=n_zw, s=0)
+            return False
+        st["exp"] = exp if exp is not None else st["exp"]
+        st["cel_hp"] = cel_hp if cel_hp is not None else st["cel_hp"]
+        st["zw"] = n_zw
+        bez = teraz - st["t"]
+        if bez >= STRAZNIK_POSTEP_S3 and st["s"] < 3:
+            st["s"] = 3
+            log(f"[STRAZNIK] brak postępu {bez:.0f} s (stan {self.stan}).")
+            self._tele_poscig("straznik_postepu", poziom=3, sekundy=round(bez, 1), faza=str(self.stan), poz=list(poz3))
+            try:
+                self.alarm(f"Bot bez postępu od {bez:.0f} s (stan {self.stan})")
+            except Exception:
+                pass
+        elif bez >= STRAZNIK_POSTEP_S2 and st["s"] < 2:
+            st["s"] = 2
+            p = self.patrol if self._patrol_aktywny() else None
+            log(f"[STRAZNIK] brak postępu {bez:.0f} s: {'zmiana celu patrolu' if p else 'skok na najbliższy punkt trasy'}.")
+            self._tele_poscig("straznik_postepu", poziom=2, sekundy=round(bez, 1), faza=str(self.stan), poz=list(poz3))
+            if p:
+                try:
+                    self.patrol_blok[p["m"]["id"]] = teraz + PATROL_BLOK_S
+                    self._patrol_zakoncz(p, "straznik postępu")
+                except Exception as e:
+                    log(f"debug: strażnik postępu: {e!r}")
+                self.patrol = None
+            else:
+                self._patrol_sync_idx(poz3)
+            self.cel = None
+        elif bez >= STRAZNIK_POSTEP_S1 and st["s"] < 1:
+            st["s"] = 1
+            log(f"[STRAZNIK] brak postępu {bez:.0f} s (stan {self.stan}): reset stanu walki.")
+            self._tele_poscig("straznik_postepu", poziom=1, sekundy=round(bez, 1), faza=str(self.stan), poz=list(poz3))
+            self.cel = None
+            self._escape()
+            self.zwloki_czekajace = []
+            self.klik_cel = None
+            self.skos_zle = {}
         return False
 
     def _watchdog_bezczynnosci(self, g, poz, lista, teraz):
@@ -3058,14 +3605,14 @@ class Cavebot:
                 wynik.append(s)
         return wynik
 
-    def _droga_do(self, start, cel, zajete):
+    def _droga_do(self, start, cel, zajete, skosy=False):
         """Droga (bez skosów, do pola przy celu) po mapie/znanych polach z `zajete`, bez ucieczki do drogi
         bez blokad (jak w droga()): None = brak drogi."""
         if self.mapa_zna(start, cel):
             z = start[2]
             blok = list(zajete) + [p for p in list(self.sciany) if p[2] == z and self.sciana(p)]
-            return self.mapa.droga(start, cel, blok, 1, False, limit=MAPA_LIMIT, znane=self._pola_pietra(z))
-        return self._droga_znane(start, cel, zajete, 1, False)
+            return self.mapa.droga(start, cel, blok, 1, skosy, limit=MAPA_LIMIT, znane=self._pola_pietra(z))
+        return self._droga_znane(start, cel, zajete, 1, skosy)
 
     def blokujacy_na_drodze(self, cel, poz, lista, kand):
         """Gdy cel jest nieosiągalny TYLKO dlatego, że drogę zajmują inne moby (bez nich droga jest i jest
@@ -3082,10 +3629,11 @@ class Cavebot:
         if not any(self.dystans((s["x"], s["y"]), poz) <= prosto + 1 for s in inne):
             return None
         pola = {(s["x"], s["y"]): s for s in inne}
-        wolna = self._droga_do(poz, c, [])
+        skosy_ = bool(BLOK_WYJSCIE and POSCIG_SKOS_AWARYJNY)   # zaułek ze skosem jako jedynym wyjściem
+        wolna = self._droga_do(poz, c, [], skosy_)
         if not wolna or len(wolna) > 2 * prosto + 3:
             return None
-        zajeta = self._droga_do(poz, c, list(pola))
+        zajeta = self._droga_do(poz, c, list(pola), skosy_)
         if zajeta is not None and len(zajeta) <= len(wolna) + BLOK_OBJAZD:
             return None
         ids = {s["id"] for s in kand}
@@ -4042,19 +4590,26 @@ class Cavebot:
         odl = self.cel["odl"]
         self.walka_odl_tick = odl
         self.ustaw_stan("WALKA", f"{cel['nazwa']} odl {odl} HP {cel['hp']}%")
+        if self._straznik_celu(cel, odl, poz, teraz):
+            return True
         self.ucz_uciekania(cel, odl)
         prog = self.prog_uciekania(cel["nazwa"])
         ucieka = cel["hp"] <= prog + 10 or cel["hp"] <= UCIEKAJACY_HP
+        if self.lww is not None and odl > 1 and self._lww_okno_otwarte() and odl <= 4 \
+                and self._loot_w_walce(cel, g, poz, teraz):
+            self.pauza(0.03, 0.1)          # okno zwłok otwarte: dokańczamy krok zamiast przerywać "cel_daleko"
+            return True
         if self.lww is not None and odl > 1:
             # cel odszedł (uciekający: każda chwila się liczy): atak ma pierwszeństwo, okna zwłok nie zamykamy kliknięciem
             # (pilne=True; Ctrl+klik po walce i tak je obsłuży), żeby nic nie opóźniało pierwszego kroku pościgu
             self._lww_przerwij("cel_daleko", teraz, pilne=True)
         if teraz - self.cel_start > LIMIT_WALKI:
             log(f"Cel {cel['nazwa']} trwa za długo, ignoruję na {IGNOROWANIE} s.")
-            self.ignorowane[cel["id"]] = teraz + IGNOROWANIE
+            self._ignoruj(cel["id"], teraz + IGNOROWANIE, "limit_walki")
             self.cel = None
             return True
         if cel["hp"] < self.cel_hp:
+            self.klik_ramka_false.pop(cel["id"], None)
             self.cel_hp = cel["hp"]
             self.cel_spadek = teraz
             self.hp_spadek_czas = teraz
@@ -4095,6 +4650,27 @@ class Cavebot:
                 and teraz - self.atak_czas > ZACIECIE_ATAKU
             pierwszy = self.cel_spadek == float("-inf")
             ramka = None if pierwszy else self.czy_atakowany(cel, gracz)
+            if ramka is not False:
+                self.klik_ramka_false.pop(cel["id"], None)
+            elif ATAK_LIMIT_KLIKOW:
+                n = self.klik_ramka_false.get(cel["id"], 0) + 1
+                self.klik_ramka_false[cel["id"]] = n
+                if n > ATAK_LIMIT_KLIKOW:
+                    # klik nie działa (zła pozycja gracza, stary cel w grze, "Sorry, not possible."): nie klikamy w nieskończoność
+                    log(f"[ATAK] {n - 1} klików bez efektu w {cel['nazwa']} id{self._koncowka_id(cel['id'])}, "
+                        f"Escape i ignoruję cel na {ATAK_LIMIT_IGNOROWANIE} s.")
+                    self.klik_ramka_false.pop(cel["id"], None)
+                    klawisz = getattr(self.postac, "klawisz", None)
+                    if klawisz is not None:
+                        try:
+                            klawisz("Escape")
+                        except bot.Zatrzymano:
+                            raise
+                        except Exception as e:
+                            log(f"Escape nie poszedł: {e}")
+                    self._ignoruj(cel["id"], teraz + ATAK_LIMIT_IGNOROWANIE, "atak_klik")
+                    self.cel = None
+                    return True
             # ramka False: atak nie trwa; None (zrzut po ciemku): klikamy tylko przy zacięciu;
             # True: atak trwa, ponowny klik by go wyłączył
             if pierwszy or ramka is False or (ramka is None and zaciety):
@@ -4145,8 +4721,11 @@ class Cavebot:
                         log(f"Czekam na {cel['nazwa']} (odl {odl}): {self.ostatni_objazd}, atak trwa.")
                     self.pauza(0.3, 0.6)
                 elif wynik is None:
-                    log(f"Odpuszczam {cel['nazwa']}: za ścianą (droga naokoło: {self.ostatni_objazd}).")
-                    self.ignorowane[cel["id"]] = teraz + self.objazd_ignorowanie(cel, odl)
+                    if self._blokujacy_wyjscia(cel, None, poz, teraz) is not None:
+                        self.cel = None
+                        return True
+                    self._log_odpuszczenia(cel, f"Odpuszczam {cel['nazwa']}: za ścianą (droga naokoło: {self.ostatni_objazd}).", teraz)
+                    self._ignoruj(cel["id"], teraz + self.objazd_ignorowanie(cel, odl), "sciana")
                     if droga is not None and droga > NIEOSIAGALNY_DROGA and not self.umierajacy(cel, odl):
                         # twarde ignorowanie: nie kasuje go podejście na IGNOROWANIE_BLISKO
                         self.nieosiagalne[cel["id"]] = odl
@@ -4182,6 +4761,20 @@ class Cavebot:
         if not poz:
             return []
         krok, czas = c.get("krok"), c.get("krok_czas", float("-inf"))
+        if LOOT_DYNAMICZNY:
+            # 13.10: zwłoki leżą tam, gdzie cel był OSTATNIO WIDZIANY (log 12:57:32: ekstrapolacja kroku dawała pole obok
+            # za każdym razem). Potem inne pola z historii celu przy tym polu (cel skacze między polami; odczyt co ~1 s
+            # bywa o jeden skok spóźniony), na końcu dawna ekstrapolacja.
+            wynik = [tuple(poz)]
+            for q in reversed(c.get("slad") or []):
+                q3 = (q[0], q[1], poz[2])
+                if q3 not in wynik and max(abs(q[0] - poz[0]), abs(q[1] - poz[1])) <= 1:
+                    wynik.append(q3)
+            if krok and self.zegar() - czas < RUCH_PRZED_SMIERCIA and max(abs(krok[0]), abs(krok[1])) == 1:
+                q3 = (poz[0] + krok[0], poz[1] + krok[1], poz[2])
+                if q3 not in wynik:
+                    wynik.append(q3)
+            return wynik[:4]
         if krok and self.zegar() - czas < RUCH_PRZED_SMIERCIA and max(abs(krok[0]), abs(krok[1])) == 1:
             return [(poz[0] + krok[0], poz[1] + krok[1], poz[2]), poz]
         return [poz]
@@ -4208,10 +4801,42 @@ class Cavebot:
         self.patrol_zabicia += 1
         zyje = self.zywy_w_poblizu([x for x in self.ostatnie_stwory if x["id"] != c["id"]], poz) \
             if self.loot and c.get("poz") else None
-        if zyje:
+        szybki = False
+        if LOOT_DYNAMICZNY and self.loot and c.get("poz"):
+            pola = self.pola_zwlok(c)
+            if pola and pola[0][2] != poz[2]:
+                # zwłoki z innego piętra: bez Ctrl+klik, odkładamy (zbierzemy po powrocie na to piętro, do końca TTL)
+                self.odloz_zwloki(pola[0], nowe=True)
+                log(f"Zwłoki {pola[0][:2]} na innym piętrze (z{pola[0][2]}, my z{poz[2]}): odkładam, bez próby lootu.")
+                return True
+            if zyje and pola and self.dystans(pola[0], poz) <= LOOT_SZYBKI_ODL:
+                # zwłoki pod nogami / obok: zbieramy od razu, jeśli nic nie styka (żywy w odl >= 2 jeszcze nie bije),
+                # HP wysoko, brak ucieczki i groźnego gracza (próba trwa 1-2 s)
+                try:
+                    swieze = [x for x in self.ostatnie_stwory if x.get("id") != c.get("id")]
+                    szybki = (not (self.ucieczka or self.ostrozny)
+                              and g.get("proc", 100.0) > self.prog_aktualny + LOOT_W_WALCE_HP_MARGINES
+                              and not self._zywe_w_promieniu(swieze, poz, 1)
+                              and not self._grozni_w_zasiegu(swieze, poz)
+                              and not self._ogien_na(pola[0]))
+                except Exception:
+                    szybki = False
+                if szybki:
+                    log(f"Loot szybki: zwłoki {pola[0][:2]} obok, {zyje['nazwa']} w odl "
+                        f"{self.dystans((zyje['x'], zyje['y']), poz)}.")
+        if zyje and not szybki:
             # najpierw dobijamy pobliskie, zwłoki zbieramy po walce
-            for pole in self.pola_zwlok(c)[:1]:
-                self.odloz_zwloki(pole, nowe=True)
+            pola_l = self.pola_zwlok(c)
+            if LOOT_DYNAMICZNY:
+                # kandydaci przy nas (ostatnio widziane pole, skoki celu, ekstrapolacja): każdy dostaje wpis, a po udanym
+                # lootcie jednego reszta grupy znika (zw_grupa); loot w walce próbuje je po kolei
+                wybrane = [q for q in pola_l[:3] if self.dystans(q, poz) <= 1] or pola_l[:1]
+                for pole in wybrane:
+                    self.odloz_zwloki(pole, nowe=True)
+                    self.zw_grupa[tuple(pole)] = tuple(wybrane)
+            else:
+                for pole in pola_l[:1]:
+                    self.odloz_zwloki(pole, nowe=True)
             log(f"Loot odłożony: {zyje['nazwa']} {self.dystans((zyje['x'], zyje['y']), poz)} pól od nas, najpierw walka.")
         elif self.loot and c.get("poz"):
             self.ustaw_stan("LOOT", str(c["poz"]))
@@ -4484,7 +5109,9 @@ class Cavebot:
         if self._grozni_w_zasiegu(lista, poz):
             return "gracz"
         if self.dystans((cel["x"], cel["y"]), poz) > 1 or cel.get("z") != poz[2]:
-            return "cel_daleko"
+            if not (self._lww_okno_otwarte() and cel.get("z") == poz[2]
+                    and self.dystans((cel["x"], cel["y"]), poz) <= 4):
+                return "cel_daleko"                # okno otwarte, cel blisko (<= 4): dokańczamy krok (limit LOOT_W_WALCE_MAX_S)
         trwa = cel.get("atakowany")
         if not isinstance(trwa, bool):
             trwa = self.czy_atakowany(cel, {"x": poz[0], "y": poz[1]})
@@ -4547,7 +5174,8 @@ class Cavebot:
         zywe = {(s["x"], s["y"]) for s in lista if s.get("hp", 100) > 0 and s.get("z") == poz[2]}
         best = None
         for z, t in self.zwloki_czekajace:
-            if z[2] != poz[2] or teraz - t >= ZWLOKI_WAZNE or self.lww_pomin.get(z, float("-inf")) > teraz:
+            if z[2] != poz[2] or teraz - t >= ZWLOKI_WAZNE or self.lww_pomin.get(z, float("-inf")) > teraz \
+                    or self._zw_brak_okna_n(z) > 0:
                 continue
             if self.dystans(z, poz) != 1 or tuple(z[:2]) == tuple(poz[:2]) or tuple(z[:2]) in zywe \
                     or self._ogien_na(z):
@@ -4610,6 +5238,10 @@ class Cavebot:
             lw = self.lww = {"zw": zw, "stan": {}, "t0": teraz, "t_ost": teraz, "klik_t": None, "kroki": 0}
             log(f"Loot w walce: zwłoki {zw[:2]} obok, {cel['nazwa']} bity (HP {g['proc']:.0f}%).")
         try:
+            try:
+                self.loot.POMIN_CIEZKIE = int(LOOT_POMIN_CIEZKIE)
+            except AttributeError:
+                pass
             status, opis = self.loot.krok_w_walce(lw["stan"], zw, poz, log=log)
         except bot.Zatrzymano:
             raise
@@ -4622,11 +5254,14 @@ class Cavebot:
         if status == "przerwane":
             if opis in ("brak_okna", "brak_pamieci", "obce_okno", "stwor_na_zwlokach", "daleko", "na_zwlokach"):
                 self.lww_pomin[zw] = teraz + LOOT_W_WALCE_POMIN_S
+            if opis == "brak_okna":
+                self._zw_oznacz_brak_okna(zw)
             self._lww_przerwij(opis, teraz, pilne=True)
             return False
         if status == "gotowe":
             self.zwloki_czekajace = [(a, t) for a, t in self.zwloki_czekajace if a != zw]
             self.zwloki_wiek.pop(tuple(zw), None)
+            self._zw_usun_grupe(zw)
             self.lww = None
             self.lww_chlod_do = teraz + LOOT_W_WALCE_CHLOD_S
             log(f"Loot w walce: zwłoki {zw[:2]} obsłużone ({opis}), {lw['kroki']} kroków, {teraz - lw['t0']:.1f} s.")
@@ -4662,6 +5297,10 @@ class Cavebot:
         wynik = None
         try:
             wynik = self._zbierz_loot(zwloki)
+            if wynik == "brak_okna":
+                self._zw_oznacz_brak_okna(zwloki)
+            elif wynik == "ok":
+                self._zw_usun_grupe(zwloki)
             return wynik
         finally:
             self.w_lootcie = False
@@ -4709,12 +5348,18 @@ class Cavebot:
                     self.odnotuj_stwory(self.ostatnie_stwory, poz)
                 except Exception:
                     pass
-                blisko = [s for s in self.kandydaci(self.ostatnie_stwory, poz)
-                          if self.dystans((s["x"], s["y"]), poz) <= 1
-                          or self.dystans((s["x"], s["y"]), zwloki) < self.dystans(poz, zwloki)
-                          and self.dystans((s["x"], s["y"]), poz) <= 2]
-                blisko = blisko or ([z] if (z := self.zywy_w_poblizu(self.ostatnie_stwory, poz)) is not None
-                                    and self.dystans((z["x"], z["y"]), poz) <= 3 else [])
+                if LOOT_DYNAMICZNY:
+                    # przerywa tylko mob stykający (żywy w odl >= 2 jeszcze nie bije, próba trwa 1-2 s); dotyczy też
+                    # podejścia do zwłok (log 12:58:09: "Troll obok/na drodze" przy trollu 3 pola dalej)
+                    blisko = [s for s in self.kandydaci(self.ostatnie_stwory, poz)
+                              if self.dystans((s["x"], s["y"]), poz) <= 1]
+                else:
+                    blisko = [s for s in self.kandydaci(self.ostatnie_stwory, poz)
+                              if self.dystans((s["x"], s["y"]), poz) <= 1
+                              or self.dystans((s["x"], s["y"]), zwloki) < self.dystans(poz, zwloki)
+                              and self.dystans((s["x"], s["y"]), poz) <= 2]
+                    blisko = blisko or ([z] if (z := self.zywy_w_poblizu(self.ostatnie_stwory, poz)) is not None
+                                        and self.dystans((z["x"], z["y"]), poz) <= 3 else [])
                 if blisko:
                     self.odloz_zwloki(zwloki)
                     log(f"Przerywam loot: {blisko[0]['nazwa']} obok/na drodze, najpierw walka.")
@@ -4724,7 +5369,8 @@ class Cavebot:
                 self.zejdz_ze_zwlok(poz, zwloki)
                 continue
             if self.dystans(poz, zwloki) <= 1:
-                if self.klik is not None:
+                if self.klik is not None and not (LOOT_DYNAMICZNY and self.zegar() - self.ruch_czas >= 1.0):
+                    # (LOOT_DYNAMICZNY: stoimy od >= 1 s, nie czekamy dodatkowych ~0,5 s przed pierwszym klikiem)
                     poz = self.poczekaj_na_postoj(poz)   # klik w zwłoki liczymy od pola, na którym STOIMY
                     if tuple(poz[:2]) == tuple(zwloki[:2]):
                         continue
@@ -4793,12 +5439,15 @@ class Cavebot:
                 c.MAKS_PROB = int(LOOT_MAKS_PROB)
                 c.ALTERNATYWY = alt if LOOT_POD_NOGAMI_PIERWSZE else []
                 c.NIEDOKONCZONE = False
+                c.POMIN_CIEZKIE = int(LOOT_POMIN_CIEZKIE)
                 ustawione.append(c)
             except AttributeError:
                 pass
+        self.przeglad_odl = 1 if LOOT_DYNAMICZNY else None
         try:
             return self.loot.zbierz(zwloki, poz)
         finally:
+            self.przeglad_odl = None
             for c in ustawione:
                 c.PRZERWIJ = None
                 try:
@@ -4846,7 +5495,8 @@ class Cavebot:
         except Exception:
             return False
         self.ostatnie_stwory = lista
-        return any(self.dystans((s["x"], s["y"]), poz) <= LOOT_PRZEGLAD_ODL for s in self.kandydaci(lista, poz))
+        odl = LOOT_PRZEGLAD_ODL if self.przeglad_odl is None else self.przeglad_odl
+        return any(self.dystans((s["x"], s["y"]), poz) <= odl for s in self.kandydaci(lista, poz))
 
     def zajete_bez_nas(self, poz):
         return [(s["x"], s["y"]) for s in self.ostatnie_stwory
@@ -4891,6 +5541,8 @@ class Cavebot:
         if nowe or klucz not in self.zwloki_wiek or teraz - self.zwloki_wiek[klucz] >= ZWLOKI_WAZNE:
             self.zwloki_wiek[klucz] = teraz
         if nowe:
+            self.zw_brak_okna.pop(klucz, None)       # nowe zwłoki na tym polu: licznik "brak_okna" od zera
+            self.lww_pomin.pop(klucz, None)
             self.zwloki_czekajace = [(z, t) for z, t in self.zwloki_czekajace if z != zwloki]
         if all(z != zwloki for z, _ in self.zwloki_czekajace):
             self.zwloki_czekajace.append((zwloki, self.zwloki_wiek[klucz]))
@@ -4932,13 +5584,22 @@ class Cavebot:
         teraz = self.zegar()
         # kasujemy tylko stare (TTL od zabicia) i z innego piętra; dalekie (> ZWLOKI_ZASIEG) zostają do końca TTL
         # i są tylko pomijane (bot mógł się oddalić pościgiem i wróci w okolicę)
-        self.zwloki_czekajace = [(z, t) for z, t in self.zwloki_czekajace
-                                 if teraz - t < ZWLOKI_WAZNE and z[2] == poz[2]]
+        if LOOT_DYNAMICZNY:
+            # zwłoki z innego piętra zostają na liście do końca TTL (nie próbujemy ich, dopóki jesteśmy gdzie indziej);
+            # porzucone po drugim "brak_okna" znikają
+            self.zwloki_czekajace = [(z, t) for z, t in self.zwloki_czekajace
+                                     if teraz - t < ZWLOKI_WAZNE and self._zw_brak_okna_n(z) < 2]
+            if len(self.zw_brak_okna) > 200:
+                self.zw_brak_okna.clear()
+        else:
+            self.zwloki_czekajace = [(z, t) for z, t in self.zwloki_czekajace
+                                     if teraz - t < ZWLOKI_WAZNE and z[2] == poz[2]]
         self.zwloki_wiek = {k: v for k, v in self.zwloki_wiek.items() if teraz - v < ZWLOKI_WAZNE}
         self.zwloki_chlod = {k: v for k, v in self.zwloki_chlod.items() if v > teraz}
         if not self.zwloki_czekajace or teraz < self.loot_chlod_do:
             return None
         gotowe = [zt for zt in self.zwloki_czekajace if self.zwloki_chlod.get(tuple(zt[0]), float("-inf")) <= teraz
+                  and zt[0][2] == poz[2]
                   and self.dystans(zt[0], poz) <= ZWLOKI_ZASIEG and not self._ogien_na(zt[0])]
         if not gotowe:
             return None            # wszystkie w chłodzeniu: bot idzie trasą, wrócimy do nich po chłodzeniu
@@ -6166,6 +6827,11 @@ class Cavebot:
                         self.okrazenie += 1
                         log(f"Okrążenie {self.okrazenie} gotowe.")
                         koniec_okrazenia = True
+                if koniec_okrazenia and self.dojscie_aktywne:
+                    # P7e: trasa dojścia jest jednokierunkowa: koniec bez osiągnięcia celu = porażka próby, bez odwracania
+                    self.dojscie_porazka = True
+                    log(f"Dojście: koniec trasy w {(x, y, z)} bez osiągnięcia celu, kończę próbę (bez odwracania).")
+                    return True
                 if koniec_okrazenia:
                     if self.otwarta or random.random() < ODWROCENIE_TRASY:
                         # postać stoi na punkcie k = idx-1; po odwróceniu ma indeks n-1-k, następny n-k
@@ -6331,6 +6997,65 @@ class Cavebot:
             self._poscig_puszcz()     # żaden klawisz ruchu nie zostaje wciśnięty po wyjściu
 
 
+DOJSCIE_SYNC_OKNO = 25             # CavebotDojscie: tyle punktów do przodu sprawdzamy, czy postać już tam stoi (po walce idx zostaje w tyle)
+
+
+class CavebotDojscie(Cavebot):
+    """Dojście na spot po nagranej trasie jednokierunkowej (mozg.py --dojscie, powrót z depo): bez patrolu, bez
+    lootu i przerw, bez ataków po drodze (DOJSCIE_BIEGNIJ); kończy się, gdy postać stoi przy OSTATNIM punkcie
+    (to samo piętro, <= tolerancja pól) albo gdy trasa by się zawinęła (idx wraca na 0 = zawracanie do depo).
+    Po porażce nie zawraca; `dojscie_ok` mówi, czy cel osiągnięty."""
+    dojscie_aktywne = True
+
+    def __init__(self, *a, tolerancja=2, **kw):
+        super().__init__(*a, **kw)
+        self.patrol_wylaczony = True
+        self.otwarta = True
+        self.dojscie_tol = tolerancja
+        self.dojscie_ok = False
+        self.dojscie_porazka = False
+        self._dojscie_cel = self.punkty[-1]    # cel zostaje, nawet gdyby trasa została odwrócona
+        self._dojscie_prev = 0
+        self._dojscie_start = tuple(self.punkty[0])    # P7f: początek dojścia (okolica depo)
+
+    def _pietra_zawroc(self, poz):
+        """Nieudane przejście pięter w dojściu: nie zawracamy do depo (inna strona trasy), tylko kończymy porażką;
+        mozg.przejdz_dojscie ponowi dojście od aktualnej pozycji."""
+        self.dojscie_porazka = True
+        log("Dojście: przejście pięter nieudane, kończę próbę (bez zawracania trasy).")
+
+    def _dojscie_sync(self, poz):
+        n = len(self.punkty)
+        z = poz[2]
+        najl = None
+        for k in range(self.idx + 1, min(n, self.idx + DOJSCIE_SYNC_OKNO)):
+            q = self.punkty[k]
+            if q[2] != z:
+                break                      # zmiana piętra na trasie: nie przeskakujemy przejścia
+            if max(abs(poz[0] - q[0]), abs(poz[1] - q[1])) <= 1:
+                najl = k
+        if najl is not None and najl > self.idx:
+            self.idx = najl
+            self.klik_j = None
+
+    def tick(self):
+        poz = tuple(self.postac.pozycja())
+        n = len(self.punkty)
+        cel = self._dojscie_cel
+        if self.dojscie_porazka:
+            return False
+        if poz[2] == cel[2] and max(abs(poz[0] - cel[0]), abs(poz[1] - cel[1])) <= self.dojscie_tol:
+            self.dojscie_ok = True
+            log(f"Dojście: jestem przy końcu trasy {tuple(cel)} (poz {poz}).")
+            return False
+        if n > 5 and self.idx == 0 and self._dojscie_prev > 0 and self._dojscie_prev >= n - 5:   # P7e: krótka trasa nie "zawija się"
+            log(f"Dojście: trasa zawinęła się na punkt 0 w {poz}, nie zawracam.")
+            return False
+        self._dojscie_prev = self.idx
+        self._dojscie_sync(poz)
+        return super().tick()
+
+
 def main(argv):
     p = argparse.ArgumentParser(description="Cavebot Retronic")
     p.add_argument("trasa", help="nazwa trasy (trasy/<nazwa>.json)")
@@ -6346,6 +7071,8 @@ def main(argv):
     p.add_argument("--stop-przy-graczach", action="store_true",
                    help="stare zachowanie: każdy obcy gracz na ekranie zatrzymuje bota i włącza alarm")
     a = p.parse_args(argv)
+    if not os.environ.get("RETRONIC_TESTY"):
+        os.environ.setdefault("RETRONIC_TELEMETRIA", "1")   # P4 (13.10): samodzielny cavebot na żywo pisze telemetrię
     def _sigterm(*_):
         raise KeyboardInterrupt           # uruchom() loguje "Przerwano", a pętla pościgu puszcza klawisze w finally
     signal.signal(signal.SIGTERM, _sigterm)

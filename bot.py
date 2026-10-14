@@ -41,7 +41,7 @@ class Zatrzymano(Exception):
     pass
 
 
-def zapytaj(zadanie):
+def _zapytaj_surowe(zadanie):
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
         s.connect(str(GNIAZDO))
         s.sendall((json.dumps(zadanie) + "\n").encode())
@@ -49,6 +49,85 @@ def zapytaj(zadanie):
     if not odpowiedz.pop("ok"):
         raise RuntimeError(odpowiedz["blad"])
     return odpowiedz
+
+
+# --- widmo własnej postaci (13.10) ------------------------------------------------------------
+# Po przelogowaniu (reset/save serwera, auto-reconnect) klient bywa zostawia w pamięci DRUGI wpis gracza o tej
+# samej nazwie (stara sesja, inne id). Rdzeń ("pozycja" po nazwie, adres zapamiętany) potrafi trzymać się
+# nieaktualnego wpisu: pozycja stoi w miejscu, kliki trafiają w złe pole ("Sorry, not possible."), pętla ataku.
+# Tu wybieramy wpis własny: zgodny z HP z bloku statystyk gracza, a przy remisie najbliższy adresem blokowi
+# statystyk (blok żywej sesji leży tuż przy żywym wpisie). Tożsamość odświeżana co WLASNY_ODSWIEZ s.
+WLASNY_ODSWIEZ = 2.0
+_wlasny = {"nazwa": None, "t": float("-inf"), "wpis": None, "duplikat": None}
+
+
+def wybierz_wlasny(kandydaci, gracz):
+    """Z wpisów gracza o naszej nazwie wybiera żywy (dict z 'adres', 'id') albo None, gdy nie da się rozstrzygnąć."""
+    if len(kandydaci) < 2:
+        return None
+    pula = kandydaci
+    try:
+        proc = 100.0 * gracz["hp"] / gracz["max_hp"]
+        zgodne = [k for k in kandydaci if abs(k.get("hp", 100) - proc) <= 1.5]
+        pula = zgodne or kandydaci
+    except (KeyError, TypeError, ZeroDivisionError):
+        pass
+    if len(pula) == 1:
+        return pula[0]
+    try:
+        baza = int(gracz["adres"], 16)
+        return min(pula, key=lambda k: abs(int(k["adres"], 16) - baza))
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def wlasny_wpis(nazwa):
+    """Wpis własnej postaci przy duplikacie nazwy (widmo po przelogowaniu), inaczej None."""
+    teraz = time.monotonic()
+    w = _wlasny
+    if w["nazwa"] == nazwa and teraz - w["t"] < WLASNY_ODSWIEZ:
+        return w["wpis"]
+    wpis = None
+    try:
+        lista = _zapytaj_surowe({"cmd": "stwory"})["stwory"]
+        kand = [s for s in lista if s.get("gracz") and s.get("nazwa") == nazwa]
+        if len(kand) > 1:
+            wpis = wybierz_wlasny(kand, _zapytaj_surowe({"cmd": "gracz"})["gracz"])
+    except Exception:
+        wpis = None
+    w.update(nazwa=nazwa, t=teraz, wpis=wpis)
+    klucz = (wpis["id"], wpis["adres"]) if wpis else None
+    if klucz != w["duplikat"]:
+        w["duplikat"] = klucz
+        if wpis:
+            print(f"[bot] widmo gracza {nazwa}: używam wpisu id{wpis['id']} {wpis['adres']} "
+                  f"({wpis['x']},{wpis['y']},{wpis['z']})", file=sys.stderr, flush=True)
+    return wpis
+
+
+def _pozycja_wlasna(nazwa):
+    """Świeża pozycja wpisu własnego przy duplikacie nazwy albo None (wtedy odpowiada rdzeń)."""
+    wpis = wlasny_wpis(nazwa)
+    if not wpis:
+        return None
+    try:
+        s = _zapytaj_surowe({"cmd": "stwor", "adres": wpis["adres"], "id": wpis["id"]})["stwor"]
+    except Exception:
+        s = None
+    if not s:
+        _wlasny["t"] = float("-inf")      # wpis zniknął: następne zapytanie rozstrzyga od nowa
+        return None
+    return {"x": s["x"], "y": s["y"], "z": s["z"]}
+
+
+def zapytaj(zadanie):
+    odp = _zapytaj_surowe(zadanie)
+    cmd = zadanie.get("cmd")
+    if cmd in ("pozycja", "poscig") and zadanie.get("nazwa"):
+        p = _pozycja_wlasna(zadanie["nazwa"])
+        if p is not None:
+            odp["pozycja"] = p
+    return odp
 
 
 def nazwa_postaci():

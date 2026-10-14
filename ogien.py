@@ -83,11 +83,10 @@ def pola_ognia(obraz, prostokat=None):
 
 def zrzut_ppm(gniazdo):
     """Szybki zrzut sesji gry (grim, PPM bez kompresji: ok. 40 ms zamiast ok. 0,5-0,9 s dla PNG).
-    Tylko odczyt; `gniazdo` = nazwa gniazda Wayland sesji (ekran.SESJA)."""
-    srodowisko = dict(os.environ, WAYLAND_DISPLAY=gniazdo)
-    wynik = subprocess.run(["grim", "-t", "ppm", "-"], env=srodowisko, capture_output=True,
-                           timeout=5, check=True)
-    return Image.open(io.BytesIO(wynik.stdout)).convert("RGB")
+    Tylko odczyt; `gniazdo` = nazwa gniazda Wayland sesji (ekran.SESJA). Timeout 2 s, 2 próby;
+    po porażce ekran.ZrzutNiedostepny."""
+    import ekran  # noqa: PLC0415
+    return Image.open(io.BytesIO(ekran.grim("ppm", gniazdo=gniazdo))).convert("RGB")
 
 
 def opis(pola):

@@ -11,28 +11,28 @@
   "opis": "Troll cave z8+z9: pętla troll_cave (jak uruchom_trolle.sh), dojście z depo przy starcie z z7",
   "trasa": "troll_cave",
   "potwory": "Troll",
-  "prog_hp": 60,
+  "prog_hp": 30,
   "dojscie": "depo_troll_cave"
  },
  "trolle_pelny": {
   "opis": "Troll cave: trasa troll_pelny (z8); dojście z depo kończy przy wejściu, bot idzie do najbliższego punktu trasy",
   "trasa": "troll_pelny",
   "potwory": "Troll",
-  "prog_hp": 60,
+  "prog_hp": 30,
   "dojscie": "depo_troll_cave"
  },
  "trolle_nowe": {
   "opis": "Troll cave: nowa część (troll_nowa_czesc, z8)",
   "trasa": "troll_nowa_czesc",
-  "potwory": "Troll",
-  "prog_hp": 60,
+  "potwory": "Troll,Orc,Orc Spearman,Orc Warrior",
+  "prog_hp": 30,
   "dojscie": "depo_troll_cave"
  },
  "trolle_patrol": {
   "opis": "Troll cave: patrol po miejscach z trasy/miejsca_troll.json (z8+z9)",
   "trasa": "patrol:troll",
-  "potwory": "Troll",
-  "prog_hp": 60,
+  "potwory": "Troll,Orc,Orc Spearman,Orc Warrior",
+  "prog_hp": 30,
   "dojscie": "depo_troll_cave"
  }
 }

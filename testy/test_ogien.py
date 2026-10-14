@@ -129,6 +129,7 @@ def ogien_w(b, s, *pola_):
         b.ogien_pola[(p[0], p[1], 7)] = s.t
 
 cavebot.OGIEN_UNIKAJ = 1
+cavebot.OGIEN_LOG_S = 1.0     # testy 3a: wpisy co 1 s (domyślnie od P6 co 10 s, patrz test 6)
 
 # 3a. odczyt: względne -> bezwzględne, log tylko przy zmianie
 s = Swiat(pas(90, 120, 98, 102)); b = zrob(s)
@@ -300,6 +301,62 @@ for _ in range(3):
     s.t += 1.0; b._ogien_krok(tuple(s.poz), (106, 100))
 sprawdz("3g5 po czekaniu ignoruje ogień na OGIEN_IGNORUJ_S", b.ogien_ignoruj_do > s.t - 5
         and any("ignoruję go" in l for l in LOGI), f"{b.ogien_ignoruj_do} {s.t}")
+
+# --- 6. P6: maska stałych pól, rzadszy log, podsumowanie ---------------------------------------
+sprawdz("6a domyślne: OGIEN_STALY 1, OGIEN_LOG_S 10 (z pliku)", cavebot.OGIEN_STALY == 1 and "OGIEN_LOG_S = 10.0" in open(cavebot.__file__).read())
+sprawdz("6b ZAKRESY pokręteł P6", pokretla.ZAKRESY.get("OGIEN_STALY") == (0, 1) and pokretla.ZAKRESY.get("OGIEN_LOG_S") == (1.0, 60.0)
+        and pokretla.ZAKRESY.get("OGIEN_ODSWIEZ_WALKA_S") == (0.8, 5.0)
+        and pokretla.waliduj({"OGIEN_STALY": 0}, {"OGIEN_STALY": 1})[0] == {})
+cavebot.OGIEN_LOG_S = 10.0
+s = Swiat(pas(90, 120, 98, 102)); b = zrob(s)
+L0 = len(LOGI)
+b.ogien_odczyt = lambda: {(2, 0)}
+for _ in range(25):                         # to samo pole 25 razy w ~11 min (krok 27 s)
+    s.t += 27.0; b._ogien_tick((100, 100, 7), s.t, wymus=True)
+sprawdz("6c pole widziane 25x w 11 min jest stałe", (102, 100, 7) in b.ogien_stale, b.ogien_stale)
+logi = [l for l in LOGI[L0:] if l.startswith("[OGIEN] pola:")]
+sprawdz("6d dopóki nie stałe, logowane raz; po uznaniu za stałe brak kolejnych wpisów", len(logi) == 1, logi)
+sprawdz("6e stałe pole nie blokuje drogi ani kliku",
+        b._ogien_blok((100, 100, 7)) == [] and not b._ogien_na_drodze((100, 100, 7), (106, 100)))
+sprawdz("6f ale zwłoki/zejście z ognia nadal widzą pole", b._ogien_na((102, 100, 7)) and (102, 100) in b._ogien_xy(7))
+# nowe pole obok: zmienne, log, blok
+b.ogien_odczyt = lambda: {(2, 0), (3, 0)}
+s.t += 27.0; b._ogien_tick((100, 100, 7), s.t, wymus=True)
+logi = [l for l in LOGI[L0:] if l.startswith("[OGIEN] pola:")]
+sprawdz("6g nowe pole obok: log tylko z nowym polem, blokuje drogę",
+        len(logi) == 2 and "(103,100)" in logi[-1] and "(102,100)" not in logi[-1]
+        and b._ogien_blok((100, 100, 7)) == [(103, 100, 7)], logi)
+# pokrętło OGIEN_STALY=0: wszystko jak dawniej
+cavebot.OGIEN_STALY = 0
+sprawdz("6h OGIEN_STALY=0: stałe pole znów blokuje", (102, 100, 7) in b._ogien_blok((100, 100, 7)))
+cavebot.OGIEN_STALY = 1
+# ściana z mapy: stałe od razu
+s = Swiat(pas(90, 120, 98, 102)); b = zrob(s)
+_f0 = b.mapa.flagi
+b.mapa.flagi = lambda x, y, z: 5 if (x, y) == (101, 100) else _f0(x, y, z)
+b.ogien_odczyt = lambda: {(1, 0), (0, 1)}
+b._ogien_tick((100, 100, 7), 5.0, wymus=True)
+sprawdz("6i pole na ścianie mapy stałe od razu, zwykłe nie", b.ogien_stale == {(101, 100, 7)}, b.ogien_stale)
+# log co najwyżej co OGIEN_LOG_S i podsumowanie co OGIEN_PODSUMOWANIE_S
+s = Swiat(pas(90, 120, 98, 102)); b = zrob(s)
+L0 = len(LOGI)
+for i in range(6):
+    b.ogien_odczyt = (lambda i=i: {(i % 2 + 1, 0)})
+    s.t += 3.0; b._ogien_tick((100, 100, 7), s.t, wymus=True)     # zbiór zmienia się co 3 s (18 s)
+logi = [l for l in LOGI[L0:] if l.startswith("[OGIEN] pola:")]
+sprawdz("6j zmiany zbioru co 3 s: log nie częściej niż co 10 s", 1 <= len(logi) <= 2, logi)
+s.t += cavebot.OGIEN_PODSUMOWANIE_S + 1; b._ogien_tick((100, 100, 7), s.t, wymus=True)
+sprawdz("6k podsumowanie 'ogień: N stałych, M zmiennych'", any("[OGIEN] ogień:" in l and "zmiennych" in l for l in LOGI[L0:]))
+# WALKA bez zmiennych pól: rzadsze wykrycia przy OGIEN_ODSWIEZ_WALKA_S > OGIEN_ODSWIEZ_S
+s = Swiat(pas(90, 120, 98, 102)); b = zrob(s); b.stan = "WALKA"
+b.ogien_odczyt = lambda: set()
+cavebot.OGIEN_ODSWIEZ_WALKA_S = 3.0
+s.t = 100.0; b._ogien_tick((100, 100, 7), s.t); t1 = b.ogien_t
+s.t += 1.0; b._ogien_tick((100, 100, 7), s.t); t2 = b.ogien_t
+s.t += 3.0; b._ogien_tick((100, 100, 7), s.t); t3 = b.ogien_t
+cavebot.OGIEN_ODSWIEZ_WALKA_S = 0.8
+sprawdz("6l WALKA: wykrycia co 3 s zamiast 0,8", t1 == 100.0 and t2 == 100.0 and t3 == 104.0, (t1, t2, t3))
+cavebot.OGIEN_LOG_S = 1.0
 
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

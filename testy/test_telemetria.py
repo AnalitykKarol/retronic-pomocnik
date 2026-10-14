@@ -1,8 +1,17 @@
 import os as _os; _os.environ["RETRONIC_TESTY"] = "1"
-import json, sys, tempfile, types
+import json, os, sys, tempfile, types
 from pathlib import Path
 sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 import telemetria, pokretla, analityk
+# P4 (13.10): domyślnie (zapis=None) zapis zależy od środowiska (RETRONIC_TELEMETRIA=1, bez RETRONIC_TESTY);
+# testy poniżej piszą do własnych katalogów tmp, więc jawnie zapis=True
+os.environ.pop("RETRONIC_TELEMETRIA", None)
+_Tele = telemetria.Telemetria
+class _TeleZapis(_Tele):
+    def __init__(self, *a, **k):
+        k.setdefault("zapis", True)
+        super().__init__(*a, **k)
+telemetria.Telemetria = _TeleZapis
 
 ok = True
 def sprawdz(opis, war):
@@ -346,6 +355,63 @@ tp.zdarzenie("poscig_koniec", puszczenia={"ostatni": 1}, t_pierwszy_krok=None, k
 sprawdz("telemetria: licznik puszczeń per powód i t_pierwszy_krok z poscig_koniec (pola zdarzenia bez zmian)",
         tp.puszczenia_sesja == {"ostatni": 3, "strazni": 1} and list(tp.pierwszy_krok_sesja) == [0.31]
         and tp.rek[-2]["puszczenia"] == {"ostatni": 2, "strazni": 1} and tp.rek[-2]["kliki_ataku"] == 1)
+
+
+# --- P4: zapis tylko na żywo, blokada pisarza, pid/sesja, ścisły RE_LOOT ---
+def _pliki(k): return list(Path(k).glob("telemetria-*.jsonl"))
+_env0 = {k: os.environ.get(k) for k in ("RETRONIC_TELEMETRIA", "RETRONIC_TESTY")}
+try:
+    # 1. przy RETRONIC_TESTY (nawet z RETRONIC_TELEMETRIA=1) i bez zmiennej: brak pliku
+    k1 = Path(tempfile.mkdtemp())
+    os.environ["RETRONIC_TELEMETRIA"] = "1"; os.environ["RETRONIC_TESTY"] = "1"
+    te = _Tele(k1, zegar=zegar); te.zdarzenie("info", tekst="x")
+    sprawdz("P4-1a RETRONIC_TESTY: brak zapisu i brak pliku", te.zapis is False and not _pliki(k1) and not (k1 / "telemetria.lock").exists())
+    del os.environ["RETRONIC_TESTY"]; del os.environ["RETRONIC_TELEMETRIA"]
+    te = _Tele(k1, zegar=zegar); te.zdarzenie("info", tekst="x")
+    sprawdz("P4-1b bez RETRONIC_TELEMETRIA: brak zapisu", te.zapis is False and not _pliki(k1))
+    sprawdz("P4-1c zapis=False jawnie nie pisze mimo środowiska", _Tele(k1, zegar=zegar, zapis=False).zapis is False)
+    # 2. dwa obiekty z RETRONIC_TELEMETRIA=1 w tym samym katalogu: pisze tylko pierwszy (inny deskryptor = inny "proces")
+    os.environ["RETRONIC_TELEMETRIA"] = "1"
+    k2 = Path(tempfile.mkdtemp())
+    t1 = _Tele(k2, zegar=zegar)
+    sprawdz("P4-2a pierwszy pisze", t1.zapis is True and k2.as_posix() in [str(k) for k in telemetria._BLOKADY])
+    telemetria._BLOKADY.clear()          # symulacja: drugi proces nie ma wpisu w słowniku, ma własny deskryptor
+    t2 = _Tele(k2, zegar=zegar)
+    sprawdz("P4-2b drugi nie pisze (blokada zajęta)", t2.zapis is False)
+    t1.zdarzenie("info", tekst="a"); t2.zdarzenie("info", tekst="b")
+    wiersze = [json.loads(l) for f in _pliki(k2) for l in f.read_text().splitlines()]
+    sprawdz("P4-2c w pliku tylko rekordy pierwszego, z pid/sesja/src",
+            len(wiersze) == 1 and wiersze[0]["tekst"] == "a" and wiersze[0]["pid"] == os.getpid()
+            and "sesja" in wiersze[0] and wiersze[0]["src"] in ("mozg", "cavebot", "test"))
+    # drugi obiekt w tym samym procesie (słownik _BLOKADY znany) nie jest odrzucany
+    telemetria._BLOKADY.clear()
+    k3 = Path(tempfile.mkdtemp())
+    ta = _Tele(k3, zegar=zegar); tb = _Tele(k3, zegar=zegar)
+    sprawdz("P4-2d ten sam proces: oba obiekty mogą pisać", ta.zapis and tb.zapis)
+    for f in telemetria._BLOKADY.values():
+        os.close(f)
+    telemetria._BLOKADY.clear()
+finally:
+    for k, v in _env0.items():
+        if v is None: os.environ.pop(k, None)
+        else: os.environ[k] = v
+# 3. RE_LOOT
+R = telemetria.RE_LOOT
+sprawdz("P4-3a RE_LOOT nie łapie komunikatów pośrednich",
+        not any(R.match(x) for x in ("Loot: 4 pola puste, szukam dalej wśród pozostałych (runda 2).",
+                                     "Loot: zwłoki (1, 2) bez okna (1x): wstrzymane do końca walki, jedna próba po walce.",
+                                     "Loot: stoję na zwłokach, schodzę na sąsiednie pole i próbuję ponownie.",
+                                     "Loot: puste pola, nic żywego w widoku, ponawiam od razu na pozostałych polach.")))
+sprawdz("P4-3b RE_LOOT łapie wyniki", all(R.match(f"Loot: {w}") for w in
+        ("ok", "pelny_plecak", "brak_okna", "okno_niewidoczne", "daleko", "brak_plecaka", "przerwany")))
+tl_ = _Tele(Path(tempfile.mkdtemp()), zegar=zegar, zapis=False)
+tl_.linia("Loot: 4 pola puste, szukam dalej wśród pozostałych (runda 2)."); tl_.linia("Loot: stoję na zwłokach, schodzę.")
+sprawdz("P4-3c komunikaty pośrednie nie tworzą zdarzenia loot", not [r for r in tl_.rek if r["typ"] == "loot"])
+tl_.linia("Loot: zwłoki (1, 2) bez okna (2x): wstrzymane do końca walki, porzucone.")
+sprawdz("P4-3d loot_wstrzymany z polem zwloki i n",
+        [(r["zwloki"], r["n"]) for r in tl_.rek if r["typ"] == "loot_wstrzymany"] == [([1, 2], 2)])
+tl_.linia("Loot: pelny_plecak")
+sprawdz("P4-3e Loot: pelny_plecak jest lootem", [r["wynik"] for r in tl_.rek if r["typ"] == "loot"] == ["pelny_plecak"])
 
 
 print("WYNIK:", "OK" if ok else "BŁĄD")

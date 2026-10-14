@@ -429,6 +429,41 @@ sprawdz("16k brak blank: brak_blank bez ruchów", w["wynik"] == "brak_blank" and
 # 16l. pojemnik na runy nie jest brany za plecak (_plecak) i działa wariant bez niego (testy 1-15)
 sprawdz("16l _plecak ignoruje pojemnik", uh._plecak(SwiatRuny(plecak=[ZLOTO]).kontenery())["numer"] == 1)
 
+# 16p. jak na żywo 13.10: okna przycięte (plecak 8 widocznych pól z 8 przedmiotami, pojemnik na runy 16 z 20),
+#      brak widocznego wolnego pola: tarcza na pole z runą w pojemniku (serwer wstawia na początek), potem wraca
+class SwiatPrzyciete(SwiatRuny):
+    def geometria(s):
+        g = super().geometria()
+        g["plecak"] = g["plecak"][:s.o.get("wid_plecak", 8)]
+        g["runy"] = g["runy"][:s.o.get("wid_runy", 16)]
+        return g
+
+def uruchom_p(**kw):
+    s = SwiatPrzyciete(**kw)
+    return s, uh.zrob_runa(srod(s), slot=5)
+
+ZYW_P = [ZLOTO, 3035, 2854, 3456, ZLOTO, ZLOTO, 3035, ZLOTO]
+s, w = uruchom_p(plecak=list(ZYW_P), runy=[BLANK] * 11 + [HMM] * 4 + [UHR], runy_pojemnosc=20)
+sprawdz("16p tarcza na pole z runą, ok", w["wynik"] == "ok" and not w["alarm"] and s.ekw[5] == TARCZA, w)
+sprawdz("16q krok na zajęte pole runy, plecak nietknięty", "tarcza_na_zajete_pole_runy" in kroki(w)
+        and s.plecak == ZYW_P and s.drag_log[0][0] == ("reka", 5) and s.drag_log[0][1][0] == "runy", (kroki(w), s.drag_log))
+sprawdz("16r pojemnik: nic nie zginęło (+1 UH, -1 blank)", s.runy.count(BLANK) == 10 and s.runy.count(UHR) == 2
+        and s.runy.count(HMM) == 4 and TARCZA not in s.runy, s.runy)
+
+# 16s. pojemnik pełny i nic widocznego: przerwane bez ruchów, bez alarmu, pauza w mozna_robic
+uh._brak_miejsca_od = None
+s, w = uruchom_p(plecak=list(ZYW_P), runy=[BLANK] * 11 + [HMM] * 9, runy_pojemnosc=20)
+sprawdz("16s pełny pojemnik, brak widocznego pola: bez ruchów", w["wynik"] == "przerwane" and "brak_miejsca" in w["powod"]
+        and s.drag_log == [] and s.ekw[5] == TARCZA and not w["alarm"], w)
+g_ok = {"hp": 100, "max_hp": 100, "mana": 150}
+r1 = uh.mozna_robic(g_ok, [], aktywny=1, teraz=uh._brak_miejsca_od + 30)
+r2 = uh.mozna_robic(g_ok, [], aktywny=1, teraz=uh._brak_miejsca_od + uh.UH_PONOW_BRAK_MIEJSCA_S + 1)
+sprawdz("16t pauza ~60 s po braku miejsca", not r1[0] and "brak miejsca" in r1[1] and r2[0], (r1, r2))
+
+# 16u. wolne pole widoczne w pojemniku jak dotąd (bez kroku na zajęte pole)
+s, w = uruchom_p(plecak=list(ZYW_P), runy=[BLANK] * 5, runy_pojemnosc=20)
+sprawdz("16u wolne widoczne pole: standardowo", w["wynik"] == "ok" and "tarcza_na_zajete_pole_runy" not in kroki(w), kroki(w))
+
 # 16m. geometria z obrazu: siatka okna pojemnika różna od siatki plecaka; role z pamięci (syntetyczny zrzut)
 try:
     from PIL import Image, ImageDraw

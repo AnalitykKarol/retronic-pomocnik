@@ -68,3 +68,22 @@ def podsumowanie(punkty):
     xs, ys, zs = [p[0] for p in punkty], [p[1] for p in punkty], sorted({p[2] for p in punkty})
     return (f"{len(punkty)} punktów, długość {dlugosc(punkty)} pól, piętra {zs}, "
             f"x {min(xs)}..{max(xs)}, y {min(ys)}..{max(ys)}")
+
+
+def uprosc_petle(punkty, prog=1):
+    """Trasa nagrana z cofaniem/objazdem (wyjście i powrót tą samą drogą, A* dopisany na początku): usuwa pętle.
+    Dla każdego punktu skacze do ostatniego późniejszego punktu na TYM SAMYM piętrze (cały odcinek na jednym
+    piętrze), który leży najwyżej `prog` pól od niego (Chebyshev). Punkty zmiany piętra i ich sąsiedzi nie znikają
+    (skok nie przekracza zmiany piętra). Zwraca nową listę krotek (x, y, z)."""
+    p = [tuple(int(v) for v in q) for q in punkty]
+    wynik, i, n = [], 0, len(p)
+    while i < n:
+        wynik.append(p[i])
+        j = i
+        for k in range(i + 1, n):
+            if p[k][2] != p[i][2]:
+                break                      # dalej inne piętro: nic za tą granicą nie jest "tym samym odcinkiem"
+            if max(abs(p[k][0] - p[i][0]), abs(p[k][1] - p[i][1])) <= prog:
+                j = k
+        i = j if j > i + 1 else i + 1      # j == i + 1: zwykły krok; j > i + 1: pętla do p[j] wycięta
+    return wynik
