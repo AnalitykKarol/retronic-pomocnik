@@ -116,6 +116,7 @@ PATROL_PLIK = "miejsca.json"       # plik miejsc w trasy/
 PATROL_KOORD = 0                   # 1 = koordynator miejsc między instancjami (miejsca_koord.py): nie wybieram miejsc zajętych przez inną instancję, swoje rezerwuję; 0 = wył. (domyślnie); pokrętło 0-1
 PATROL_KOORD_PROMIEN = 0           # pola: rezerwacja blokuje też miejsca tak blisko (to samo piętro); 0 = tylko to samo miejsce; pokrętło 0-30
 PATROL_WAGA_MIN = 0.04             # dolny próg udziału zabić miejsca w losowaniu (miejsca bez danych też bywają odwiedzane)
+PATROL_RUNDA = 1                   # 1 = runda: każde miejsce (spawn) raz, kolejność losowa wg wag, po wszystkich reset
 PATROL_ODL_SKALA = 22.0            # waga odległości: 1 / (1 + d / skala), d = pola prosto (|dx| + |dy|)
 PATROL_BYLO_WYKLUCZ = 4            # tyle ostatnich odwiedzonych miejsc nie jest losowane
 PATROL_BYLO_KARA = 0.4             # mnożnik wagi dla miejsc odwiedzonych 5-8 wizyt temu
@@ -5933,7 +5934,12 @@ class Cavebot:
                 # plecak pusty (albo najedzony): bez ponawiania przez JEDZENIE_PONOW s,
                 # każda próba to 3-5 s ślepego bloku
                 self.jedzenie_nie_do = self.zegar() + JEDZENIE_PONOW
-                if JEDZENIE_BRAK_WALIDUJ and not self._kontenery_czytelne_po_porazce():
+                if any("najedzony" in t for t in szczegoly):
+                    # 14.10 18:04: jedzenie jest, tylko postać syta ("nie ubyło, najedzony"): to NIE brak jedzenia
+                    # (wcześniej potwierdzało głód i wysyłało do depo z 3 hamami w plecaku)
+                    self.jedzenie_nieczytelne_do = self.zegar() + JEDZENIE_PONOW
+                    log("JEDZENIE: postać najedzona, jedzenie w plecaku jest (to nie brak jedzenia)")
+                elif JEDZENIE_BRAK_WALIDUJ and not self._kontenery_czytelne_po_porazce():
                     # kontenery niewidoczne: to nie dowód braku jedzenia (nie wołamy wyprawy ani F3 "głód")
                     self.jedzenie_nieczytelne_do = self.zegar() + JEDZENIE_PONOW
                     log("JEDZENIE: pamięć nie widzi plecaka, brak jedzenia niepotwierdzony")
@@ -6815,6 +6821,15 @@ class Cavebot:
                     return p
             return None
         hist = self.patrol_historia
+        if PATROL_RUNDA:
+            # 14.10: runda bez powtórzeń: losujemy tylko spośród jeszcze nieodwiedzonych w tej rundzie
+            runda = self.__dict__.setdefault("patrol_runda", set())
+            wszystkie = {m["id"] for m, _d in kand}
+            if wszystkie and wszystkie <= runda:
+                self.__dict__["patrol_runda_nr"] = self.__dict__.get("patrol_runda_nr", 0) + 1
+                log(f"Patrol: runda {self.patrol_runda_nr} zakończona ({len(runda)} miejsc), nowa runda.")
+                runda.clear()
+            kand = [(m, d) for m, d in kand if m["id"] not in runda] or kand
         pula = [(m, d) for m, d in kand if d >= PATROL_ODL_MIN] or kand
         for _ in range(6):
             wagi = [self._patrol_waga(m, d, hist) for m, d in pula]
@@ -6848,6 +6863,7 @@ class Cavebot:
         p["zab_dotarl"] = self.patrol_zabicia
         p["do"] = teraz + random.uniform(*PATROL_POSTOJ)
         self.patrol_historia.append(m["id"])
+        self.__dict__.setdefault("patrol_runda", set()).add(m["id"])
         del self.patrol_historia[:-40]
         self.patrol_ost[m["id"]] = teraz
         if p.get("sweep"):

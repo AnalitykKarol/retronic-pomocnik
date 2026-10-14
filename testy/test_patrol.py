@@ -402,5 +402,44 @@ w = sum(v for i, v in vis.items() if i in zachB); e = sum(v for i, v in vis.item
 print("INFO rozkład wizyt (sweep): zachód B", w, "wschód", e, "czas sym.", round(s.t), vis)
 sprawdz("13k zachód i wschód odwiedzane (zachód 30-70% wizyt)", w + e >= 40 and 0.3 <= w / (w + e) <= 0.7, (w, e))
 
+# 14. PATROL_RUNDA: runda bez powtórzeń, reset z logiem, 0 = dawne losowanie
+def _runda_bot(n=6):
+    s, b = swiat_bot((32016, 32146, 11)); b._patrol_wczytaj()
+    ms = [{"id": 100 + i, "x": 32000 + i, "y": 32100, "z": 11, "nazwa": f"t{i}", "waga": 1.0} for i in range(n)]
+    b._patrol_kandydaci = lambda poz, pomin=None: [(m, 30 + 5 * i) for i, m in enumerate(ms)]
+    b._patrol_nowy = lambda poz, m, powod, waga=None: {"m": m}
+    b.patrol_pierwszy = False
+    return s, b, ms
+def _wybierz_i_dotrzyj(b, s):
+    p = b._patrol_wybierz((32016, 32146, 11)); b._patrol_dotarl(p, (32016, 32146, 11), s.t); return p["m"]["id"]
+_st_runda = cavebot.PATROL_RUNDA
+_lg = cavebot.log
+try:
+    cavebot.PATROL_RUNDA = 1
+    N = 6
+    for sd in (1, 2, 3):
+        random.seed(sd); s, b, ms = _runda_bot(N)
+        logi = []; cavebot.log = lambda *a: logi.append(" ".join(map(str, a)))
+        r1 = [_wybierz_i_dotrzyj(b, s) for _ in range(N)]
+        sprawdz(f"14a seed {sd}: kolejne {N} wyborów bez powtórzeń (wszystkie miejsca)", sorted(r1) == sorted(m["id"] for m in ms), r1)
+        sprawdz(f"14b seed {sd}: przed resetem brak logu 'runda ... zakończona'", not any("zakończona" in x for x in logi), logi[-1:] )
+        r2 = [_wybierz_i_dotrzyj(b, s) for _ in range(N)]
+        sprawdz(f"14c seed {sd}: po resecie log 'runda 1 zakończona' i druga runda też bez powtórzeń",
+                any("runda 1 zakończona" in x for x in logi) and sorted(r2) == sorted(r1), (r2, logi[-2:]))
+        cavebot.log = lambda *a: None
+    random.seed(5); s, b, ms = _runda_bot(4); ms[0]["waga"] = 50.0
+    b._patrol_baza = lambda m: m["waga"]
+    r = [_wybierz_i_dotrzyj(b, s) for _ in range(4)]
+    sprawdz("14d duża waga nie powtarza miejsca w rundzie", len(set(r)) == 4, r)
+    cavebot.PATROL_RUNDA = 0
+    random.seed(4); s, b, ms = _runda_bot(3)
+    b._patrol_waga = lambda m, d, h: 1.0 if m["id"] == 100 else 0.0
+    logi = []; cavebot.log = lambda *a: logi.append(" ".join(map(str, a)))
+    r = [b._patrol_wybierz((32016, 32146, 11))["m"]["id"] for _ in range(8)]
+    sprawdz("14e PATROL_RUNDA=0: wybór bez ograniczenia rundy (powtórzenia dozwolone)", r == [100] * 8, r)
+    sprawdz("14f PATROL_RUNDA=0: brak logu rundy", not any("zakończona" in x for x in logi), logi)
+finally:
+    cavebot.PATROL_RUNDA = _st_runda; cavebot.log = _lg
+
 print("\nWYNIK:", sum(ok), "/", len(ok))
 sys.exit(0 if all(ok) else 1)

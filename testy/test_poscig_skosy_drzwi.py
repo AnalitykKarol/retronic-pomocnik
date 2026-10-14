@@ -165,8 +165,8 @@ def patrol_do_pokoju(dzialaja):
     s.poz[:] = [32502, 32270, 8]
     b = zrob2(s, list(troll), okrazenia=999)
     b._patrol_wczytaj()
-    m = next(x for x in b.miejsca if x["nazwa"] == "z8_nowa_pokoj")
-    b._patrol_nowy(tuple(s.poz), m, "test", waga=1.0)
+    m = next(x for x in b.miejsca if x["nazwa"] == "z8_spawn_32507_32268")
+    b.patrol = b._patrol_nowy(tuple(s.poz), m, "test", waga=1.0); b.patrol_pierwszy = False
     for i in range(4000):
         if not b.tick():
             break

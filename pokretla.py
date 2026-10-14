@@ -152,6 +152,7 @@ ZAKRESY = {
     "RUCH_PROBKA_WCZESNA": (0, 1),      # 1 = próbka telemetrii także przy wczesnym zakończeniu obiegu (R0b)
     "OGIEN_STALY": (0, 1),              # 1 = maska stałych pól ognia (widziane >= 20 razy przez >= 10 min): bez logu i bez bloku drogi (domyślnie 1)
     "POSCIG_SKOSY_ZAPAS": (0, 1),       # 1 = bez drogi prostej druga próba ze skosami (korytarz skośny z8), też dla ignorowanych "za ścianą"
+    "PATROL_RUNDA": (0, 1),            # 1 = każde miejsce patrolu raz na rundę (losowo wg wag), potem reset
     "PATROL_DRZWI": (0, 1),             # 1 = drzwi z trasy/drzwi_jaskinia.json to przejście dla pościgu i patrolu (zamknięte: Use, max 3 próby)
     "OGIEN_MASKA_TYLKO_SCIANY": (0, 1), # 1 = maska stałych pól ognia tylko dla pól-ścian wg mapy, nigdy pole przechodnie (domyślnie 1)
     "OGIEN_LOG_S": (1.0, 60.0),         # s: min. odstęp między wpisami "[OGIEN] pola" (domyślnie 10)

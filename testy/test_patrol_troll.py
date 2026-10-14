@@ -149,14 +149,14 @@ sprawdz("2 patrol: kilka różnych miejsc odwiedzonych", len(odw) >= 4, f"{sorte
 sprawdz("2 patrol: przejścia pięter bez porażek", b.pietra_porazki == 0 and len(s.zmiany) >= 2, f"zmian={len(s.zmiany)} porazki={b.pietra_porazki}")
 sprawdz("2 patrol: nielegalne ruchy rzadkie", s.nielegalne <= 5, f"{s.nielegalne}")
 
-# 3. wymuszony wybór miejsca za łącznikiem (z8_nowa_pokoj): dojście przez pole (32505,32270,8)
+# 3. wymuszony wybór miejsca za łącznikiem (z8_spawn_32507_32268): dojście przez pole (32505,32270,8)
 random.seed(1); LOG.clear()
 s = Swiat(START, gora="use")
 b = zrob(s, list(troll), okrazenia=999)
-cel = mpoz["z8_nowa_pokoj"]
+cel = mpoz["z8_spawn_32507_32268"]
 b._patrol_wczytaj()
-m = next(x for x in b.miejsca if x["nazwa"] == "z8_nowa_pokoj")
-b._patrol_nowy(tuple(s.poz), m, "test", waga=1.0)
+m = next(x for x in b.miejsca if x["nazwa"] == "z8_spawn_32507_32268")
+b.patrol = b._patrol_nowy(tuple(s.poz), m, "test", waga=1.0); b.patrol_pierwszy = False
 for i in range(12000):
     if not b.tick(): break
     if DRZWI in s.odwiedzone and any(q[:2] == cel[:2] and q[2] == 8 for q in s.odwiedzone): break
@@ -166,8 +166,8 @@ sprawdz("3 dojście do pokoju za łącznikiem przez pole łącznika", DRZWI in s
 random.seed(3)
 s = Swiat(START, gora="use")
 b = zrob(s, list(troll), okrazenia=999); b._patrol_wczytaj()
-cel2 = mpoz["z9_poludnie_zach"]
-w0 = [x for x in b.miejsca if x["nazwa"] == "z9_poludnie_zach"][0]
+cel2 = mpoz["z9_spawn_32488_32299"]
+w0 = [x for x in b.miejsca if x["nazwa"] == "z9_spawn_32488_32299"][0]
 s.t = 100.0
 b.unikanie = types.SimpleNamespace(gracze=[{"id": 99, "nazwa": "Obcy", "x": cel2[0], "y": cel2[1], "z": cel2[2]}])
 sprawdz("4 pamięć graczy: pole _patrol_gracz_czynnik istnieje", hasattr(b, "_patrol_gracz_czynnik") and hasattr(b, "_patrol_pamietaj_graczy"))

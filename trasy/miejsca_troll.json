@@ -10,7 +10,7 @@
  "telemetria": [
   "telemetria-20261012.jsonl"
  ],
- "zabicia_przypisane": 190,
+ "zabicia_przypisane": 146,
  "przejscia": [
   {
    "id": "schody_32484_32265",
@@ -573,7 +573,7 @@
      32270,
      8
     ],
-    "komp": 10
+    "komp": 4
    },
    {
     "pole": [
@@ -585,15 +585,7 @@
    },
    {
     "pole": [
-     32481,
-     32291,
-     8
-    ],
-    "komp": 3
-   },
-   {
-    "pole": [
-     32474,
+     32478,
      32290,
      8
     ],
@@ -601,35 +593,59 @@
    },
    {
     "pole": [
-     32481,
-     32283,
-     8
-    ],
-    "komp": 3
-   },
-   {
-    "pole": [
      32491,
-     32292,
+     32294,
      8
     ],
     "komp": 3
    },
    {
     "pole": [
-     32472,
-     32271,
+     32500,
+     32270,
+     8
+    ],
+    "komp": 4
+   },
+   {
+    "pole": [
+     32507,
+     32268,
+     8
+    ],
+    "komp": 4
+   },
+   {
+    "pole": [
+     32471,
+     32270,
      9
     ],
     "komp": 6
    },
    {
     "pole": [
-     32484,
-     32297,
+     32485,
+     32274,
      9
     ],
-    "komp": 9
+    "komp": 7
+   },
+   {
+    "pole": [
+     32503,
+     32284,
+     9
+    ],
+    "komp": 5
+   },
+   {
+    "pole": [
+     32508,
+     32278,
+     9
+    ],
+    "komp": 5
    },
    {
     "pole": [
@@ -638,22 +654,6 @@
      9
     ],
     "komp": 9
-   },
-   {
-    "pole": [
-     32497,
-     32283,
-     9
-    ],
-    "komp": 5
-   },
-   {
-    "pole": [
-     32506,
-     32268,
-     8
-    ],
-    "komp": 10
    }
   ],
   "odl": [
@@ -720,22 +720,12 @@
    [
     4,
     31,
-    24
+    26
    ],
    [
     4,
     32,
-    30
-   ],
-   [
-    4,
-    33,
-    16
-   ],
-   [
-    4,
-    34,
-    39
+    37
    ],
    [
     5,
@@ -749,8 +739,23 @@
    ],
    [
     7,
+    29,
+    7
+   ],
+   [
+    7,
     30,
     3
+   ],
+   [
+    7,
+    33,
+    1
+   ],
+   [
+    7,
+    34,
+    10
    ],
    [
     8,
@@ -764,8 +769,13 @@
    ],
    [
     8,
+    37,
+    19
+   ],
+   [
+    8,
     38,
-    14
+    20
    ],
    [
     9,
@@ -774,13 +784,33 @@
    ],
    [
     9,
+    37,
+    18
+   ],
+   [
+    9,
     38,
-    13
+    19
+   ],
+   [
+    10,
+    29,
+    9
    ],
    [
     10,
     30,
     5
+   ],
+   [
+    10,
+    33,
+    3
+   ],
+   [
+    10,
+    34,
+    12
    ],
    [
     11,
@@ -820,22 +850,12 @@
    [
     11,
     31,
-    23
+    25
    ],
    [
     11,
     32,
-    29
-   ],
-   [
-    11,
-    33,
-    15
-   ],
-   [
-    11,
-    34,
-    38
+    36
    ],
    [
     12,
@@ -845,12 +865,12 @@
    [
     12,
     35,
-    5
+    7
    ],
    [
     13,
     35,
-    5
+    7
    ],
    [
     14,
@@ -885,22 +905,12 @@
    [
     14,
     31,
-    23
+    25
    ],
    [
     14,
     32,
-    29
-   ],
-   [
-    14,
-    33,
-    15
-   ],
-   [
-    14,
-    34,
-    38
+    36
    ],
    [
     15,
@@ -930,22 +940,12 @@
    [
     15,
     31,
-    7
+    9
    ],
    [
     15,
     32,
-    13
-   ],
-   [
-    15,
-    33,
-    3
-   ],
-   [
-    15,
-    34,
-    22
+    20
    ],
    [
     16,
@@ -953,6 +953,16 @@
     2
    ],
    [
+    16,
+    36,
+    13
+   ],
+   [
+    17,
+    36,
+    11
+   ],
+   [
     18,
     19,
     14
@@ -975,22 +985,12 @@
    [
     18,
     31,
-    7
+    9
    ],
    [
     18,
     32,
-    13
-   ],
-   [
-    18,
-    33,
-    5
-   ],
-   [
-    18,
-    34,
-    22
+    20
    ],
    [
     19,
@@ -1010,22 +1010,12 @@
    [
     19,
     31,
-    11
+    7
    ],
    [
     19,
     32,
-    3
-   ],
-   [
-    19,
-    33,
-    15
-   ],
-   [
-    19,
-    34,
-    26
+    24
    ],
    [
     20,
@@ -1045,22 +1035,12 @@
    [
     22,
     31,
-    18
+    22
    ],
    [
     22,
     32,
-    28
-   ],
-   [
-    22,
-    33,
-    26
-   ],
-   [
-    22,
-    34,
-    5
+    7
    ],
    [
     23,
@@ -1069,13 +1049,23 @@
    ],
    [
     23,
+    37,
+    22
+   ],
+   [
+    23,
     38,
-    9
+    25
+   ],
+   [
+    24,
+    37,
+    21
    ],
    [
     24,
     38,
-    8
+    24
    ],
    [
     25,
@@ -1085,22 +1075,12 @@
    [
     25,
     31,
-    5
+    9
    ],
    [
     25,
     32,
-    15
-   ],
-   [
-    25,
-    33,
-    13
-   ],
-   [
-    25,
-    34,
-    14
+    12
    ],
    [
     26,
@@ -1109,83 +1089,63 @@
    ],
    [
     26,
-    36,
-    3
-   ],
-   [
-    26,
-    37,
+    39,
     9
    ],
    [
     27,
-    36,
-    1
-   ],
-   [
-    27,
-    37,
+    39,
     7
    ],
    [
     28,
     31,
-    9
+    13
    ],
    [
     28,
     32,
-    19
-   ],
-   [
-    28,
-    33,
-    17
-   ],
-   [
-    28,
-    34,
-    16
-   ],
-   [
-    29,
-    39,
-    2
-   ],
-   [
-    31,
-    32,
-    10
-   ],
-   [
-    31,
-    33,
-    8
-   ],
-   [
-    31,
-    34,
-    15
-   ],
-   [
-    32,
-    33,
     14
    ],
    [
-    32,
+    29,
+    30,
+    4
+   ],
+   [
+    29,
+    33,
+    6
+   ],
+   [
+    29,
     34,
-    25
+    3
+   ],
+   [
+    30,
+    33,
+    2
+   ],
+   [
+    30,
+    34,
+    7
+   ],
+   [
+    31,
+    32,
+    17
    ],
    [
     33,
     34,
-    23
+    9
    ],
    [
-    36,
     37,
-    6
+    38,
+    11
    ]
   ]
  },
@@ -1202,681 +1162,707 @@
  "miejsca": [
   {
    "id": 1,
-   "nazwa": "z8_wschod_srodek",
-   "x": 32481,
-   "y": 32291,
+   "nazwa": "z8_spawn_32478_32290",
+   "x": 32478,
+   "y": 32290,
    "z": 8,
-   "opis": "główna sala z8: najwięcej zabić na z8, trolle chodzą tu parami",
-   "zabicia": 24,
-   "udzial_zabic": 0.126,
+   "opis": "spawn 2x troll, główna sala z8",
+   "zabicia": 19,
+   "udzial_zabic": 0.13,
    "mobow": 3,
    "zrodlo": "troll",
+   "waga": 0.091,
    "gniazdo": false,
    "sasiedzi": [
     {
      "id": 2,
-     "droga": 10,
+     "droga": 17,
      "przez": []
     },
     {
      "id": 3,
-     "droga": 8,
-     "przez": []
+     "droga": 49,
+     "przez": [
+      "schody_32494_32289",
+      "schody_32498_32270"
+     ]
     },
     {
      "id": 4,
-     "droga": 15,
-     "przez": []
+     "droga": 58,
+     "przez": [
+      "schody_32494_32289",
+      "schody_32498_32270"
+     ]
     },
     {
      "id": 5,
-     "droga": 29,
+     "droga": 33,
      "przez": [
       "schody_32476_32272"
      ]
     },
     {
      "id": 6,
-     "droga": 9,
+     "droga": 23,
      "przez": [
-      "schody_32482_32296"
+      "schody_32483_32285"
      ]
     },
     {
      "id": 7,
-     "droga": 15,
+     "droga": 45,
      "przez": [
-      "schody_32482_32296"
+      "schody_32494_32289"
      ]
     },
     {
      "id": 8,
-     "droga": 28,
+     "droga": 48,
      "przez": [
       "schody_32494_32289"
      ]
     },
     {
      "id": 9,
-     "droga": 53,
+     "droga": 19,
      "przez": [
-      "schody_32494_32289",
-      "schody_32498_32270",
-      "lacznik_32506_32270_32502_32270"
+      "schody_32482_32296"
      ]
     }
    ],
-   "od_startu": 47,
+   "od_startu": 49,
    "komp": 3
   },
   {
    "id": 2,
-   "nazwa": "z8_zachod",
-   "x": 32474,
-   "y": 32290,
+   "nazwa": "z8_spawn_32491_32294",
+   "x": 32491,
+   "y": 32294,
    "z": 8,
-   "opis": "zachodnie odnogi z8 (troll_cave 54-59)",
-   "zabicia": 12,
-   "udzial_zabic": 0.063,
-   "mobow": 2,
+   "opis": "spawn 2x troll, wschodni kraniec sali z8",
+   "zabicia": 20,
+   "udzial_zabic": 0.137,
+   "mobow": 3,
    "zrodlo": "troll",
+   "waga": 0.091,
    "gniazdo": false,
    "sasiedzi": [
     {
      "id": 1,
-     "droga": 10,
+     "droga": 17,
      "przez": []
     },
     {
      "id": 3,
-     "droga": 14,
-     "przez": []
+     "droga": 34,
+     "przez": [
+      "schody_32494_32289",
+      "schody_32498_32270"
+     ]
     },
     {
      "id": 4,
-     "droga": 25,
-     "przez": []
+     "droga": 43,
+     "przez": [
+      "schody_32494_32289",
+      "schody_32498_32270"
+     ]
     },
     {
      "id": 5,
-     "droga": 35,
+     "droga": 44,
      "przez": [
       "schody_32476_32272"
      ]
     },
     {
      "id": 6,
-     "droga": 19,
+     "droga": 34,
      "przez": [
-      "schody_32482_32296"
+      "schody_32483_32285"
      ]
     },
     {
      "id": 7,
-     "droga": 25,
+     "droga": 30,
      "przez": [
-      "schody_32482_32296"
+      "schody_32494_32289"
      ]
     },
     {
      "id": 8,
-     "droga": 38,
+     "droga": 33,
      "przez": [
       "schody_32494_32289"
      ]
     },
     {
      "id": 9,
-     "droga": 63,
+     "droga": 22,
      "przez": [
-      "schody_32494_32289",
-      "schody_32498_32270",
-      "lacznik_32506_32270_32502_32270"
+      "schody_32482_32296"
      ]
     }
    ],
-   "od_startu": 53,
+   "od_startu": 60,
    "komp": 3
   },
   {
    "id": 3,
-   "nazwa": "z8_polnoc",
-   "x": 32481,
-   "y": 32283,
+   "nazwa": "z8_spawn_32500_32270",
+   "x": 32500,
+   "y": 32270,
    "z": 8,
-   "opis": "korytarz z8 nad salą (rzadziej)",
-   "zabicia": 11,
-   "udzial_zabic": 0.058,
-   "mobow": 2,
+   "opis": "spawn 2x troll, korytarz przy schodach (32498,32270)",
+   "zabicia": 0,
+   "udzial_zabic": 0.0,
+   "mobow": 0,
    "zrodlo": "troll",
+   "waga": 0.091,
    "gniazdo": false,
    "sasiedzi": [
     {
      "id": 1,
-     "droga": 8,
-     "przez": []
+     "droga": 47,
+     "przez": [
+      "schody_32498_32270",
+      "schody_32494_32289"
+     ]
     },
     {
      "id": 2,
-     "droga": 14,
-     "przez": []
+     "droga": 32,
+     "przez": [
+      "schody_32498_32270",
+      "schody_32494_32289"
+     ]
     },
     {
      "id": 4,
-     "droga": 23,
+     "droga": 9,
      "przez": []
     },
     {
      "id": 5,
-     "droga": 21,
+     "droga": 74,
      "przez": [
+      "schody_32498_32270",
+      "schody_32494_32289",
       "schody_32476_32272"
      ]
     },
     {
      "id": 6,
-     "droga": 17,
+     "droga": 64,
      "przez": [
-      "schody_32482_32296"
+      "schody_32498_32270",
+      "schody_32494_32289",
+      "schody_32483_32285"
      ]
     },
     {
      "id": 7,
-     "droga": 23,
+     "droga": 21,
      "przez": [
-      "schody_32482_32296"
+      "schody_32498_32270"
      ]
     },
     {
      "id": 8,
-     "droga": 36,
+     "droga": 22,
      "przez": [
-      "schody_32494_32289"
+      "schody_32498_32270"
      ]
     },
     {
      "id": 9,
-     "droga": 61,
+     "droga": 52,
      "przez": [
-      "schody_32494_32289",
       "schody_32498_32270",
-      "lacznik_32506_32270_32502_32270"
+      "schody_32494_32289",
+      "schody_32482_32296"
      ]
     }
    ],
-   "od_startu": 39,
-   "komp": 3
+   "od_startu": 92,
+   "komp": 4
   },
   {
    "id": 4,
-   "nazwa": "z8_wschod_daleko",
-   "x": 32491,
-   "y": 32292,
+   "nazwa": "z8_spawn_32507_32268",
+   "x": 32507,
+   "y": 32268,
    "z": 8,
-   "opis": "wschodni kraniec sali z8 (koniec troll_pelny / początek powrotu z nowej części)",
-   "zabicia": 18,
-   "udzial_zabic": 0.095,
-   "mobow": 3,
+   "opis": "spawn 2x troll, pokój za drzwiami (32505,32270)",
+   "zabicia": 0,
+   "udzial_zabic": 0.0,
+   "mobow": 0,
    "zrodlo": "troll",
+   "waga": 0.091,
    "gniazdo": false,
    "sasiedzi": [
     {
      "id": 1,
-     "droga": 15,
-     "przez": []
+     "droga": 56,
+     "przez": [
+      "schody_32498_32270",
+      "schody_32494_32289"
+     ]
     },
     {
      "id": 2,
-     "droga": 25,
-     "przez": []
+     "droga": 41,
+     "przez": [
+      "schody_32498_32270",
+      "schody_32494_32289"
+     ]
     },
     {
      "id": 3,
-     "droga": 23,
+     "droga": 9,
      "przez": []
     },
     {
      "id": 5,
-     "droga": 44,
+     "droga": 83,
      "przez": [
+      "schody_32498_32270",
+      "schody_32494_32289",
       "schody_32476_32272"
      ]
     },
     {
      "id": 6,
-     "droga": 18,
+     "droga": 73,
      "przez": [
-      "schody_32482_32296"
-     ]
-    },
-    {
-     "id": 7,
-     "droga": 24,
-     "przez": [
-      "schody_32482_32296"
-     ]
-    },
-    {
-     "id": 8,
-     "droga": 15,
-     "przez": [
-      "schody_32494_32289"
-     ]
-    },
-    {
-     "id": 9,
-     "droga": 40,
-     "przez": [
-      "schody_32494_32289",
       "schody_32498_32270",
-      "lacznik_32506_32270_32502_32270"
-     ]
-    }
-   ],
-   "od_startu": 62,
-   "komp": 3
-  },
-  {
-   "id": 5,
-   "nazwa": "z9_gniazdo",
-   "x": 32472,
-   "y": 32271,
-   "z": 9,
-   "opis": "GNIAZDO: komora z9 tuż pod schodami (32476,32272); do 5 trolli naraz",
-   "zabicia": 70,
-   "udzial_zabic": 0.368,
-   "mobow": 4,
-   "zrodlo": "troll",
-   "waga": 0.1,
-   "gniazdo": true,
-   "sasiedzi": [
-    {
-     "id": 1,
-     "droga": 29,
-     "przez": [
-      "schody_32476_32272"
-     ]
-    },
-    {
-     "id": 2,
-     "droga": 35,
-     "przez": [
-      "schody_32476_32272"
-     ]
-    },
-    {
-     "id": 3,
-     "droga": 21,
-     "przez": [
-      "schody_32476_32272"
-     ]
-    },
-    {
-     "id": 4,
-     "droga": 44,
-     "przez": [
-      "schody_32476_32272"
-     ]
-    },
-    {
-     "id": 6,
-     "droga": 38,
-     "przez": [
-      "schody_32476_32272",
-      "schody_32482_32296"
-     ]
-    },
-    {
-     "id": 7,
-     "droga": 44,
-     "przez": [
-      "schody_32476_32272",
-      "schody_32482_32296"
-     ]
-    },
-    {
-     "id": 8,
-     "droga": 57,
-     "przez": [
-      "schody_32476_32272",
-      "schody_32494_32289"
-     ]
-    },
-    {
-     "id": 9,
-     "droga": 82,
-     "przez": [
-      "schody_32476_32272",
       "schody_32494_32289",
-      "schody_32498_32270",
-      "lacznik_32506_32270_32502_32270"
-     ]
-    }
-   ],
-   "od_startu": 32,
-   "komp": 6
-  },
-  {
-   "id": 6,
-   "nazwa": "z9_poludnie_zach",
-   "x": 32484,
-   "y": 32297,
-   "z": 9,
-   "opis": "z9 południe, wejście schodami (32482,32295); do 3 trolli",
-   "zabicia": 23,
-   "udzial_zabic": 0.121,
-   "mobow": 3,
-   "zrodlo": "troll",
-   "gniazdo": false,
-   "sasiedzi": [
-    {
-     "id": 1,
-     "droga": 11,
-     "przez": [
-      "schody_32482_32296"
-     ]
-    },
-    {
-     "id": 2,
-     "droga": 21,
-     "przez": [
-      "schody_32482_32296"
-     ]
-    },
-    {
-     "id": 3,
-     "droga": 19,
-     "przez": [
-      "schody_32482_32296"
-     ]
-    },
-    {
-     "id": 4,
-     "droga": 18,
-     "przez": [
-      "schody_32482_32296"
-     ]
-    },
-    {
-     "id": 5,
-     "droga": 40,
-     "przez": [
-      "schody_32482_32296",
-      "schody_32476_32272"
+      "schody_32483_32285"
      ]
     },
     {
      "id": 7,
-     "droga": 6,
-     "przez": []
+     "droga": 30,
+     "przez": [
+      "schody_32498_32270"
+     ]
     },
     {
      "id": 8,
      "droga": 31,
      "przez": [
-      "schody_32482_32296",
-      "schody_32494_32289"
+      "schody_32498_32270"
      ]
     },
     {
      "id": 9,
-     "droga": 56,
+     "droga": 61,
      "przez": [
-      "schody_32482_32296",
-      "schody_32494_32289",
       "schody_32498_32270",
-      "lacznik_32506_32270_32502_32270"
+      "schody_32494_32289",
+      "schody_32482_32296"
      ]
     }
    ],
-   "od_startu": 56,
-   "komp": 9
+   "od_startu": 101,
+   "komp": 4
   },
   {
-   "id": 7,
-   "nazwa": "z9_poludnie_wsch",
-   "x": 32488,
-   "y": 32299,
+   "id": 5,
+   "nazwa": "z9_spawn_32471_32270",
+   "x": 32471,
+   "y": 32270,
    "z": 9,
-   "opis": "z9 południe, dalsza komora; do 3 trolli",
-   "zabicia": 32,
-   "udzial_zabic": 0.168,
-   "mobow": 3,
+   "opis": "spawn 4x troll, gniazdo pod schodami (32476,32272)",
+   "zabicia": 62,
+   "udzial_zabic": 0.425,
+   "mobow": 4,
    "zrodlo": "troll",
-   "gniazdo": false,
+   "waga": 0.182,
+   "gniazdo": true,
    "sasiedzi": [
     {
      "id": 1,
-     "droga": 17,
+     "droga": 33,
      "przez": [
-      "schody_32482_32296"
-     ]
-    },
-    {
-     "id": 2,
-     "droga": 27,
-     "przez": [
-      "schody_32482_32296"
-     ]
-    },
-    {
-     "id": 3,
-     "droga": 25,
-     "przez": [
-      "schody_32482_32296"
-     ]
-    },
-    {
-     "id": 4,
-     "droga": 24,
-     "przez": [
-      "schody_32482_32296"
-     ]
-    },
-    {
-     "id": 5,
-     "droga": 46,
-     "przez": [
-      "schody_32482_32296",
       "schody_32476_32272"
      ]
     },
     {
-     "id": 6,
-     "droga": 6,
-     "przez": []
-    },
-    {
-     "id": 8,
-     "droga": 37,
-     "przez": [
-      "schody_32482_32296",
-      "schody_32494_32289"
-     ]
-    },
-    {
-     "id": 9,
-     "droga": 62,
-     "przez": [
-      "schody_32482_32296",
-      "schody_32494_32289",
-      "schody_32498_32270",
-      "lacznik_32506_32270_32502_32270"
-     ]
-    }
-   ],
-   "od_startu": 62,
-   "komp": 9
-  },
-  {
-   "id": 8,
-   "nazwa": "z9_nowa_czesc",
-   "x": 32497,
-   "y": 32283,
-   "z": 9,
-   "opis": "nowa część z9 (troll_nowa_czesc): mało danych, rzadkie wizyty",
-   "zabicia": 0,
-   "udzial_zabic": 0.0,
-   "mobow": 0,
-   "zrodlo": "troll",
-   "waga": 0.05,
-   "gniazdo": false,
-   "sasiedzi": [
-    {
-     "id": 1,
-     "droga": 27,
-     "przez": [
-      "schody_32494_32289"
-     ]
-    },
-    {
      "id": 2,
-     "droga": 37,
+     "droga": 44,
      "przez": [
-      "schody_32494_32289"
-     ]
-    },
-    {
-     "id": 3,
-     "droga": 35,
-     "przez": [
-      "schody_32494_32289"
-     ]
-    },
-    {
-     "id": 4,
-     "droga": 14,
-     "przez": [
-      "schody_32494_32289"
-     ]
-    },
-    {
-     "id": 5,
-     "droga": 56,
-     "przez": [
-      "schody_32494_32289",
       "schody_32476_32272"
      ]
     },
     {
-     "id": 6,
-     "droga": 30,
+     "id": 3,
+     "droga": 76,
      "przez": [
+      "schody_32476_32272",
       "schody_32494_32289",
-      "schody_32482_32296"
+      "schody_32498_32270"
+     ]
+    },
+    {
+     "id": 4,
+     "droga": 85,
+     "przez": [
+      "schody_32476_32272",
+      "schody_32494_32289",
+      "schody_32498_32270"
+     ]
+    },
+    {
+     "id": 6,
+     "droga": 40,
+     "przez": [
+      "schody_32476_32272",
+      "schody_32483_32285"
      ]
     },
     {
      "id": 7,
-     "droga": 36,
+     "droga": 72,
      "przez": [
-      "schody_32494_32289",
-      "schody_32482_32296"
+      "schody_32476_32272",
+      "schody_32494_32289"
+     ]
+    },
+    {
+     "id": 8,
+     "droga": 75,
+     "przez": [
+      "schody_32476_32272",
+      "schody_32494_32289"
      ]
     },
     {
      "id": 9,
-     "droga": 25,
+     "droga": 46,
      "przez": [
-      "schody_32498_32270",
-      "lacznik_32506_32270_32502_32270"
+      "schody_32476_32272",
+      "schody_32482_32296"
      ]
     }
    ],
-   "od_startu": 75,
-   "komp": 5
+   "od_startu": 34,
+   "komp": 6
   },
   {
-   "id": 9,
-   "nazwa": "z8_nowa_pokoj",
-   "x": 32506,
-   "y": 32268,
-   "z": 8,
-   "opis": "pokój nowej części na z8 za bramą (32505,32270): mało danych, wymaga łącznika",
+   "id": 6,
+   "nazwa": "z9_spawn_32485_32274",
+   "x": 32485,
+   "y": 32274,
+   "z": 9,
+   "opis": "spawn 1x troll",
    "zabicia": 0,
    "udzial_zabic": 0.0,
-   "mobow": 0,
+   "mobow": 1,
    "zrodlo": "troll",
-   "waga": 0.03,
+   "waga": 0.045,
    "gniazdo": false,
    "sasiedzi": [
     {
      "id": 1,
-     "droga": 51,
+     "droga": 21,
      "przez": [
-      "lacznik_32506_32270_32502_32270",
-      "schody_32498_32270",
-      "schody_32494_32289"
+      "schody_32483_32285"
      ]
     },
     {
      "id": 2,
-     "droga": 61,
+     "droga": 32,
      "przez": [
-      "lacznik_32506_32270_32502_32270",
-      "schody_32498_32270",
-      "schody_32494_32289"
+      "schody_32483_32285"
      ]
     },
     {
      "id": 3,
-     "droga": 59,
+     "droga": 64,
      "przez": [
-      "lacznik_32506_32270_32502_32270",
-      "schody_32498_32270",
-      "schody_32494_32289"
+      "schody_32483_32285",
+      "schody_32494_32289",
+      "schody_32498_32270"
      ]
     },
     {
      "id": 4,
-     "droga": 38,
+     "droga": 73,
      "przez": [
-      "lacznik_32506_32270_32502_32270",
-      "schody_32498_32270",
-      "schody_32494_32289"
+      "schody_32483_32285",
+      "schody_32494_32289",
+      "schody_32498_32270"
      ]
     },
     {
      "id": 5,
-     "droga": 80,
+     "droga": 40,
      "przez": [
-      "lacznik_32506_32270_32502_32270",
-      "schody_32498_32270",
-      "schody_32494_32289",
+      "schody_32483_32285",
       "schody_32476_32272"
-     ]
-    },
-    {
-     "id": 6,
-     "droga": 54,
-     "przez": [
-      "lacznik_32506_32270_32502_32270",
-      "schody_32498_32270",
-      "schody_32494_32289",
-      "schody_32482_32296"
      ]
     },
     {
      "id": 7,
      "droga": 60,
      "przez": [
-      "lacznik_32506_32270_32502_32270",
-      "schody_32498_32270",
-      "schody_32494_32289",
-      "schody_32482_32296"
+      "schody_32483_32285",
+      "schody_32494_32289"
      ]
     },
     {
      "id": 8,
-     "droga": 24,
+     "droga": 63,
      "przez": [
-      "lacznik_32506_32270_32502_32270",
-      "schody_32498_32270"
+      "schody_32483_32285",
+      "schody_32494_32289"
+     ]
+    },
+    {
+     "id": 9,
+     "droga": 34,
+     "przez": [
+      "schody_32483_32285",
+      "schody_32482_32296"
      ]
     }
    ],
-   "od_startu": 100,
-   "komp": 10
+   "od_startu": 56,
+   "komp": 7
+  },
+  {
+   "id": 7,
+   "nazwa": "z9_spawn_32503_32284",
+   "x": 32503,
+   "y": 32284,
+   "z": 9,
+   "opis": "spawn 4x troll, nowa część z9",
+   "zabicia": 0,
+   "udzial_zabic": 0.0,
+   "mobow": 0,
+   "zrodlo": "troll",
+   "waga": 0.182,
+   "gniazdo": false,
+   "sasiedzi": [
+    {
+     "id": 1,
+     "droga": 44,
+     "przez": [
+      "schody_32494_32289"
+     ]
+    },
+    {
+     "id": 2,
+     "droga": 29,
+     "przez": [
+      "schody_32494_32289"
+     ]
+    },
+    {
+     "id": 3,
+     "droga": 22,
+     "przez": [
+      "schody_32498_32270"
+     ]
+    },
+    {
+     "id": 4,
+     "droga": 31,
+     "przez": [
+      "schody_32498_32270"
+     ]
+    },
+    {
+     "id": 5,
+     "droga": 71,
+     "przez": [
+      "schody_32494_32289",
+      "schody_32476_32272"
+     ]
+    },
+    {
+     "id": 6,
+     "droga": 61,
+     "przez": [
+      "schody_32494_32289",
+      "schody_32483_32285"
+     ]
+    },
+    {
+     "id": 8,
+     "droga": 11,
+     "przez": []
+    },
+    {
+     "id": 9,
+     "droga": 49,
+     "przez": [
+      "schody_32494_32289",
+      "schody_32482_32296"
+     ]
+    }
+   ],
+   "od_startu": 88,
+   "komp": 5
+  },
+  {
+   "id": 8,
+   "nazwa": "z9_spawn_32508_32278",
+   "x": 32508,
+   "y": 32278,
+   "z": 9,
+   "opis": "spawn 2x orc",
+   "zabicia": 0,
+   "udzial_zabic": 0.0,
+   "mobow": 0,
+   "zrodlo": "troll",
+   "waga": 0.091,
+   "gniazdo": false,
+   "sasiedzi": [
+    {
+     "id": 1,
+     "droga": 47,
+     "przez": [
+      "schody_32494_32289"
+     ]
+    },
+    {
+     "id": 2,
+     "droga": 32,
+     "przez": [
+      "schody_32494_32289"
+     ]
+    },
+    {
+     "id": 3,
+     "droga": 23,
+     "przez": [
+      "schody_32498_32270"
+     ]
+    },
+    {
+     "id": 4,
+     "droga": 32,
+     "przez": [
+      "schody_32498_32270"
+     ]
+    },
+    {
+     "id": 5,
+     "droga": 74,
+     "przez": [
+      "schody_32494_32289",
+      "schody_32476_32272"
+     ]
+    },
+    {
+     "id": 6,
+     "droga": 64,
+     "przez": [
+      "schody_32494_32289",
+      "schody_32483_32285"
+     ]
+    },
+    {
+     "id": 7,
+     "droga": 11,
+     "przez": []
+    },
+    {
+     "id": 9,
+     "droga": 52,
+     "przez": [
+      "schody_32494_32289",
+      "schody_32482_32296"
+     ]
+    }
+   ],
+   "od_startu": 91,
+   "komp": 5
+  },
+  {
+   "id": 9,
+   "nazwa": "z9_spawn_32488_32299",
+   "x": 32488,
+   "y": 32299,
+   "z": 9,
+   "opis": "spawn 3x troll, komora z9 południe",
+   "zabicia": 45,
+   "udzial_zabic": 0.308,
+   "mobow": 3,
+   "zrodlo": "troll",
+   "waga": 0.136,
+   "gniazdo": false,
+   "sasiedzi": [
+    {
+     "id": 1,
+     "droga": 21,
+     "przez": [
+      "schody_32482_32296"
+     ]
+    },
+    {
+     "id": 2,
+     "droga": 22,
+     "przez": [
+      "schody_32482_32296"
+     ]
+    },
+    {
+     "id": 3,
+     "droga": 54,
+     "przez": [
+      "schody_32482_32296",
+      "schody_32494_32289",
+      "schody_32498_32270"
+     ]
+    },
+    {
+     "id": 4,
+     "droga": 63,
+     "przez": [
+      "schody_32482_32296",
+      "schody_32494_32289",
+      "schody_32498_32270"
+     ]
+    },
+    {
+     "id": 5,
+     "droga": 48,
+     "przez": [
+      "schody_32482_32296",
+      "schody_32476_32272"
+     ]
+    },
+    {
+     "id": 6,
+     "droga": 38,
+     "przez": [
+      "schody_32482_32296",
+      "schody_32483_32285"
+     ]
+    },
+    {
+     "id": 7,
+     "droga": 50,
+     "przez": [
+      "schody_32482_32296",
+      "schody_32494_32289"
+     ]
+    },
+    {
+     "id": 8,
+     "droga": 53,
+     "przez": [
+      "schody_32482_32296",
+      "schody_32494_32289"
+     ]
+    }
+   ],
+   "od_startu": 62,
+   "komp": 9
   }
  ]
 }

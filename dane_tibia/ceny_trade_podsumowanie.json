@@ -1,5 +1,5 @@
 {
-  "wygenerowano": "2026-10-14T17:54:57",
+  "wygenerowano": "2026-10-14T18:35:17",
   "uwagi": "liczba = unikalne pewne oferty (nadawca+intencja+przedmiot+cena+ilosc); mediana/min/max tylko z cena za sztuke (ea)",
   "okna": {
     "24h": {
@@ -67,7 +67,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 0,
+          "liczba": 1,
           "mediana": null,
           "min": null,
           "max": null
@@ -201,13 +201,13 @@
       },
       "coconut": {
         "sprzedaz": {
-          "liczba": 2,
+          "liczba": 3,
           "mediana": 600,
           "min": 600.0,
           "max": 600.0
         },
         "kupno": {
-          "liczba": 1,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
@@ -361,7 +361,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 3,
+          "liczba": 5,
           "mediana": null,
           "min": null,
           "max": null
@@ -369,7 +369,7 @@
       },
       "dragon hammer": {
         "sprzedaz": {
-          "liczba": 13,
+          "liczba": 14,
           "mediana": null,
           "min": null,
           "max": null
@@ -579,13 +579,13 @@
       },
       "great fireball rune": {
         "sprzedaz": {
-          "liczba": 39,
+          "liczba": 42,
           "mediana": 2500,
           "min": 145.0,
           "max": 2900.0
         },
         "kupno": {
-          "liczba": 9,
+          "liczba": 10,
           "mediana": 2,
           "min": 2.4,
           "max": 2.4
@@ -593,10 +593,10 @@
       },
       "guardian shield": {
         "sprzedaz": {
-          "liczba": 2,
-          "mediana": null,
-          "min": null,
-          "max": null
+          "liczba": 3,
+          "mediana": 3500,
+          "min": 3500.0,
+          "max": 3500.0
         },
         "kupno": {
           "liczba": 2,
@@ -641,7 +641,7 @@
           "max": 1600.0
         },
         "kupno": {
-          "liczba": 16,
+          "liczba": 18,
           "mediana": 1300,
           "min": 1200.0,
           "max": 1400.0
@@ -697,7 +697,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 4,
+          "liczba": 5,
           "mediana": null,
           "min": null,
           "max": null
@@ -711,7 +711,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 7,
+          "liczba": 9,
           "mediana": 800,
           "min": 800.0,
           "max": 800.0
@@ -837,7 +837,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 1,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
@@ -894,6 +894,20 @@
         },
         "kupno": {
           "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "poison bomb rune": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
           "mediana": null,
           "min": null,
           "max": null
@@ -1139,7 +1153,7 @@
       },
       "ultimate healing rune": {
         "sprzedaz": {
-          "liczba": 76,
+          "liczba": 84,
           "mediana": 2500,
           "min": 1000.0,
           "max": 2600.0
@@ -1153,7 +1167,7 @@
       },
       "vampire shield": {
         "sprzedaz": {
-          "liczba": 8,
+          "liczba": 9,
           "mediana": null,
           "min": null,
           "max": null
@@ -1259,7 +1273,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 0,
+          "liczba": 1,
           "mediana": null,
           "min": null,
           "max": null
@@ -1393,13 +1407,13 @@
       },
       "coconut": {
         "sprzedaz": {
-          "liczba": 2,
+          "liczba": 3,
           "mediana": 600,
           "min": 600.0,
           "max": 600.0
         },
         "kupno": {
-          "liczba": 1,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
@@ -1553,7 +1567,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 3,
+          "liczba": 5,
           "mediana": null,
           "min": null,
           "max": null
@@ -1561,7 +1575,7 @@
       },
       "dragon hammer": {
         "sprzedaz": {
-          "liczba": 13,
+          "liczba": 14,
           "mediana": null,
           "min": null,
           "max": null
@@ -1771,13 +1785,13 @@
       },
       "great fireball rune": {
         "sprzedaz": {
-          "liczba": 39,
+          "liczba": 42,
           "mediana": 2500,
           "min": 145.0,
           "max": 2900.0
         },
         "kupno": {
-          "liczba": 9,
+          "liczba": 10,
           "mediana": 2,
           "min": 2.4,
           "max": 2.4
@@ -1785,10 +1799,10 @@
       },
       "guardian shield": {
         "sprzedaz": {
-          "liczba": 2,
-          "mediana": null,
-          "min": null,
-          "max": null
+          "liczba": 3,
+          "mediana": 3500,
+          "min": 3500.0,
+          "max": 3500.0
         },
         "kupno": {
           "liczba": 2,
@@ -1833,7 +1847,7 @@
           "max": 1600.0
         },
         "kupno": {
-          "liczba": 16,
+          "liczba": 18,
           "mediana": 1300,
           "min": 1200.0,
           "max": 1400.0
@@ -1889,7 +1903,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 4,
+          "liczba": 5,
           "mediana": null,
           "min": null,
           "max": null
@@ -1903,7 +1917,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 7,
+          "liczba": 9,
           "mediana": 800,
           "min": 800.0,
           "max": 800.0
@@ -2029,7 +2043,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 1,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
@@ -2086,6 +2100,20 @@
         },
         "kupno": {
           "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "poison bomb rune": {
+        "sprzedaz": {
+          "liczba": 0,
+          "mediana": null,
+          "min": null,
+          "max": null
+        },
+        "kupno": {
+          "liczba": 1,
           "mediana": null,
           "min": null,
           "max": null
@@ -2331,7 +2359,7 @@
       },
       "ultimate healing rune": {
         "sprzedaz": {
-          "liczba": 76,
+          "liczba": 84,
           "mediana": 2500,
           "min": 1000.0,
           "max": 2600.0
@@ -2345,7 +2373,7 @@
       },
       "vampire shield": {
         "sprzedaz": {
-          "liczba": 8,
+          "liczba": 9,
           "mediana": null,
           "min": null,
           "max": null

@@ -38,20 +38,21 @@ PROMIEN = 4          # kill/mob przypisany do miejsca w tym promieniu (Chebyshev
 START = (32493, 32260, 8)   # start bota (uruchom_trolle.sh)
 
 # (nazwa, x, y, z, opis); pola leżą na nagranych trasach albo na polach znanych (znane_pola.json)
-MIEJSCA = [
-    ("z8_wschod_srodek", 32481, 32291, 8, "główna sala z8: najwięcej zabić na z8, trolle chodzą tu parami"),
-    ("z8_zachod", 32474, 32290, 8, "zachodnie odnogi z8 (troll_cave 54-59)"),
-    ("z8_polnoc", 32481, 32283, 8, "korytarz z8 nad salą (rzadziej)"),
-    ("z8_wschod_daleko", 32491, 32292, 8, "wschodni kraniec sali z8 (koniec troll_pelny / początek powrotu z nowej części)"),
-    ("z9_gniazdo", 32472, 32271, 9, "GNIAZDO: komora z9 tuż pod schodami (32476,32272); do 5 trolli naraz"),
-    ("z9_poludnie_zach", 32484, 32297, 9, "z9 południe, wejście schodami (32482,32295); do 3 trolli"),
-    ("z9_poludnie_wsch", 32488, 32299, 9, "z9 południe, dalsza komora; do 3 trolli"),
-    ("z9_nowa_czesc", 32497, 32283, 9, "nowa część z9 (troll_nowa_czesc): mało danych, rzadkie wizyty"),
-    ("z8_nowa_pokoj", 32506, 32268, 8, "pokój nowej części na z8 za bramą (32505,32270): mało danych, wymaga łącznika"),
+# 14.10: miejsca = spawny z Tibia74-spawns.xml (środek spawnu, radius 1), waga = liczba potworów w spawnie / suma
+SPAWNY = [
+    ("z8_spawn_32478_32290", 32478, 32290, 8, 2, "spawn 2x troll, główna sala z8"),
+    ("z8_spawn_32491_32294", 32491, 32294, 8, 2, "spawn 2x troll, wschodni kraniec sali z8"),
+    ("z8_spawn_32500_32270", 32500, 32270, 8, 2, "spawn 2x troll, korytarz przy schodach (32498,32270)"),
+    ("z8_spawn_32507_32268", 32507, 32268, 8, 2, "spawn 2x troll, pokój za drzwiami (32505,32270)"),
+    ("z9_spawn_32471_32270", 32471, 32270, 9, 4, "spawn 4x troll, gniazdo pod schodami (32476,32272)"),
+    ("z9_spawn_32485_32274", 32485, 32274, 9, 1, "spawn 1x troll"),
+    ("z9_spawn_32503_32284", 32503, 32284, 9, 4, "spawn 4x troll, nowa część z9"),
+    ("z9_spawn_32508_32278", 32508, 32278, 9, 2, "spawn 2x orc"),
+    ("z9_spawn_32488_32299", 32488, 32299, 9, 3, "spawn 3x troll, komora z9 południe"),
 ]
-# miejsca bez danych (nie ma trolli w próbkach): ręczna waga w losowaniu (zamiast udziału zabić)
-# z9_gniazdo ma najwięcej zabić, ale to gniazdo 4-5 trolli, a bot gra druidem lvl 10 (HP 195): ręcznie niższa waga
-WAGA_RECZNA = {"z9_nowa_czesc": 0.05, "z8_nowa_pokoj": 0.03, "z9_gniazdo": 0.10}
+MIEJSCA = [(n, x, y, z, o) for n, x, y, z, _, o in SPAWNY]
+_SUMA = sum(k for *_, k, _o in SPAWNY)
+WAGA_RECZNA = {n: round(k / _SUMA, 3) for n, _x, _y, _z, k, _o in SPAWNY}
 
 
 def cheb(a, b):
