@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""15.10 (SPEC D3 Q4): obserwator ręcznych przejęć startuje z botem (uruchom.sh) i staje z nim (zatrzymaj.sh).
+"""15.10 (SPEC D3 Q4): obserwator ręcznych przejęć startuje z botem (uruchom.sh) ; zatrzymaj.sh go NIE zatrzymuje (po STOP zapisuje grę Karola, recenzja 15.10).
 Nic nie uruchamia naprawdę: podmieniony skrypt obserwatora (RETRONIC_OBSERWATOR_SKRYPT) tylko dopisuje argumenty do pliku."""
 import os
 import subprocess
@@ -72,11 +72,9 @@ u = (R / "uruchom.sh").read_text().splitlines()
 iu = [i for i, l in enumerate(u) if "obserwator_z_botem.sh" in l and not l.lstrip().startswith("#")]
 ib = [i for i, l in enumerate(u) if "setsid nohup python3" in l]
 sprawdz("uruchom.sh: 'obserwator_z_botem.sh start' po wystartowaniu bota", len(iu) == 1 and ib and iu[0] > ib[0] and u[iu[0]].strip().endswith("start"), (iu, ib))
-z = (R / "zatrzymaj.sh").read_text().splitlines()
-iz = [i for i, l in enumerate(z) if "obserwator_stop" in l and not l.lstrip().startswith("#")]
-ik = [i for i, l in enumerate(z) if "xargs -r kill -TERM" in l]
-sprawdz("zatrzymaj.sh: stop obserwatora po zatrzymaniu bota (nie opóźnia STOP) i w gałęzi 'nie było bota'",
-        len(iz) == 3 and ik and iz[-1] > ik[0], (iz, ik))
+z = (R / "zatrzymaj.sh").read_text()
+sprawdz("zatrzymaj.sh: NIE zatrzymuje obserwatora (po STOP nagrywa przejęcia Karola)",
+        "obserwator_z_botem.sh" not in "\n".join(l for l in z.splitlines() if not l.lstrip().startswith("#")))
 sprawdz("wrapper wykonywalny", os.access(R / "obserwator_z_botem.sh", os.X_OK))
 
 print(f"\n{sum(wyniki)}/{len(wyniki)} OK")

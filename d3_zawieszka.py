@@ -19,6 +19,12 @@ KIERUNKI_8 = ((-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 
 OPCJE = ("krok_skos", "cofnij", "inny_punkt", "przejscie_pietra", "czekaj", "alarm")
 
 
+def _pasuje(stan, stany):
+    """Stan bota pasuje do listy także po prefiksie (bot używa PAUZA_x, GRACZ_x, WALKA_x)."""
+    s = str(stan or "")
+    return any(s == x or s.startswith(x + "_") for x in stany)
+
+
 def _czeb(a, b):
     return max(abs(a[0] - b[0]), abs(a[1] - b[1]))
 
@@ -101,7 +107,7 @@ class Zawieszka:
     # --- wewnętrzne ---
     def _walka(self, stan):
         cb = self.cb
-        return stan in STANY_WALKI or getattr(cb, "pk_stan", None) in ("WALKA", "UCIECZKA") \
+        return _pasuje(stan, STANY_WALKI) or getattr(cb, "pk_stan", None) in ("WALKA", "UCIECZKA") \
             or bool(getattr(cb, "ucieczka", False))
 
     def _start(self, g, poz3, teraz, exp, trwa, stan):
@@ -229,7 +235,7 @@ class Zawieszka:
                   "s_bez_ruchu": round(trwa, 1)},
                  {"akcja": "alarm", "mozliwa": True, "dopuszczalna": True, "s_bez_ruchu": round(trwa, 1),
                   "poprzednie_tu": tu}]
-        cechy = {"stan": stan, "zamierzony": stan in STANY_ZAMIERZONE, "stoi_s": round(trwa, 1),
+        cechy = {"stan": stan, "zamierzony": _pasuje(stan, STANY_ZAMIERZONE), "stoi_s": round(trwa, 1),
                  "cel": list(cel) if cel else None, "cel_zrodlo": zrodlo, "kier_cel": list(kier) if kier else None,
                  "odl_cel": _czeb(poz3, cel) if cel and cel[2] == poz3[2] else None,
                  "cel_droga": cel_droga, "cel_droga_policzona": bool(cel_policz),

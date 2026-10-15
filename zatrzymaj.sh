@@ -14,11 +14,9 @@ pidy() {   # tylko bot tej instancji; awaryjnie (instancja.py nie działa) dawna
 }
 bylo=$(pidy)
 czekaj() { for _ in $(seq $(( $1 * 10 ))); do [ -z "$(pidy)" ] && return 0; sleep 0.1; done; return 1; }
-# 15.10 (SPEC D3 Q4): obserwator ręcznych przejęć kończy się razem z botem, ale PO zatrzymaniu bota (STOP nie czeka na obserwatora);
-# RETRONIC_OBSERWATOR=0 = nie ruszaj
-obserwator_stop() { "$DIR/obserwator_z_botem.sh" stop >/dev/null 2>&1; }
+# 15.10 (SPEC D3 Q4, recenzja): obserwator ręcznych przejęć startuje z botem, ale STOP go NIE zatrzymuje - właśnie po
+# zatrzymaniu bota zapisuje grę Karola (przejęcia = etykiety). Ręcznie: ./obserwator_z_botem.sh stop
 if [ -z "$bylo" ]; then
-  obserwator_stop
   notify-send "$TYTUL" "Nie było uruchomionego bota (flaga STOP ustawiona)"; exit 0
 fi
 wynik="zatrzymany"
@@ -32,7 +30,6 @@ if ! czekaj 3; then
 fi
 # bot zabity w trakcie pościgu mógł zostawić wciśnięty klawisz ruchu (trzymany XTEST): puść strzałki i numpad
 timeout 5 python3 -I -c "import sys; sys.path.insert(0, '$DIR'); import bot, klawisz_x11; klawisz_x11.puszczaj_wszystkie_strzalki(bot.ekran_gry())" >/dev/null 2>&1
-obserwator_stop
 # zwykły stop zgłasza mozg.py ("Bot zatrzymany"); tu tylko wymuszone zabicie, którego bot sam nie zgłosi (14.10)
 [ "$wynik" = "zatrzymany" ] || notify-send -u critical "$TYTUL" "$wynik"
 echo "$wynik"
