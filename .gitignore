@@ -18,3 +18,4 @@ telemetria-*.jsonl
 ostatni_start*.env
 testy/dane/podglad_mapy.png
 obecnosc_stan.json
+wrogowie.json
