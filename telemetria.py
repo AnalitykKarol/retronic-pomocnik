@@ -93,6 +93,7 @@ class Telemetria:
         self.astar_ost = float("-inf")   # kiedy ostatnio liczyliśmy drogi
         self.astar_cache = {}            # id stwora -> (osiagalny, droga)
         self.ep = None                   # otwarty epizod celu (patrz _ep_*)
+        self.nast_decyzja = None         # 15.10: id decyzji D1 dla najbliższej linii "Nowy cel" (ustawia Cavebot tuż przed logiem)
         self.exp_hist = deque(maxlen=30)  # (t, exp) z próbek
         self.exp_czeka = None            # {"t","exp0","n":[nazwy]} zabicia czekające na przyrost exp
         self.sesja_ep = []               # epizody_celu od startu procesu
@@ -331,14 +332,15 @@ class Telemetria:
         else:
             self._ep_zamknij(self.zegar(), "zgubiony", "zniknął z widoku żywy")
 
-    def _ep_nowy(self, n, pos, hp, t):
+    def _ep_nowy(self, n, pos, hp, t, decyzja_id=None):
         if self.ep and self.ep.get("wznow") and self.ep["n"] == n:
             self.ep["wznow"] = False          # ten sam mob odnaleziony po zniknięciu: ciągniemy ten sam epizod
             return
         if self.ep:
             self._ep_zamknij(t, None)
         self.ep = {"n": n, "id": None, "t0": t, "hp0": hp, "hp": hp, "pos": pos, "t_hit": None, "t_30": None,
-                   "uciekl": 0, "kroki": 0, "blisko": False, "poz_bota": None, "ucieczka": False, "ign": False}
+                   "uciekl": 0, "kroki": 0, "blisko": False, "poz_bota": None, "ucieczka": False, "ign": False,
+                   "decyzja_id": decyzja_id}
 
     def _ep_probka(self, r):
         ep = self.ep
@@ -393,6 +395,8 @@ class Telemetria:
              "uciekl": ep["uciekl"], "kroki": ep["kroki"], "pos": ep["pos"]}
         if ep.get("odnaleziony"):
             d["odnaleziony_po_zniknieciu"] = True
+        if ep.get("decyzja_id") is not None:
+            d["decyzja_id"] = ep["decyzja_id"]       # 15.10: łączy epizod z rekordem "decyzja" D1
         return self.zdarzenie("epizod_celu", **d)
 
     def _ep_odpuszczenie(self, n, txt):
@@ -468,8 +472,10 @@ class Telemetria:
         m = RE_CEL.search(txt)
         if m:
             self.cel_start = t
-            self.zdarzenie("nowy_cel", n=m[1], pos=[int(m[2]), int(m[3])], hp=int(m[4]))
-            self._ep_nowy(m[1], [int(m[2]), int(m[3])], int(m[4]), t)
+            did, self.nast_decyzja = self.nast_decyzja, None
+            dd = {"decyzja_id": did} if did is not None else {}
+            self.zdarzenie("nowy_cel", n=m[1], pos=[int(m[2]), int(m[3])], hp=int(m[4]), **dd)
+            self._ep_nowy(m[1], [int(m[2]), int(m[3])], int(m[4]), t, did)
             return
         m = RE_ODP.search(txt)
         if m:

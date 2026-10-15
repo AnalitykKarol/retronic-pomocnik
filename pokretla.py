@@ -218,6 +218,7 @@ ZAKRESY = {
     "STRAZNIK_POSTEP_S1": (60.0, 180.0),   # s: reset stanu walki
     "STRAZNIK_POSTEP_S2": (120.0, 300.0),  # s: zmiana celu patrolu / skok na trasę
     "STRAZNIK_POSTEP_S3": (240.0, 600.0),  # s: powiadomienie krytyczne
+    "DECYZJE_LOG": (0, 1),              # 15.10: 1 = telemetria "decyzja" (D1 wybór celu, D2 start pościgu) z opcjami; tylko log, bez wpływu na ruch
 }
 # Pokrętła tekstowe (tylko ręcznie w na_zywo.json): nazwa -> dozwolone wartości
 TEKSTY = {
