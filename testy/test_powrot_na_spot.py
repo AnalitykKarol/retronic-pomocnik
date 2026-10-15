@@ -315,5 +315,57 @@ pre(s, cb, w)
 n, wyst = bieg_w(s, cb, w, maks=12000)
 sprawdz("7e domyślnie: dojście do depo kończy STOP-em i bez powrotu", tuple(s.poz) == DEPO and stop.exists(), (s.poz, stop.exists()))
 
+# 8. świadomość położenia (15.10): start po drodze po mapie, powrót na trasę tylko w bieżącym odcinku, UH nie w dojściu
+ET = [tuple(p) for p in json.loads((TRASY / "edron_depo_trolle.json").read_text())]
+ETu = trasa_io.uprosc_petle(ET)
+iz = [i for i, p in enumerate(ETu) if p[2] == 7]
+seg1 = [i for i in iz if i < 30]; seg2 = [i for i in iz if i >= 30]
+EDEPO = (33168, 31814, 7)
+t8 = mozg.dojscie_od_pozycji(ET, EDEPO)
+sprawdz("8a depo Edron: start w pierwszym odcinku z7 (przed pierwszym przejściem pięter)",
+        t8 and t8[0][2] == 7 and ETu.index(t8[0]) in seg1 and len(t8) > len(ETu) - max(seg1) - 3, (t8[:1], len(t8)))
+t8b = mozg.dojscie_od_pozycji(ET, (33128, 31811, 7))
+sprawdz("8b ten sam punkt trasy z7 po drodze: pozycja przy późniejszym odcinku z7 zaczyna od niego",
+        t8b and ETu.index(t8b[0]) in seg2, (t8b[:1],))
+# odcinek bieżący i brak skoku przez przejścia pięter
+tr = [(1, 1, 7), (2, 1, 7), (3, 1, 7), (3, 2, 8), (3, 3, 8), (4, 1, 7), (5, 1, 7)]
+sw = Swiat((1, 1, 7), gora="use", dol="krok")
+bb = zrob_dojscie(sw, tr)
+bb.idx = 1
+sprawdz("8c odcinek dojścia z idx=1 na z7: [0,3), za nim przejście", bb._odcinek_dojscia((1, 1, 7)) == (0, 3), bb._odcinek_dojscia((1, 1, 7)))
+bb.idx = 3
+sprawdz("8d idx na następnym piętrze (przejście w toku), postać jeszcze na z7: odcinek kończy się przed idx",
+        bb._odcinek_dojscia((3, 1, 7)) == (0, 3), bb._odcinek_dojscia((3, 1, 7)))
+bb.idx = 5
+sprawdz("8e idx w późniejszym odcinku z7, postać na z8: nigdy do przodu (odcinek = ten przed idx na z8)",
+        bb._odcinek_dojscia((3, 2, 8)) == (3, 5), bb._odcinek_dojscia((3, 2, 8)))
+# powrót na trasę po utknięciu: nigdy za przejście pięter, nawet gdy bieżący punkt jest zablokowany (powtórne utknięcie)
+trE = mozg.dojscie_od_pozycji(ET, EDEPO)
+pierwsze_przejscie = next(i for i, p in enumerate(trE) if p[2] != 7)
+sw = Swiat(EDEPO, gora="use", dol="krok")
+b8 = zrob_dojscie(sw, trE)
+b8.idx = 1
+b8.pauza = lambda *a, **k: None
+LOG.clear()
+for _ in range(4):
+    b8._wroc_na_trase(EDEPO)
+    sprawdz("8f powrót po utknięciu nie przeskakuje za pierwsze przejście pięter", b8.idx < pierwsze_przejscie, (b8.idx, pierwsze_przejscie))
+sprawdz("8g w dojściu nie ma pominięcia punktu na 3 min", not any("pomijam go na 3 min" in l for l in LOG), LOG[-3:])
+# UH: w dojściu nie startuje (ani nie dotyka środowiska), poza dojściem tak
+wol = []
+b9 = zrob_dojscie(Swiat(EDEPO, gora="use", dol="krok"), trE)
+b9._uh_blokada = lambda *a, **k: wol.append("blokada") or "x"
+stary_uh = cavebot.UH_AKTYWNY
+cavebot.UH_AKTYWNY = 1
+try:
+    r = b9._uh({"mana": 500, "hp": 100, "max_hp": 100, "proc": 100}, EDEPO, [], 0.0)
+    sprawdz("8i UH w dojściu: od razu False, bez sprawdzania blokad", r is False and not wol, (r, wol))
+    cavebot.UH_BEZ_DOJSCIA = 0
+    b9._uh({"mana": 500, "hp": 100, "max_hp": 100, "proc": 100}, EDEPO, [], 0.0)
+    sprawdz("8j UH_BEZ_DOJSCIA=0: dawne zachowanie (blokady sprawdzane)", bool(wol), wol)
+finally:
+    cavebot.UH_AKTYWNY = stary_uh
+    cavebot.UH_BEZ_DOJSCIA = 1
+
 print(f"\n{sum(ok)}/{len(ok)} OK, FAIL={len(ok) - sum(ok)}")
 sys.exit(0 if all(ok) else 1)

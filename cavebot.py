@@ -515,6 +515,8 @@ PROG_UCIEKANIA_MIN = 25            # % HP: niżej progu nie uczymy (ucieczkę wi
 UTKNIECIE_TRASA = 27.0             # s w IDZ bez zmiany punktu i na <= UTKNIECIE_POLA polach = utknięcie na trasie
 UTKNIECIE_POLA = 4                 # tyle różnych pól (albo mniej) w oknie utknięcia
 UTKNIECIE_LUKA = 6.0               # s: przerwa w IDZ (walka, loot) dłuższa niż to zeruje okno utknięcia
+UTKNIECIE_SEGMENT = 1               # 1 = w dojściu (CavebotDojscie) powrót na trasę po utknięciu tylko w bieżącym odcinku (to samo piętro, przed najbliższym przejściem pięter); nigdy dalej
+UH_BEZ_DOJSCIA = 1                  # 1 = UH (robienie run) nie startuje w trakcie dojścia na spot (w mieście/po drodze); wznawia się na łowisku
 UTKNIECIE_KAND = 14                # tylu najbliższych (prosto) punktów trasy sprawdzamy A* po utknięciu
 KROK_WSTECZ_S = 5.0                # s: pole, z którego dopiero przyszliśmy, to "poprzednie" (krok_do)
 TRASA_OBJAZD = 3                   # pola: droga do punktu trasy dłuższa od prostej o tyle = prowadzimy po A*
@@ -1513,6 +1515,9 @@ class Cavebot:
             self.uh_hold_od = None
             return False
         restore = bool(self.uh_restore)
+        if UH_BEZ_DOJSCIA and self.dojscie_aktywne and not restore:
+            self.uh_hold_od = None         # dojście na spot: runy dopiero na łowisku (a tarcza zdjęta wraca zawsze)
+            return False
         mana = g.get("mana")
         if mana is None:
             return False
@@ -6239,21 +6244,61 @@ class Cavebot:
         self.utk_okno = None
         return stoi or daleko
 
+    def _odcinek_dojscia(self, poz):
+        """(od, do) półotwarty zakres indeksów bieżącego odcinka trasy dojścia: ciągła seria punktów na piętrze
+        postaci, zawierająca idx (lub kończąca się tuż przed idx, gdy idx to już następne piętro = przejście w toku).
+        Za `do` leży przejście pięter, którego postać jeszcze nie przeszła, więc nic stamtąd nie wolno wybierać
+        po utknięciu. Gdy idx jest na innym piętrze niż postać, odcinek = punkty przed idx na piętrze postaci
+        (nigdy do przodu). Pusty zakres (0, 0), gdy nic nie pasuje."""
+        n = len(self.punkty)
+        z = poz[2]
+        i = min(self.idx, n - 1)
+        if self.punkty[i][2] != z:
+            j = i
+            while j > 0 and self.punkty[j - 1][2] != z:
+                j -= 1
+            if j == 0:
+                return (0, 0)
+            i = j - 1                      # ostatni punkt poprzedniego odcinka na tym piętrze
+            do = i + 1
+        else:
+            do = i
+            while do < n and self.punkty[do][2] == z:
+                do += 1
+        od = i
+        while od > 0 and self.punkty[od - 1][2] == z:
+            od -= 1
+        return (od, do)
+
+    def _droga_po_mapie(self, poz, q):
+        """Droga po samej mapie (bez zajętych pól i nauczonych ścian) do punktu q; None, gdy brak."""
+        try:
+            if self.mapa is None or not self.mapa_zna(poz, q):
+                return None
+            return self.mapa.droga((poz[0], poz[1], poz[2]), (q[0], q[1]), [], 0, True, limit=MAPA_LIMIT)
+        except Exception:
+            return None
+
     def _wroc_na_trase(self, poz):
         """Po utknięciu: najbliższy punkt trasy PO DRODZE (A*, nie Manhattan) i idx na niego.
         True, gdy jakiś punkt jest osiągalny."""
         n = len(self.punkty)
         z = poz[2]
-        kand = sorted((k for k in range(n) if self.punkty[k][2] == z),
+        seg = self._odcinek_dojscia(poz) if (self.dojscie_aktywne and UTKNIECIE_SEGMENT) else None
+        kand = sorted((k for k in range(n) if self.punkty[k][2] == z and (seg is None or seg[0] <= k < seg[1])),
                       key=lambda k: self.dystans(poz, self.punkty[k]))[:UTKNIECIE_KAND]
         najlepszy = None
         teraz = self.zegar()
         zakaz = self.__dict__.setdefault("utk_zakaz", {})   # punkt -> do kiedy pomijany po powtórnym utknięciu
+        if seg is not None and not kand:
+            return False                   # dojście: brak punktu w bieżącym odcinku = zostajemy przy idx (nie skaczemy dalej)
         for k in kand:
             q = self.punkty[k]
             if zakaz.get(k, 0) > teraz:
                 continue
             d = [] if tuple(poz[:2]) == q[:2] else self.droga(tuple(poz), q[:2], dlugosc=0)
+            if d is None and seg is not None:
+                d = self._droga_po_mapie(poz, q)     # dojście: gracze/stwory to przeszkoda chwilowa, nauczone ściany bywają fałszywe
             if d is None:
                 continue
             klucz = (len(d), (k - self.idx) % n)
@@ -6264,7 +6309,16 @@ class Cavebot:
         k = najlepszy[1]
         # drugi raz ten sam punkt (utknięcie w pętli "wracam do punktu X, którego nie da się osiągnąć"):
         # pomijamy go na 3 min i następnym razem idziemy do kolejnego najbliższego
-        if k == self.idx:
+        if k == self.idx and seg is not None:
+            # dojście: nie pomijamy punktu na 3 min (to wyrzucało na dalszy odcinek trasy). Czekamy, aż gracze/moby
+            # zejdą, i próbujemy następnego punktu TEGO odcinka (do pola przy przejściu pięter włącznie)
+            log(f"utknięcie w dojściu: punkt {k} zablokowany, czekam / próbuję dalej w odcinku {seg[0]}-{seg[1] - 1}")
+            self.pauza(1.0, 2.5)
+            nast = [kk for kk in kand if k < kk < seg[1] and zakaz.get(kk, 0) <= teraz]
+            if nast:
+                k = min(nast)
+                najlepszy = ((self.dystans(poz, self.punkty[k]),), k)
+        elif k == self.idx:
             zakaz[k] = teraz + 180.0
             log(f"utknięcie: punkt {k} nieosiągalny mimo bliskości, pomijam go na 3 min")
             alt = sorted((kk for kk in kand if kk != k and zakaz.get(kk, 0) <= teraz),
