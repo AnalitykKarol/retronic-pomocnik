@@ -2476,12 +2476,14 @@ class Cavebot:
         odl = max(abs(cx - poz[0]), abs(cy - poz[1]))
         if odl <= 1:
             return None
-        dz = self._dziury_przy((cx, cy), poz[2])
+        # dziury przy celu ORAZ przy nas (uciekający cel: klient idzie za nim i pierwszy krok może wejść w dziurę obok nas)
+        dz = self._dziury_przy((cx, cy), poz[2]) | self._dziury_przy((poz[0], poz[1]), poz[2])
         if not dz:
             return None
         x0, x1 = sorted((poz[0], cx))
         y0, y1 = sorted((poz[1], cy))
-        if not any(x0 <= x <= x1 and y0 <= y <= y1 for x, y in dz):
+        dz = {(x, y) for x, y in dz if x0 <= x <= x1 and y0 <= y <= y1 and (x, y) != (poz[0], poz[1])}
+        if not dz:
             return None
         if teraz is not None and teraz < getattr(self, "_dziura_poddane", {}).get(s["id"], float("-inf")):
             return "skip"
@@ -2526,14 +2528,16 @@ class Cavebot:
                 pd = self._dziura_poddane = {}
             pd[cel["id"]] = teraz + DZIURA_PODEJSCIE_S
             return False
-        if t0 == teraz:
+        if t0 == teraz or teraz - getattr(self, "_dziura_esc", float("-inf")) >= 3.0:
+            self._dziura_esc = teraz
             try:
-                self.postac.klawisz("Escape")      # klient mógł już iść za celem: przerywamy, dalej idziemy sami
+                self.postac.klawisz("Escape")      # klient mógł już iść za celem (follow): przerywamy, dalej idziemy sami
             except bot.Zatrzymano:
                 raise
             except Exception:
                 pass
             self.klik_cel = None
+        if t0 == teraz:
             log(f"[DZIURA] {cel['nazwa']} ({cel['x']},{cel['y']}) przy dziurze: idę sam obok celu (A*, dziury jako ściany), bez kliku ataku.")
         self.ustaw_stan("POGON", f"{cel['nazwa']} przy dziurze -> ({cel['x']},{cel['y']})")
         r = self.podejdz((cel["x"], cel["y"]), poz, pilne=True, natychmiast=True)
