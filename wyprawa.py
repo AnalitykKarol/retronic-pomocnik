@@ -51,6 +51,13 @@ PLIK_DEPO = "depo_troll_cave.json"          # początek tej trasy = pole depo
 DEPO_POLE = (32366, 32215, 7)               # gdy pliku brak
 
 BAZY = ("troll", "thais_kanaly")       # plany wypadu (wypad.PLANY) kończące się u Gorna w Thais; rook ma inne miasto
+# 15.10 obrona PK: plany WYŁĄCZNIE do ucieczki do depo i powrotu z niego (nie biorą udziału w zwykłej wyprawie po zapasy:
+# BAZY ich nie zawiera). "do" = z łowiska do depo, "z" = z depo na łowisko (oba nagrane, edron_*.json)
+PLANY_PK = (
+    {"nazwa": "edron", "do": "edron_do_depo.json", "z": "edron_depo_trolle.json", "npc": None, "prefix": False},
+)
+BAZY_PK = BAZY + tuple(p["nazwa"] for p in PLANY_PK)     # plany dostępne dla ucieczki PK (troll: istniejące depo Thais)
+PK_PLAN_ZASIEG = 80                    # pola: ucieczka PK startuje z dalszej okolicy trasy niż zwykły wypad (zasięg 40)
 _WAGI_ZAPAS = {                        # oz; wartości z dane_tibia/przedmioty.json, gdy pliku brak (torch: niezweryfikowane)
     "ham": 20.0, "dragon ham": 30.0, "meat": 13.0, "cheese": 4.0, "bread": 5.0, "fish": 5.2,
     "blank": 1.2, "torch": 5.0,
@@ -211,7 +218,7 @@ class Trasownik:
         return None
 
 
-def punkty_bazy(katalog=TRASY, plany=wypad.PLANY, nazwy=BAZY):
+def punkty_bazy(katalog=TRASY, plany=wypad.PLANY + PLANY_PK, nazwy=BAZY):
     """{nazwa: (do_miasta, z_miasta, npc)} z plików planów wypadu (listy punktów)."""
     wynik = {}
     for p in plany:
@@ -831,12 +838,12 @@ class Wyprawa(Wypad):
 
     def _zbuduj(self, baza_nazwa, potrzeby):
         """-> (wyprawa dict, None) albo (None, powód). Nic nie rusza w grze."""
-        baza = punkty_bazy(self.katalog)
+        baza = punkty_bazy(self.katalog, nazwy=BAZY_PK if potrzeby.get("pk") else BAZY)
         if baza_nazwa not in baza:
             return None, f"brak planu bazowego {baza_nazwa}"
         do, z, npc_gorn = baza[baza_nazwa]
         if potrzeby.get("depo"):
-            return self._zbuduj_depo(baza_nazwa, do, potrzeby)
+            return self._zbuduj_depo(baza_nazwa, do, potrzeby, z=z)
         cfg = wczytaj_sklepy(self.plik_sklepow)
         stops = []
         if potrzeby.get("depo_zloz"):
@@ -913,9 +920,38 @@ class Wyprawa(Wypad):
         return {"stops": stops, "legs": legs_etapy, "powrot": etapy_z, "k": 0, "baza": baza_nazwa,
                 "wyniki": {}, "kroki": 0, "sukces": False, "potrzeby": dict(potrzeby)}, None
 
-    def _zbuduj_depo(self, baza_nazwa, do, potrzeby):
+    @staticmethod
+    def _plan_tylko_pk(baza_nazwa):
+        """Plan z PLANY_PK (np. edron): cel depo = koniec nagranej trasy "do", bez Gorna/Frodo i bez depo Thais."""
+        return baza_nazwa in {p["nazwa"] for p in PLANY_PK}
+
+    def _zbuduj_pk_powrot(self, baza_nazwa, z, potrzeby):
+        """Powrót z depo na łowisko po karencji PK: nagrana trasa depo -> łowisko (edron: PLANY_PK["z"],
+        troll: depo_troll_cave bez pętli). Jeden przystanek 'depo' (w znaczeniu: ostatni punkt trasy), bez zakupów."""
+        mapa = getattr(self.cb, "mapa", None)
+        if self._plan_tylko_pk(baza_nazwa):
+            pts = [_punkt(q) for q in z]
+            etapy = zbuduj_etapy(pts, mapa) if pts and None not in pts else []
+            cel = tuple(pts[-1]) if etapy else None
+        else:
+            etapy = self._powrot_z_depo(self._pole_depo(), mapa)
+            cel = None
+            if etapy:
+                e = next((e for e in reversed(etapy) if e.get("punkty")), None)
+                cel = tuple(e["punkty"][-1]) if e else None
+        if not etapy or cel is None:
+            return None, f"brak trasy powrotnej z depo ({baza_nazwa})"
+        for b in sprawdz_plan(etapy, mapa):
+            self.log(f"Wyprawa: plan powrotu PK: {b}")
+        st = {"id": "depo", "npc": "", "stoi": cel, "zakupy": [], "depo": True}
+        return {"stops": [st], "legs": [etapy], "powrot": zbuduj_etapy([cel], mapa), "k": 0, "baza": baza_nazwa,
+                "wyniki": {}, "kroki": 0, "sukces": False, "potrzeby": dict(potrzeby)}, None
+
+    def _zbuduj_depo(self, baza_nazwa, do, potrzeby, z=None):
         """Wyprawa do depo: nagrana trasa do Gorna + A* po mapie do pola depo. Jeden przystanek bez zakupów."""
-        cel = self._pole_depo()
+        if potrzeby.get("pk") == "powrot":
+            return self._zbuduj_pk_powrot(baza_nazwa, z or [], potrzeby)
+        cel = tuple(do[-1]) if self._plan_tylko_pk(baza_nazwa) else self._pole_depo()
         biez = tuple(do[-1])
         pts = self._do_depo_odwrocona(do, cel)       # z jaskini prosto do depo (nie przez Gorna)
         if pts is None:
@@ -986,17 +1022,23 @@ class Wyprawa(Wypad):
 
     # --- start / wznowienie ---
 
-    def _start_wyprawa(self, powod, dane, teraz):
+    def _start_wyprawa(self, powod, dane, teraz, baza_nazwa=None, pk=None):
         cb = self.cb
         self.glod_potw_do = float("-inf")
         poz = tuple(cb.postac.pozycja())
-        baza = punkty_bazy(self.katalog)
-        nazwa = wybierz_baze(baza, poz)
+        baza = punkty_bazy(self.katalog, nazwy=BAZY_PK if pk else BAZY)
+        nazwa = baza_nazwa if (pk and baza_nazwa in baza) else wybierz_baze(
+            baza, poz, PK_PLAN_ZASIEG if pk else wypad.PLAN_ZASIEG)
         if nazwa is None:
+            if pk:
+                self.log(f"Wyprawa: PK: pozycja {poz} poza planami {BAZY_PK}")
+                return False
             self._odloz(teraz, f"pozycja {poz} poza planami {BAZY}", 900.0)
             return False
         if dane.get("depo"):
             potrzeby = {"depo": True}
+            if pk:
+                potrzeby["pk"] = pk
         else:
             potrzeby = {"frodo": True, "depo_zloz": bool(int(self._kw("WYPRAWA_DEPO_ZLOZ"))),
                     "gorn": bool(self._kw("WYPRAWA_POCHODNIE") and dane.get("pochodnie") is not None
@@ -1010,6 +1052,10 @@ class Wyprawa(Wypad):
         except Exception as e:
             w, blad = None, f"wyjątek {e!r}"
         if w is None:
+            if pk:                           # ucieczka PK: wołający przechodzi na ucieczkę awaryjną, bez karencji wypraw
+                self.log(f"Wyprawa: PK: nie startuję: {blad}")
+                self._tele("wyprawa_odrzucona", powod=blad)
+                return False
             if blad not in self._brak_pozycji_log:
                 self._brak_pozycji_log.add(blad)
                 self._powiadom("Wyprawa: nie mogę zacząć", blad, "normal", "wyprawa_brak")
@@ -1026,16 +1072,80 @@ class Wyprawa(Wypad):
             self.w = None
             self._plan_wyprawy = None
             self.potw_w = 0
-            self.nast_wyprawa = teraz + 900.0
+            if not pk:                       # ucieczka PK nie odkłada zwykłych wypraw (decyzja po stronie cavebota)
+                self.nast_wyprawa = teraz + 900.0
             return False
         self._ost_poz_w = poz
         self._stan_trasy()
         if dane.get("depo"):                 # P7c: z jakiego powodu i przy jakim plecaku idziemy do depo
             self._stan_zapisz(depo_start_powody=list(dane.get("powody") or []), depo_start_blanki=dane.get("blanki"))
         self.log(f"Wyprawa: start ({powod}), baza {nazwa}, przystanki {[st['id'] for st in w['stops']]}")
-        if dane.get("depo"):
+        if dane.get("depo") and not pk:
             self._powiadom("Wyprawa do depo: ruszam", f"Brak jedzenia i głód ({powod}), idę do depo Thais.",
                            "normal", "wyprawa_depo_start")
+        return True
+
+    # --- obrona PK (obrona_pk.py): ucieczka do depo i powrót po karencji ---
+
+    def start_pk(self, rodzaj, teraz, baza=None):
+        """Start wyprawy PK z bieżącej pozycji. rodzaj: "ucieczka" (do depo) albo "powrot" (z depo na łowisko).
+        Trwająca wyprawa jest cicho porzucana (bez blokady samoczynnych wypraw). -> True, gdy ruszyła."""
+        if self.w is not None or self.stan != "SPOKOJ":
+            self.w = None
+            self._plan_wyprawy = None
+            self.stan, self.faza, self.etapy, self.sklep, self.wynik = "SPOKOJ", None, None, None, None
+            self.cb.wypad_aktywny = False
+        stare = (self.zablokowany, self.blokada_do)
+        self.zablokowany = False
+        self.blokada_do = float("-inf")
+        baza_nazwa = (baza or getattr(self, "pk_baza", None)) if rodzaj == "powrot" else baza
+        dane = {"powody": ["pk"], "zapas": None, "blanki": None, "zloto": None, "cap": None,
+                "hp": round(self.cb.gracz().get("proc", 100.0)), "pochodnie": None, "depo": True}
+        try:
+            ok = self._start_wyprawa(f"depo:pk_{rodzaj}", dane, teraz, baza_nazwa=baza_nazwa, pk=rodzaj)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            self.log(f"Wyprawa: PK: wyjątek przy starcie {e!r}")
+            self.w = None
+            self._plan_wyprawy = None
+            self.stan = "SPOKOJ"
+            self.zablokowany, self.blokada_do = stare
+            return False
+        if ok and self.w is not None:
+            self.pk_baza = self.w.get("baza") or getattr(self, "pk_baza", None)
+        else:
+            self.zablokowany, self.blokada_do = stare      # nieudany start PK nie zmienia stanu zwykłych wypraw
+        return bool(ok)
+
+    def _zakoncz_pk(self, wynik, opis):
+        """Koniec wyprawy PK (dotarcie albo awaria): bez pliku STOP i bez blokady wypraw; decyzję co dalej
+        podejmuje Cavebot._pk_wyprawa_koniec (czekanie w depo / powrót / ucieczka awaryjna)."""
+        cb = self.cb
+        w = self.w
+        teraz = cb.zegar()
+        poz = tuple(cb.postac.pozycja())
+        rodzaj = (w.get("potrzeby") or {}).get("pk") if w else None
+        self.log(f"Wyprawa: PK {rodzaj} zakończona ({wynik}) w {poz}: {opis}")
+        self._tele("wyprawa_koniec", wynik=wynik, opis=opis, kupione={}, depo=True, pk=rodzaj, poz=list(poz),
+                   czas_s=round(teraz - self.t_start))
+        self._stan_koniec(wynik=f"pk_{wynik}", opis=opis, kupione={}, wyniki=(w or {}).get("wyniki"))
+        self.nast_wyprawa = max(self.nast_wyprawa, teraz + 120.0)
+        self.w = None
+        self._plan_wyprawy = None
+        self.stan = "SPOKOJ"
+        self.faza = self.etapy = None
+        self.sklep = None
+        self.wynik = None
+        cb.wypad_aktywny = False
+        try:
+            cb._wypad_reset_klik()
+            cb.ustaw_stan("IDZ", "wyprawa PK zakończona")
+        except Exception:
+            pass
+        fn = getattr(cb, "_pk_wyprawa_koniec", None)
+        if callable(fn):
+            fn(rodzaj, wynik, opis, poz)
         return True
 
     def _wybierz_plan(self, poz):
@@ -1548,6 +1658,8 @@ class Wyprawa(Wypad):
         w = self.w
         teraz = cb.zegar()
         poz = tuple(cb.postac.pozycja())
+        if w is not None and (w.get("potrzeby") or {}).get("pk"):
+            return self._zakoncz_pk(wynik, opis)
         if wynik == "depo" and int(self._kw("WYPRAWA_DEPO_POWROT")) and w is not None \
                 and sum(len(e.get("punkty") or ()) for e in w["powrot"]) > 1:
             return self._depo_powrot(poz)
