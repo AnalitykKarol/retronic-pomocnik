@@ -54,6 +54,8 @@ PO_PORAZCE_S = 900.0        # po nieudanym wypadzie
 PO_PORAZKACH_S = 3600.0     # po MAX_PORAZEK nieudanych z rzędu: gramy "po ciemku"
 MAX_PORAZEK = 2
 ETAP_UTK_S = 60.0           # s bez postępu w etapie = utknięcie
+ETAP_NIEOSIAG_S = 12.0      # s bez postępu, po których sprawdzamy A*, czy koniec etapu jest w ogóle osiągalny stąd
+OSIAG_KAND = 24             # tylu najbliższych (Chebyshev) punktów planu sprawdzamy A* przy szukaniu osiągalnego
 ETAP_PRZEJSCIE_PROB = 6     # prób przejścia pięter (lina/dziura) zanim uznamy awarię
 PRZEJSCIE_ODSTEP = (1.0, 3.0, 6.0, 8.0)   # s przerwy między kolejnymi próbami
 DRZWI_PROB = 6              # prób otwarcia i wejścia w drzwi (typ etapu DRZWI), potem awaria jak przy linie/dziurze
@@ -426,6 +428,7 @@ class Wypad:
         self.spokoj_od = None
         self.ost_obieg = float("-inf")
         self.postep = None          # [czas, wskaznik] postępu w etapie
+        self.osiag_proba = float("-inf")    # kiedy ostatnio sprawdzaliśmy A*, czy koniec etapu jest osiągalny
         self.utk = 0
         self.wyjatki = 0
         self.przystanek_od = None   # od kiedy stoimy w tym etapie (tolerancja dojścia)
@@ -670,11 +673,16 @@ class Wypad:
         poz = cb.postac.pozycja()
         if teraz - self.ost_obieg > 5.0:
             self.postep = None          # luka (walka, ucieczka, loot): nie liczymy jej do utknięcia
-        self.ost_obieg = teraz
         cb.ustaw_stan("WYPAD", f"{self.faza} {self.ei}/{len(self.etapy)}")
-        if self.faza == "sklep":
-            return self._sklep(poz, teraz)
-        return self._idz_faza(poz, teraz)
+        try:
+            if self.faza == "sklep":
+                return self._sklep(poz, teraz)
+            return self._idz_faza(poz, teraz)
+        finally:
+            # luka = odstęp od KOŃCA poprzedniego obiegu, nie od jego początku: obieg z krokiem i czekaniem na
+            # klienta trwa ~5 s, więc liczony od początku kasował `postep` w każdym obiegu i utknięcie nie
+            # odpalało się nigdy (15.10 20:29: 6+ min oscylacji bez alarmu)
+            self.ost_obieg = cb.zegar()
 
     def uciekaj(self, poz):
         """Wołane z Cavebot.uciekaj podczas wypadu: krok do poprzedniego punktu planu albo pauza."""
@@ -799,6 +807,10 @@ class Wypad:
             self.postep = [teraz, wsk]
         elif teraz - self.postep[0] > ETAP_UTK_S:
             return self._utkniecie(poz, e, teraz)
+        elif teraz - self.postep[0] > ETAP_NIEOSIAG_S and teraz - self.osiag_proba > ETAP_NIEOSIAG_S:
+            self.osiag_proba = teraz
+            if self._objazd_nieosiagalny(poz, e, ost, teraz):
+                return True
         # krok po odcinku: ta sama maszyneria co zwykła trasa
         wynik, idx = cb._idz_odcinek(pkt, min(self.pi, len(pkt) - 1))
         self.pi = idx
@@ -808,6 +820,57 @@ class Wypad:
             if self.utk >= 3:
                 self.utk = 0
                 return self._utkniecie(poz, e, teraz, wymus=True)
+        return True
+
+    def _najblizszy_osiagalny(self, poz, pomin_ei):
+        """(ei, pi) najbliższego (długość drogi A*) punktu planu na piętrze gracza, do którego `cb.droga` ma
+        drogę; etapy późniejsze niż bieżący mają pierwszeństwo przed wcześniejszymi (postęp planu). None: żaden."""
+        cb = self.cb
+        kand = [(cheb(poz, p), ei, pi) for ei, e in self._punkty_pietra(poz[2]) if ei != pomin_ei
+                for pi, p in enumerate(e["punkty"])]
+        kand.sort()
+        najl = None
+        for _, ei, pi in kand[:OSIAG_KAND]:
+            p = self.etapy[ei]["punkty"][pi]
+            if (p[0], p[1]) == (poz[0], poz[1]):
+                dl = 0
+            else:
+                try:
+                    d = cb.droga(tuple(poz), p[:2], dlugosc=0)
+                except Exception:
+                    d = None
+                if d is None:
+                    continue
+                dl = len(d)
+            klucz = (ei < pomin_ei, dl)
+            if najl is None or klucz < najl[0]:
+                najl = (klucz, ei, pi)
+        return None if najl is None else (najl[1], najl[2])
+
+    def _objazd_nieosiagalny(self, poz, e, ost, teraz):
+        """Brak postępu >= ETAP_NIEOSIAG_S: gdy A* mówi, że końca etapu nie ma jak osiągnąć z tego miejsca (inna
+        drabina, pokój bez wyjścia: gra odpowiada "There is no way"), nie chodzimy ślepo w jego stronę. Przesiadamy
+        się na najbliższy osiągalny punkt planu na tym piętrze albo, gdy takiego nie ma, liczymy to utknięciem.
+        True = obieg zużyty. False: koniec etapu osiągalny (albo nie umiemy tego ocenić) - chodzimy dalej."""
+        cb = self.cb
+        if poz[2] != ost[2] or not hasattr(cb, "droga"):
+            return False
+        try:
+            if cb.droga(tuple(poz), ost[:2], dlugosc=1) is not None:
+                return False
+        except Exception:
+            return False
+        cel = self._najblizszy_osiagalny(poz, self.ei)
+        self._blad("etap_nieosiagalny", poz=list(poz), etap=self.ei, cel=list(cel) if cel else None)
+        if cel is None:
+            return self._utkniecie(poz, e, teraz, wymus=True)
+        self.log(f"Wypad: koniec etapu {self.ei} {tuple(ost)} nieosiągalny z {tuple(poz)}; "
+                 f"przesiadka na etap {cel[0]} punkt {cel[1]}")
+        self.ei, self.pi = cel
+        self.postep = None
+        self.utk = 0
+        self.przystanek_od = None
+        self.cb._wypad_reset_klik()
         return True
 
     def _utkniecie(self, poz, e, teraz, wymus=False):

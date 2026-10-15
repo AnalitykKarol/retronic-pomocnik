@@ -318,6 +318,8 @@ UH_W_WALCE_SPADEK_HP = 25          # pokrętło: w trakcie runy w walce przerwij
 UH_W_WALCE_MIN_HP = 90             # pokrętło: % HP wymagane do startu runy w walce (w trakcie: ta wartość minus 10)
 # --- ogłoszenia sprzedaży UH na kanale Trade (mozg.py: TradeOgloszenia; szablon trade_ogloszenie.txt) ---
 MODEL_TRASA_MIASTA = 0            # pokrętło 0/1: 1 = model może zmien_trase na trasę *miasta* (domyślnie 0: powrót do miasta decyduje tylko wyprawa.py)
+MODEL_TRASA_ZAMROZENIE_S = 180       # pokrętło: s; model nie zmienia trasy, gdy pozycja postaci stoi w miejscu tak długo (zamrożony odczyt/utknięcie to nie zła trasa; mozg.py)
+MODEL_TRASA_MAX_ODL = 60            # pokrętło: pola (Chebyshev, bez z); model nie zmienia trasy na taką, której najbliższy punkt jest dalej od postaci (inny obszar)
 TRADE_OGLOSZENIA = 0               # pokrętło 0/1 (na_zywo.json): 1 = ogłoszenie [SELL] UH na zakładce Trade (domyślnie WYŁĄCZONE)
 TRADE_MIN_S = 180                  # pokrętło: s min. odstępu między ogłoszeniami (losowo równomiernie MIN-MAX)
 TRADE_MAX_S = 300                  # pokrętło: s max. odstępu między ogłoszeniami

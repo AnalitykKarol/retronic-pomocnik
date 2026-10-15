@@ -1644,6 +1644,50 @@ def filtr_jedzenia(akcje, zdarzenia, log=lambda *a: None):
     return wynik or [{"typ": "kontynuuj"}]
 
 
+def filtr_zmiany_trasy(akcje, poz, bez_ruchu_s, punkty_trasy, log=lambda *a: None):
+    """zmien_trase modelu przechodzi tylko, gdy odczyt pozycji żyje i trasa jest w pobliżu.
+    15.10: zamrożona pozycja (martwy odczyt) wyglądała modelowi na "patrol: no path", więc zmienił trasę
+    trolli na kanały Thais i zapisał "trasa nie działa". Zamrożenie = problem odczytu/utknięcia, nie trasy.
+    poz: (x,y,z) albo None (brak odczytu = nie wiemy, odrzucamy); bez_ruchu_s: ile s pozycja się nie zmienia;
+    punkty_trasy(nazwa) -> lista [x,y,z] (albo None). Odrzucona zmiana zabiera też notatki z tej decyzji
+    (model tłumaczy w nich "trasa nie działa" i zatruwa pamięć)."""
+    if not any(a["typ"] == "zmien_trase" for a in akcje):
+        return akcje
+    zamroz = getattr(cavebot, "MODEL_TRASA_ZAMROZENIE_S", 180)
+    max_odl = getattr(cavebot, "MODEL_TRASA_MAX_ODL", 60)
+    wynik, odrzucono = [], False
+    for a in akcje:
+        if a["typ"] != "zmien_trase":
+            wynik.append(a)
+            continue
+        powod = None
+        if poz is None:
+            powod = "brak odczytu pozycji"
+        elif bez_ruchu_s >= zamroz:
+            powod = (f"pozycja postaci stoi {bez_ruchu_s:.0f} s (>= {zamroz} s): to problem odczytu/utknięcia, "
+                     f"nie trasy")
+        else:
+            try:
+                pkt = punkty_trasy(a["nazwa"]) or []
+                odl = min(max(abs(p[0] - poz[0]), abs(p[1] - poz[1])) for p in pkt)
+            except (OSError, ValueError, TypeError, IndexError):
+                odl = None
+            if odl is None:
+                powod = "nie umiem sprawdzić, jak daleko jest ta trasa"
+            elif odl > max_odl:
+                powod = f"trasa jest {odl} pól od postaci (limit {max_odl}): inny obszar"
+        if powod:
+            log(f"Odrzucam zmien_trase na {a['nazwa']!r}: {powod}")
+            odrzucono = True
+        else:
+            wynik.append(a)
+    if odrzucono:
+        if any(a["typ"] == "notatka" for a in wynik):
+            log("Odrzucam notatkę z decyzji z odrzuconym zmien_trase")
+        wynik = [a for a in wynik if a["typ"] != "notatka"]
+    return wynik or [{"typ": "kontynuuj"}]
+
+
 def filtr_bezpieczenstwa(akcje, stan, log=lambda *a: None):
     """Przy niskim HP albo w ucieczce zostają tylko akcje defensywne."""
     hp = (stan.get("gracz") or {}).get("hp_proc", 100)
@@ -1844,6 +1888,7 @@ class Mozg:
         self.alarm = alarm or cavebot.alarm_dzwiekowy
         self.losuj = losuj
         self.start = zegar()
+        self._poz_ostatnia, self._poz_od = None, zegar()   # ostatnia pozycja i od kiedy bez zmiany (zmien_trase)
         self.start_exp = None
         self.stat = Statystyki()
         self.zdarzenia = Zdarzenia(zegar)
@@ -1901,6 +1946,21 @@ class Mozg:
         p = self.zapytaj({"cmd": "pozycja", "nazwa": self.nazwa})["pozycja"]
         return p["x"], p["y"], p["z"]
 
+    def _sledz_pozycje(self, poz):
+        """Od kiedy pozycja się nie zmienia (tanio: jedno porównanie). Wołane z zbuduj_stan i obiegu hybrydy."""
+        teraz = self.zegar()
+        poz = tuple(poz) if poz else None
+        if poz is None or poz != self._poz_ostatnia:
+            self._poz_ostatnia, self._poz_od = poz, teraz
+
+    def _punkty_trasy(self, nazwa):
+        return json.loads((bot.TRASY / f"{nazwa}.json").read_text())
+
+    def filtr_trasy(self, akcje, stan):
+        poz = stan.get("pozycja") if isinstance(stan.get("pozycja"), list) else None
+        return filtr_zmiany_trasy(akcje, tuple(poz) if poz else None, self.zegar() - self._poz_od,
+                                  self._punkty_trasy, self.log)
+
     def zbuduj_stan(self):
         """Zwięzły stan gry dla modelu. Brakujące źródła opisujemy zamiast przerywać."""
         teraz = self.zegar()
@@ -1918,6 +1978,7 @@ class Mozg:
         try:
             poz = self._pozycja()
             stan["pozycja"] = list(poz)
+            self._sledz_pozycje(poz)
         except Exception as e:
             poz = None
             stan["pozycja"] = f"brak odczytu: {e}"
@@ -2088,6 +2149,7 @@ class Mozg:
         mysl, akcje = waliduj(obiekt, self.trasy(), self.log)
         akcje = filtr_jedzenia(akcje, zdarzenia, self.log)
         akcje = filtr_konca(akcje, stan, zdarzenia, self.alarm_gm, log=self.log)
+        akcje = self.filtr_trasy(akcje, stan)
         return mysl, filtr_bezpieczenstwa(akcje, stan, self.log), meta
 
     def pomysl(self, zdarzenia=None):
@@ -2881,6 +2943,12 @@ class Mozg:
         self.czat_spot_tick()
         self.trade_tick()
         teraz = self.zegar()
+        if self.cb is not None and teraz - getattr(self, "_poz_probka", float("-inf")) >= 5:   # tania próbka pozycji do zmien_trase
+            self._poz_probka = teraz
+            try:
+                self._sledz_pozycje(self._pozycja())
+            except Exception:
+                pass
         if self.model is not None and teraz - getattr(self, "_czat_odczyt", float("-inf")) >= czat_co:
             self._czat_odczyt = teraz
             self.czat_zdarzenie()
