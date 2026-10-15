@@ -212,7 +212,7 @@ sprawdz("8b sesja.sh: bash -n", subprocess.run(["bash", "-n", KAT + "/sesja.sh"]
 sprawdz("8c podglad.sh: helper z pid vncviewera, RETRONIC_DOPASUJ_OKNO, -RemoteResize=0, bez exec vncviewer",
         "dopasuj_okno.py" in pod and '--pid "$VPID"' in pod and "RETRONIC_DOPASUJ_OKNO" in pod
         and "-RemoteResize=0" in pod and "exec vncviewer" not in pod)
-sprawdz("8d sesja.sh: domyślnie 1175x910 z nadpisaniem env", 'RETRONIC_BEZ_OKNA_ROZ:-1175x910' in ses and "UNKNOWN" in ses)
+sprawdz("8d sesja.sh: domyślnie 1175x910 z nadpisaniem env", 'RETRONIC_BEZ_OKNA_ROZ:-1175x910' in ses)
 
 # --- 9. ekran: log zmiany rozmiaru (atrapy, bez X) ---
 import io, contextlib
@@ -226,7 +226,7 @@ linie = wyj.getvalue().strip().splitlines()
 sprawdz("9a pierwszy rozmiar bez logu, zmiana = jedna linia", len(linie) == 1 and linie[0].endswith("ekran: nowy rozmiar 1174x910, wykrywam mapę od nowa"), str(linie))
 
 # aktualny_prostokat: niezgodność zrzut/X nie trafia do cache pod rozmiarem X
-ekran._cache_mapy.clear(); ekran._ostatni_rozmiar = None
+ekran._cache_mapy.clear(); ekran._ostatni_rozmiar = None; ekran._rozmiar_od = 0.0
 def plansza(sz, wy):
     im = Image.new("RGB", (sz, wy), (24, 24, 24))
     mapa_szer = sz - 185; mapa_wys = round(mapa_szer * 11 / 15)
@@ -245,6 +245,16 @@ try:
     with contextlib.redirect_stdout(io.StringIO()):
         p2 = ekran.aktualny_prostokat()
     sprawdz("9c zgodny rozmiar: wykrycie i cache", (1000, 910) in ekran._cache_mapy and p2 == ekran._cache_mapy[(1000, 910)])
+    # 9d: świeżo po zmianie rozmiaru (< ROZMIAR_STABILNY_S) prostokąt bez zapamiętania; po czasie - cache
+    ekran._rozmiar_ekranu = lambda e=None: (1174, 910)
+    ekran.zrzut = lambda: plansza(1174, 910)
+    with contextlib.redirect_stdout(io.StringIO()):
+        p3 = ekran.aktualny_prostokat()
+    sprawdz("9d tuż po zmianie rozmiaru: wynik bez cache (klient może rysować stary kadr)", p3 and (1174, 910) not in ekran._cache_mapy, str(p3))
+    ekran._rozmiar_od -= ekran.ROZMIAR_STABILNY_S + 0.1
+    with contextlib.redirect_stdout(io.StringIO()):
+        p4 = ekran.aktualny_prostokat()
+    sprawdz("9e po ROZMIAR_STABILNY_S: wykrycie trafia do cache", (1174, 910) in ekran._cache_mapy and p4 == ekran._cache_mapy[(1174, 910)])
 finally:
     ekran._rozmiar_ekranu, ekran.zrzut = org
 

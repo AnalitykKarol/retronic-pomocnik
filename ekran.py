@@ -31,6 +31,9 @@ SCRATCH = Path(__file__).resolve().parent / "testy" / "dane"   # zrzuty do test�
 
 _cache_mapy = {}                 # (szerokość, wysokość) -> (L, T, R, B)
 _ostatni_rozmiar = None          # ostatni rozmiar ekranu, jaki widzieliśmy (do logu zmiany; okno podglądu zmienia go w locie)
+_rozmiar_od = 0.0                # time.monotonic() ostatniej zmiany rozmiaru
+_zalogowane = {}                 # rozmiar -> czas ostatniego logu (bez zalewu, gdy zrzut i X na chwilę się różnią)
+ROZMIAR_STABILNY_S = 2.0         # tyle s po zmianie rozmiaru prostokąta mapy nie zapamiętujemy (klient może jeszcze rysować stary kadr)
 
 
 def log(*a):
@@ -39,13 +42,23 @@ def log(*a):
 
 def _zauwaz_rozmiar(rozmiar):
     """Loguje zmianę rozmiaru ekranu (dopasuj_okno.py zmienia go w trakcie gry). Cache prostokąta mapy jest po rozmiarze,
-    więc nowy rozmiar = nowe wykrycie, a powrót do znanego rozmiaru = prostokąt z cache."""
-    global _ostatni_rozmiar
+    więc nowy rozmiar = nowe wykrycie, a powrót do znanego rozmiaru = prostokąt z cache. Log najwyżej raz na 30 s
+    na rozmiar (zrzut Wayland i ekran X przez chwilę różnią się rozmiarem)."""
+    global _ostatni_rozmiar, _rozmiar_od
     rozmiar = tuple(rozmiar)
     if rozmiar != _ostatni_rozmiar:
-        if _ostatni_rozmiar is not None:
+        teraz = time.monotonic()
+        if _ostatni_rozmiar is not None and teraz - _zalogowane.get(rozmiar, float("-inf")) > 30.0:
+            _zalogowane[rozmiar] = teraz
             log(f"ekran: nowy rozmiar {rozmiar[0]}x{rozmiar[1]}, wykrywam mapę od nowa")
+        if _ostatni_rozmiar is not None:
+            _rozmiar_od = teraz              # pierwszy rozmiar (start bota) to nie zmiana: cache od razu
         _ostatni_rozmiar = rozmiar
+
+
+def _rozmiar_swiezy():
+    """Rozmiar zmienił się przed chwilą (< ROZMIAR_STABILNY_S): kadr klienta może być jeszcze stary/niedorysowany."""
+    return _ostatni_rozmiar is not None and _rozmiar_od and time.monotonic() - _rozmiar_od < ROZMIAR_STABILNY_S
 
 
 # --- zrzut i wykrywanie mapy -------------------------------------------------
@@ -163,8 +176,8 @@ def prostokat_mapy(obraz, zapamietaj=True):
         L = 0
     if R >= szer - 2:
         R = szer
-    if not zapamietaj:
-        return (L, T, R, B)
+    if not zapamietaj or _rozmiar_swiezy():
+        return (L, T, R, B)              # świeżo po zmianie rozmiaru: wykrycie bez zapamiętania (kolejne zrzuty liczą od nowa)
     _cache_mapy[klucz] = (L, T, R, B)
     return _cache_mapy[klucz]
 
@@ -179,7 +192,7 @@ def aktualny_prostokat(ekran=None):
             # zrzut (Wayland) i ekran X zmieniają rozmiar nie w tej samej chwili (zmiana w locie): rozciągnięty obraz
             # daje chwilowy, błędny prostokąt - nie zapamiętujemy go pod nowym rozmiarem (został by do następnej zmiany)
             return prostokat_mapy(obraz.resize(rozmiar), zapamietaj=False)
-        prostokat_mapy(obraz)
+        return prostokat_mapy(obraz)
     return _cache_mapy[rozmiar]
 
 
