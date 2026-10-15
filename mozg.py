@@ -159,7 +159,12 @@ def do_nas(autor, tekst, kanal, nazwa, na_ekranie=(), po_naszej=False):
     if autor and autor.casefold() in {x.casefold() for x in na_ekranie}:
         if POWITANIE.search(t) or ("?" in t and DO_TY.search(t)):
             return True
+        if CZAT_SAM_NA_SAM and len(na_ekranie) == 1 and t.strip():
+            return True    # 15.10: jedyny inny gracz w widoku pisze na lokalnym kanale (np. ":)"): to do nas
     return False
+
+
+CZAT_SAM_NA_SAM = 1                # 1 = wiadomość od jedynego innego gracza w widoku (kanał lokalny) traktujemy jak do nas
 
 
 # zdarzenia bota ("dziwne" = natychmiastowe pytanie do modelu)
@@ -242,6 +247,8 @@ Zasady:
   nicka albo skrótu, prywatna, odpowiedź rozmówcy w ciągu 90 s po TWOJEJ wysyłce do niego, powitanie od gracza
   obok). Ogólny gwar kanału, ogłoszenia (gildie, handel), pytania do innych graczy i krótkie "hmm?", "xd", "?"
   bez kontekstu to NIE zaczepka: wybierz kontynuuj. Skrypt i tak nie wyśle odpowiedzi na wiadomość bez "do_bota".
+  Gdy w widoku jest tylko jeden inny gracz i pisze na lokalnym kanale, skrypt oznacza to jako "do_bota": wtedy
+  odpowiedz krótko i naturalnie, nawet na samo ":)" albo "hi" (np. ":)", "hej", "siema"), bez wdawania się w rozmowę.
   Nie zakładaj powiązań, których nie ma w danych: "moje_wyslane_ostatnio" to JEDYNE wiadomości, które
   bot wysłał (z czasem i adresatem); wpisy "ja" z "reczne": true napisał właściciel ręcznie, nie nawiązuj
   do nich. Jeśli nie ma pewnego powiązania wiadomości z tobą, wybierz kontynuuj.

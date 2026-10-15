@@ -745,7 +745,9 @@ sprawdz("D0 do_nas: priv / nick / powitanie tylko od widocznego",
         and mozg.do_nas("Bob", "yo rookie?", "Default", "Rookie Hunter")
         and not mozg.do_nas("Bob", "hej", "Default", "Rookie")
         and mozg.do_nas("Bob", "hej", "Default", "Rookie", na_ekranie=("bob",))
-        and not mozg.do_nas("Bob", "anyone selling rope?", "Default", "Rookie", na_ekranie=("Bob",))
+        and not mozg.do_nas("Bob", "anyone selling rope?", "Default", "Rookie", na_ekranie=("Bob", "Ann"))
+        and mozg.do_nas("Bob", ":)", "Default", "Rookie", na_ekranie=("Bob",))      # 15.10: sam na sam = do nas
+        and not mozg.do_nas("Bob", ":)", "Default", "Rookie", na_ekranie=("Bob", "Ann"))
         and not mozg.do_nas("Bob", "rookies are noobs", "Default", "Rookie"))
 
 def rozmowa_swiat(odp, hp=150, czat=None):
