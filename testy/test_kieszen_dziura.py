@@ -43,7 +43,7 @@ class Swiat:
     """Marsz klikiem/krokiem po mapie; upadek na dziurze w dół (flaga 2, nie z listy GORA); drabiny GORA (krok na pole albo Use)."""
     def __init__(s, poz, gora=GORA):
         s.t = 0.0; s.poz = list(poz); s.gora = dict(gora); s.cel = None; s.stoi = False
-        s.zmiany = []; s.uzycia = []; s.liny = []; s.nielegalne = 0; s.klikniecia = []; s.stwory = []
+        s.klawisze = []; s.zmiany = []; s.uzycia = []; s.liny = []; s.nielegalne = 0; s.klikniecia = []; s.stwory = []
     def zegar(s): return s.t
     def klik(s, dx, dy): s.cel = (s.poz[0] + dx, s.poz[1] + dy, s.poz[2]); s.klikniecia.append((dx, dy))
     def spij(s, d):
@@ -97,6 +97,7 @@ class P:
     def __init__(p, s): p.s = s
     def pozycja(p): return tuple(p.s.poz)
     def klawisz(p, k):
+        p.s.klawisze.append(k)
         if k in bot.KIERUNKI and not p.s.stoi:
             p.s.t += 0.2; p.s.ruch(*bot.KIERUNKI[k])
     def krok(p, k):
@@ -248,6 +249,43 @@ for _ in range(12):
 sprawdz("d7 tick: najpierw 'idę sam', atak dopiero z pola obok celu", any("idę sam" in l for l in LOG) and (not ATAKI or max(abs(ATAKI[0][1][0] - 32509), abs(ATAKI[0][1][1] - 32273)) <= 1),
         f"{ATAKI[:1]} {[l for l in LOG if 'DZIURA' in l][:1]}")
 sprawdz("d7 tick: nie wpadł (z8)", s.poz[2] == 8 and not s.zmiany, f"{s.poz} {s.zmiany}")
+
+# --- (e) uciekający cel przy dziurze (18:39 i 21:33: pościg za trollem HP 28%) ---
+# e1: gonimy trolla daleko od dziur, potem ucieka na pole przy dziurze: bez kliku follow, Escape, własne kroki
+ATAKI.clear()
+s, b = nowy(PRZED, [(32507, 32267, 8), (32507, 32270, 8)], atak=lambda m, g: ATAKI.append((m["id"], tuple(s.poz))))
+s.stwory = [troll(32507, 32267)]; s.stoi = True
+b.tick()
+sprawdz("e1 start: cel wybrany (troll daleko od dziur)", b.cel is not None and b.cel["id"] == 7, str(b.cel))
+ATAKI.clear(); s.klawisze.clear(); s.klikniecia.clear(); s.stoi = False
+s.stwory = [troll(32509, 32273)]                                  # uciekł na pole przy dziurze
+b.tick()
+sprawdz("e1 Escape (stop follow klienta) przy ucieczce celu przy dziurze", "Escape" in s.klawisze, s.klawisze)
+b.tick(); b.tick()
+sprawdz("e1 brak kliku (follow/atak) i brak ataku", not s.klikniecia and not ATAKI, f"{s.klikniecia} {ATAKI}")
+for _ in range(12):
+    b.tick()
+    if ATAKI: break
+sprawdz("e1 własne kroki (strzałki albo klik w sąsiednie pole), nie klik-follow na cel", tuple(s.poz) != PRZED and s.poz[2] == 8
+        and all(abs(dx) <= 1 and abs(dy) <= 1 for dx, dy in s.klikniecia), f"{s.klawisze} {s.klikniecia} {s.poz}")
+sprawdz("e1 atak dopiero z pola obok celu, nie wpadł", ATAKI and max(abs(ATAKI[0][1][0] - 32509), abs(ATAKI[0][1][1] - 32273)) <= 1 and s.poz[2] == 8 and not s.zmiany, f"{ATAKI[:1]} {s.poz} {s.zmiany}")
+# e2: dziura przy NAS (nie przy celu): (32508,32272) obok dziury (32508,32273), troll (32509,32274) odl 2
+s, b = nowy((32508, 32272, 8), [(32507, 32267, 8)])
+sprawdz("e2 dziura przy nas w prostokącie -> 'idz'", b._cel_przez_dziure(troll(32509, 32274), (32508, 32272, 8)) == "idz", b._cel_przez_dziure(troll(32509, 32274), (32508, 32272, 8)))
+sprawdz("e2 bez dziur przy nas i celu: None", b._cel_przez_dziure(troll(32508, 32268), (32507, 32270, 8)) is None)
+# e3: brak bezpiecznej drogi -> odpuszczenie istniejącego celu (Escape + log), bez ataku
+ATAKI.clear()
+s, b = nowy((32508, 32271, 8), [(32507, 32267, 8), (32507, 32270, 8)], atak=lambda m, g: ATAKI.append(m["id"]))
+s.stwory = [troll(32508, 32268)]; s.stoi = True
+b.tick()
+sprawdz("e3 start: cel wybrany", b.cel is not None, str(b.cel))
+b._wp().ucz((32509, 32272, 8)); b._wp().ucz((32508, 32272, 8))
+s.klawisze.clear(); ATAKI.clear(); s.klikniecia.clear()
+s.stwory = [troll(32509, 32273)]
+b.tick()
+sprawdz("e3 cel odpuszczony (cel=None), Escape, log [DZIURA], brak ataku i kliku",
+        b.cel is None and "Escape" in s.klawisze and any("[DZIURA] odpuszczam" in l for l in LOG) and not ATAKI and not s.klikniecia,
+        f"{b.cel} {s.klawisze} {ATAKI} {s.klikniecia}")
 
 print(f"{sum(ok)}/{len(ok)}")
 sys.exit(0 if all(ok) else 1)
