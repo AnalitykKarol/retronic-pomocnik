@@ -538,6 +538,10 @@ PAUZA_DLUGA = (0.005, 3.0, 8.0)
 REAKCJA = (0.15, 0.45)             # s od zauważenia potwora do pierwszego ataku
 DRUGI_CEL = 0.15                   # szansa wyboru drugiego najbliższego potwora
 DECYZJE_LOG = 1                    # 15.10: telemetria "decyzja" (D1 wybór celu, D2 start pościgu: opcje z cechami); tylko log, 0 = wyłączone
+PATROL_RESPAWN_CIEN = 1            # 15.10: tryb cienia (SPEC_patrol_respawn_1015 krok 2): mapa obecności mobów liczona na żywo (obecnosc.py), a przy wyborze
+                                   # celu patrolu w telemetrii patrol_cel (cel_respawn, wartosci, zgodny) i "decyzja" D4 wybór nowej metody; bot idzie jak dziś; pokrętło 0/1
+OBECNOSC_ZAPIS_S = 60.0            # s: najwyżej tak często zapis stanu mapy obecności (poza tym na końcu pracy)
+OBECNOSC_STAN_PLIK = None if os.environ.get("RETRONIC_TESTY") else instancja.S.stan / "obecnosc_stan.json"   # stan mapy obecności (przeżywa restart); None = bez pliku
 ODWROCENIE_TRASY = 0.35            # szansa na przejście kolejnego okrążenia w drugą stronę
 # Przerwy: nieregularne, losowane z mieszanki przedziałów (szansa, od s, do s); ostatni przedział bierze resztę.
 # Odstęp: okazjonalnie bardzo krótki, najczęściej 20-45 min, czasem do 100 min. Długość: krótkie częściej, czasem długa.
@@ -3635,6 +3639,7 @@ class Cavebot:
 
         # 2a. unikanie zwykłych graczy: detekcja (debounce), powiadomienie; cele i trasa w kandydaci()/_idz_trasa()
         self._unikanie_obserwuj(lista, poz)
+        self._obecnosc_obserwuj(lista, poz)      # 15.10: mapa obecności mobów (tryb cienia patrolu), tylko odczyt, błąd nie przerywa ticka
 
         # 2a''. runa (F4) w walce: przed ML i meleem, po leczeniu i jedzeniu
         if self._runa_tick(g, poz, lista, teraz):
@@ -4711,6 +4716,189 @@ class Cavebot:
             log(f"debug: telemetria decyzja błąd {e!r}")
             return None
 
+    # --- 15.10: mapa obecności mobów w trybie cienia (SPEC_patrol_respawn_1015, krok 2) ---
+    # obecnosc.MapaObecnosci liczy z tego, co bot już ma (lista stworów, pozycja): zero zapytań do gry, zero A*,
+    # zero losowania. Wynik trafia tylko do telemetrii (patrol_cel, decyzja D4); ruch bota się nie zmienia.
+    _obecnosc = None             # None = jeszcze nie tworzona, False = nie da się (brak miejsc / błąd), inaczej MapaObecnosci
+    _cien_wybor = None           # wynik cienia dla bieżącego _patrol_wybierz (None = brak)
+
+    def _obecnosc_blad(self, gdzie, e):
+        """Błąd mapy obecności: tylko log (pierwsze trzy razy i co 200.), nigdy wyjątek."""
+        n = getattr(self, "_obecnosc_bledy", 0) + 1
+        self._obecnosc_bledy = n
+        if n <= 3 or n % 200 == 0:
+            log(f"obecność: błąd w {gdzie} ({n}.): {e!r}")
+
+    def _obecnosc_t(self):
+        """Czas mapy obecności: zegar bota przesunięty do czasu ściennego (stan na dysku przeżywa restart)."""
+        return self.zegar() + getattr(self, "_obecnosc_off", 0.0)
+
+    def _obecnosc_mapa(self):
+        """Mapa obecności; tworzona leniwie, gdy znamy miejsca patrolu (obszar = bbox miejsc + margines) i któreś z
+        PATROL_RESPAWN_CIEN jest włączone (tylko spot z trollami). Stan z OBECNOSC_STAN_PLIK (inny obszar = od zera).
+        None = brak mapy (nic się nie dzieje)."""
+        mo = self._obecnosc
+        if mo is not None:
+            return mo or None
+        if not PATROL_RESPAWN_CIEN or not getattr(self, "miejsca", None):
+            return None
+        if not any("troll" in p for p in (self.potwory or ())):
+            self._obecnosc = False                 # 15.10: mapa obecności zna tylko trolle (Edron/szczury: bez szumu)
+            return None
+        try:
+            import obecnosc  # noqa: PLC0415
+            self._obecnosc_off = time.time() - self.zegar()
+            teraz = self._obecnosc_t()
+            nowa = obecnosc.MapaObecnosci.dla_miejsc(self.miejsca)
+            mo = None
+            if OBECNOSC_STAN_PLIK is not None:
+                mo = obecnosc.MapaObecnosci.wczytaj(OBECNOSC_STAN_PLIK, teraz)
+                if mo is not None and (mo.bbox != nowa.bbox or mo.pietra != nowa.pietra):
+                    mo = None              # stan z innego spotu: od zera
+                if mo is not None:
+                    log(f"obecność: wczytano stan mapy obecności ({len(mo.k)} komórek) z {OBECNOSC_STAN_PLIK}.")
+            self._obecnosc = mo or nowa
+            self._obecnosc_zapis_t = teraz
+        except Exception as e:
+            self._obecnosc = False
+            self._obecnosc_blad("tworzeniu mapy", e)
+        return self._obecnosc or None
+
+    def _obecnosc_obserwuj(self, lista, poz):
+        """Jedna obserwacja mapy obecności z ticka (lista stworów i pozycja są już w ręku) + zapis stanu co OBECNOSC_ZAPIS_S."""
+        if not PATROL_RESPAWN_CIEN or poz is None:
+            return
+        try:
+            mo = self._obecnosc_mapa()
+            if mo is None:
+                return
+            import obecnosc  # noqa: PLC0415
+            trolle = {n for n in (self.potwory or ()) if "troll" in n} or obecnosc.CEL_NAZWY   # tylko trolle
+            mo.obserwuj(self._obecnosc_t(), poz, lista, trolle)
+            self._obecnosc_zapisz()
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            self._obecnosc_blad("obserwacji", e)
+
+    def _obecnosc_zabicie(self, c):
+        """Zabity cel (c = słownik celu z "poz" = ostatnio widziane pole) do mapy obecności."""
+        if not PATROL_RESPAWN_CIEN:
+            return
+        try:
+            mo = self._obecnosc_mapa()
+            poz = c.get("poz") if c else None
+            if mo is None or not poz:
+                return
+            import obecnosc  # noqa: PLC0415
+            if "troll" not in str(c.get("nazwa", "")).casefold():       # mapa zna tylko trolle (jak _obecnosc_mapa)
+                return
+            mo.zabicie(self._obecnosc_t(), poz[0], poz[1], poz[2])
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            self._obecnosc_blad("zabiciu", e)
+
+    def _obecnosc_zapisz(self, wymus=False):
+        """Zapis stanu mapy (atomowo, obecnosc.zapisz) najwyżej co OBECNOSC_ZAPIS_S; wymus = na koniec pracy."""
+        mo = self._obecnosc
+        if not mo or OBECNOSC_STAN_PLIK is None:
+            return
+        try:
+            t = self._obecnosc_t()
+            if not wymus and t - getattr(self, "_obecnosc_zapis_t", float("-inf")) < OBECNOSC_ZAPIS_S:
+                return
+            self._obecnosc_zapis_t = t         # także przy błędzie: bez ponawiania co tick
+            mo.zapisz(OBECNOSC_STAN_PLIK, t)
+        except Exception as e:
+            self._obecnosc_blad("zapisie stanu", e)
+
+    def _patrol_cien_drogi(self, poz):
+        """Drogi po grafie pliku miejsc (obecnosc.DrogiGraf, bez A*) {id: (pola, czas_s)} albo {} (wtedy linia prosta)."""
+        try:
+            g = self.__dict__.get("_cien_graf")
+            if g is None:
+                import obecnosc  # noqa: PLC0415
+                g = obecnosc.DrogiGraf.z_pliku(bot.TRASY / PATROL_PLIK)
+                self._cien_graf = g
+            return g.drogi_z(poz) if g else {}
+        except Exception as e:
+            self._cien_graf = False
+            self._obecnosc_blad("drogach grafu", e)
+            return {}
+
+    def _patrol_cien_przyblizenie(self, poz, m, d, drogi=None):
+        """Droga i czas dojścia do miejsca m BEZ A*: najpierw graf pliku miejsc (`drogi` z _patrol_cien_drogi, rodzaj "graf");
+        bez grafu: to samo piętro = linia prosta (Bresenham) po polach, czas = |dx|+|dy| pól
+        (dzisiejsza odległość `d` kandydata) x KROK_S; inne piętro = tylko okolica miejsca, czas = pola poziome x KROK_S +
+        SCHODY_S za piętro. Zwraca (droga [(x,y,z)], dojscie_s, rodzaj)."""
+        import obecnosc  # noqa: PLC0415
+        if drogi and m["id"] in drogi:
+            pola, czas = drogi[m["id"]]
+            return pola, czas, "graf"
+        dz = abs(m["z"] - poz[2])
+        if dz:
+            pola = abs(m["x"] - poz[0]) + abs(m["y"] - poz[1])
+            return [], pola * obecnosc.KROK_S + dz * obecnosc.SCHODY_S, "cel"
+        x0, y0, x1, y1 = poz[0], poz[1], m["x"], m["y"]
+        n = max(abs(x1 - x0), abs(y1 - y0))
+        droga = [(x0 + (x1 - x0) * i // n, y0 + (y1 - y0) * i // n, m["z"]) for i in range(1, n + 1)] if n else []
+        return droga, d * obecnosc.KROK_S, "linia"
+
+    def _patrol_cien_licz(self, kand, poz):
+        """Tryb cienia: wybór nowej metody (obecnosc.wybierz) na kandydatach `kand` [(m, d)], które patrol już ma. Wynik w
+        self._cien_wybor (cel, wartosci, pewnosc, opcje) dla _patrol_cien_pola; błąd = brak wyniku, nigdy wyjątek."""
+        self._cien_wybor = None
+        if not PATROL_RESPAWN_CIEN or not kand:
+            return
+        try:
+            mo = self._obecnosc_mapa()
+            if mo is None:
+                return
+            t = self._obecnosc_t()
+            gracze = [(gx, gy, poz[2]) for gx, gy in self._patrol_gracze(poz[2])]
+            cele, opcje = [], []
+            drogi = self._patrol_cien_drogi(poz)
+            for m, d in kand:
+                droga, dojscie_s, rodzaj = self._patrol_cien_przyblizenie(poz, m, d, drogi)
+                cel = {"id": m["id"], "droga": droga, "dojscie_s": dojscie_s, "poz": (m["x"], m["y"], m["z"])}
+                cele.append(cel)
+                kom = mo.komorki_celu_i_drogi(cel)
+                przy = mo.komorki_celu((m["x"], m["y"], m["z"]))
+                wiek = [t - r for r in (mo.czas_odniesienia(k) for k in przy) if r is not None]
+                opcje.append({"id": m["id"], "odl": d, "dojscie": round(dojscie_s, 1), "droga": len(droga), "przybl": rodzaj,
+                              "oczekiwane": round(sum(mo.oczekiwane(k, t) * mo.kara_gracza(k, gracze) for k in kom), 3),
+                              "od_wyczyszczenia_s": round(min(wiek), 1) if wiek else None,
+                              "gracz_przy": any(mo.kara_gracza(k, gracze) < 1.0 for k in przy)})   # przy samym miejscu (droga: w wartości)
+            cel_id, wart, pewnosc = mo.wybierz(cele, t, gracze)
+            for o in opcje:
+                o["wartosc"] = round(wart.get(o["id"], 0.0), 4)
+            self._cien_wybor = {"cel": cel_id, "wartosci": {k: round(v, 4) for k, v in wart.items()},
+                                "pewnosc": round(pewnosc, 3), "opcje": opcje}
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            self._cien_wybor = None
+            self._obecnosc_blad("wyborze cienia", e)
+
+    def _patrol_cien_pola(self, poz, m):
+        """Pola cienia do rekordu patrol_cel wybranego miejsca m (+ rekord "decyzja" D4); {}, gdy nie ma wyniku cienia.
+        cel_respawn = wybór nowej metody (None = za mała pewność, nowa metoda oddałaby decyzję dzisiejszej regule);
+        zgodny = nowa metoda wybrałaby to samo miejsce (None, gdy cel_respawn None: metoda bez zdania)."""
+        cw = self._cien_wybor
+        if not cw:
+            return {}
+        try:
+            cel = cw["cel"]
+            zgodny = None if cel is None else cel == m["id"]     # None: nowa metoda bez zdania (nie zawyża zgodności)
+            d4 = self._decyzja_zapisz("D4", poz, cw["opcje"], m["id"], regula=m["id"], cien=cel, zgodny=zgodny,
+                                      pewnosc=cw["pewnosc"], w_opcjach=any(o["id"] == m["id"] for o in cw["opcje"]))
+            return {"cel_respawn": cel, "wartosci": cw["wartosci"], "zgodny": zgodny, "pewnosc_respawn": cw["pewnosc"],
+                    "d4_id": d4}
+        except Exception as e:
+            self._obecnosc_blad("polach cienia", e)
+            return {}
+
     def _czas_kroku(self, poz):
         """Szacowany czas jednego kroku (s) po prędkości pola z mapy (najwolniejsze z pola i sąsiadów:
         czas zależy od pola, na które wchodzimy). 0.0, gdy mapa nie zna prędkości."""
@@ -5475,6 +5663,7 @@ class Cavebot:
                 return True
         log(f"Cel {c['nazwa']} zabity na {c.get('poz')}.")
         self.patrol_zabicia += 1
+        self._obecnosc_zabicie(c)
         zyje = self.zywy_w_poblizu([x for x in self.ostatnie_stwory if x["id"] != c["id"]], poz) \
             if self.loot and c.get("poz") else None
         szybki = False
@@ -5671,6 +5860,7 @@ class Cavebot:
         if self.exp_teraz is not None and p["exp0"] is not None and self.exp_teraz > p["exp0"]:
             log(f"Cel {c['nazwa']} zabity na {c['poz']} (exp +{self.exp_teraz - p['exp0']}, po zniknięciu).")
             self.patrol_zabicia += 1
+            self._obecnosc_zabicie(c)
             self._pamiec_koniec("przerwany", "zabity_exp", poz)
             return False
         if g.get("proc") is not None and g["proc"] <= self.prog_aktualny + PAMIEC_HP_MARGINES:
@@ -7180,8 +7370,9 @@ class Cavebot:
         if self._patrol_sweep_buduj(p, poz, teraz):
             powod += ", sweep zachodu"
         log(f"Patrol: cel m{m['id']} ({m['x']},{m['y']}) {powod}, droga {len(p['seg'])} pól{wtxt}.")
+        cien = self._patrol_cien_pola(poz, m)      # 15.10: tryb cienia (puste {}, gdy wyłączony albo brak wyniku)
         self._patrol_tele("patrol_cel", id=m["id"], x=m["x"], y=m["y"], powod=powod, droga=len(p["seg"]),
-                          waga=round(waga, 4) if waga is not None else None, poz=list(poz[:3]))
+                          waga=round(waga, 4) if waga is not None else None, poz=list(poz[:3]), **cien)
         return p
 
     def _sweep_wczytaj(self):
@@ -7277,6 +7468,15 @@ class Cavebot:
         log(f"Patrol: sweep zachodu zakończony, zaliczone miejsca: {sorted(ids + [p['m']['id']])}.")
 
     def _patrol_wybierz(self, poz, pomin=None):
+        """Wybór następnego miejsca (dzisiejsza metoda: _patrol_wybierz_dzis). Opakowanie tylko pilnuje, by wynik cienia
+        (_cien_wybor, liczony w środku na tych samych kandydatach) nie przeżył tego wywołania."""
+        self._cien_wybor = None
+        try:
+            return self._patrol_wybierz_dzis(poz, pomin)
+        finally:
+            self._cien_wybor = None
+
+    def _patrol_wybierz_dzis(self, poz, pomin=None):
         """Losuje następne miejsce (waga: udział zabić z dolnym progiem, odległość, kara za niedawne wizyty);
         None, gdy żadne nie jest osiągalne. Pierwszy wybór po starcie / wypadzie: najbliższe miejsce."""
         kand = self._patrol_kandydaci(poz, pomin)
@@ -7284,6 +7484,7 @@ class Cavebot:
             return None
         if self.patrol_pierwszy:
             self.patrol_pierwszy = False
+            self._patrol_cien_licz(kand, poz)      # tryb cienia: tylko odczyt, bez losowania i bez A*
             for m, d in sorted(kand, key=lambda md: md[1])[:6]:
                 p = self._patrol_nowy(poz, m, "najbliższe")
                 if p is not None:
@@ -7300,6 +7501,7 @@ class Cavebot:
                 runda.clear()
             kand = [(m, d) for m, d in kand if m["id"] not in runda] or kand
         pula = [(m, d) for m, d in kand if d >= PATROL_ODL_MIN] or kand
+        self._patrol_cien_licz(pula, poz)          # tryb cienia: ci sami kandydaci co losowanie (tylko odczyt, bez losowania i bez A*)
         for _ in range(6):
             wagi = [self._patrol_waga(m, d, hist) for m, d in pula]
             if sum(wagi) <= 0:
@@ -7816,6 +8018,7 @@ class Cavebot:
             log("Przerwano (Ctrl+C).")
         finally:
             self._poscig_puszcz()     # żaden klawisz ruchu nie zostaje wciśnięty po wyjściu
+            self._obecnosc_zapisz(wymus=True)     # stan mapy obecności na dysk (błąd tylko w logu)
 
 
 DOJSCIE_SYNC_OKNO = 25             # CavebotDojscie: tyle punktów do przodu sprawdzamy, czy postać już tam stoi (po walce idx zostaje w tyle)
