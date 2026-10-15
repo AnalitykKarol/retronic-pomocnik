@@ -6790,8 +6790,7 @@ class Cavebot:
                 and teraz - self.czar_ostatni >= CZAR_MIN_PRZERWA_S and teraz - self.pk_exura_ost >= CZAR_MIN_PRZERWA_S:
             self.pk_exura_ost = self.czar_ostatni = self.zdrowie_rzut_ts = teraz
             log(f"[PK] leczenie: {ZDROWIE_CZAR_TEKST} [{ZDROWIE_CZAR_KLAWISZ}] (HP {proc:.0f}%, mana {mana})")
-            self.postac.klawisz(ZDROWIE_CZAR_KLAWISZ)
-            return False                              # hotkey nie wymaga postoju: marsz trwa
+            self.postac.klawisz(ZDROWIE_CZAR_KLAWISZ)  # hotkey nie wymaga postoju: marsz trwa (UH poniżej może zużyć obieg)
         if uh and PK_UH_HP > 0 and proc <= PK_UH_HP and teraz >= self.pk_uh_do and teraz - self.pk_uh_ost >= PK_UH_ODSTEP_S \
                 and not self.uh_restore:
             return self._pk_uh_na_siebie(g, poz, teraz)

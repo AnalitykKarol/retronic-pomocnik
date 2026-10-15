@@ -1070,7 +1070,8 @@ class Wyprawa(Wypad):
             self.w = None
             self._plan_wyprawy = None
             self.potw_w = 0
-            self.nast_wyprawa = teraz + 900.0
+            if not pk:                       # ucieczka PK nie odkłada zwykłych wypraw (decyzja po stronie cavebota)
+                self.nast_wyprawa = teraz + 900.0
             return False
         self._ost_poz_w = poz
         self._stan_trasy()
@@ -1092,13 +1093,14 @@ class Wyprawa(Wypad):
             self._plan_wyprawy = None
             self.stan, self.faza, self.etapy, self.sklep, self.wynik = "SPOKOJ", None, None, None, None
             self.cb.wypad_aktywny = False
+        stare = (self.zablokowany, self.blokada_do)
         self.zablokowany = False
         self.blokada_do = float("-inf")
-        self.pk_baza = baza or getattr(self, "pk_baza", None)
+        baza_nazwa = (baza or getattr(self, "pk_baza", None)) if rodzaj == "powrot" else baza
         dane = {"powody": ["pk"], "zapas": None, "blanki": None, "zloto": None, "cap": None,
                 "hp": round(self.cb.gracz().get("proc", 100.0)), "pochodnie": None, "depo": True}
         try:
-            ok = self._start_wyprawa(f"depo:pk_{rodzaj}", dane, teraz, baza_nazwa=self.pk_baza, pk=rodzaj)
+            ok = self._start_wyprawa(f"depo:pk_{rodzaj}", dane, teraz, baza_nazwa=baza_nazwa, pk=rodzaj)
         except bot.Zatrzymano:
             raise
         except Exception as e:
@@ -1106,9 +1108,12 @@ class Wyprawa(Wypad):
             self.w = None
             self._plan_wyprawy = None
             self.stan = "SPOKOJ"
+            self.zablokowany, self.blokada_do = stare
             return False
         if ok and self.w is not None:
-            self.pk_baza = self.w.get("baza") or self.pk_baza
+            self.pk_baza = self.w.get("baza") or getattr(self, "pk_baza", None)
+        else:
+            self.zablokowany, self.blokada_do = stare      # nieudany start PK nie zmienia stanu zwykłych wypraw
         return bool(ok)
 
     def _zakoncz_pk(self, wynik, opis):
