@@ -141,6 +141,8 @@ ZAKRESY = {
     "PIETRA_CZEKAJ_R_S": (0.0, 4.0),    # R1b: s czekania na zmianę piętra po R (Ctrl+klik)
     "PIETRA_DOMYSL_PROMIEN": (0, 10),   # R1b: promień (pola od gracza) kandydata "domysł" z flagą mapy; 0 = dawne bez sprawdzenia
     "PIETRA_PRE_MAX": (0, 8),           # R1b: max pre-kroków na pole startowe (0 = dawne 8 ruchów)
+    "PIETRA_ZAJETE_MAX_S": (0.0, 60.0),  # 15.10: s czekania/bicia przy zajętym polu przejścia pięter (stwór/gracz na linie), próby niezliczane; 0 = wyłączone
+    "PIETRA_ZAJETE_ATAK": (0, 1),       # 15.10: 1 = stwór na polu przejścia atakujemy niezależnie od listy łowiska
     "PIETRA_STARTY_DOMYSLNE": (0, 1),   # R1b: 1 = zasiane dobre pola startowe z pietra_starty_domyslne.json
     "WYPRAWA_DEPO_POWROT": (0, 1),      # 1 = po dojściu do depo wyprawa sama wraca na spot (bez STOP)
     "WYPRAWA_DEPO_POSTOJ_S": (0, 600),  # s: postój w depo przed powrotem

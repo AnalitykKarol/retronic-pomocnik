@@ -223,6 +223,8 @@ PIETRA_CZEKAJ_KROK_S = 1.2         # R1b: s czekania na zmianę piętra po kroku
 PIETRA_CZEKAJ_R_S = 2.0            # R1b: s czekania na zmianę piętra po R (Ctrl+klik); p99 udanych 1,8 s
 PIETRA_DOMYSL_PROMIEN = 3          # R1b: kandydat "domysł" tylko w tylu polach od gracza i z flagami mapy zgodnymi z przejściem; 0 = dawne (kotwica na punkcie trasy, bez sprawdzenia)
 PIETRA_PRE_MAX = 1                 # R1b: najwyżej tyle pre-kroków strzałką na pole startowe na przejście; pole, na które nie dotarliśmy START_KROK_NIE_MAX (2) razy, idzie do pietra_zle.json (liczone po pozycji); 0 = dawne (8 ruchów, licznik "krok zwrócił None")
+PIETRA_ZAJETE_MAX_S = 20.0         # 15.10: s czekania/bicia, gdy na polu przejścia pięter (np. lina) stoi stwór lub gracz; w tym czasie próby nie są liczone, potem zwykłe próby; 0 = wyłączone (dawne)
+PIETRA_ZAJETE_ATAK = 1             # 15.10: 1 = stwór (nie gracz) na polu przejścia atakujemy niezależnie od listy łowiska; 0 = tylko czekamy
 PIETRA_STARTY_DOMYSLNE = 1         # R1b: zasiane dobre pola startowe z trasy/pietra_starty_domyslne.json (poniżej pamięci z pietra_start.json); 0 = bez zasiewu
 WYPRAWA_DEPO_POWROT = 0            # 1 = po dojściu do depo wyprawa sama wraca na spot (faza "z" po trasie depo_troll_cave) zamiast STOP
 WYPRAWA_DEPO_POSTOJ_S = 0          # s: postój w depo przed powrotem (czas na ręczne odłożenie rzeczy)

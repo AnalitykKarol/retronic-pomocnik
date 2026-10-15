@@ -352,8 +352,31 @@ class OperacjeZywe:
             mysz.klik(*ekran.pole_na_ekran(dx, dy, ekran.aktualny_prostokat(mysz.ekran)), 1, None, drganie=2)
 
     def uzyj_line(self, cel, poz):
-        """Ctrl+klik na linie w plecaku (Use), potem klik na polu `cel` (pole-lina)."""
-        self._uzyj_na_polu(ID_LINA, "liny (rope)", cel, poz)
+        """Ctrl+klik na linie w plecaku (Use), potem klik na polu `cel` (pole-lina).
+        15.10: bez liny w plecaku bierzemy ją ze slotu ekwipunku (zwykle amunicja, slot 10)."""
+        try:
+            self._uzyj_na_polu(ID_LINA, "liny (rope)", cel, poz)
+            return
+        except BrakEkranu as ex:
+            blad = ex
+        e = self.ekwipunek() or {}
+        slot = next((s for s, i in e.items() if int(i) == ID_LINA), None)
+        if slot is None:
+            raise blad
+        import ekran  # noqa: PLC0415
+        import loot  # noqa: PLC0415
+        import pochodnia  # noqa: PLC0415
+        dx, dy = cel[0] - poz[0], cel[1] - poz[1]
+        if abs(dx) > 1 or abs(dy) > 1:
+            raise BrakEkranu(f"pole liny {cel} za daleko od {tuple(poz)}")
+        with ekran.Mysz() as mysz:
+            obraz = loot._zrzut(mysz)
+            xy = pochodnia.pozycje_ekwipunku(obraz).get(int(slot))
+            if xy is None:
+                raise BrakEkranu(f"lina w slocie {slot}, ale nie widzę panelu Inventory")
+            mysz.klik(xy[0], xy[1], 1, "Control_L", drganie=3)
+            time.sleep(0.45)
+            mysz.klik(*ekran.pole_na_ekran(dx, dy, ekran.aktualny_prostokat(mysz.ekran)), 1, None, drganie=2)
 
     def uzyj_lopate(self, cel, poz):
         """Ctrl+klik na łopacie w plecaku (Use with), potem klik na polu `cel` (zasypana dziura) albo własnym."""
