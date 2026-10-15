@@ -104,8 +104,10 @@ class Env:
 
     def __init__(e, s):
         e.s = s
+        e.odczyty = 0
 
     def kontenery(e):
+        e.odczyty += 1
         return [{"nazwa": "backpack", "przedmioty": [{"slot": 0, "id": UH, "ilosc": e.s.zapas[UH]},
                                                        {"slot": 1, "id": HMM, "ilosc": e.s.zapas[HMM]}]}]
 
@@ -464,6 +466,102 @@ import json
 przyklad = json.loads((Path(cavebot.__file__).parent / "na_zywo.przyklad.json").read_text())
 sprawdz("15c na_zywo.przyklad.json ma PVP_WALKA=0 i wszystkie wpisy PVP_* poprawne", przyklad.get("PVP_WALKA") == 0
         and not pokretla.waliduj({k: v for k, v in przyklad.items() if k.startswith("PVP_")})[1])
+
+
+# 16. widok mapy klienta: |dy| <= 5 (nie 7): napastnik w dy=6 jest poza zasięgiem strzału, podchodzimy
+kl16 = [(0, 100, [gr("Zly Gracz", 3, 0)]), (1, 90, [gr("Zly Gracz", 1, 0)])]
+kl16 += [(t, 90, [dict(gr("Zly Gracz", 0, 0), ax=101, ay=106)]) for t in range(2, 20)]
+s = Swiat(kl16)
+b = zrob(s)
+odtworz(b, s, 0, 6)
+sprawdz("16 napastnik w dy=6 (poza widokiem |dy|<=5): bez strzału w tym obiegu, krok w jego stronę, potem strzał z dy=5",
+        s.kroki[1:2] == [(101, 101, 8)] and any(r == HMM for _, r, _ in s.strzaly) and s.poz[1] == 101, f"{s.kroki} {s.strzaly}")
+dy_strzal = []
+_f = runa_klik.strzel
+
+
+def strzel_dy(env, cel, runa_id=None, **kw):
+    if runa_id == HMM:
+        dy_strzal.append((abs(cel["dx"]), abs(cel["dy"])))
+    return _f(env, cel, runa_id=runa_id, **kw)
+
+
+s = Swiat(kl16)
+b = zrob(s)
+_f = runa_klik.strzel
+runa_klik.strzel = strzel_dy
+odtworz(b, s, 0, 6)
+sprawdz("16b cel strzału zawsze w widoku mapy (|dx|<=7, |dy|<=5)", dy_strzal and all(x <= 7 and y <= 5 for x, y in dy_strzal), dy_strzal)
+
+# 16c. wyjątek ze strzel (klik poza widokiem itp.): Escape (zdjęcie celownika), liczona porażka, walka nie kończy się od razu
+s = Swiat(atakuje(90, 1, [(2, 90, [gr("Zly Gracz", 1, 0)])]))
+b = zrob(s)
+wyw = []
+
+
+def strzel_wyj(env, cel, runa_id=None, **kw):
+    wyw.append(runa_id)
+    raise ValueError("pole poza widokiem mapy")
+
+
+runa_klik.strzel = strzel_wyj
+odtworz(b, s, 0, 3)
+sprawdz("16c wyjątek ze strzel: Escape wysłany, porażka policzona, nadal WALKA", any(k == "Escape" for _, k in s.klawisze)
+        and b.pvp and b.pvp["hmm_porazki"] == 1 and b.pk_stan == "WALKA", f"{s.klawisze} {b.pk_stan}")
+
+# 17. uh_restore (tarcza zdjęta, ustawiane przy restarcie/alarmie) nie zamraża walki: HMM leci, UH przy 20% działa
+s = Swiat(kl)
+b = zrob(s)
+b.uh_restore = {"tarcza_id": 1234}
+odtworz(b, s, 0, 6)
+sprawdz("17 uh_restore ustawione: HMM nadal leci, przy HP 20% UH (nie ucieczka 'brak UH')",
+        any(r == HMM for _, r, _ in s.strzaly) and any(r == UH for _, r, _ in s.strzaly) and b.pk_stan == "WALKA",
+        f"{s.strzaly} {b.pk_stan}")
+
+# 18. podejście omija zmianę piętra i dziury z mapy
+kl18 = [(0, 100, [gr("Zly Gracz", 3, 0)]), (1, 90, [gr("Zly Gracz", 1, 0)])]
+kl18 += [(t, 90, [dict(gr("Zly Gracz", 0, 0), ax=109, ay=100)]) for t in range(2, 20)]
+s = Swiat(kl18)
+b = zrob(s)
+b.pole_zmiany_pietra = lambda pole: pole[0] == 102
+odtworz(b, s, 0, 4)
+sprawdz("18 pole zmiany piętra na drodze: nie wchodzimy (stoimy), strzału brak (9 pól)",
+        (102, 100, 8) not in s.kroki and not [x for x in s.strzaly if x[1] == HMM], f"{s.kroki} {s.strzaly}")
+s = Swiat(kl18)
+b = zrob(s)
+b._dziury_przy = lambda pole, z: {(102, 100)}
+odtworz(b, s, 0, 4)
+sprawdz("18b dziura z mapy na drodze: nie wchodzimy", (102, 100, 8) not in s.kroki and (103, 100, 8) not in s.kroki, f"{s.kroki}")
+
+# 19. jedno powiadomienie przy przegranej walce (nie 'pvp_koniec' + 'pk_atak')
+s = Swiat(kl, uh=0)
+b = zrob(s)
+odtworz(b, s, 0, 4)
+klucze = [k for _, _, k in b.powiadomienia]
+sprawdz("19 przegrana walka: jedno powiadomienie ucieczki (pk_atak), bez pvp_koniec; wcześniejsze pvp_walka (start) zostaje",
+        klucze.count("pk_atak") == 1 and "pvp_koniec" not in klucze, klucze)
+
+# 20. odczyt plecaka najwyżej co 1 s (oraz po strzale/UH)
+s = Swiat(atakuje(90, 1, [(2, 90, [gr("Zly Gracz", 1, 0)])]))
+b = zrob(s)
+odtworz(b, s, 0, 10, krok=0.25)
+n_tick = int(10 / 0.25)
+sprawdz("20 ticki co 0,25 s: odczytów plecaka wyraźnie mniej niż obiegów", b.runa_klik_env.odczyty < n_tick * 0.6, f"{b.runa_klik_env.odczyty} z {n_tick}")
+
+# 21. nie strzelamy tuż nad progiem UH (HP 28% > 20, <= 30): bez HMM, bez UH; HP 35%: HMM
+s = Swiat(atakuje(90, 1, [(2, 90, [gr("Zly Gracz", 1, 0)]), (4, 28, [gr("Zly Gracz", 1, 0)])]))
+b = zrob(s)
+odtworz(b, s, 0, 7)
+sprawdz("21 HP 28% (<= UH+10): HMM wstrzymany, czekamy na UH", not [x for x in s.strzaly if x[0] >= 4] and b.pk_stan == "WALKA", f"{s.strzaly}")
+s = Swiat(atakuje(90, 1, [(2, 90, [gr("Zly Gracz", 1, 0)]), (4, 35, [gr("Zly Gracz", 1, 0)])]))
+b = zrob(s)
+odtworz(b, s, 0, 7)
+sprawdz("21a HP 35%: HMM leci", [x for x in s.strzaly if x[0] >= 4 and x[1] == HMM], f"{s.strzaly}")
+
+# 22. KIERUNEK: analityk nie poluzuje walki
+for k, kier in (("PVP_HMM_CO_S", "nie_wyzej"), ("PVP_ZASIEG", "nie_wyzej"), ("PVP_ZNIKL_S", "nie_wyzej"), ("PVP_ZABITY_HP", "nie_wyzej"),
+                ("PVP_SKOK_POL", "nie_nizej")):
+    sprawdz(f"22 KIERUNEK {k} = {kier}", pokretla.KIERUNEK.get(k) == kier, pokretla.KIERUNEK.get(k))
 
 stopy()
 print()

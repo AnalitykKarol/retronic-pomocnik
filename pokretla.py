@@ -291,6 +291,11 @@ KIERUNEK = {
     # walka z napastnikiem: analityk nie może jej włączyć, poluzować wejścia ani opóźnić leczenia (tylko Karol w na_zywo.json)
     "PVP_WALKA": "nie_wyzej", "PVP_MAX_WROGOW": "nie_wyzej", "PVP_DRUGI_ODL": "nie_nizej", "PVP_HP_MIN": "nie_nizej",
     "PVP_UH_HP": "nie_nizej", "PVP_EXURA_HP": "nie_nizej", "PVP_POGON": "nie_wyzej", "PVP_HMM_PORAZKI": "nie_wyzej",
+    # (kierunek bezpieczny = walka nie dłuższa/szersza niż dziś) HMM_CO_S: wolniejszy ogień to słabsza walka, nie wolno; ZASIEG: tylko krócej;
+    # ZNIKL_S: tylko krócej czekamy na zniknięcie; ZABITY_HP: nie wolno podnosić (łatwiejsze uznanie "zabity" = wcześniejszy powrót do gry);
+    # SKOK_POL: nie wolno obniżać (fałszywa "śmierć" kończyłaby walkę przy teleporcie)
+    "PVP_HMM_CO_S": "nie_wyzej", "PVP_ZASIEG": "nie_wyzej", "PVP_ZNIKL_S": "nie_wyzej", "PVP_ZABITY_HP": "nie_wyzej",
+    "PVP_SKOK_POL": "nie_nizej",
     "UNIKANIE": "nie_nizej", "UNIKANIE_PROMIEN": "nie_nizej", "UNIKANIE_PROMIEN_MAX": "nie_nizej",
     "UNIKANIE_MOB_PROMIEN": "nie_nizej", "UNIKANIE_PUNKT_D": "nie_nizej", "UNIKANIE_DROGA_MIN": "nie_nizej",
     "UNIKANIE_BLOK_S": "nie_wyzej", "UNIKANIE_ZNIKL_S": "nie_nizej",

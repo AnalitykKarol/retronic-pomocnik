@@ -6990,9 +6990,11 @@ class Cavebot:
             f"HP {st.get('hp_start', 0):.0f}% -> {g.get('proc', 0):.0f}%.")
         self._pvp_rekord("pvp_koniec", g, poz, teraz, nap, wynik=wynik, powod=powod, strzaly_hmm=st.get("strzaly", 0),
                          uh_uzyc=st.get("uh_uzyc", 0), exura=st.get("exura", 0), hp_start=round(st.get("hp_start", 0), 1))
-        self._pk_powiadom(f"PVP: koniec walki ({wynik})", f"{nick}: {powod}. HP {g.get('proc', 0):.0f}%.", "pvp_koniec")
+        if wynik != "ucieczka":                       # przy ucieczce powiadamia _pk_start ("PK: uciekam do miasta"): jedno powiadomienie
+            self._pk_powiadom(f"PVP: koniec walki ({wynik})", f"{nick}: {powod}. HP {g.get('proc', 0):.0f}%.", "pvp_koniec")
         self.pvp = None
         if wynik == "ucieczka":
+            self.pk_alarm_ost = float("-inf")         # walka mogła trwać < 20 s: bez tego _pk_start pominąłby alarm i powiadomienie
             self._pk_start(f"walka PvP przegrana: {powod}", [nick], g, poz, teraz)
         else:
             self.pk_stan = None
@@ -7033,9 +7035,11 @@ class Cavebot:
         nap = min(kand, key=lambda s: self.dystans((s["x"], s["y"]), pozxy)) if kand else None   # TYLKO ten nick
         drudzy = self._pvp_drudzy(st["nick"], lista, poz, wlasna, pomin, det, wr)
         st["n"] = (1 if nap is not None else 0) + len(drudzy)
-        zapas = self._pvp_zapas()
-        if zapas is not None:
-            st["uh"], st["hmm"] = zapas
+        if st.get("zapas_brudny") or teraz - st.get("zapas_t", float("-inf")) >= 1.0:   # plecak: co 1 s albo po strzale/UH
+            zapas = self._pvp_zapas()
+            st["zapas_t"], st["zapas_brudny"] = teraz, False
+            if zapas is not None:
+                st["uh"], st["hmm"] = zapas
         if nap is not None:
             st["ost_hp"] = nap.get("hp", 100)
             self.pk_widoczni_ost = teraz
@@ -7049,7 +7053,7 @@ class Cavebot:
             if nap is not None or st["ost_hp"] <= PVP_ZABITY_HP:
                 return self._pvp_koniec("zabity", f"napastnik zniknął przy HP {st['ost_hp']}%", g, poz, teraz, nap)
         niedost = nap is None or nap.get("z") != poz[2]
-        uh_ok = bool(st["uh"]) and teraz >= self.pk_uh_do and not self.uh_restore
+        uh_ok = bool(st["uh"]) and teraz >= self.pk_uh_do         # bez uh_restore: runy nie zależą od tarczy, a moduł UH w walce nie pracuje
         if proc <= PVP_UH_HP and not uh_ok:
             self._pvp_rekord("pvp", g, poz, teraz, nap, akcja="ucieczka", powod="HP krytyczne, brak UH")
             return self._pvp_koniec("ucieczka", f"HP {proc:.0f}% <= {PVP_UH_HP}% i brak UH", g, poz, teraz, nap)
@@ -7063,6 +7067,7 @@ class Cavebot:
         # --- leczenie (zawsze przed atakiem) ---
         if proc <= PVP_UH_HP:
             st["uh_uzyc"] += 1
+            st["zapas_brudny"] = True
             self._pk_uh_na_siebie(g, poz, teraz)
             self._pvp_rekord("pvp", g, poz, teraz, nap, akcja="lecz_uh")
             return True
@@ -7078,10 +7083,10 @@ class Cavebot:
 
         # --- atak / podejście: TYLKO napastnik (id z listy po nicku) ---
         if nap is not None and not niedost:
-            odl = self.dystans((nap["x"], nap["y"]), pozxy)
-            if odl <= PVP_ZASIEG:
+            if self._pvp_w_zasiegu(nap, poz):
                 st["niedost_od"] = None
-                if teraz - st["hmm_ost"] >= PVP_HMM_CO_S and not self.uh_restore:
+                # tuż nad progiem UH nie blokujemy obiegu ~2 s strzałem (kliknięcia): UH ma być gotowe w następnym obiegu
+                if teraz - st["hmm_ost"] >= PVP_HMM_CO_S and proc > PVP_UH_HP + 10:
                     self._pvp_strzal(st, nap, g, poz, teraz)
                     akcje.append("atak_hmm")
             elif self._pvp_podejdz(st, nap, poz):
@@ -7103,10 +7108,20 @@ class Cavebot:
         if self.runa_klik_env is None:
             self.runa_klik_env = runa_klik.SrodowiskoKlik(self.postac, self.zapytaj, log=lambda t: log(t))
         st["hmm_ost"] = teraz
+        st["zapas_brudny"] = True
         self.aktywnosc_ts = teraz
-        wynik = runa_klik.strzel(self.runa_klik_env,
-                                 {"id": nap["id"], "dx": nap["x"] - poz[0], "dy": nap["y"] - poz[1], "hp": nap.get("hp")},
-                                 runa_id=int(RUNA_ID), menu_dx=int(RUNA_MENU_DX), menu_dy=int(RUNA_MENU_DY))
+        try:
+            wynik = runa_klik.strzel(self.runa_klik_env,
+                                     {"id": nap["id"], "dx": nap["x"] - poz[0], "dy": nap["y"] - poz[1], "hp": nap.get("hp")},
+                                     runa_id=int(RUNA_ID), menu_dx=int(RUNA_MENU_DX), menu_dy=int(RUNA_MENU_DY))
+        except Exception as e:                       # np. klik poza widokiem: celownik "Use with" mógł zostać uzbrojony
+            try:
+                self.postac.klawisz("Escape")
+            except Exception:
+                pass
+            if type(e).__name__ == "Zatrzymano":
+                raise
+            wynik = {"wynik": "blad", "powod": f"wyjątek {e!r}"}
         w, pw = wynik["wynik"], wynik["powod"]
         if w == "ok":
             st["hmm_porazki"] = 0
@@ -7118,6 +7133,11 @@ class Cavebot:
         else:
             st["hmm_porazki"] += 1
             log(f"[PVP] HMM bez efektu ({w}: {pw}), porażka {st['hmm_porazki']}/{PVP_HMM_PORAZKI}")
+
+    def _pvp_w_zasiegu(self, nap, poz):
+        """Napastnik w zasięgu strzału: PVP_ZASIEG i widok mapy klienta (|dx| <= ZASIEG_X, |dy| <= ZASIEG_Y; klik poza widokiem to wyjątek)."""
+        dx, dy = abs(nap["x"] - poz[0]), abs(nap["y"] - poz[1])
+        return dx <= min(PVP_ZASIEG, ZASIEG_X) and dy <= min(PVP_ZASIEG, ZASIEG_Y)
 
     def _pvp_podejdz(self, st, nap, poz):
         """Jeden krok w stronę napastnika, ale nie dalej niż PVP_POGON od miejsca startu walki (cel kroku obcięty do tego kwadratu,
@@ -7134,6 +7154,8 @@ class Cavebot:
             pole = (poz[0] + d[0], poz[1] + d[1], poz[2])
             if self.zablokowane.get(((poz[0], poz[1], poz[2]), k)) or self._ogien_na(pole) or self.dziura_nauczona(pole):
                 continue
+            if (pole[0], pole[1]) in self._dziury_przy(pole, poz[2]) or self.pole_zmiany_pietra(pole):
+                continue                              # dziura z mapy / schody: w pogoni za graczem nie zmieniamy piętra
             self.ruch_strzalki += 1
             if self.postac.krok(k):
                 return True
