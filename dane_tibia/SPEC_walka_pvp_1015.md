@@ -48,7 +48,8 @@ napastnik, HP 90% -> HMM co 2 s; HP spada do 50% -> UH przed HMM; brak UH -> uci
 
 - Q1: atakujemy **tylko napastnika** (gracza, który nas uderzył; detekcja z obrony PK). Nikogo innego.
 - Q2/Q3: **UH na siebie przy HP <= 20%**; HMM "napierdalamy w nich ile wlezie": strzał HMM przy każdej okazji (cooldown runy),
-  bez progu zapasu HMM i bez progu UH do rozpoczęcia walki. Pozostałe progi (1 na 1, HP >= 40% do wejścia w walkę, exura 80%)
-  zostają jako pokrętła z wartościami ze szkicu; ucieczka przy HP < PVP_HP_MIN albo braku HMM.
-- Q4: po przegranej wymianie ucieczka jak w obronie PK (depo, karencja 30 min).
-- Q5: przed walką z ludźmi próba na żywo strzału HMM i UH na siebie (na mobie / na sobie).
+  bez progu zapasu HMM i UH. Wejście w walkę: 1 napastnik, HP >= PVP_HP_MIN (40%). W trakcie walki NIE uciekamy przy 40%:
+  walczymy dalej, UH przy 20%, exura przy 80% gdy jest mana; ucieczka dopiero, gdy HP <= 20% i nie ma UH, gdy skończą się HMM
+  albo gdy dojdzie drugi napastnik.
+- Q4: po przegranej wymianie ucieczka jak w obronie PK (depo, karencja 30 min) - przyjęte domyślnie (polecane).
+- Q5: bez odpowiedzi - domyślnie PVP_WALKA=0 do czasu próby na żywo strzału HMM i UH na siebie; włączenie słowem Karola.
