@@ -58,13 +58,47 @@ def _zapytaj_surowe(zadanie):
 # Tu wybieramy wpis własny: zgodny z HP z bloku statystyk gracza, a przy remisie najbliższy adresem blokowi
 # statystyk (blok żywej sesji leży tuż przy żywym wpisie). Tożsamość odświeżana co WLASNY_ODSWIEZ s.
 WLASNY_ODSWIEZ = 2.0
+# 15.10: widmo trzymało i blok statystyk, więc zgodność HP/adresu wskazywała widmo przez 1 h 45 min. Dlatego
+# pierwszeństwo ma ruch: wpis, który zmienił pozycję w ciągu WLASNY_RUCH s, jest żywy (widmo stoi w miejscu).
+WLASNY_RUCH = 60.0
 _wlasny = {"nazwa": None, "t": float("-inf"), "wpis": None, "duplikat": None}
+_ruch = {}      # (id, adres) -> [ostatnia pozycja, czas ostatniej zmiany albo None = nie widziano ruchu]
 
 
-def wybierz_wlasny(kandydaci, gracz):
-    """Z wpisów gracza o naszej nazwie wybiera żywy (dict z 'adres', 'id') albo None, gdy nie da się rozstrzygnąć."""
+def sledz_ruch(ruch, kandydaci, teraz):
+    """Aktualizuje ruch wpisów (pozycja, czas ostatniej zmiany); wpisy spoza listy znikają ze słownika."""
+    for k in kandydaci:
+        klucz, poz = (k["id"], k["adres"]), (k.get("x"), k.get("y"), k.get("z"))
+        zapis = ruch.get(klucz)
+        if zapis is None:
+            ruch[klucz] = [poz, None]
+        elif zapis[0] != poz:
+            ruch[klucz] = [poz, teraz]
+    for klucz in [c for c in ruch if c not in {(k["id"], k["adres"]) for k in kandydaci}]:
+        del ruch[klucz]
+
+
+def _po_ruchu(kandydaci, ruch, teraz):
+    """Wpis o najświeższym ruchu (w oknie WLASNY_RUCH) albo None, gdy żaden się nie rusza."""
+    if not ruch or teraz is None:
+        return None
+    ruszone = [(ruch[(k["id"], k["adres"])][1], k) for k in kandydaci
+               if (k["id"], k["adres"]) in ruch and ruch[(k["id"], k["adres"])][1] is not None
+               and teraz - ruch[(k["id"], k["adres"])][1] <= WLASNY_RUCH]
+    if not ruszone:
+        return None
+    ruszone.sort(key=lambda p: p[0], reverse=True)
+    return ruszone[0][1]
+
+
+def wybierz_wlasny(kandydaci, gracz, ruch=None, teraz=None):
+    """Z wpisów gracza o naszej nazwie wybiera żywy (dict z 'adres', 'id') albo None, gdy nie da się rozstrzygnąć.
+    Najpierw ruch (ruch: wynik sledz_ruch, teraz: zegar), potem HP i adres bloku statystyk."""
     if len(kandydaci) < 2:
         return None
+    zywy = _po_ruchu(kandydaci, ruch, teraz)
+    if zywy is not None:
+        return zywy
     pula = kandydaci
     try:
         proc = 100.0 * gracz["hp"] / gracz["max_hp"]
@@ -92,7 +126,10 @@ def wlasny_wpis(nazwa):
         lista = _zapytaj_surowe({"cmd": "stwory"})["stwory"]
         kand = [s for s in lista if s.get("gracz") and s.get("nazwa") == nazwa]
         if len(kand) > 1:
-            wpis = wybierz_wlasny(kand, _zapytaj_surowe({"cmd": "gracz"})["gracz"])
+            sledz_ruch(_ruch, kand, teraz)
+            wpis = wybierz_wlasny(kand, _zapytaj_surowe({"cmd": "gracz"})["gracz"], _ruch, teraz)
+        else:
+            _ruch.clear()
     except Exception:
         wpis = None
     w.update(nazwa=nazwa, t=teraz, wpis=wpis)
@@ -100,8 +137,9 @@ def wlasny_wpis(nazwa):
     if klucz != w["duplikat"]:
         w["duplikat"] = klucz
         if wpis:
+            powod = "ruch" if _po_ruchu(kand, _ruch, teraz) is wpis else "hp/adres bloku"
             print(f"[bot] widmo gracza {nazwa}: używam wpisu id{wpis['id']} {wpis['adres']} "
-                  f"({wpis['x']},{wpis['y']},{wpis['z']})", file=sys.stderr, flush=True)
+                  f"({wpis['x']},{wpis['y']},{wpis['z']}; wybór: {powod})", file=sys.stderr, flush=True)
     return wpis
 
 

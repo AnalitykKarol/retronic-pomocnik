@@ -8,6 +8,7 @@ import errno
 import os
 import re
 import struct
+import sys
 import time
 
 import numpy as np
@@ -27,6 +28,7 @@ TYPY = {
 
 # Statystyki gracza w OTClient (LocalPlayer) leżą obok siebie jako double.
 POLA_GRACZA = ["hp", "max_hp", "cap", "max_cap", "exp", "level", "procent", "mana", "max_mana"]
+ZYWY_BLOK = 60.0   # s: tyle po ostatniej zmianie blok statystyk gracza uchodzi za żywy (nie widmo po relogu)
 
 
 def exp_na_level(level):
@@ -614,9 +616,10 @@ class Pamiec:
         return trafienia
 
     def _wybierz_blok_gracza(self, trafienia):
-        """Spośród trafień wybiera żywy blok statystyk: ten, który ostatnio się zmienił (stare
-        kopie po relogu/realokacji są zamrożone); bez zmian w zasięgu: najwyższe exp, potem
-        obecny adres."""
+        """Spośród trafień wybiera żywy blok statystyk. Widmo po relogu (15.10: 1 h 45 min) to zamrożona
+        kopia; żywy jest blok, który zmienił się w ostatnich ZYWY_BLOK s (wygrywa ostatnia zmiana).
+        Gdy żaden nie zmienił się w tym oknie (postać stoi, pełne HP): najwyższe exp, potem ostatnia
+        zmiana, potem obecny adres. Czas zmiany 0.0 = nie widziano zmiany od pierwszego odczytu."""
         teraz = time.monotonic()
         widziane = self.__dict__.setdefault("_gracz_widziane", {})
         bloki = {}
@@ -634,7 +637,10 @@ class Pamiec:
         if not bloki:
             return None, None
         def klucz(a):
-            return (widziane[a][1], bloki[a].get("exp", 0), a == self.adres_gracza)
+            zm = widziane[a][1]
+            exp = bloki[a].get("exp", 0)
+            zywy = zm > 0.0 and teraz - zm <= ZYWY_BLOK
+            return (zywy, zm if zywy else exp, exp if zywy else zm, a == self.adres_gracza)
         a = max(bloki, key=klucz)
         return a, bloki[a]
 
@@ -663,6 +669,10 @@ class Pamiec:
         if blok is None:
             self.adres_gracza = None
             raise RuntimeError("nie znalazłem statystyk gracza (zalogowany?)")
+        if adres != self.adres_gracza:
+            print(f"[rdzen] statystyki gracza: blok {hex(self.adres_gracza) if self.adres_gracza else '-'} "
+                  f"-> {hex(adres)} (hp {blok.get('hp')}, exp {blok.get('exp')}; trafień {len(trafienia)})",
+                  file=sys.stderr, flush=True)
         self.adres_gracza = adres
         return {**blok, "adres": hex(adres),
                 "inne_trafienia": [hex(a) for a in trafienia if a != adres][:5]}
