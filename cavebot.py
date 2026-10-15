@@ -2331,6 +2331,7 @@ class Cavebot:
         import ekran  # noqa: PLC0415
         import ogien  # noqa: PLC0415
         obraz = ogien.zrzut_ppm(ekran.SESJA.read_text().strip())
+        ekran._zauwaz_rozmiar(obraz.size)                  # log zmiany rozmiaru ekranu (okno podglądu zmienia go w locie)
         prostokat = ekran._cache_mapy.get(obraz.size)      # cache prostokąta mapy po rozmiarze (bez zapytania do X)
         if prostokat is None:
             prostokat = ekran.aktualny_prostokat()

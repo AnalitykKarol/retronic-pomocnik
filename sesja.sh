@@ -26,10 +26,15 @@ fi
 # hosta). Render i grim działają niezależnie od widoczności, bo nic nie zależy od klatek kompozytora hosta.
 # W sesji działa wayvnc (127.0.0.1, port w $STAN/vnc_port), a na pulpicie otwiera się vncviewer z myszą i klawiaturą.
 # RETRONIC_BEZ_OKNA=0: dawny tryb z oknem (bot staje, gdy okno jest niewidoczne).
-# RETRONIC_BEZ_OKNA_ROZ=SZERxWYS (domyślnie 800x910). RETRONIC_PODGLAD=0: bez automatycznego podglądu
+# RETRONIC_BEZ_OKNA_ROZ=SZERxWYS (domyślnie 1175x910; ekran sesji dopasowuje się potem do okna podglądu, dopasuj_okno.py).
+# RETRONIC_PODGLAD=0: bez automatycznego podglądu
 # (wayvnc i tak działa, podglad.sh otwiera go później). RETRONIC_PODGLAD_PORT: port VNC (domyślnie 5901, instancje 5902+).
 BEZ_OKNA="${RETRONIC_BEZ_OKNA:-1}"
-ROZ="${RETRONIC_BEZ_OKNA_ROZ:-800x910}"   # klient z 13.10 rysuje min. 800 px szerokości; przy 734 prawy panel był ucięty (14.10)
+# Domyślny rozmiar 1175x910 (SPEC_okno_gry_1015.md): mapa 15:11 wypełnia szerokość lewej części ekranu, a prawy panel ma ok. 185 px;
+# przy wysokości 910 czarne pasy nad/pod mapą znikają przy szerokości ok. 1175 px. UNKNOWN do sprawdzenia zrzutem (grim: brak pasów,
+# panel z prawej kompletny, ekran.py mapa): do tego czasu to hipoteza z geometrii, nie pomiar.
+# Cofnięcie: RETRONIC_BEZ_OKNA_ROZ=800x910 (klient potrzebuje min. 800 px szerokości; przy 734 prawy panel był ucięty, 14.10).
+ROZ="${RETRONIC_BEZ_OKNA_ROZ:-1175x910}"
 if [ -z "${RETRONIC_ID:-}" ]; then PORT_DOM=5901; else PORT_DOM=$((5902 + $(printf '%s' "$RETRONIC_ID" | cksum | cut -d' ' -f1) % 90)); fi
 PORT="${RETRONIC_PODGLAD_PORT:-$PORT_DOM}"
 OUTPUT_KONF=""

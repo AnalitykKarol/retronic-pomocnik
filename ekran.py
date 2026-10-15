@@ -30,6 +30,22 @@ SESJA = bot.instancja.sesja() / "wayland"   # bez RETRONIC_ID: retronic-sesja/wa
 SCRATCH = Path(__file__).resolve().parent / "testy" / "dane"   # zrzuty do testów (ekran.py test)
 
 _cache_mapy = {}                 # (szerokość, wysokość) -> (L, T, R, B)
+_ostatni_rozmiar = None          # ostatni rozmiar ekranu, jaki widzieliśmy (do logu zmiany; okno podglądu zmienia go w locie)
+
+
+def log(*a):
+    print(time.strftime("%H:%M:%S"), *a, flush=True)
+
+
+def _zauwaz_rozmiar(rozmiar):
+    """Loguje zmianę rozmiaru ekranu (dopasuj_okno.py zmienia go w trakcie gry). Cache prostokąta mapy jest po rozmiarze,
+    więc nowy rozmiar = nowe wykrycie, a powrót do znanego rozmiaru = prostokąt z cache."""
+    global _ostatni_rozmiar
+    rozmiar = tuple(rozmiar)
+    if rozmiar != _ostatni_rozmiar:
+        if _ostatni_rozmiar is not None:
+            log(f"ekran: nowy rozmiar {rozmiar[0]}x{rozmiar[1]}, wykrywam mapę od nowa")
+        _ostatni_rozmiar = rozmiar
 
 
 # --- zrzut i wykrywanie mapy -------------------------------------------------
@@ -97,11 +113,12 @@ def _przedzialy(maska):
     return list(zip(np.where(d == 1)[0].tolist(), np.where(d == -1)[0].tolist()))
 
 
-def prostokat_mapy(obraz):
+def prostokat_mapy(obraz, zapamietaj=True):
     """Wykrywa (L, T, R, B) mapy na zrzucie. Tło UI jest jednolicie ciemnoszare
     (R~G~B, 10..40), treść mapy już nie (nawet czarna winieta ma wartości < 10).
     Wynik w cache pod kluczem = rozmiar zrzutu."""
     klucz = obraz.size
+    _zauwaz_rozmiar(klucz)
     if klucz in _cache_mapy:
         return _cache_mapy[klucz]
     a = np.asarray(obraz.convert("RGB")).astype(np.int16)
@@ -146,6 +163,8 @@ def prostokat_mapy(obraz):
         L = 0
     if R >= szer - 2:
         R = szer
+    if not zapamietaj:
+        return (L, T, R, B)
     _cache_mapy[klucz] = (L, T, R, B)
     return _cache_mapy[klucz]
 
@@ -153,10 +172,13 @@ def prostokat_mapy(obraz):
 def aktualny_prostokat(ekran=None):
     """Prostokąt mapy dla bieżącego rozmiaru ekranu; zrzut robi tylko przy nowym rozmiarze."""
     rozmiar = _rozmiar_ekranu(ekran)
+    _zauwaz_rozmiar(rozmiar)
     if rozmiar not in _cache_mapy:
         obraz = zrzut()
         if obraz.size != rozmiar:
-            obraz = obraz.resize(rozmiar)
+            # zrzut (Wayland) i ekran X zmieniają rozmiar nie w tej samej chwili (zmiana w locie): rozciągnięty obraz
+            # daje chwilowy, błędny prostokąt - nie zapamiętujemy go pod nowym rozmiarem (został by do następnej zmiany)
+            return prostokat_mapy(obraz.resize(rozmiar), zapamietaj=False)
         prostokat_mapy(obraz)
     return _cache_mapy[rozmiar]
 

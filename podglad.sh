@@ -1,6 +1,9 @@
 #!/bin/bash
 # Podgląd gry uruchomionej bez okna (sesja.sh, RETRONIC_BEZ_OKNA=1): vncviewer na wayvnc sesji, z myszą i klawiaturą.
 # Zamknięcie podglądu nie zatrzymuje gry ani bota. RETRONIC_ID=<id> wybiera instancję.
+# Okno podglądu rządzi rozmiarem ekranu sesji: dopasuj_okno.py (w tle, z życiem vncviewera) ustawia wayvnc na rozmiar okna
+# (min. 800x600); RETRONIC_DOPASUJ_OKNO=0 wyłącza (ekran sesji ma wtedy stały rozmiar z sesja.sh). vncviewer zostaje z
+# -RemoteResize=0: TigerVNC 1.16 sam nie prosi o zmianę rozmiaru, a skalowania (zoom) w tej wersji nie da się ustawić z CLI.
 # --czekaj: czeka do 60 s, aż wayvnc sesji zacznie słuchać (tak woła go sesja.sh przy starcie).
 DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 INST=$(python3 -I "$DIR/instancja.py" powloka) || exit 1; eval "$INST"
@@ -12,4 +15,16 @@ for i in $(seq 0 "$CZEKAJ"); do
 done
 [ -n "$PORT" ] || { echo "podglad.sh: gra bez okna nie działa (brak wayvnc w $INST_SESJA)" >&2; exit 1; }
 if pgrep -f "^vncviewer .*127\.0\.0\.1::$PORT\b" >/dev/null; then echo "podgląd już otwarty (port $PORT)"; exit 0; fi
-exec vncviewer -RemoteResize=0 -ReconnectOnError=0 127.0.0.1::"$PORT"
+vncviewer -RemoteResize=0 -ReconnectOnError=0 127.0.0.1::"$PORT" &
+VPID=$!
+HPID=""
+if [ "${RETRONIC_DOPASUJ_OKNO:-1}" != "0" ]; then
+  python3 -I "$DIR/dopasuj_okno.py" --port "$PORT" --pid "$VPID" &
+  HPID=$!
+fi
+# podgląd (ten skrypt) zabity przez sesja.sh albo terminal: zabij też vncviewera i helpera (dawniej exec = jeden proces)
+koniec() { kill "$VPID" ${HPID:+"$HPID"} 2>/dev/null || true; }
+trap 'koniec; exit 143' TERM INT HUP
+wait "$VPID"; status=$?
+[ -n "$HPID" ] && kill "$HPID" 2>/dev/null || true
+exit "$status"
