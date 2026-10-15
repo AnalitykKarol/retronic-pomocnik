@@ -314,7 +314,7 @@
      10
     ]
    },
-   "wejscie": "nieznane z danych spawnow; wymaga weryfikacji w kliencie/mapie (najblizszy punkt odniesienia: Edron 33191,31818,7)",
+   "wejscie": "Edron depo (33173,31796,8) -> wejscie na spot (33117,31775,8), kanaly z8-z11, kratka ctrl+klik; trasy edron_do_depo, edron_trolle_depo, dojscie edron_depo_trolle",
    "potwory": [
     {
      "nazwa": "troll",
@@ -371,8 +371,23 @@
    "odleglosc_do_depo_kratek": 126,
    "odleglosc_uwagi": "linia prosta od znacznika miasta Edron (33191,31818); realna trasa dluzsza, pietra liczone osobno (z=9 wzgledem z=7)",
    "opis": "Troll (20 exp, hp 50), swamp/frost troll, niedzwiedzie. Wolno ale bezpiecznie, dobre na lvl 8-14.",
-   "pewnosc": "srednia",
-   "ranking_druid_lvl13_25": null
+   "pewnosc": "srednia (exp/h zmierzone 15.10)",
+   "ranking_druid_lvl13_25": null,
+   "pomiary": [
+    {
+     "data": "2026-10-15",
+     "postac": "Jointoramix druid lvl 17",
+     "trasa": "edron_trolle_petla (mapa trolle_edron_patrol, TRYB=uh)",
+     "exp_h": {
+      "sesja_18_07_20_25": 2144,
+      "ostatnia_godz": 2058,
+      "ostatnie_30_min": 1960,
+      "dzien_5_4h": 2380
+     },
+     "uwagi": "Duzo ludzi na spocie (full ppl): Prolvldeus, Kezz, Yeiko, Eliu krazyli 5-6 pol od nas, bot omija trolle przy graczach (Unikanie), tempo spada wraz z tlokiem. Znacznie gorzej niz poprzedni spot wg Karola."
+    }
+   ],
+   "tlok": "czesto pelny (full ppl = duzo graczy na spocie), wieczorem 15.10 3-4 innych graczy jednoczesnie"
   },
   {
    "id": "E5",
