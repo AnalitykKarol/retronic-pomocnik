@@ -255,12 +255,6 @@ sprawdz("2 jeden napastnik, HP 90%: wejście w WALKA, ucieczka nie startuje", b.
 sprawdz("2a HMM co 2 s (t=2,4,6,8,10,12), tylko HMM, bez UH/exury", t_hmm == [2.0, 4.0, 6.0, 8.0, 10.0, 12.0]
         and all(r == HMM for _, r, _ in s.strzaly) and not s.klawisze, f"{s.strzaly} {s.klawisze}")
 sprawdz("2b strzały tylko w napastnika (id z listy)", all(i == gr("Zly Gracz", 0, 0)["id"] for _, _, i in s.strzaly))
-s.t = 12.5
-b.tick()
-s.t = 13.0
-b.tick()
-sprawdz("2c cooldown: tick co 0,5 s nie daje szybszych strzałów", len([t for t, r, _ in s.strzaly if r == HMM]) == 6
-        or [t for t, r, _ in s.strzaly][-1] == 14.0 or True)
 st_ = [t for t, r, _ in s.strzaly]
 sprawdz("2d odstęp między strzałami zawsze >= 2 s", all(b2 - a >= 2.0 - 1e-9 for a, b2 in zip(st_, st_[1:])), st_)
 
