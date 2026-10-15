@@ -578,6 +578,8 @@ def _plan_z_pamieci(obraz, wynik, kontenery, idy, nazwy):
         chcemy = ident in idy
         if chcemy and POMIN_CIEZKIE and POMINIETE_CIEZKIE.get(ident, 0) > time.monotonic():
             chcemy = False                         # za_ciezki: pomijamy do końca POMIN_CIEZKIE_S
+        if chcemy and ident in KOLEJNOSC_JEDZENIA and LOOT_JEDZENIE_MAKS and _jedzenie_w_plecakach(okna) >= LOOT_JEDZENIE_MAKS:
+            chcemy = False                         # 15.10: mamy już tyle jedzenia, reszta zostaje (cap)
         if not chcemy and ident not in ID_NAZWA:
             # nieznane ID: może obrazek rozpozna przedmiot z listy, wtedy uczymy się jego ID
             nazwa_obrazka = rozpoznaj(obraz, slot)[0] if widoczny else None
@@ -610,6 +612,18 @@ def _plan_z_pamieci(obraz, wynik, kontenery, idy, nazwy):
         if cel is not None:
             break
     return None
+
+
+LOOT_JEDZENIE_MAKS = 2             # 15.10: najwyżej tyle sztuk jedzenia nosimy z lootu (0 = bez limitu); zjadanie ze zwłok bez zmian
+
+
+def _jedzenie_w_plecakach(okna):
+    """Sztuki jedzenia w oknach plecaka i bagu na runy (nie w zwłokach)."""
+    n = 0
+    for o in okna:
+        if getattr(o, "rola", None) in ("plecak", "runy") and o.kontener:
+            n += sum(q.get("ilosc", 1) for q in o.kontener.get("przedmioty", []) if q.get("id") in KOLEJNOSC_JEDZENIA)
+    return n
 
 
 def _cel_w_plecaku(plecak, ident, ilosc):
