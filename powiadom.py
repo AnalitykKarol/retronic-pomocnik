@@ -186,6 +186,13 @@ def czat_obok(autor, tekst):
     powiadom("Ktoś pisze obok", f"{autor}: {tekst}", klucz=f"czat:obok:{autor}")
 
 
+def czat_spot(autor, tekst, odpowiedz=False, pilne=False):
+    """czat_spot: bot napisał do gracza na spocie albo gracz mu odpisał (pilne = prowokacja, Karol przejmuje)."""
+    tytul = (f"{autor} odpisał" + (" — przejmij" if pilne else "")) if odpowiedz else f"Napisałem do {autor}"
+    powiadom(tytul, tekst if odpowiedz else f"(wraca/przeszkadza na spocie) {tekst}", "critical" if pilne else "normal",
+             klucz=f"czat:spot:{autor}:{hash(tekst)}")
+
+
 def alarm_gm(powod):
     powiadom("ALARM GM", powod, "critical", klucz="gm")
 
