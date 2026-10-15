@@ -1,4 +1,4 @@
-# SPEC: okno gry bez szarych pasków (15.10 wieczór) — SZKIC do akceptu (decyzja Karola: stały rozmiar + dopasowanie w locie)
+# SPEC: okno gry bez szarych pasków (15.10 wieczór) — ZATWIERDZONY 15.10 ~22:45 (stały rozmiar + dopasowanie w locie)
 
 Cel: podgląd gry (vncviewer na pulpicie) bez ciemnej ramki wokół i bez czarnych pasów nad/pod mapą w kliencie.
 
@@ -36,3 +36,8 @@ Cel: podgląd gry (vncviewer na pulpicie) bez ciemnej ramki wokół i bez czarny
 - Q1 Zmiana rozmiaru w trakcie gry bota: dopuszczalna (bot sam wykryje mapę od nowa), czy dopasowanie tylko przy
   zatrzymanym bocie (bezpieczniej)?
 - Q2 Minimalny rozmiar okna: 800x600 OK?
+
+## Decyzje Karola 15.10 ~22:45
+
+- Q1: dopasowanie **zawsze, także w trakcie gry bota** (bot wykrywa mapę od nowa po zmianie rozmiaru).
+- Q2: minimalny rozmiar 800x600.
