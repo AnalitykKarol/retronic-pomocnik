@@ -41,5 +41,12 @@
   "potwory": "Troll,Bear,Swamp Troll,Frost Troll",
   "prog_hp": 30,
   "dojscie": "edron_depo_trolle"
+ },
+ "trolle_edron_patrol": {
+  "opis": "Edron troll cave z8: patrol po spawnach z trasy/miejsca_edron.json (wymaga TRYB_PATROL=1), trasa awaryjna pętla edron_trolle_petla, dojście z depo edron_depo_trolle",
+  "trasa": "patrol:edron",
+  "potwory": "Troll,Bear,Swamp Troll,Frost Troll",
+  "prog_hp": 30,
+  "dojscie": "edron_depo_trolle"
  }
 }
