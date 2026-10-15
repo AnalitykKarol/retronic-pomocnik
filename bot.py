@@ -86,7 +86,10 @@ def _po_ruchu(kandydaci, ruch, teraz):
                if (k["id"], k["adres"]) in ruch and ruch[(k["id"], k["adres"])][1] is not None
                and teraz - ruch[(k["id"], k["adres"])][1] <= WLASNY_RUCH]
     if not ruszone:
-        return None
+        # nikt nie ruszył się w oknie (postój): jeśli od pojawienia się duplikatu ruszał się tylko jeden wpis,
+        # to on jest żywy (widmo nie rusza się nigdy) - bez powrotu do zgadywania po bloku (ping-pong)
+        kiedys = [k for k in kandydaci if (k["id"], k["adres"]) in ruch and ruch[(k["id"], k["adres"])][1] is not None]
+        return kiedys[0] if len(kiedys) == 1 else None
     ruszone.sort(key=lambda p: p[0], reverse=True)
     return ruszone[0][1]
 

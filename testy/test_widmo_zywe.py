@@ -29,7 +29,7 @@ for t, x in ((2.0, 32501), (4.0, 32502)):
     kand = tick(ruch, 32506, x, t)
 sprawdz("widmo stoi, żywy chodzi: wybrany żywy mimo bloku-widma", bot.wybierz_wlasny(kand, G_WIDMO, ruch, 4.0)["id"] == 2)
 sprawdz("bez ruchu (ruch=None) zachowanie bez zmian", bot.wybierz_wlasny(kand, G_WIDMO)["id"] == 1)
-sprawdz("po WLASNY_RUCH bez ruchu wraca stara logika", bot.wybierz_wlasny(kand, G_WIDMO, ruch, 4.0 + bot.WLASNY_RUCH + 1)["id"] == 1)
+sprawdz("po WLASNY_RUCH postoju zostaje jedyny wpis, który się kiedyś ruszał", bot.wybierz_wlasny(kand, G_WIDMO, ruch, 4.0 + bot.WLASNY_RUCH + 1)["id"] == 2)
 
 ruch = {}
 kand = tick(ruch, 32506, 32500, 0.0); kand = tick(ruch, 32506, 32500, 2.0)

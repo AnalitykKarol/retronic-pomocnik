@@ -55,7 +55,8 @@ PO_PORAZKACH_S = 3600.0     # po MAX_PORAZEK nieudanych z rzędu: gramy "po ciem
 MAX_PORAZEK = 2
 ETAP_UTK_S = 60.0           # s bez postępu w etapie = utknięcie
 ETAP_NIEOSIAG_S = 12.0      # s bez postępu, po których sprawdzamy A*, czy koniec etapu jest w ogóle osiągalny stąd
-OSIAG_KAND = 24             # tylu najbliższych (Chebyshev) punktów planu sprawdzamy A* przy szukaniu osiągalnego
+OSIAG_MAX_PRZESIADEK = 3     # tyle przesiadek na osiągalny punkt bez postępu, potem utknięcie (bez ping-ponga)
+OSIAG_KAND = 10             # tylu najbliższych (Chebyshev) punktów planu sprawdzamy A* przy szukaniu osiągalnego
 ETAP_PRZEJSCIE_PROB = 6     # prób przejścia pięter (lina/dziura) zanim uznamy awarię
 PRZEJSCIE_ODSTEP = (1.0, 3.0, 6.0, 8.0)   # s przerwy między kolejnymi próbami
 DRZWI_PROB = 6              # prób otwarcia i wejścia w drzwi (typ etapu DRZWI), potem awaria jak przy linie/dziurze
@@ -429,6 +430,7 @@ class Wypad:
         self.ost_obieg = float("-inf")
         self.postep = None          # [czas, wskaznik] postępu w etapie
         self.osiag_proba = float("-inf")    # kiedy ostatnio sprawdzaliśmy A*, czy koniec etapu jest osiągalny
+        self.osiag_przesiadki = 0           # przesiadki bez postępu (po OSIAG_MAX_PRZESIADEK: utknięcie)
         self.utk = 0
         self.wyjatki = 0
         self.przystanek_od = None   # od kiedy stoimy w tym etapie (tolerancja dojścia)
@@ -804,6 +806,8 @@ class Wypad:
         # utknięcie: brak zbliżenia do końca etapu przez ETAP_UTK_S
         wsk = (self.ei, -cheb(poz, ost) if poz[2] == ost[2] else -999)
         if self.postep is None or wsk > self.postep[1]:
+            if self.postep is not None:
+                self.osiag_przesiadki = 0
             self.postep = [teraz, wsk]
         elif teraz - self.postep[0] > ETAP_UTK_S:
             return self._utkniecie(poz, e, teraz)
@@ -862,7 +866,9 @@ class Wypad:
             return False
         cel = self._najblizszy_osiagalny(poz, self.ei)
         self._blad("etap_nieosiagalny", poz=list(poz), etap=self.ei, cel=list(cel) if cel else None)
-        if cel is None:
+        self.osiag_przesiadki += 1
+        if cel is None or self.osiag_przesiadki > OSIAG_MAX_PRZESIADEK:
+            self.osiag_przesiadki = 0
             return self._utkniecie(poz, e, teraz, wymus=True)
         self.log(f"Wypad: koniec etapu {self.ei} {tuple(ost)} nieosiągalny z {tuple(poz)}; "
                  f"przesiadka na etap {cel[0]} punkt {cel[1]}")
