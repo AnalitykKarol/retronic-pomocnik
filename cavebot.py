@@ -239,6 +239,7 @@ WYPRAWA_CZEKAJ_NA_GLOD = 0         # 1 = wyprawa po jedzenie dopiero po potwierd
 WYPRAWA_JEDZENIE = 1             # 0 = brak jedzenia nie jest powodem wyprawy (wyprawa.py; 15.10 decyzja Karola: na razie tylko blanki)
 WYPRAWA_DEPO_W_WALCE = 1           # 1 = wyprawa do depo (po potwierdzonym głodzie) startuje także w walce i biegnie; 0 = tylko w spokoju
 WYPRAWA_DEPO_ZLOZ = 0                # 1 = zwykła wyprawa zaczyna od depo: składa UH w skrzyni, potem Frodo/Xodet
+WYPRAWA_DOJSCIE_PATROLEM = 1       # 15.10: 1 = wyprawa/wypad startujący w części jaskini niepołączonej z planem (inna strona schodów, kieszeń) najpierw dochodzi do planu drogą patrolu (graf przejść pięter z pliku miejsc + pietra.py), zamiast kończyć utknięciem; 0 = dawne zachowanie; pokrętło 0-1
 WYPRAWA_TYLKO_DEPO = 0              # 1 = wyprawa idzie tylko do depo (troll_do_miasta + A* do pola depo), tam STOP + powiadomienie; bez zakupów i powrotu
 RUCH_OKNO = 1                      # pokrętło 0/1 (R0b): rekord telemetrii ruch_okno co 30 s (czas marszu/stania, przyczyny, luki)
 RUCH_PROBKA_WCZESNA = 1            # pokrętło 0/1 (R0b): próbka telemetrii także przy wczesnym zakończeniu obiegu (bez A*, bez RPC)
@@ -7217,7 +7218,7 @@ class Cavebot:
         """True, gdy główna pętla trasy ma wykonywać przejścia pięter z trasy (TRASA_PIETRA: 0 wył., 1 zawsze,
         2 tylko gdy trasa ma > 1 piętro). Nigdy w wypadzie (ma własne przejścia) ani bez pozycji."""
         v = TRASA_PIETRA
-        if not v or self.wypad_aktywny:
+        if not v or (self.wypad_aktywny and not self.__dict__.get("wypad_dojscie")):
             return False
         if v == 1:
             return True
@@ -7231,8 +7232,8 @@ class Cavebot:
         nie ignorowany) wstrzymuje krok trasy i przejścia pięter. Odczyt świeży (cache <= 0,3 s), bo tuż po
         zmianie piętra lista z początku obiegu bywa pusta/stara. True = obieg zużyty (walka w następnym obiegu)."""
         r = TRASA_STOP_PRZY_POTWORZE_R
-        if not r:
-            return False
+        if not r or self.__dict__.get("wypad_dojscie"):
+            return False                     # dojście wypadu do planu (wypad.py): biegnie, nie czeka na walkę
         try:
             lista = self.stwory(0.3)
         except bot.Zatrzymano:
@@ -7639,7 +7640,8 @@ class Cavebot:
 
     def _patrol_pietra_ok(self):
         """Miejsca na innych piętrach są kandydatami: plik miejsc ma przejścia, pokrętło i trasa wielopiętrowa włączone."""
-        return bool(PATROL_PIETRA and TRASA_PIETRA and self.przejscia and not self.wypad_aktywny)
+        return bool(PATROL_PIETRA and TRASA_PIETRA and self.przejscia
+                    and not (self.wypad_aktywny and not self.__dict__.get("wypad_dojscie")))
 
     # --- droga do miejsca: A* po piętrze albo graf (przejścia pięter + ręczne łączniki z pliku miejsc) ---
 
