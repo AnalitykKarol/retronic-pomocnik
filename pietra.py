@@ -258,6 +258,9 @@ class Pietra:
                 if cheb(p, T) > 1:
                     return True                 # odeszliśmy od pola: następny obieg zrobi dojście
                 poz = p
+        r = self._zajete(poz, T, st, teraz)
+        if r is not None:
+            return r
         S = None
         if self._dane():
             # R1b: ortogonalne pole startowe tylko przed krokiem; R (Ctrl+klik) działa ze skosu i z własnego pola
@@ -271,6 +274,66 @@ class Pietra:
         if S is not None:
             return self._na_start(poz, S, T, st)
         return self._proba(poz, st, k, teraz)
+
+    # --- 15.10: pole przejścia zajęte przez stwora/gracza (lina na polu ze szczurem: Use ciągnie stwora, nie nas) ---
+
+    def _zajete(self, poz, T, st, teraz):
+        """Stwór/gracz stoi NA polu przejścia T: nie zużywamy próby. Stwór bijemy (dowolny, niezależnie od listy
+        łowiska; PIETRA_ZAJETE_ATAK), gracza czekamy. Limit PIETRA_ZAJETE_MAX_S na pole, potem zwykłe próby.
+        None = pole wolne (albo limit/wyłączone), True = obieg zużyty."""
+        cb = self.cb
+        maks = float(self._k("PIETRA_ZAJETE_MAX_S", 20.0))
+        if maks <= 0:
+            return None
+        z_ = st.setdefault("zajete", {})
+        w = z_.get(tuple(T))
+        if w is not None and w["koniec"]:
+            return None
+        try:
+            lista = cb.stwory(0.3)
+        except bot.Zatrzymano:
+            raise
+        except Exception:
+            return None
+        wlasna = getattr(getattr(cb, "postac", None), "nazwa", None)
+        tu = [s for s in lista if (s["x"], s["y"], s["z"]) == tuple(T[:3]) and s.get("hp", 100) > 0
+              and not (s.get("gracz") and s.get("nazwa") == wlasna and (s["x"], s["y"]) == (poz[0], poz[1]))]
+        if not tu:
+            z_.pop(tuple(T), None)
+            return None
+        if w is None:
+            w = z_[tuple(T)] = {"od": teraz, "koniec": False, "atak": float("-inf")}
+        if teraz - w["od"] > maks:
+            w["koniec"] = True
+            self.log(f"Przejście pięter: pole {T[:2]} nadal zajęte po {maks:.0f} s, zwykłe próby")
+            return None
+        gracz = next((s for s in tu if s.get("gracz")), None)
+        if gracz is not None:
+            if not w.get("log"):
+                w["log"] = True
+                self.log(f"Przejście pięter: na polu {T[:2]} stoi gracz {gracz.get('nazwa')}, czekam (max {maks:.0f} s)")
+            cb.pauza(0.3, 0.6)
+            return True
+        s = tu[0]
+        atak = getattr(cb, "atak", None)
+        if int(self._k("PIETRA_ZAJETE_ATAK", 1)) and atak is not None:
+            if not w.get("log"):
+                w["log"] = True
+                self.log(f"Przejście pięter: na polu przejścia {T[:2]} stoi {s['nazwa']}, atakuję (max {maks:.0f} s)")
+                self._tele("pietra_zajete", nazwa=s["nazwa"], pole=list(T[:3]))
+            if teraz - w["atak"] >= 2.0:
+                w["atak"] = teraz
+                try:
+                    atak(s, {"x": poz[0], "y": poz[1]})
+                except bot.Zatrzymano:
+                    raise
+                except Exception as e:
+                    self.log(f"Przejście pięter: atak na {s['nazwa']} nie poszedł: {e!r}")
+        elif not w.get("log"):
+            w["log"] = True
+            self.log(f"Przejście pięter: na polu {T[:2]} stoi {s['nazwa']}, czekam (max {maks:.0f} s)")
+        cb.pauza(0.3, 0.6)
+        return True
 
     # --- pole startowe: ortogonalnie ze schodami (po skosie Ctrl+klik i krok bywają wolne albo bez skutku) ---
 
