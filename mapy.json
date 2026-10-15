@@ -34,5 +34,17 @@
   "potwory": "Troll,Orc,Orc Spearman,Orc Warrior",
   "prog_hp": 30,
   "dojscie": "depo_troll_cave"
+ },
+ "rook": {
+  "opis": "Rookgaard, kanały z11: patrol po miejscach z trasy/miejsca.json (trasa awaryjna kanaly2), szczury; bez dojścia: postać musi stać w kanałach",
+  "trasa": "patrol",
+  "potwory": "Rat",
+  "prog_hp": 30
+ },
+ "wilki": {
+  "opis": "Thais, wilki przy mieście (z7): pętla wilki_thais wokół (32480,32166), bez dojścia",
+  "trasa": "wilki_thais",
+  "potwory": "Wolf,Rat",
+  "prog_hp": 30
  }
 }
