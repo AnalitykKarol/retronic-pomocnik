@@ -593,6 +593,20 @@ _PK_TEST_N = 0                     # licznik plików wrogów w testach (RETRONIC
 PK_FALLBACK_PONOW_S = 10.0         # s: w ucieczce awaryjnej (brak planu do depo) co tyle ponawiamy start trasy do depo
 PK_DEPO_MAX_MIN = 20               # min: tyle w depo czekamy na regenerację HP (bez jedzenia HP nie rośnie), potem STOP + powiadomienie
 PK_POWROT_PROBY = 3                # nieudane starty powrotu z depo na spot, po których STOP (potrzebny człowiek)
+# --- walka z napastnikiem (SPEC_walka_pvp_1015, decyzje Karola 15.10): bijemy TYLKO gracza, który nas uderzył (detekcja PK) ---
+PVP_WALKA = 0                      # 0/1: 1 = zamiast ucieczki do depo walczymy z jedynym napastnikiem (HMM + UH/exura); DOMYŚLNIE 0 do próby na żywo
+PVP_MAX_WROGOW = 1                 # tylu napastników w widoku naraz dopuszcza wejście w walkę (więcej = ucieczka jak dotąd)
+PVP_DRUGI_ODL = 5                  # pola: inny obcy gracz (nie GM) tak blisko, znany wróg albo gracz z groźną czaszką liczy się jako DRUGI napastnik
+PVP_HP_MIN = 40                    # % HP: wejście w walkę tylko przy HP >= tyle (w trakcie walki nie uciekamy przy 40%)
+PVP_UH_HP = 20                     # % HP: <= tyle w walce -> UH na siebie (brak UH = ucieczka)
+PVP_EXURA_HP = 80                  # % HP: <= tyle w walce i jest mana -> exura (hotkey F2)
+PVP_HMM_CO_S = 2.0                 # s: odstęp między strzałami HMM w napastnika (cooldown runy)
+PVP_ZASIEG = 7                     # pola (chebyshev): dalej od napastnika nie strzelamy, tylko podchodzimy
+PVP_POGON = 3                      # pola: nie oddalamy się od miejsca startu walki dalej niż tyle (podejście)
+PVP_ZNIKL_S = 5.0                  # s: napastnik poza widokiem/zasięgiem tak długo = koniec walki (wynik uciekl_on), dalej zwykły przebieg PK
+PVP_ZABITY_HP = 15                 # % HP napastnika: zniknięcie w widoku przy HP <= tyle (albo HP 0) = zabity
+PVP_HMM_PORAZKI = 3                # tyle nieudanych strzałów HMM z rzędu (poza brakiem runy) = ucieczka
+PVP_SKOK_POL = 30                  # pola: przeskok pozycji większy niż tyle między obiegami w walce = teleport do świątyni (śmierć)
 LOOT_HP_MARGINES = 10              # pp nad progiem ucieczki: poniżej przerywamy loot (bijemy się dalej / uciekamy)
 LOOT_HP_ZAGROZENIE = 3             # pp nad progiem ucieczki: HP tak blisko przerywa loot także bez mobów w pobliżu
 LOOT_HP_MOBY_ODL = 6               # pola: żywy potwór tak blisko + HP w LOOT_HP_MARGINES = realne zagrożenie walką
@@ -999,7 +1013,7 @@ class Cavebot:
         self.uh_hold_od = None
         self.uh_przerwal_cavebot = None    # powód przerwania zgłoszony przez callback (to nie porażka mechanizmu)
         self.unikanie = None           # unikanie.Unikanie: omijanie zwykłych graczy (haki: tick, _unikanie_filtr, _idz_trasa)
-        self.pk_stan = None            # obrona PK: None | "UCIECZKA" (do depo / awaryjna) | "DEPO" (czekamy) | "POWROT" (na spot)
+        self.pk_stan = None            # obrona PK: None | "UCIECZKA" (do depo / awaryjna) | "DEPO" (czekamy) | "POWROT" (na spot) | "WALKA" (PvP, PVP_WALKA=1)
         self.pk_fallback = False       # True: brak planu do depo, ucieczka awaryjna (stary stan UCIECZKA po trasie)
         self.pk_od = float("-inf")     # kiedy ostatnio weszliśmy w ucieczkę PK
         self.pk_widoczni_ost = float("-inf")   # kiedy ostatnio widzieliśmy wroga (atak albo znany nick)
@@ -1015,6 +1029,7 @@ class Cavebot:
         self.pk_uh_do = float("-inf")
         self.pk_exura_ost = float("-inf")
         self.pk_det = self.pk_wrogowie = None   # obrona_pk.DetektorPK / Wrogowie (tworzone przy pierwszym użyciu)
+        self.pvp = None                # walka z napastnikiem (pk_stan "WALKA"): dict stanu walki albo None
         self._hak_unikania()
         self.znane_nowe = 0
         self.znane_zapis = zegar()
@@ -6765,6 +6780,8 @@ class Cavebot:
         if self.ostatnie_stwory is not self.pk_lista_ref:       # lista poprzedniego obiegu (za darmo): pamięć potworów przy nas
             self.pk_lista_ref = self.ostatnie_stwory
             det.zapamietaj_moby(self.ostatnie_stwory, poz, teraz)
+        if self.pk_stan == "WALKA":                   # walka z napastnikiem (PVP_WALKA=1): własny tick, bez detekcji wejścia
+            return self._pvp_tick(g, poz, teraz, det, wr)
         wazny = float(PK_WROG_WAZNY_H)
         znani = any(wr.znany(r.get("nick"), wazny) for r in wr.dane.values())
         czaszki_wczesniej = self.pk_stan != "DEPO" and any(self._pk_czaszka(s) for s in self.ostatnie_stwory or ())
@@ -6805,6 +6822,8 @@ class Cavebot:
         if self.pk_stan is None:
             if zagrozenie:
                 self.pk_start_sprawdzony = True
+                if atak and PVP_WALKA and self._pvp_wejscie(atak, lista, poz, wlasna, pomin, det, wr, g, teraz):
+                    return True
                 self._pk_start("atak" if atak else ("czaszka" if czaszki else "wróg w widoku"), nicki, g, poz, teraz)
                 return True
             if not self.pk_start_sprawdzony:
@@ -6850,6 +6869,261 @@ class Cavebot:
             self._pk_awaryjna(teraz, "wyprawa do depo zgubiona")
             return False
         return self._pk_lecz(g, poz, teraz, lista)
+
+    # --- walka z napastnikiem (SPEC_walka_pvp_1015): pk_stan "WALKA", tylko gdy PVP_WALKA=1 ---------------------
+
+    def _pvp_zapas(self):
+        """(UH, HMM): ilość run w plecakach i pojemniku na runy albo None, gdy plecaków nie da się odczytać."""
+        try:
+            import runa_klik  # noqa: PLC0415
+            if self.runa_klik_env is None:
+                self.runa_klik_env = runa_klik.SrodowiskoKlik(self.postac, self.zapytaj, log=lambda t: log(t))
+            kont = self.runa_klik_env.kontenery()
+            if not kont:
+                return None
+            return int(runa_klik._ilosc(kont, int(PK_UH_ID))), int(runa_klik._ilosc(kont, int(RUNA_ID)))
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"PVP: odczyt plecaka nieudany ({e!r})")
+            return None
+
+    def _pvp_drudzy(self, nick, lista, poz, wlasna, pomin, det, wr):
+        """Inni obcy gracze (nie GM, nie my), których traktujemy jak kolejnych napastników: stoją w PVP_DRUGI_ODL, są na liście
+        wrogów albo mają groźną czaszkę. -> lista unikalnych nicków."""
+        import obrona_pk  # noqa: PLC0415
+        k0 = obrona_pk.klucz_nicku(nick)
+        pozxy = (poz[0], poz[1])
+        wazny = float(PK_WROG_WAZNY_H)
+        wynik = {}
+        for s in det.obcy(lista, poz, wlasna, pomin):
+            k = obrona_pk.klucz_nicku(s.get("nazwa"))
+            if k == k0:
+                continue
+            if self.dystans((s["x"], s["y"]), pozxy) <= PVP_DRUGI_ODL or wr.znany(s.get("nazwa"), wazny) or self._pk_czaszka(s):
+                wynik.setdefault(k, s["nazwa"])
+        return list(wynik.values())
+
+    def _pvp_rekord(self, typ, g, poz, teraz, nap=None, **d):
+        st = self.pvp or {}
+        pozxy = (poz[0], poz[1])
+        self._tele_poscig(typ, wrog=st.get("nick"), hp=round(g.get("proc", 0.0), 1), mana=g.get("mana"),
+                          wrog_hp=None if nap is None else nap.get("hp"),
+                          odl=None if nap is None else self.dystans((nap["x"], nap["y"]), pozxy),
+                          n_wrogow=st.get("n"), uh=st.get("uh"), hmm=st.get("hmm"), poz=list(poz[:3]),
+                          czas_walki=round(teraz - st.get("od", teraz), 1), **d)
+
+    def _pvp_wejscie(self, atak, lista, poz, wlasna, pomin, det, wr, g, teraz):
+        """Czy zamiast ucieczki walczymy: PVP_WALKA, dokładnie jeden napastnik w widoku (PVP_MAX_WROGOW), nie GM, HP >= PVP_HP_MIN,
+        co najmniej 1 HMM w plecaku. True = pk_stan "WALKA" (obieg zużyty), False = ucieczka jak dotąd (przyczyna w logu)."""
+        gracze = atak["gracze"]
+        nap = gracze[0]
+        powod = None
+        if len(gracze) != 1:
+            powod = f"{len(gracze)} napastników równocześnie"
+        elif GM_NAZWA.search(nap.get("nazwa") or ""):
+            powod = "napastnik to GM"
+        else:
+            drudzy = self._pvp_drudzy(nap["nazwa"], lista, poz, wlasna, pomin, det, wr)
+            if 1 + len(drudzy) > PVP_MAX_WROGOW:
+                powod = f"napastników {1 + len(drudzy)} (+ {', '.join(drudzy)}), dopuszczam {PVP_MAX_WROGOW}"
+            elif g["proc"] < PVP_HP_MIN:
+                powod = f"HP {g['proc']:.0f}% < {PVP_HP_MIN}%"
+        zapas = None
+        if powod is None:
+            zapas = self._pvp_zapas()
+            if zapas is None:
+                powod = "nie odczytałem plecaka (zapas HMM/UH nieznany)"
+            elif zapas[1] < 1:
+                powod = "brak HMM w plecaku"
+        if powod is not None:
+            log(f"PVP: nie walczę z {nap.get('nazwa')}: {powod} -> ucieczka.")
+            return False
+        self.pvp = {"nick": nap["nazwa"], "id": nap["id"], "start": (poz[0], poz[1]), "od": teraz, "hmm_ost": float("-inf"),
+                    "hmm_porazki": 0, "niedost_od": None, "ost_hp": nap.get("hp", 100), "uh": zapas[0], "hmm": zapas[1], "n": 1,
+                    "poz_ost": (poz[0], poz[1], poz[2]), "hp_start": g["proc"], "strzaly": 0, "uh_uzyc": 0, "exura": 0}
+        self.pk_stan = "WALKA"
+        self.pk_od = teraz
+        self.pk_fallback = False
+        self.cel = None
+        self.rozprawa = None
+        if self.lww:
+            self._lww_przerwij("pk", teraz, pilne=True)
+        if self.pamiec:
+            self._pamiec_koniec("przerwany", "pk", poz)
+        self._wypad_reset_klik()
+        self.zatrzymaj_klik(poz)
+        log(f"PVP: WALKA z {nap['nazwa']} (HP {g['proc']:.0f}%, jego HP {nap.get('hp', '?')}%, odl "
+            f"{self.dystans((nap['x'], nap['y']), (poz[0], poz[1]))}, UH {zapas[0]}, HMM {zapas[1]}).")
+        if teraz - self.pk_alarm_ost > 20:
+            self.pk_alarm_ost = teraz
+            try:
+                self.alarm(f"PVP: walczę z {nap['nazwa']}")
+            except Exception as e:
+                log(f"PVP: alarm nie zadziałał ({e!r})")
+        self._pk_powiadom("PVP: walka z graczem", f"Walczę z {nap['nazwa']} (HP {g['proc']:.0f}%, UH {zapas[0]}, HMM {zapas[1]}), "
+                          f"poz {tuple(poz)}.", "pvp_walka")
+        self._pvp_rekord("pvp", g, poz, teraz, nap, akcja="start")
+        return True
+
+    def _pvp_koniec(self, wynik, powod, g, poz, teraz, nap=None):
+        """Koniec walki. wynik: zabity | uciekl_on | ucieczka | smierc. "ucieczka" = dzisiejsza ucieczka PK (depo, karencja);
+        pozostałe wyniki: powrót do normalnej gry (karencja z listy wrogów nadal liczy się dla ponownego startu bota,
+        a znany wróg w widoku od razu wywoła ucieczkę)."""
+        st = self.pvp or {}
+        nick = st.get("nick", "?")
+        log(f"PVP: koniec walki z {nick}: {wynik} ({powod}); HMM {st.get('strzaly', 0)}, UH {st.get('uh_uzyc', 0)}, "
+            f"HP {st.get('hp_start', 0):.0f}% -> {g.get('proc', 0):.0f}%.")
+        self._pvp_rekord("pvp_koniec", g, poz, teraz, nap, wynik=wynik, powod=powod, strzaly_hmm=st.get("strzaly", 0),
+                         uh_uzyc=st.get("uh_uzyc", 0), exura=st.get("exura", 0), hp_start=round(st.get("hp_start", 0), 1))
+        self._pk_powiadom(f"PVP: koniec walki ({wynik})", f"{nick}: {powod}. HP {g.get('proc', 0):.0f}%.", "pvp_koniec")
+        self.pvp = None
+        if wynik == "ucieczka":
+            self._pk_start(f"walka PvP przegrana: {powod}", [nick], g, poz, teraz)
+        else:
+            self.pk_stan = None
+            self.pk_fallback = False
+        return True
+
+    def _pvp_tick(self, g, poz, teraz, det, wr):
+        try:
+            return self._pvp_tick_u(g, poz, teraz, det, wr)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:                       # błąd w walce = ucieczka, nie wiszenie w pół-stanie
+            log(f"PVP: błąd {e!r}, ucieczka")
+            if self.pvp is not None:
+                return self._pvp_koniec("ucieczka", f"błąd {e!r}", g, poz, teraz)
+            self.pk_stan = None
+            return False
+
+    def _pvp_tick_u(self, g, poz, teraz, det, wr):
+        import obrona_pk  # noqa: PLC0415
+        st = self.pvp
+        if st is None:                                # stan WALKA bez danych walki: nie zostajemy w pół-stanie
+            self.pk_stan = None
+            return False
+        proc = g["proc"]
+        pozxy = (poz[0], poz[1])
+        self.ucieczka = False                         # ucieczka z progu HP cofałaby nas; w walce decydują progi PVP_*
+        self.ustaw_stan("WALKA_PVP", f"{st['nick']}, HP {proc:.0f}%")
+        wr.przedluz_karencje(PK_KARENCJA_MIN)
+        if g.get("hp", 1) <= 0 or self.dystans(pozxy, st["poz_ost"]) > PVP_SKOK_POL:
+            return self._pvp_koniec("smierc", f"HP {g.get('hp')} / skok pozycji {st['poz_ost']} -> {tuple(poz)}", g, poz, teraz)
+        st["poz_ost"] = (poz[0], poz[1], poz[2])
+        lista = self.stwory(PK_SKAN_WIEK)
+        wlasna = getattr(self.postac, "nazwa", None)
+        pomin = lambda s: bool(GM_NAZWA.search(s.get("nazwa") or ""))
+        k0 = obrona_pk.klucz_nicku(st["nick"])
+        kand = [s for s in det.obcy(lista, poz, wlasna, pomin) if obrona_pk.klucz_nicku(s.get("nazwa")) == k0]
+        nap = min(kand, key=lambda s: self.dystans((s["x"], s["y"]), pozxy)) if kand else None   # TYLKO ten nick
+        drudzy = self._pvp_drudzy(st["nick"], lista, poz, wlasna, pomin, det, wr)
+        st["n"] = (1 if nap is not None else 0) + len(drudzy)
+        zapas = self._pvp_zapas()
+        if zapas is not None:
+            st["uh"], st["hmm"] = zapas
+        if nap is not None:
+            st["ost_hp"] = nap.get("hp", 100)
+            self.pk_widoczni_ost = teraz
+            st["id"] = nap["id"]
+
+        # --- wyjścia z walki ---
+        if drudzy and 1 + len(drudzy) > PVP_MAX_WROGOW:
+            self._pvp_rekord("pvp", g, poz, teraz, nap, akcja="ucieczka", powod="drugi napastnik")
+            return self._pvp_koniec("ucieczka", f"dołączył drugi napastnik: {', '.join(drudzy)}", g, poz, teraz, nap)
+        if nap is None or nap.get("hp", 100) <= 0:
+            if nap is not None or st["ost_hp"] <= PVP_ZABITY_HP:
+                return self._pvp_koniec("zabity", f"napastnik zniknął przy HP {st['ost_hp']}%", g, poz, teraz, nap)
+        niedost = nap is None or nap.get("z") != poz[2]
+        uh_ok = bool(st["uh"]) and teraz >= self.pk_uh_do and not self.uh_restore
+        if proc <= PVP_UH_HP and not uh_ok:
+            self._pvp_rekord("pvp", g, poz, teraz, nap, akcja="ucieczka", powod="HP krytyczne, brak UH")
+            return self._pvp_koniec("ucieczka", f"HP {proc:.0f}% <= {PVP_UH_HP}% i brak UH", g, poz, teraz, nap)
+        if not st["hmm"]:
+            self._pvp_rekord("pvp", g, poz, teraz, nap, akcja="ucieczka", powod="brak HMM")
+            return self._pvp_koniec("ucieczka", "skończyły się HMM", g, poz, teraz, nap)
+        if st["hmm_porazki"] >= PVP_HMM_PORAZKI:
+            self._pvp_rekord("pvp", g, poz, teraz, nap, akcja="ucieczka", powod="HMM nie działa")
+            return self._pvp_koniec("ucieczka", f"{st['hmm_porazki']} nieudane strzały HMM z rzędu", g, poz, teraz, nap)
+
+        # --- leczenie (zawsze przed atakiem) ---
+        if proc <= PVP_UH_HP:
+            st["uh_uzyc"] += 1
+            self._pk_uh_na_siebie(g, poz, teraz)
+            self._pvp_rekord("pvp", g, poz, teraz, nap, akcja="lecz_uh")
+            return True
+        akcje = []
+        mana = g.get("mana")
+        if proc <= PVP_EXURA_HP and mana is not None and mana >= ZDROWIE_CZAR_KOSZT \
+                and teraz - self.czar_ostatni >= CZAR_MIN_PRZERWA_S and teraz - self.pk_exura_ost >= CZAR_MIN_PRZERWA_S:
+            self.pk_exura_ost = self.czar_ostatni = self.zdrowie_rzut_ts = teraz
+            st["exura"] += 1
+            log(f"[PVP] leczenie: {ZDROWIE_CZAR_TEKST} [{ZDROWIE_CZAR_KLAWISZ}] (HP {proc:.0f}%, mana {mana})")
+            self.postac.klawisz(ZDROWIE_CZAR_KLAWISZ)  # hotkey nie blokuje obiegu: po exurze nadal strzelamy, gdy HMM gotowe
+            akcje.append("lecz_exura")
+
+        # --- atak / podejście: TYLKO napastnik (id z listy po nicku) ---
+        if nap is not None and not niedost:
+            odl = self.dystans((nap["x"], nap["y"]), pozxy)
+            if odl <= PVP_ZASIEG:
+                st["niedost_od"] = None
+                if teraz - st["hmm_ost"] >= PVP_HMM_CO_S and not self.uh_restore:
+                    self._pvp_strzal(st, nap, g, poz, teraz)
+                    akcje.append("atak_hmm")
+            elif self._pvp_podejdz(st, nap, poz):
+                st["niedost_od"] = None
+                akcje.append("podejscie")
+            else:
+                niedost = True                        # za daleko i nie możemy podejść (pogoń ograniczona): jak zniknięcie
+        if niedost:
+            if st["niedost_od"] is None:
+                st["niedost_od"] = teraz
+            elif teraz - st["niedost_od"] >= PVP_ZNIKL_S:
+                return self._pvp_koniec("uciekl_on", f"napastnik poza widokiem/zasięgiem od {PVP_ZNIKL_S:.0f} s", g, poz, teraz, nap)
+        self._pvp_rekord("pvp", g, poz, teraz, nap, akcja="+".join(akcje) if akcje else "czeka")
+        self.pauza(0.05, 0.15)
+        return True
+
+    def _pvp_strzal(self, st, nap, g, poz, teraz):
+        import runa_klik  # noqa: PLC0415
+        if self.runa_klik_env is None:
+            self.runa_klik_env = runa_klik.SrodowiskoKlik(self.postac, self.zapytaj, log=lambda t: log(t))
+        st["hmm_ost"] = teraz
+        self.aktywnosc_ts = teraz
+        wynik = runa_klik.strzel(self.runa_klik_env,
+                                 {"id": nap["id"], "dx": nap["x"] - poz[0], "dy": nap["y"] - poz[1], "hp": nap.get("hp")},
+                                 runa_id=int(RUNA_ID), menu_dx=int(RUNA_MENU_DX), menu_dy=int(RUNA_MENU_DY))
+        w, pw = wynik["wynik"], wynik["powod"]
+        if w == "ok":
+            st["hmm_porazki"] = 0
+            st["strzaly"] += 1
+            log(f"[PVP] HMM w {nap['nazwa']} (jego HP {nap.get('hp', '?')}%): {pw}")
+        elif w == "brak_runy":
+            st["hmm"] = 0
+            log(f"[PVP] HMM: {pw}")
+        else:
+            st["hmm_porazki"] += 1
+            log(f"[PVP] HMM bez efektu ({w}: {pw}), porażka {st['hmm_porazki']}/{PVP_HMM_PORAZKI}")
+
+    def _pvp_podejdz(self, st, nap, poz):
+        """Jeden krok w stronę napastnika, ale nie dalej niż PVP_POGON od miejsca startu walki (cel kroku obcięty do tego kwadratu,
+        brak obejść). True, gdy się ruszyliśmy."""
+        sx, sy = st["start"]
+        tx = max(sx - PVP_POGON, min(sx + PVP_POGON, nap["x"]))
+        ty = max(sy - PVP_POGON, min(sy + PVP_POGON, nap["y"]))
+        if (tx, ty) == (poz[0], poz[1]):
+            return False
+        dx, dy = tx - poz[0], ty - poz[1]
+        proste = [k for k in kierunki_do(poz[0], poz[1], tx, ty) if (bot.KIERUNKI[k][0] * dx > 0 or bot.KIERUNKI[k][1] * dy > 0)]
+        for k in proste:
+            d = bot.KIERUNKI[k]
+            pole = (poz[0] + d[0], poz[1] + d[1], poz[2])
+            if self.zablokowane.get(((poz[0], poz[1], poz[2]), k)) or self._ogien_na(pole) or self.dziura_nauczona(pole):
+                continue
+            self.ruch_strzalki += 1
+            if self.postac.krok(k):
+                return True
+        return False
 
     def _pk_start_karencja(self, wr, teraz):
         """Start bota w trakcie karencji (zapisanej w wrogowie.json): czekamy, aż minie, zamiast wracać na spot."""
