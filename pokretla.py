@@ -87,6 +87,19 @@ ZAKRESY = {
     "PK_LECZ": (0, 1),                  # 1 = leczenie po drodze do depo (exura F2, UH na siebie)
     "PK_DEPO_MAX_MIN": (5, 120),        # min: tyle w depo czekamy na regenerację HP, potem STOP + powiadomienie
     "PK_UH_HP": (0, 70),                # % HP: poniżej klikamy UH na siebie (0 = wyłączone)
+    "PVP_WALKA": (0, 1),                # 1 = z jedynym napastnikiem walczymy (HMM + UH/exura) zamiast uciekać; domyślnie 0 do próby na żywo
+    "PVP_MAX_WROGOW": (1, 3),           # tylu napastników w widoku naraz dopuszcza wejście w walkę
+    "PVP_DRUGI_ODL": (2, 8),            # pola: inny gracz tak blisko liczy się jako drugi napastnik
+    "PVP_HP_MIN": (20, 100),            # % HP: wejście w walkę tylko przy HP >= tyle
+    "PVP_UH_HP": (5, 60),               # % HP: <= tyle w walce -> UH na siebie (brak UH = ucieczka)
+    "PVP_EXURA_HP": (30, 95),           # % HP: <= tyle w walce i jest mana -> exura
+    "PVP_HMM_CO_S": (1.0, 5.0),         # s: odstęp między strzałami HMM
+    "PVP_ZASIEG": (1, 7),               # pola: dalej od napastnika nie strzelamy, tylko podchodzimy
+    "PVP_POGON": (0, 6),                # pola: tyle najdalej od miejsca startu walki gonimy napastnika
+    "PVP_ZNIKL_S": (2.0, 30.0),         # s: napastnik poza widokiem/zasięgiem tak długo = koniec walki
+    "PVP_ZABITY_HP": (0, 40),           # % HP napastnika: zniknięcie przy HP <= tyle = zabity
+    "PVP_HMM_PORAZKI": (1, 10),         # nieudane strzały HMM z rzędu = ucieczka
+    "PVP_SKOK_POL": (10, 100),          # pola: przeskok pozycji w walce większy niż tyle = śmierć (teleport do świątyni)
     "UNIKANIE_PROMIEN": (5, 12),        # pola: gracz tak blisko włącza unikanie
     "UNIKANIE_PROMIEN_MAX": (10, 20),   # pola: dalej gracz się nie liczy
     "UNIKANIE_MOB_PROMIEN": (2, 8),     # pola: moby tak blisko gracza nie są celami
@@ -275,6 +288,9 @@ KIERUNEK = {
     # obrona PK: analityk nie może jej wyłączyć ani poluzować (tylko zaostrzyć); ręczny plik tylko ZAKRESY
     "PK_OBRONA": "nie_nizej", "PK_ODL": "nie_nizej", "PK_ODL_CZAR": "nie_nizej", "PK_SPADEK_PP": "nie_wyzej",
     "PK_KARENCJA_MIN": "nie_nizej", "PK_WROG_WAZNY_H": "nie_nizej", "PK_LECZ": "nie_nizej", "PK_UH_HP": "nie_nizej", "PK_DEPO_MAX_MIN": "nie_wyzej",
+    # walka z napastnikiem: analityk nie może jej włączyć, poluzować wejścia ani opóźnić leczenia (tylko Karol w na_zywo.json)
+    "PVP_WALKA": "nie_wyzej", "PVP_MAX_WROGOW": "nie_wyzej", "PVP_DRUGI_ODL": "nie_nizej", "PVP_HP_MIN": "nie_nizej",
+    "PVP_UH_HP": "nie_nizej", "PVP_EXURA_HP": "nie_nizej", "PVP_POGON": "nie_wyzej", "PVP_HMM_PORAZKI": "nie_wyzej",
     "UNIKANIE": "nie_nizej", "UNIKANIE_PROMIEN": "nie_nizej", "UNIKANIE_PROMIEN_MAX": "nie_nizej",
     "UNIKANIE_MOB_PROMIEN": "nie_nizej", "UNIKANIE_PUNKT_D": "nie_nizej", "UNIKANIE_DROGA_MIN": "nie_nizej",
     "UNIKANIE_BLOK_S": "nie_wyzej", "UNIKANIE_ZNIKL_S": "nie_nizej",
