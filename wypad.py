@@ -23,6 +23,7 @@ ucieczka (HP) ma pierwszeństwo, po niej wypad wraca do najbliższego punktu tra
 limity prób na każdym kroku, po porażkach bot wraca na łowisko "po ciemku" z powiadomieniem.
 """
 
+import contextlib
 import json
 import os
 import random
@@ -57,6 +58,15 @@ ETAP_UTK_S = 60.0           # s bez postępu w etapie = utknięcie
 ETAP_NIEOSIAG_S = 12.0      # s bez postępu, po których sprawdzamy A*, czy koniec etapu jest w ogóle osiągalny stąd
 OSIAG_MAX_PRZESIADEK = 3     # tyle przesiadek na osiągalny punkt bez postępu, potem utknięcie (bez ping-ponga)
 OSIAG_KAND = 10             # tylu najbliższych (Chebyshev) punktów planu sprawdzamy A* przy szukaniu osiągalnego
+# Dojście do planu drogą patrolu (WYPRAWA_DOJSCIE_PATROLEM, 15.10): postać stoi w części jaskini, z której żaden punkt planu
+# nie jest osiągalny po tym samym piętrze (inna strona schodów, kieszeń). Droga = graf przejść pięter z pliku miejsc
+# patrolu (Cavebot._patrol_droga) + pietra.py, chodzenie = Cavebot._idz_segment (jak patrol).
+DOJSCIE_KAND = 40           # tylu najbliższych (z karą za piętro) punktów planu bierzemy jako cele dojścia
+DOJSCIE_PIETRO_KARA = 14    # pola doliczane do odległości kandydata za każde piętro różnicy (jak PATROL_PIETRO_KARA)
+DOJSCIE_LIMIT_S = (45.0, 2.5)   # limit marszu jednego planu dojścia: stała + mnożnik * długość drogi (jak PATROL_LIMIT_S)
+DOJSCIE_PRZEJSCIE_S = 40.0  # s dodawane do limitu za każde przejście pięter na drodze
+DOJSCIE_MAX_S = 600.0       # twardy limit całego dojścia (wszystkie plany razem)
+DOJSCIE_PLANY_MAX = 6       # tyle planów dojścia na wyprawę (start + ponowne po nieudanym przejściu / odcinku); zejście z drogi się nie liczy
 ETAP_PRZEJSCIE_PROB = 6     # prób przejścia pięter (lina/dziura) zanim uznamy awarię
 PRZEJSCIE_ODSTEP = (1.0, 3.0, 6.0, 8.0)   # s przerwy między kolejnymi próbami
 DRZWI_PROB = 6              # prób otwarcia i wejścia w drzwi (typ etapu DRZWI), potem awaria jak przy linie/dziurze
@@ -431,6 +441,10 @@ class Wypad:
         self.postep = None          # [czas, wskaznik] postępu w etapie
         self.osiag_proba = float("-inf")    # kiedy ostatnio sprawdzaliśmy A*, czy koniec etapu jest osiągalny
         self.osiag_przesiadki = 0           # przesiadki bez postępu (po OSIAG_MAX_PRZESIADEK: utknięcie)
+        self.dojscie = None                 # trwające dojście do planu drogą patrolu (patrz _dojscie_start)
+        self.dojscie_plany = 0              # plany dojścia w tej wyprawie (limit DOJSCIE_PLANY_MAX)
+        self.dojscie_t0 = None              # początek dojścia (twardy limit DOJSCIE_MAX_S)
+        self.dojscie_sprawdz = False        # pierwszy obieg wyprawy: czy z miejsca startu jest w ogóle dojście do planu
         self.utk = 0
         self.wyjatki = 0
         self.przystanek_od = None   # od kiedy stoimy w tym etapie (tolerancja dojścia)
@@ -654,6 +668,8 @@ class Wypad:
         self.sklep = None
         self.utk = 0
         self.postep = None
+        self.dojscie, self.dojscie_plany, self.dojscie_t0 = None, 0, None
+        self.dojscie_sprawdz = True
         self.wyjatki = 0
         self.potw_p = self.potw_j = 0
         cb.wypad_aktywny = True
@@ -773,7 +789,15 @@ class Wypad:
 
     def _idz_faza(self, poz, teraz):
         cb = self.cb
+        if self.dojscie is not None:
+            return self._dojscie_krok(poz, teraz)
+        if self.dojscie_sprawdz:
+            self.dojscie_sprawdz = False
+            if self._dojscie_start(poz, teraz, "start", tylko_gdy_odciety=True):
+                return True
         if not self._resync(poz):
+            if self._dojscie_start(poz, teraz, "poza_planem"):
+                return True
             return self._awaria("zgubiona_pozycja", f"poz {poz} poza planem")
         e = self.etapy[self.ei]
         if e["typ"] == "LINA":
@@ -866,6 +890,8 @@ class Wypad:
             return False
         cel = self._najblizszy_osiagalny(poz, self.ei)
         self._blad("etap_nieosiagalny", poz=list(poz), etap=self.ei, cel=list(cel) if cel else None)
+        if cel is None and self._dojscie_start(poz, teraz, "etap_nieosiagalny"):
+            return True
         self.osiag_przesiadki += 1
         if cel is None or self.osiag_przesiadki > OSIAG_MAX_PRZESIADEK:
             self.osiag_przesiadki = 0
@@ -877,6 +903,169 @@ class Wypad:
         self.utk = 0
         self.przystanek_od = None
         self.cb._wypad_reset_klik()
+        return True
+
+    # --- dojście do planu drogą patrolu (WYPRAWA_DOJSCIE_PATROLEM) ---
+
+    @contextlib.contextmanager
+    def _dojscie_ctx(self):
+        """Na czas planowania i chodzenia dojścia Cavebot traktuje przejścia pięter jak w patrolu (`wypad_dojscie`:
+        _pietra_wlaczone / _patrol_pietra_ok nie blokują ich przez wypad_aktywny, bez zatrzymań na potworach)."""
+        cb = self.cb
+        stary = getattr(cb, "wypad_dojscie", False)
+        cb.wypad_dojscie = True
+        try:
+            yield
+        finally:
+            cb.wypad_dojscie = stary
+
+    def _dojscie_wlaczone(self):
+        cb = self.cb
+        return bool(int(self._k("WYPRAWA_DOJSCIE_PATROLEM", 1))) and callable(getattr(cb, "_patrol_droga", None)) \
+            and callable(getattr(cb, "_idz_segment", None))
+
+    def _dojscie_plan(self, poz):
+        """Najkrótsza droga patrolu (Cavebot._patrol_droga: A* po piętrze albo graf przejść pięter/łączników z pliku
+        miejsc) z `poz` do któregoś punktu planu. -> (seg, (ei, pi), id użytych przejść) albo None. Remis długości:
+        późniejszy etap (postęp planu). Cel: DOJSCIE_KAND najbliższych punktów (co 3. + końce etapów)."""
+        cb = self.cb
+        if getattr(cb, "miejsca", 1) is None:
+            try:
+                cb._patrol_wczytaj()            # przejścia pięter i graf z pliku miejsc (PATROL_PLIK)
+            except bot.Zatrzymano:
+                raise
+            except Exception:
+                pass
+        kand = []
+        for ei, e in enumerate(self.etapy or []):
+            if e["typ"] != "IDZ":
+                continue
+            pkt = e["punkty"]
+            for pi, p in enumerate(pkt):
+                if pi % 3 and pi != len(pkt) - 1:
+                    continue
+                if (p[0], p[1], p[2]) == tuple(poz[:3]):
+                    continue
+                kand.append((cheb(poz, p) + DOJSCIE_PIETRO_KARA * abs(p[2] - poz[2]), -ei, pi, ei))
+        kand.sort()
+        najl = None
+        with self._dojscie_ctx():
+            for _, _, pi, ei in kand[:DOJSCIE_KAND]:
+                p = self.etapy[ei]["punkty"][pi]
+                uz = []
+                try:
+                    seg = cb._patrol_droga(tuple(poz[:3]), {"x": p[0], "y": p[1], "z": p[2]}, uz)
+                except bot.Zatrzymano:
+                    raise
+                except Exception as ex:
+                    self.log(f"Wypad: dojście: błąd drogi do {tuple(p)}: {ex!r}")
+                    continue
+                if not seg:
+                    continue
+                klucz = (len(seg), -ei)
+                if najl is None or klucz < najl[0]:
+                    najl = (klucz, [tuple(q) for q in seg], (ei, pi), list(uz))
+        return None if najl is None else (najl[1], najl[2], najl[3])
+
+    def _dojscie_start(self, poz, teraz, powod, tylko_gdy_odciety=False):
+        """Planuje dojście do planu. True = dojście ruszyło (obieg zużyty przez kolejne wołania _dojscie_krok).
+        tylko_gdy_odciety: start wyprawy - dojście tylko gdy żaden z najbliższych punktów planu nie jest osiągalny
+        po tym piętrze (połączona postać chodzi po staremu). False = wyłączone / brak drogi: stara ścieżka."""
+        if not self._dojscie_wlaczone() or self.etapy is None:
+            return False
+        if self.dojscie_plany >= DOJSCIE_PLANY_MAX:
+            return False
+        if self.dojscie_t0 is not None and teraz - self.dojscie_t0 > DOJSCIE_MAX_S:
+            return False
+        if tylko_gdy_odciety:
+            try:
+                if self._najblizszy_osiagalny(poz, -1) is not None:
+                    return False
+            except bot.Zatrzymano:
+                raise
+            except Exception:
+                return False
+        plan = self._dojscie_plan(poz)
+        if plan is None:
+            self._blad("dojscie_brak_drogi", poz=list(poz), powod=powod)
+            self.log(f"Wypad: dojście do planu ({powod}) z {tuple(poz)}: brak drogi patrolu")
+            return False
+        seg, cel, uz = plan
+        if powod != "zejscie_z_drogi":          # zejście z drogi (walka, ucieczka) wolno planować wielokrotnie: limit czasu
+            self.dojscie_plany += 1
+        if self.dojscie_t0 is None:
+            self.dojscie_t0 = teraz
+        pkt = self.etapy[cel[0]]["punkty"][cel[1]]
+        self.dojscie = {"seg": seg, "idx": 0, "seg_xy": set(seg) | {tuple(poz[:3])}, "cel": cel, "pkt": tuple(pkt), "przejscia": uz,
+                        "replan": teraz, "powod": powod,
+                        "do": teraz + DOJSCIE_LIMIT_S[0] + DOJSCIE_LIMIT_S[1] * len(seg) + DOJSCIE_PRZEJSCIE_S * len(uz)}
+        self.postep = None
+        self.utk = 0
+        self.przystanek_od = None
+        self.cb._wypad_reset_klik()
+        self.log(f"Wypad: dojście do planu ({powod}) z {tuple(poz)} do etapu {cel[0]} punkt {cel[1]} {tuple(pkt)}, "
+                 f"droga {len(seg)} pól" + (f", przez {','.join(uz)}" if uz else ""))
+        self._tele("wypad_krok", rodzaj="dojscie_start", powod=powod, poz=list(poz), etap=cel[0], punkt=cel[1],
+                   droga=len(seg), przejscia=list(uz))
+        return True
+
+    def _dojscie_porazka(self, poz, teraz, opis, blokuj=False):
+        """Nieudane dojście: ponowny plan (inne przejście), a gdy się nie da - istniejąca eskalacja (awaria/alarm)."""
+        d = self.dojscie
+        self.dojscie = None
+        self._blad("dojscie_nieudane", poz=list(poz), opis=opis, plan=d["cel"] if d else None)
+        if blokuj and d:
+            try:
+                self.cb._patrol_blokuj_przejscie({"przejscia": d["przejscia"]}, poz, teraz)
+            except Exception:
+                pass
+        if self._dojscie_start(poz, teraz, "ponowne"):
+            return True
+        return self._awaria("dojscie_trasy", f"dojście do planu z {tuple(poz)} nie wyszło ({opis})")
+
+    def _dojscie_koniec(self, poz, teraz):
+        d = self.dojscie
+        self.dojscie = None
+        self.ei, self.pi = d["cel"]
+        self.postep = None
+        self.utk = 0
+        self.osiag_przesiadki = 0
+        self.osiag_proba = float("-inf")
+        self.przystanek_od = None
+        self.cb._wypad_reset_klik()
+        self.log(f"Wypad: dojście do planu zakończone w {tuple(poz)}, etap {self.ei} punkt {self.pi}")
+        self._tele("wypad_krok", rodzaj="dojscie_koniec", poz=list(poz), etap=self.ei, punkt=self.pi,
+                   czas_s=round(teraz - (self.dojscie_t0 or teraz)))
+        return True
+
+    def _dojscie_krok(self, poz, teraz):
+        """Jeden obieg dojścia: ten sam marsz co patrol (Cavebot._idz_segment po drodze z grafu przejść)."""
+        cb = self.cb
+        d = self.dojscie
+        pkt = d["pkt"]
+        if poz[2] == pkt[2] and cheb(poz, pkt) <= 1:
+            return self._dojscie_koniec(poz, teraz)
+        if teraz > d["do"] or (self.dojscie_t0 is not None and teraz - self.dojscie_t0 > DOJSCIE_MAX_S):
+            self.dojscie_plany = DOJSCIE_PLANY_MAX          # limit czasu: bez ponownych planów, od razu eskalacja
+            return self._dojscie_porazka(poz, teraz, "limit czasu", blokuj=True)
+        if tuple(poz[:3]) not in d["seg_xy"]:
+            if teraz - d["replan"] < 1.0:
+                cb.pauza(0.1, 0.3)
+                return True
+            self.dojscie = None                              # zeszliśmy z drogi (walka, ucieczka): nowy plan z bieżącej pozycji
+            if self._dojscie_start(poz, teraz, "zejscie_z_drogi"):
+                return True
+            return self._awaria("dojscie_trasy", f"dojście do planu: zgubiona droga w {tuple(poz)}")
+        with self._dojscie_ctx():
+            wynik, d["idx"] = cb._idz_segment(d["seg"], d["idx"])
+        try:
+            cb.stan = "WYPAD"
+        except Exception:
+            pass
+        if cb.__dict__.pop("pietra_zawrot_seg", False):
+            return self._dojscie_porazka(poz, teraz, "przejście pięter nieudane", blokuj=True)
+        if wynik is False:
+            return self._dojscie_porazka(poz, teraz, "odcinek nieosiągalny", blokuj=True)
         return True
 
     def _utkniecie(self, poz, e, teraz, wymus=False):
@@ -1383,6 +1572,7 @@ class Wypad:
         przejściu piętra w mieście: ponawiamy z długim odstępem i powiadomieniem; inaczej koniec."""
         cb = self.cb
         teraz = cb.zegar()
+        self.dojscie = None
         self._blad(typ, opis=opis)
         self.wynik = "porazka_sklepu" if self.faza != "z" else (self.wynik or "awaria")
         if self.faza in ("do", "sklep"):
@@ -1416,6 +1606,7 @@ class Wypad:
         if self.stan == "SPOKOJ" and not powod:
             return
         self.zablokowany = True
+        self.dojscie = None
         self.log(f"Wypad: przerwany ({powod}); samoczynnie nie wznowię")
         self._tele("wypad_koniec", wynik="przerwany", powod=powod, kupione=dict(self.kupione),
                    czas_s=round(self.cb.zegar() - self.t_start) if self.t_start else 0)
@@ -1426,6 +1617,7 @@ class Wypad:
     def _koniec(self, wynik, opis):
         cb = self.cb
         teraz = cb.zegar()
+        self.dojscie = None
         if wynik == "ok":
             self.porazki = 0
             self.blokada_do = teraz + PO_SUKCESIE_S

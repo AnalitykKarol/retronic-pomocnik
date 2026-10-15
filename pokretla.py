@@ -154,6 +154,7 @@ ZAKRESY = {
     "WYPRAWA_WZNOW_WALIDUJ": (0, 1),    # 1 = po restarcie wyprawa po jedzenie wygasa, gdy powód (zapas/głód) już nie zachodzi
     "WYPRAWA_JEDZENIE": (0, 1),         # 0 = brak jedzenia nie jest powodem wyprawy (zostają blanki itd.; domyślnie 1)
     "WYPRAWA_CZEKAJ_NA_GLOD": (0, 1),   # 1 = powody zapas/glod dopiero po potwierdzonym głodzie (nieudana próba jedzenia)
+    "WYPRAWA_DOJSCIE_PATROLEM": (0, 1),  # 1 = start/utknięcie wyprawy poza częścią jaskini połączoną z planem: najpierw dojście drogą patrolu (schody z pliku miejsc), nie od razu alarm
     "WYPRAWA_TYLKO_DEPO": (0, 1),       # 1 = wyprawa kończy się w depo (bez zakupów, bez powrotu): alarm + STOP (tryb wyprawa_depo)
     "JEDZENIE_ZAPAS_MIN": (1, 20),      # poniżej tylu sztuk jedzenia w plecaku rzucamy exevo pan (przy JEDZENIE_CZAR_AKTYWNY=1)
     "OGIEN_UNIKAJ": (0, 1),             # 1 = omijaj pola ognia (wykrywane ze zrzutu), schodź z nich i nie lootuj z ognia (domyślnie 1)
