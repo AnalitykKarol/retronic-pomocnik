@@ -43,16 +43,18 @@ gdy proces właściciela zginął). W patrolu jest opcjonalny hook, domyślnie w
 
 Analityk nie może włączyć tego pokrętła (tylko ręcznie).
 
-## Tryb bez okna (RETRONIC_BEZ_OKNA=1)
+## Tryb bez okna (domyślny od 14.10) i podgląd
 
-`RETRONIC_ID=dwa RETRONIC_BEZ_OKNA=1 ./sesja.sh` uruchamia zagnieżdżony sway z backendem `headless`: jeden wirtualny output
-(domyślnie 734x910, zmiana: `RETRONIC_BEZ_OKNA_ROZ=1024x768`), brak okna na pulpicie hosta, więc render i `grim` działają
-niezależnie od workspace'a. Nic nie jest tworzone w sway/Hyprlandzie hosta. Domyślnie (bez zmiennej) bez zmian.
-Ograniczenia: brak okna do ręcznego logowania i podglądu. Podgląd na życzenie (koszt zerowy bez klienta):
-`WAYLAND_DISPLAY=$(cat $XDG_RUNTIME_DIR/retronic-sesja-dwa/wayland) wayvnc -d -f 10 127.0.0.1 5903`, potem
-`vncviewer 127.0.0.1::5903` (port inny na instancję; localhost, bez hasła). Zrzut: `grim` na tym gnieździe.
-Logowanie postaci: przez wayvnc z włączonym wejściem (bez `-d`) albo zapamiętane dane konta na ekranie logowania
-(klawisz_x11/XTEST po DISPLAY sesji działa tak samo).
+`./sesja.sh` (też z `RETRONIC_ID`) uruchamia zagnieżdżony sway z backendem `headless`: jeden wirtualny output
+(domyślnie 800x910: klient z 13.10 nie mieści się w 734 px; zmiana: `RETRONIC_BEZ_OKNA_ROZ=1024x768`), więc render i `grim` działają niezależnie od tego, co jest
+na ekranie hosta (inny workspace, zminimalizowany podgląd). Renderer `gles2` (gra rysowana na GPU); przy szerokości 734 grim na gles2 zwracał `Invalid stride`, stąd 800 px. Awaryjnie `WLR_RENDERER=pixman` (render programowy, ok. 1,6 rdzenia na klienta).
+
+- **Podgląd**: w sesji działa `wayvnc` na 127.0.0.1 (port w `$XDG_RUNTIME_DIR/retronic-sesja[-<id>]/vnc_port`: 5901 bez ID,
+  5902+ dla instancji), a na pulpicie od razu otwiera się `vncviewer` z myszą i klawiaturą (logowanie, ręczna gra).
+- Zamknięcie podglądu nie zatrzymuje gry ani bota. Ponowne otwarcie: `./podglad.sh` (z `RETRONIC_ID` dla instancji).
+- Wyjście z gry zamyka sesję, wayvnc i podgląd.
+- `RETRONIC_PODGLAD=0`: start bez automatycznego podglądu. `RETRONIC_BEZ_OKNA=0`: dawny tryb z oknem sway na pulpicie
+  (bot staje, gdy okno jest niewidoczne).
 
 ## Etap 2: sieć (osobny moduł, jeszcze nie ma)
 

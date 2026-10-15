@@ -47,7 +47,7 @@ done
 cat <<TXT
 
 Gotowe. Dalej ręcznie (patrz PRZENOSINY.md):
-  1. start gry:  $DIR/sesja.sh   (zaloguj postać w oknie)
+  1. start gry:  $DIR/sesja.sh   (gra bez okna + podgląd; zaloguj postać w podglądzie)
   2. bot:        MAPA=trolle_patrol TRYB=uh $DIR/uruchom_trolle.sh
 Druga instancja obok pierwszej: patrz INSTANCJE.md (nowa_instancja.sh).
 TXT
