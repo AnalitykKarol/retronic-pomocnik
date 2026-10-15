@@ -25,6 +25,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bot  # noqa: E402
+import czaszka  # noqa: E402
 import instancja  # noqa: E402
 
 ZASIEG_X, ZASIEG_Y = 7, 5          # widok mapy: |dx|<=7, |dy|<=5
@@ -3478,6 +3479,8 @@ class Cavebot:
         Rdzeń (rdzen.py stwory) NIE czyta jeszcze czaszki z pamięci; gdy dojdzie pole "czaszka"
         (albo "skull", >0 / True), ten warunek zacznie działać bez zmian tutaj."""
         if GM_NAZWA.search(s.get("nazwa") or ""):
+            return True
+        if czaszka.czaszka_grozna(s.get("nazwa")):   # 15.10: czaszka odczytana ze zrzutu (czaszka.py, Haiku)
             return True
         return bool(s.get("czaszka") or s.get("skull") or s.get("pk"))
 
