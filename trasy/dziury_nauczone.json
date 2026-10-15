@@ -1,6 +1,20 @@
 {
- "_opis": "pola (x, y, piętro), na których krok kończył się niespodziewanym upadkiem; bot traktuje je jak ścianę (wpadniecie.py). Zasiane: dziura z 15.10 09:11:47, rope spot pod nią (33081,31742,9).",
+ "_opis": "pola (x, y, pi\u0119tro), na kt\u00f3rych krok ko\u0144czy\u0142 si\u0119 niespodziewanym upadkiem; bot traktuje je jak \u015bcian\u0119",
  "dziury": [
-  [33081, 31742, 8]
+  [
+   32498,
+   32271,
+   8
+  ],
+  [
+   32508,
+   32273,
+   8
+  ],
+  [
+   33081,
+   31742,
+   8
+  ]
  ]
 }
