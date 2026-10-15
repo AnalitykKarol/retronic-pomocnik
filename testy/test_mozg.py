@@ -1061,8 +1061,8 @@ pr = mm.prompt(mm.zbuduj_stan())
 sprawdz("C2f stan: moje_wyslane_ostatnio z adresatem i czasem, do_bota przy wzmiance",
         '"moje_wyslane_ostatnio":[{"tekst":"lece szczury","sekund_temu":' in pr and '"do":"Kowal"' in pr
         and '"do_bota":true' in pr, pr[-900:])
-sprawdz("C2f2 SYSTEM: instrukcja kontynuuj, polski domyślny, bez angielskiej wymówki w przykładach",
-        "wybierz kontynuuj" in mozg.SYSTEM and "domyślnie po polsku" in mozg.SYSTEM and "lece szczury" in mozg.SYSTEM
+sprawdz("C2f2 SYSTEM: instrukcja kontynuuj, angielski domyślny, bez angielskiej wymówki w przykładach",
+        "wybierz kontynuuj" in mozg.SYSTEM and "po angielsku" in mozg.SYSTEM and "lece szczury" in mozg.SYSTEM
         and '"nah just hunting rats"' not in mozg.SYSTEM and '"expie rats"' not in mozg.SYSTEM)
 
 # C2g: ALARM_GM bez zmian (pytanie o bota / GM nadal alarmuje, bez odpowiedzi)
