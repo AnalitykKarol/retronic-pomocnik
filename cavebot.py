@@ -123,6 +123,11 @@ PATROL_BYLO_KARA = 0.4             # mnożnik wagi dla miejsc odwiedzonych 5-8 w
 PATROL_ODL_MIN = 3                 # miejsca bliżej niż tyle pól od nas nie są losowane (już tam jesteśmy)
 PATROL_PRZYJECIE = 1               # pola: tak blisko miejsca = dotarliśmy
 PATROL_POSTOJ = (1.0, 3.0)         # s rozglądania się na miejscu
+PATROL_ZAWROT = 1                  # 15.10: pokrętło 0/1: miejsce spawnu (z jego okolicą) już w widoku, a przy nim od PATROL_ZAWROT_S
+                                   # nie ma żadnego celu: wizyta zaliczona bez dochodzenia do końca (ślepe zaułki, puste spawny)
+PATROL_ZAWROT_S = 1.5              # s pustki przy miejscu, zanim zawrócimy
+PATROL_ZAWROT_PROMIEN = 2          # pola wokół miejsca, które muszą być w widoku i puste
+WIDOK_X, WIDOK_Y = 7, 5            # widok mapy klienta 15x11: gracz w środku, tyle pól w bok / w pionie
 PATROL_OBCHOD_P = 0.5              # szansa na krótki obchód (2-4 kroki w promieniu PATROL_OBCHOD_PROMIEN) po postoju
 PATROL_OBCHOD_PROMIEN = 3          # pola
 PATROL_OBCHOD_DROGA = (2, 5)       # min/maks długość drogi obchodu (pola)
@@ -334,6 +339,10 @@ OGIEN_EPIZOD_PRZERWA_S = 60.0        # s: wykrycie po takiej przerwie to nowy ep
 OGIEN_EPIZODY_N = 3                  # tyle epizodów bez spadku HP ...
 OGIEN_EPIZODY_GODZ = 2               # ... w tylu różnych godzinach doby kwalifikuje pole przechodnie do maski danych
 OGIEN_EPIZODY_ZAPIS_S = 30.0         # s: zapis trasy/ogien_epizody.json najwyżej co tyle
+OGIEN_PODPALENIE_S = 60.0           # 15.10: s po spadku HP na polu ognia: postać się pali (7.4: obrażenia długo po zejściu z ognia);
+                                     # w tym czasie spadki HP nie obciążają innych pól (zginęliśmy przez złe przypisanie i maskę)
+OGIEN_WEJSCIE_S = 2.0                # 15.10: s: spadek HP przypisujemy polu ognia tylko tuż po wejściu na nie (i bez stwora obok)
+OGIEN_PARZY_ODL_CELU = 1             # 15.10: pola: celu tak blisko znanego parzącego pola nie atakujemy (klient poszedłby za nim w ogień)
 OGIEN_POMIJAJ_PRZY_STWORZE = 1       # pokrętło 0/1: 1 = wykrycia ognia na polu stwora/celu albo obok niego (odl <= 1) pomijamy, dopóki HP nie spadnie
 PLIK_OGIEN_EPIZODY = None if os.environ.get("RETRONIC_TESTY") else Path(__file__).resolve().parent / "trasy" / "ogien_epizody.json"
 PLIK_OGIEN_STALE = None if os.environ.get("RETRONIC_TESTY") else Path(__file__).resolve().parent / "trasy" / "ogien_stale.json"   # zasiew i zapis maski
@@ -592,6 +601,14 @@ UNIKANIE_DROGA_MIN = 4             # pola: droga do punktu nie schodzi bliżej g
 UNIKANIE_BLOK_S = 45.0             # s blokady bez zmiany: inny punkt rotacji z całej trasy, potem luz
 UNIKANIE_SPOT_S = 180.0            # s: gracz na spocie dłużej = powiadomienie
 UNIKANIE_POWIADOM_S = 300.0        # s: powiadomienie o graczu na spocie najwyżej raz na tyle
+# 15.10 czat_spot.py (SPEC_czat_spot_1015): jedna wiadomość na Default do gracza, który wraca na spot albo zabiera moby
+CZAT_SPOT_AKTYWNY = 0              # pokrętło 0/1 (domyślnie wyłączone)
+CZAT_SPOT_SPOTKAN = 3              # S1: tyle osobnych spotkań (każde >= 20 s) z tym samym graczem...
+CZAT_SPOT_OKNO_MIN = 20            # ...w tylu minutach
+CZAT_SPOT_CIAGLE_MIN = 5           # S2: gracz przy nas bez przerwy tyle minut
+CZAT_SPOT_ZABRANE = 2              # S3: tyle różnych mobów zabranych nam przez gracza w 10 min
+CZAT_SPOT_NICK_MIN = 60            # jeden gracz dostaje wiadomość najwyżej raz na tyle minut
+CZAT_SPOT_ODPOWIEDZI = 1           # ile razy odpisujemy (model) na jego odpowiedź; potem cisza
 
 
 UH_STAN_PLIK = instancja.S.uh_stan   # trwały stan UH (tarcza_id): przeżywa restart bota
@@ -841,6 +858,9 @@ class Cavebot:
         self._ogien_stale_wczytaj()
         self.ogien_pierw = {}                  # pole ognia -> czas pierwszego wykrycia w bieżącej serii (potwierdzenie czasem)
         self.ogien_hp_hist = []                # (czas, HP% max) z ostatnich OGIEN_HP_OKNO_S s
+        self.ogien_poz_ost = None              # 15.10: ostatnia pozycja w _ogien_tick i czas wejścia na nią
+        self.ogien_poz_od = float("-inf")
+        self.ogien_podpalony_do = float("-inf")   # 15.10: do kiedy postać się pali (spadki HP nie obciążają innych pól)
         self.ogien_ign_log = {}                # pole -> czas ostatniego logu "ignoruję"
         self.ogien_epizody = {}                # "x,y,z" -> {"n", "godz", "hp", "ost"} (trwałe, trasy/ogien_epizody.json)
         self.ogien_dane_maska = set()          # pola przechodnie zakwalifikowane z danych (epizody)
@@ -2287,13 +2307,35 @@ class Cavebot:
         """Czy pole (x, y, z) jest polem ognia."""
         return self._ogien_aktywny() and (pole[0], pole[1], pole[2]) in self.ogien_pola
 
+    def _ogien_parzy_dane(self, z):
+        """15.10: pola z trasy/ogien_epizody.json z potwierdzonym spadkiem HP ("hp": true) na piętrze z. Omijamy je
+        zawsze, także gdy wykrycie ze zrzutu chwilowo nie widzi ognia: wykrycie nie odróżnia dużego (parzy) od małego."""
+        if not OGIEN_UNIKAJ:
+            return set()
+        wynik = set()
+        for k, e in self.ogien_epizody.items():
+            if e.get("hp"):
+                try:
+                    x, y, pz = (int(v) for v in k.split(","))
+                except ValueError:
+                    continue
+                if pz == z:
+                    wynik.add((x, y))
+        return wynik
+
     def _ogien_blok(self, start, cel=None):
         """Pola ognia piętra startu jako lista (x, y, z) dla A* (bez pola, na którym stoimy)."""
-        return [(x, y, start[2]) for (x, y) in self._ogien_xy(start[2], bez_stalych=True) if (x, y) != tuple(start[:2])]
+        pola = self._ogien_xy(start[2], bez_stalych=True) | self._ogien_parzy_dane(start[2])
+        return [(x, y, start[2]) for (x, y) in pola if (x, y) != tuple(start[:2])]
+
+    def _ogien_przy_parzacym(self, pole):
+        """15.10: czy pole (x, y, z) leży przy znanym parzącym polu (Chebyshev <= OGIEN_PARZY_ODL_CELU)."""
+        return any(max(abs(a - pole[0]), abs(b - pole[1])) <= OGIEN_PARZY_ODL_CELU
+                   for a, b in self._ogien_parzy_dane(pole[2]))
 
     def _ogien_na_drodze(self, poz, cel_xy):
         """Czy pole ognia leży w prostokącie poz-cel (+1 pole zapasu): klik poprowadziłby klienta przez ogień."""
-        ogien = self._ogien_xy(poz[2], bez_stalych=True)    # stałe pola: mapa/minimapa i tak je omija (P6)
+        ogien = self._ogien_xy(poz[2], bez_stalych=True) | self._ogien_parzy_dane(poz[2])   # stałe: mapa omija (P6)
         if not ogien:
             return False
         x0, x1 = sorted((poz[0], cel_xy[0]))
@@ -2326,6 +2368,8 @@ class Cavebot:
         if wzgl is None:
             return
         x, y, z = poz[0], poz[1], poz[2]
+        if self.ogien_poz_ost != (x, y, z):
+            self.ogien_poz_ost, self.ogien_poz_od = (x, y, z), teraz
         stare = set(self.ogien_pola)
         widziane = {(x + dx, y + dy, z) for dx, dy in wzgl}
         widziane = self._ogien_pomin_przy_stworze(widziane, z, teraz)
@@ -2473,9 +2517,13 @@ class Cavebot:
                 zmiana = True
             e["ost"] = wall
             if not e["hp"] and (poz[0], poz[1], poz[2]) == p and self._ogien_spadek_hp(teraz) >= OGIEN_HP_SPADEK_PP:
+                obok = any(abs(a - p[0]) <= 1 and abs(b - p[1]) <= 1 for a, b in self._ogien_stwory_xy(p[2]))
+                if teraz < self.ogien_podpalony_do or obok or teraz - self.ogien_poz_od > OGIEN_WEJSCIE_S:
+                    continue        # 15.10: podpalenie z innego pola, stwór obok albo spadek nie tuż po wejściu: nie to pole
                 e["hp"] = True
                 zmiana = True
-                log(f"[OGIEN] pole {p}: spadek HP na polu, wypada z kwalifikacji do maski danych.")
+                self.ogien_podpalony_do = teraz + OGIEN_PODPALENIE_S
+                log(f"[OGIEN] pole {p}: spadek HP tuż po wejściu, pole parzy (wypada z kwalifikacji do maski danych).")
         if zmiana:
             self.ogien_ep_brudne = True
             self._ogien_dane_przelicz()
@@ -3628,6 +3676,20 @@ class Cavebot:
                     kand = [s for s in kand if s["id"] not in self.ignorowane]
             else:
                 self.pogon_odl, self.pogon_postep = odl_celu, teraz
+        # 15.10: cel przy znanym parzącym polu (duży ogień), a nie obok nas: nie atakujemy go (klient poszedłby za nim
+        # w ogień); czekamy, aż wyjdzie. Stojący obok nas bije i tak, więc ten zostaje.
+        if OGIEN_PARZY_ODL_CELU >= 0 and self._ogien_parzy_dane(poz[2]):
+            if cel is not None and self.dystans((cel["x"], cel["y"]), poz) > 1 \
+                    and self._ogien_przy_parzacym((cel["x"], cel["y"], cel["z"])):
+                ost = getattr(self, "_ogien_cel_log", {})
+                if teraz - ost.get(cel["id"], float("-inf")) >= 30.0:
+                    ost[cel["id"]] = teraz
+                    self._ogien_cel_log = ost
+                    log(f"[OGIEN] {cel['nazwa']} stoi przy dużym ogniu ({cel['x']},{cel['y']}): nie gonię, czekam aż wyjdzie.")
+                self.cel = None
+                cel = None
+            kand = [s_ for s_ in kand if self.dystans((s_["x"], s_["y"]), poz) <= 1
+                    or not self._ogien_przy_parzacym((s_["x"], s_["y"], s_.get("z", poz[2])))]
         if self._zwloki_przed_celem(cel, kand, g, poz, lista, teraz):
             return True
         if cel is None and kand:
@@ -7010,7 +7072,29 @@ class Cavebot:
                 break
         return None
 
-    def _patrol_dotarl(self, p, poz, teraz):
+    def _patrol_zawrot(self, p, poz, tgt, odl, teraz):
+        """15.10: miejsce spawnu razem z okolicą PATROL_ZAWROT_PROMIEN jest w widoku (to samo piętro) i od PATROL_ZAWROT_S
+        nie widać przy nim żadnego celu: True = zaliczamy wizytę bez dojścia. Stwory z pamięci klienta są znane w całym
+        widoku, także za ścianą; stary wpis przy miejscu tylko wstrzymuje zawrót (ostrożnie)."""
+        r = PATROL_ZAWROT_PROMIEN
+        if (not PATROL_ZAWROT or p.get("sweep") or poz[2] != tgt[2] or odl <= PATROL_PRZYJECIE
+                or abs(tgt[0] - poz[0]) + r > WIDOK_X or abs(tgt[1] - poz[1]) + r > WIDOK_Y):
+            p["pusto_od"] = None
+            return False
+        for st in self.ostatnie_stwory or []:
+            if st.get("gracz") or st.get("hp", 100) <= 0 or st.get("z", tgt[2]) != tgt[2]:
+                continue
+            if self.potwory is not None and str(st.get("nazwa", "")).casefold() not in self.potwory:
+                continue
+            if max(abs(st["x"] - tgt[0]), abs(st["y"] - tgt[1])) <= r:
+                p["pusto_od"] = None
+                return False
+        if p.get("pusto_od") is None:
+            p["pusto_od"] = teraz
+            return False
+        return teraz - p["pusto_od"] >= PATROL_ZAWROT_S
+
+    def _patrol_dotarl(self, p, poz, teraz, widok=False):
         m = p["m"]
         p["faza"] = "postoj"
         p["t_dotarl"] = teraz
@@ -7024,6 +7108,10 @@ class Cavebot:
             self._patrol_sweep_zalicz(p, teraz)
         elif m.get("zrodlo") != "B":
             self.sweep_wschod += 1
+        if widok:
+            p["do"], p["obchod"], p["zawrot"] = teraz, True, True     # bez postoju i obchodu
+            log(f"Patrol: m{m['id']} ({m['x']},{m['y']}) pusty w widoku ({max(abs(poz[0] - m['x']), abs(poz[1] - m['y']))} pól przed), zawracam.")
+            return
         log(f"Patrol: na miejscu m{m['id']} ({m['x']},{m['y']}), rozglądam się {p['do'] - teraz:.1f} s.")
 
     def _patrol_zakoncz(self, p, powod):
@@ -7165,6 +7253,9 @@ class Cavebot:
                 if odl <= PATROL_PRZYJECIE and poz[2] == tgt[2]:
                     self._patrol_dotarl(p, poz, teraz)
                     continue
+                if self._patrol_zawrot(p, poz, tgt, odl, teraz):
+                    self._patrol_dotarl(p, poz, teraz, widok=True)
+                    continue
                 p["t_marsz"] += dt
                 dt = 0.0
                 if p["t_marsz"] > p["limit"]:
@@ -7233,7 +7324,7 @@ class Cavebot:
                         p["seg_xy"] = {tuple(q[:3]) for q in o}
                         self._wypad_reset_klik()
                         continue
-                self._patrol_zakoncz(p, "ok")
+                self._patrol_zakoncz(p, "pusto w widoku" if p.get("zawrot") else "ok")
                 p = self.patrol = self._patrol_wybierz(poz, m["id"])
                 if p is None:
                     return None
