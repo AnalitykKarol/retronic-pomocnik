@@ -1,5 +1,5 @@
 {
-  "wygenerowano": "2026-10-15T20:26:17",
+  "wygenerowano": "2026-10-15T20:41:28",
   "uwagi": "liczba = unikalne pewne oferty (nadawca+intencja+przedmiot+cena+ilosc); mediana/min/max tylko z cena za sztuke (ea)",
   "okna": {
     "24h": {
@@ -33,7 +33,7 @@
       },
       "axe ring": {
         "sprzedaz": {
-          "liczba": 10,
+          "liczba": 7,
           "mediana": null,
           "min": null,
           "max": null
@@ -243,7 +243,7 @@
       },
       "club ring": {
         "sprzedaz": {
-          "liczba": 3,
+          "liczba": 2,
           "mediana": 400,
           "min": 400.0,
           "max": 400.0
@@ -257,9 +257,9 @@
       },
       "coconut": {
         "sprzedaz": {
-          "liczba": 3,
-          "mediana": 550,
-          "min": 500.0,
+          "liczba": 2,
+          "mediana": 600,
+          "min": 600.0,
           "max": 600.0
         },
         "kupno": {
@@ -319,7 +319,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 3,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
@@ -347,7 +347,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 2,
+          "liczba": 1,
           "mediana": null,
           "min": null,
           "max": null
@@ -411,7 +411,7 @@
       },
       "double axe": {
         "sprzedaz": {
-          "liczba": 3,
+          "liczba": 4,
           "mediana": null,
           "min": null,
           "max": null
@@ -439,7 +439,7 @@
       },
       "dragon hammer": {
         "sprzedaz": {
-          "liczba": 22,
+          "liczba": 21,
           "mediana": null,
           "min": null,
           "max": null
@@ -467,7 +467,7 @@
       },
       "dragon shield": {
         "sprzedaz": {
-          "liczba": 15,
+          "liczba": 14,
           "mediana": null,
           "min": null,
           "max": null
@@ -515,7 +515,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 6,
+          "liczba": 7,
           "mediana": null,
           "min": null,
           "max": null
@@ -593,7 +593,7 @@
       },
       "fire sword": {
         "sprzedaz": {
-          "liczba": 4,
+          "liczba": 3,
           "mediana": null,
           "min": null,
           "max": null
@@ -607,10 +607,10 @@
       },
       "fireball rune": {
         "sprzedaz": {
-          "liczba": 2,
+          "liczba": 3,
           "mediana": 100,
           "min": 100.0,
-          "max": 100.0
+          "max": 1000.0
         },
         "kupno": {
           "liczba": 0,
@@ -663,7 +663,7 @@
       },
       "great fireball rune": {
         "sprzedaz": {
-          "liczba": 57,
+          "liczba": 54,
           "mediana": 2500,
           "min": 2.4,
           "max": 2900.0
@@ -677,10 +677,10 @@
       },
       "guardian shield": {
         "sprzedaz": {
-          "liczba": 10,
-          "mediana": 3500,
-          "min": 3500.0,
-          "max": 3500.0
+          "liczba": 9,
+          "mediana": null,
+          "min": null,
+          "max": null
         },
         "kupno": {
           "liczba": 3,
@@ -719,7 +719,7 @@
       },
       "heavy magic missile rune": {
         "sprzedaz": {
-          "liczba": 46,
+          "liczba": 48,
           "mediana": 1500,
           "min": 1.4,
           "max": 1600.0
@@ -1005,7 +1005,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 4,
+          "liczba": 3,
           "mediana": null,
           "min": null,
           "max": null
@@ -1069,7 +1069,7 @@
       },
       "stealth ring": {
         "sprzedaz": {
-          "liczba": 3,
+          "liczba": 5,
           "mediana": null,
           "min": null,
           "max": null
@@ -1173,7 +1173,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 4,
+          "liczba": 5,
           "mediana": null,
           "min": null,
           "max": null
@@ -1195,7 +1195,7 @@
       },
       "two handed sword": {
         "sprzedaz": {
-          "liczba": 3,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
@@ -1209,7 +1209,7 @@
       },
       "ultimate healing rune": {
         "sprzedaz": {
-          "liczba": 135,
+          "liczba": 134,
           "mediana": 2400,
           "min": 2.4,
           "max": 2700.0
@@ -1729,7 +1729,7 @@
       },
       "double axe": {
         "sprzedaz": {
-          "liczba": 4,
+          "liczba": 5,
           "mediana": null,
           "min": null,
           "max": null
@@ -1833,7 +1833,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 11,
+          "liczba": 12,
           "mediana": null,
           "min": null,
           "max": null
@@ -1939,10 +1939,10 @@
       },
       "fireball rune": {
         "sprzedaz": {
-          "liczba": 2,
+          "liczba": 3,
           "mediana": 100,
           "min": 100.0,
-          "max": 100.0
+          "max": 1000.0
         },
         "kupno": {
           "liczba": 0,
@@ -2079,7 +2079,7 @@
       },
       "heavy magic missile rune": {
         "sprzedaz": {
-          "liczba": 78,
+          "liczba": 81,
           "mediana": 1500,
           "min": 1.4,
           "max": 1600.0
@@ -2421,7 +2421,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 2,
+          "liczba": 3,
           "mediana": null,
           "min": null,
           "max": null
@@ -2569,7 +2569,7 @@
       },
       "stealth ring": {
         "sprzedaz": {
-          "liczba": 4,
+          "liczba": 6,
           "mediana": null,
           "min": null,
           "max": null
@@ -2673,7 +2673,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 6,
+          "liczba": 7,
           "mediana": null,
           "min": null,
           "max": null
@@ -2709,13 +2709,13 @@
       },
       "ultimate healing rune": {
         "sprzedaz": {
-          "liczba": 211,
+          "liczba": 212,
           "mediana": 2500,
           "min": 2.4,
           "max": 2700.0
         },
         "kupno": {
-          "liczba": 101,
+          "liczba": 102,
           "mediana": 2200,
           "min": 2.3,
           "max": 2300.0
