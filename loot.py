@@ -571,6 +571,8 @@ def _plan_z_pamieci(obraz, wynik, kontenery, idy, nazwy):
     wynik["kontener_zwlok"] = okno.kontener
     bez_id = {n for n in nazwy if n not in NAZWA_ID}        # nazwy z listy, których ID jeszcze nie znamy
     kandydaci = []                                          # (slot, nazwa, ID, ilość) do przeniesienia
+    jedzenia_w_plecaku = sum(suma_id(k, i) for k in kontenery if czy_plecak(k) for i in KOLEJNOSC_JEDZENIA)
+    dosc_jedzenia = bool(JEDZENIE_MAX) and jedzenia_w_plecaku >= JEDZENIE_MAX
     for p in sorted(okno.kontener.get("przedmioty", []), key=lambda p: p["slot"]):
         ident, ilosc = p["id"], p.get("ilosc", 1)
         widoczny = p["slot"] < len(okno.sloty)
@@ -578,6 +580,8 @@ def _plan_z_pamieci(obraz, wynik, kontenery, idy, nazwy):
         chcemy = ident in idy
         if chcemy and POMIN_CIEZKIE and POMINIETE_CIEZKIE.get(ident, 0) > time.monotonic():
             chcemy = False                         # za_ciezki: pomijamy do końca POMIN_CIEZKIE_S
+        if chcemy and dosc_jedzenia and ident in KOLEJNOSC_JEDZENIA:
+            chcemy = False                         # w plecaku jest już JEDZENIE_MAX sztuk jedzenia
         if not chcemy and ident not in ID_NAZWA:
             # nieznane ID: może obrazek rozpozna przedmiot z listy, wtedy uczymy się jego ID
             nazwa_obrazka = rozpoznaj(obraz, slot)[0] if widoczny else None
@@ -634,6 +638,8 @@ def _cel_w_plecaku(plecak, ident, ilosc):
 NIEUDANE_SCALENIA = set()        # ID, których scalenie w plecaku nie wyszło (nie próbujemy znowu)
 
 # --- P5 (13.10): klasyfikacja braku miejsca i wagi z danych ----------------------------
+JEDZENIE_MAX = 2           # 14.10 (Karol): przy tylu sztukach jedzenia w plecaku nie zbieramy go ze zwłok (0 = bez limitu);
+                           # liczone przed każdym przeniesieniem, więc cały stos (np. 3 cheese) może limit przekroczyć
 POMIN_CIEZKIE = 0          # 1 = przedmiot `za_ciezki` pomijamy przez POMIN_CIEZKIE_S (cavebot: LOOT_POMIN_CIEZKIE, domyślnie 0)
 POMIN_CIEZKIE_S = 300.0
 POMINIETE_CIEZKIE = {}     # ID -> zegar (time.monotonic), do kiedy pomijany
