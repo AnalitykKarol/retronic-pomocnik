@@ -11,11 +11,16 @@ plik klienta `RetronicGL-*.exe` (strings), rejestr Wine prefiksu. Kod: gałąź 
   m.in. (32497,32301) 12 ep., (32497,32300) 3 ep., (32497,32299) 71 ep., (32496,32299) 22 ep.
 - 10:56:49 postać stanęła na (32497,32301), HP spadło, pole **wypadło z maski**, bot zszedł na (32498,32301)...
   10:56:51 stoi na (32497,32300) (też w masce), drugi spadek, zejście na (32497,32299).
-- Mechanizm: maska jest per pole; spadek HP usuwa tylko pole, na którym stoimy, a sąsiednie pola tego samego
-  skupiska zostają "bezpieczne". [HIP] epizody "bez spadku HP" były zbierane, gdy ognia na polu chwilowo nie było
-  (pole ognia znika i wraca) albo odczyt HP się spóźnił.
-- Propozycja: spadek HP na polu z maski usuwa z maski **całe spójne skupisko** pól ognia (8-sąsiedztwo) i blokuje je
-  na czas `X`; do maski wpisywać pole dopiero przy większej liczbie epizodów **w różnych porach**.
+- Teren (Charlie 15.10): przez skupisko **nie ma innego przejścia**, parzy tylko **pole środkowe (32497,32300)**;
+  reszta pól jest bezpieczna i maska ma rację.
+- Mechanizm błędu [POTW w `trasy/ogien_epizody.json`]: (32497,32300) i (32497,32301) mają `hp: true` z **tym samym**
+  `ost` (…614.94): jeden spadek HP przypisano obu polom. Okno `OGIEN_HP_OKNO_S = 3.0` s obejmuje dwa kroki, a
+  [HIP, zasada 7.4] ogień parzy jeszcze kilka tików po zejściu z pola, więc obrażenia ze środka "obciążają" sąsiada.
+  Skutek: bezpieczne (32497,32301) wypada z maski i zwęża jedyne przejście.
+- Propozycja: (a) spadek HP przypisywać tylko polu, na które weszliśmy **przed** pierwszym spadkiem, nie wszystkim
+  polom z okna; (b) spadek w trakcie parzenia po zejściu (seria tików) nie obciąża kolejnych pól; (c) jawne pole
+  "złe" (32497,32300) do omijania w drodze przez przejście; (d) poprawić dane: (32497,32301) z powrotem `hp: false`.
+  NIE usuwać z maski całego skupiska (zablokowałoby jedyne przejście).
 - Osobno: przy starcie `[OGIEN] nie wczytam maski stałych pól: AttributeError("'CavebotMozgu' object has no attribute 'mapa'")`
   (każdy start na `ruch-r1-1014`). Maska z epizodów się wczytuje, maska stałych pól nie.
 
