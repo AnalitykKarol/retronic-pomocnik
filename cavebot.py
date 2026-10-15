@@ -116,6 +116,8 @@ WPADNIECIE_LINA_PROB = 3           # prób liny (pokrętło 1-5)
 WPADNIECIE_PLAN = 1                # pokrętło 0/1: 1 = gdy lina nie działa, plan wielopiętrowy po mapie i przejściach z danych (wykonuje pietra.py)
 WPADNIECIE_ODL = 3                 # pola: tak blisko poprzedniej pozycji musi być lądowanie, żeby zmiana piętra była upadkiem (nie teleportem/śmiercią); pokrętło 1-6
 DZIURY_NAUCZONE = 1                # pokrętło 0/1: 1 = pola z trasy/dziury_nauczone.json są ścianą dla każdej drogi A* i kroku na danym piętrze
+DZIURA_PODEJSCIE_S = 10.0           # s: tyle idziemy sami obok celu stojącego przy dziurze, potem go odpuszczamy (DZIURA_PRZY_CELU)
+DZIURA_PRZY_CELU = 1               # 15.10: pokrętło 0/1: 1 = nie atakujemy/nie gonimy celu stojącego przy znanej dziurze (chebyshev <= 1) w prostokącie między nami a nim, chyba że sami dojdziemy A* (dziury = ściany) do pola obok celu krótką drogą (klient w trybie ataku sam idzie za celem i wpadł w dziurę)
 PIETRA_RESYNC_MAX = 6              # tyle resynchronizacji (piętro poza trasą) w 120 s = porażka
 PIETRA_DOJSCIE_S = 25.0            # s bez zbliżenia do pola przejścia = następny kandydat
 TRYB_PATROL = 0                    # 12.10: 1 = patrol po miejscach z trasy/miejsca.json (losowo, ważony zabiciami i odległością) zamiast pętli trasy; mozg --trasa patrol ustawia 1; pokrętło 0-1
@@ -2443,6 +2445,102 @@ class Cavebot:
         y0, y1 = sorted((poz[1], cel_xy[1]))
         return any(h[2] == poz[2] and x0 - 1 <= h[0] <= x1 + 1 and y0 - 1 <= h[1] <= y1 + 1 for h in w.dziury)
 
+    def _dziury_przy(self, pole, z):
+        """Znane dziury piętra z (x, y) w Chebyshev <= 1 od pola (x, y): flaga 2 + chodliwe na mapie serwera albo nauczone."""
+        wyn = set()
+        m = self.mapa
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                x, y = pole[0] + dx, pole[1] + dy
+                try:
+                    if m is not None:
+                        f = m.flagi(x, y, z)
+                        if f & 1 and f & 2 and not f & 4:
+                            wyn.add((x, y))
+                except Exception:
+                    pass
+                if self.dziura_nauczona((x, y, z)):
+                    wyn.add((x, y))
+        return wyn
+
+    def _cel_przez_dziure(self, s, poz, teraz=None):
+        """15.10 (kieszeń): ocena celu `s` (stwór z x, y, z) stojącego przy znanej dziurze. None = bez zastrzeżeń;
+        "idz" = dziura leży w prostokącie poz-cel, ale sami dojdziemy A* (dziury jako ściany) do pola obok celu drogą
+        <= Chebyshev + 1: najpierw idziemy sami (klient w trybie ataku idzie za celem własną drogą i wpadał w dziurę:
+        21:33:59 Troll (32509,32273) przy dziurze (32508,32273), upadek na z9); "skip" = takiej drogi nie ma (albo
+        podejście trwa za długo): celu nie atakujemy. Cel obok nas (Chebyshev <= 1) nie jest sprawdzany."""
+        if not DZIURA_PRZY_CELU or s.get("z", poz[2]) != poz[2]:
+            return None
+        cx, cy = s["x"], s["y"]
+        odl = max(abs(cx - poz[0]), abs(cy - poz[1]))
+        if odl <= 1:
+            return None
+        dz = self._dziury_przy((cx, cy), poz[2])
+        if not dz:
+            return None
+        x0, x1 = sorted((poz[0], cx))
+        y0, y1 = sorted((poz[1], cy))
+        if not any(x0 <= x <= x1 and y0 <= y <= y1 for x, y in dz):
+            return None
+        if teraz is not None and teraz < getattr(self, "_dziura_poddane", {}).get(s["id"], float("-inf")):
+            return "skip"
+        try:
+            zajete = [(x, y, poz[2]) for x, y in dz]
+            d = self.droga((poz[0], poz[1], poz[2]), (cx, cy), zajete=zajete, dlugosc=1)
+        except bot.Zatrzymano:
+            raise
+        except Exception:
+            return None                        # błąd A*: nie blokujemy walki
+        return "idz" if d is not None and len(d) <= odl + 1 else "skip"
+
+    def _dziura_cel_odpusc(self, cel, poz, teraz, escape=True):
+        """Odpuszczenie celu przy dziurze: log (co 30 s na cel) i Escape (zatrzymuje follow/atak klienta)."""
+        ost = getattr(self, "_dziura_cel_log", {})
+        if teraz - ost.get(cel["id"], float("-inf")) >= 30.0:
+            ost[cel["id"]] = teraz
+            self._dziura_cel_log = ost
+            log(f"[DZIURA] odpuszczam {cel['nazwa']} ({cel['x']},{cel['y']}): stoi przy dziurze na drodze klienta, "
+                f"nie gonię (czekam aż odejdzie od dziury).")
+        if not escape:
+            return
+        try:
+            if not self.zatrzymaj_klik(poz):
+                self.postac.klawisz("Escape")      # follow/atak klienta nie opiera się na klik_cel
+        except bot.Zatrzymano:
+            raise
+        except Exception:
+            pass
+
+    def _dziura_podejscie(self, cel, poz, teraz):
+        """Cel przy dziurze, ale mamy bezpieczną drogę: idziemy sami (A*, dziury = ściany) na pole obok celu zamiast klikać
+        atak. Budżet DZIURA_PODEJSCIE_S na cel, potem odpuszczenie. True = obieg zużyty, False = odpuszczone."""
+        st = getattr(self, "_dziura_poczatek", None)
+        if st is None:
+            st = self._dziura_poczatek = {}
+        t0 = st.setdefault(cel["id"], teraz)
+        if teraz - t0 > DZIURA_PODEJSCIE_S:
+            st.pop(cel["id"], None)
+            pd = getattr(self, "_dziura_poddane", None)
+            if pd is None:
+                pd = self._dziura_poddane = {}
+            pd[cel["id"]] = teraz + DZIURA_PODEJSCIE_S
+            return False
+        if t0 == teraz:
+            try:
+                self.postac.klawisz("Escape")      # klient mógł już iść za celem: przerywamy, dalej idziemy sami
+            except bot.Zatrzymano:
+                raise
+            except Exception:
+                pass
+            self.klik_cel = None
+            log(f"[DZIURA] {cel['nazwa']} ({cel['x']},{cel['y']}) przy dziurze: idę sam obok celu (A*, dziury jako ściany), bez kliku ataku.")
+        self.ustaw_stan("POGON", f"{cel['nazwa']} przy dziurze -> ({cel['x']},{cel['y']})")
+        r = self.podejdz((cel["x"], cel["y"]), poz, pilne=True, natychmiast=True)
+        if r is None or r is False:
+            self.nieudane += 1
+            self.pauza(0.1, 0.25)
+        return True
+
     def _ogien_tick(self, poz, teraz, wymus=False):
         """Odświeża pola ognia (najwyżej co OGIEN_ODSWIEZ_S; wymus=True: teraz). Wykrycie to jeden zrzut ppm
         (ok. 40 ms) + analiza; bez źródła (testy, brak gry) nic nie robi. Błąd odczytu nie zatrzymuje bota."""
@@ -3826,6 +3924,16 @@ class Cavebot:
                 cel = None
             kand = [s_ for s_ in kand if self.dystans((s_["x"], s_["y"]), poz) <= 1
                     or not self._ogien_przy_parzacym((s_["x"], s_["y"], s_.get("z", poz[2])))]
+        # 15.10: cel przy znanej dziurze, do którego klient poszedłby przez dziurę: nie atakujemy (jak ogień wyżej); Escape
+        # zatrzymuje marsz klienta, który już wlecze się za celem (tryb ataku = follow). Cel obok nas zostaje.
+        if DZIURA_PRZY_CELU and self.mapa is not None:
+            if cel is not None and self._cel_przez_dziure(cel, poz, teraz) == "skip":
+                self._dziura_cel_odpusc(cel, poz, teraz)
+                self.cel = None
+                cel = None
+            for s_ in [x for x in kand if self._cel_przez_dziure(x, poz, teraz) == "skip"]:
+                self._dziura_cel_odpusc(s_, poz, teraz, escape=False)      # tylko log (co 30 s na cel)
+                kand.remove(s_)
         if self._zwloki_przed_celem(cel, kand, g, poz, lista, teraz):
             return True
         if cel is None and kand:
@@ -3901,6 +4009,12 @@ class Cavebot:
         if cel is not None:
             self.zapamietaj_ruch_celu(cel)
             self.cel.update(poz=(cel["x"], cel["y"], cel["z"]), hp=cel["hp"], odl=self.dystans((cel["x"], cel["y"]), poz))
+            if DZIURA_PRZY_CELU and self.mapa is not None and self._cel_przez_dziure(cel, poz, teraz) == "idz":
+                if self._dziura_podejscie(cel, poz, teraz):
+                    return True
+                self._dziura_cel_odpusc(cel, poz, teraz)       # podejście trwa za długo: jak "skip"
+                self.cel = None
+                return True
             return self.walcz(cel, g, poz)
 
         # 3b. wpadnięcie na piętro bez trasy (wpadniecie.py): lina / plan po mapie / ALARM; walka ma pierwszeństwo
@@ -8054,6 +8168,18 @@ class Cavebot:
                 self._patrol_sync_idx(poz)
                 self.patrol_pierwszy = True
                 log(f"Patrol: brak osiągalnego miejsca, jadę trasą {PATROL_FALLBACK_S:.0f} s.")
+                if WPADNIECIE:
+                    # 15.10: kieszeń (np. start bota po upadku z z8 do zamkniętego rope spotu na z9): żaden punkt trasy/miejsce
+                    # na tym piętrze nie jest osiągalny A* = wyjście jak po wykrytym upadku (lina/plan po mapie), nie ślepy marsz
+                    wp = self._wp()
+                    try:
+                        if wp is not None and wp.z_kieszeni(poz, teraz):
+                            self.patrol_fallback_do = float("-inf")
+                            return True
+                    except bot.Zatrzymano:
+                        raise
+                    except Exception as e:
+                        log(f"debug: wpadniecie.z_kieszeni błąd {e!r}")
                 return None
         luka = p["tick"] is not None and teraz - p["tick"] > PATROL_LUKA_S
         dt = min(teraz - p["tick"], 2.0) if p["tick"] is not None else 0.0
