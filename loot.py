@@ -583,6 +583,8 @@ def _plan_z_pamieci(obraz, wynik, kontenery, idy, nazwy):
     wynik["kontener_zwlok"] = okno.kontener
     bez_id = {n for n in nazwy if n not in NAZWA_ID}        # nazwy z listy, których ID jeszcze nie znamy
     kandydaci = []                                          # (slot, nazwa, ID, ilość) do przeniesienia
+    jedzenia_w_plecaku = sum(suma_id(k, i) for k in kontenery if czy_plecak(k) for i in KOLEJNOSC_JEDZENIA)
+    dosc_jedzenia = bool(JEDZENIE_MAX) and jedzenia_w_plecaku >= JEDZENIE_MAX
     for p in sorted(okno.kontener.get("przedmioty", []), key=lambda p: p["slot"]):
         ident, ilosc = p["id"], p.get("ilosc", 1)
         widoczny = p["slot"] < len(okno.sloty)
@@ -590,8 +592,8 @@ def _plan_z_pamieci(obraz, wynik, kontenery, idy, nazwy):
         chcemy = ident in idy
         if chcemy and POMIN_CIEZKIE and POMINIETE_CIEZKIE.get(ident, 0) > time.monotonic():
             chcemy = False                         # za_ciezki: pomijamy do końca POMIN_CIEZKIE_S
-        if chcemy and ident in KOLEJNOSC_JEDZENIA and LOOT_JEDZENIE_MAKS and _jedzenie_w_plecakach(okna) >= LOOT_JEDZENIE_MAKS:
-            chcemy = False                         # 15.10: mamy już tyle jedzenia, reszta zostaje (cap)
+        if chcemy and dosc_jedzenia and ident in KOLEJNOSC_JEDZENIA:
+            chcemy = False                         # w plecaku jest już JEDZENIE_MAX sztuk jedzenia
         if not chcemy and ident not in ID_NAZWA:
             # nieznane ID: może obrazek rozpozna przedmiot z listy, wtedy uczymy się jego ID
             nazwa_obrazka = rozpoznaj(obraz, slot)[0] if widoczny else None
@@ -626,18 +628,6 @@ def _plan_z_pamieci(obraz, wynik, kontenery, idy, nazwy):
     return None
 
 
-LOOT_JEDZENIE_MAKS = 2             # 15.10: najwyżej tyle sztuk jedzenia nosimy z lootu (0 = bez limitu); zjadanie ze zwłok bez zmian
-
-
-def _jedzenie_w_plecakach(okna):
-    """Sztuki jedzenia w oknach plecaka i bagu na runy (nie w zwłokach)."""
-    n = 0
-    for o in okna:
-        if getattr(o, "rola", None) in ("plecak", "runy") and o.kontener:
-            n += sum(q.get("ilosc", 1) for q in o.kontener.get("przedmioty", []) if q.get("id") in KOLEJNOSC_JEDZENIA)
-    return n
-
-
 def _cel_w_plecaku(plecak, ident, ilosc):
     """(slot plecaka, na który upuścić przedmiot, ilość na stosie albo None). Stos tego samego ID
     (< 100 szt., najlepiej taki, na który zmieści się całość) dla każdego ID, o którym nie wiemy,
@@ -660,6 +650,8 @@ def _cel_w_plecaku(plecak, ident, ilosc):
 NIEUDANE_SCALENIA = set()        # ID, których scalenie w plecaku nie wyszło (nie próbujemy znowu)
 
 # --- P5 (13.10): klasyfikacja braku miejsca i wagi z danych ----------------------------
+JEDZENIE_MAX = 2           # 14.10 (Karol): przy tylu sztukach jedzenia w plecaku nie zbieramy go ze zwłok (0 = bez limitu);
+                           # liczone przed każdym przeniesieniem, więc cały stos (np. 3 cheese) może limit przekroczyć
 POMIN_CIEZKIE = 0          # 1 = przedmiot `za_ciezki` pomijamy przez POMIN_CIEZKIE_S (cavebot: LOOT_POMIN_CIEZKIE, domyślnie 0)
 POMIN_CIEZKIE_S = 300.0
 POMINIETE_CIEZKIE = {}     # ID -> zegar (time.monotonic), do kiedy pomijany

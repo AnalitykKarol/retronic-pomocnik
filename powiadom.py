@@ -84,9 +84,22 @@ class Powiadamiacz:
 
 _domyslny = Powiadamiacz()
 
+# 14.10 (Karol): dymki tylko, gdy coś jest nie tak, plus start i stop bota. Przechodzą klucze z ZAWSZE
+# (start, stop, niskie HP, obcy gracz, gracz pisze, GM, dojście) i wszystko "critical"; reszta (podsumowanie
+# co 5 min, brak jedzenia, wnioski analityka, pokrętła) jest cicha. RETRONIC_POWIADOMIENIA=wszystkie: dawne zachowanie.
+ZAWSZE = ("start", "stop", "hp", "obcy:", "czat:", "gm", "dojscie")
+
+
+def istotne(tytul, pilnosc="normal", klucz=None):
+    if os.environ.get("RETRONIC_POWIADOMIENIA", "").strip() == "wszystkie":
+        return True
+    return pilnosc == "critical" or str(klucz or tytul).startswith(ZAWSZE)
+
 
 def powiadom(tytul, tresc="", pilnosc="normal", klucz=None):
     if os.environ.get("RETRONIC_TESTY"):
+        return False
+    if not istotne(tytul, pilnosc, klucz):
         return False
     return _domyslny.powiadom(tytul, tresc, pilnosc, klucz)
 
@@ -166,6 +179,18 @@ def z_logu(linia, zegar=time.time):
 def czat(autor, tekst, prywatna):
     powiadom("Gracz pisze do bota" + (" (priv)" if prywatna else ""), f"{autor}: {tekst}", "critical",
              klucz=f"czat:{autor}:{hash(tekst)}")
+
+
+def czat_obok(autor, tekst):
+    """Gracz pisze na Default, ale nie do nas: zwykły dymek, najwyżej raz na minutę od jednego gracza."""
+    powiadom("Ktoś pisze obok", f"{autor}: {tekst}", klucz=f"czat:obok:{autor}")
+
+
+def czat_spot(autor, tekst, odpowiedz=False, pilne=False):
+    """czat_spot: bot napisał do gracza na spocie albo gracz mu odpisał (pilne = prowokacja, Karol przejmuje)."""
+    tytul = (f"{autor} odpisał" + (" — przejmij" if pilne else "")) if odpowiedz else f"Napisałem do {autor}"
+    powiadom(tytul, tekst if odpowiedz else f"(wraca/przeszkadza na spocie) {tekst}", "critical" if pilne else "normal",
+             klucz=f"czat:spot:{autor}:{hash(tekst)}")
 
 
 def alarm_gm(powod):

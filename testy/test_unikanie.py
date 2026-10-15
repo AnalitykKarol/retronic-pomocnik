@@ -135,6 +135,11 @@ sprawdz("U2d mob 2 pola od nas i 3 od gracza: pomijany, ale gdy nas gryzie - nie
         s.u.pomin_moba(mob(105, 100), (103, 100, 7)) is True and s.u.pomin_moba(mob(105, 100), (103, 100, 7), gryzie=True) is False)
 sprawdz("U2e bez gracza żaden mob nie jest pomijany",
         unikanie.Unikanie(types.SimpleNamespace(**KONF)).pomin_moba(mob(105, 100), poz) is False)
+# 15.10: mob obok nas, ale też tuż przy innym graczu (1 pole) i nas nie gryzie: to jego mob, nie bierzemy
+s = Swiat(prostokat(80, 140, 80, 120), petla(90, 120, 95, 105), (100, 100), {"Quben": [102, 100]})
+s.u.obserwuj(s.lista(), (100, 100, 7), "Ja")
+sprawdz("U2j mob obok nas i obok gracza, nas nie bije: pomijany", s.u.pomin_moba(mob(101, 100), poz) is True)
+sprawdz("U2k ten sam mob, gdy nas gryzie: bijemy", s.u.pomin_moba(mob(101, 100), poz, gryzie=True) is False)
 s2 = Swiat(prostokat(80, 140, 80, 120), petla(90, 120, 95, 105), (100, 100), {"Zbyszek": [108, 100]}, konf=dict(UNIKANIE=0))
 s2.bieg(10)
 sprawdz("U2f UNIKANIE=0: nic nie robi (stare zachowanie)", not s2.u.aktywne and not s2.u.pomin_moba(mob(107, 100), s2.poz + (7,)))

@@ -69,6 +69,12 @@ class Unikanie:
         self.ost_wybor = (None, None, float("-inf"))
         self.mob_log = {}             # id moba -> czas ostatniego wpisu "pomijam"
         self.pominiete_moby = 0
+        self.czat_spot = None         # czat_spot.CzatSpot: wiadomość do gracza, który wraca/zabiera moby (mózg wysyła)
+        try:
+            import czat_spot  # noqa: PLC0415
+            self.czat_spot = czat_spot.CzatSpot(konf, zegar=zegar)
+        except Exception as e:      # czat nigdy nie wywraca unikania
+            self.log(f"czat_spot wyłączony: {e!r}")
 
     # --- stałe ---
 
@@ -117,6 +123,8 @@ class Unikanie:
             rec["ost"] = t
         for n in [n for n, rec in self.bylo.items() if t - rec["ost"] > max(600.0, 3 * znikl_s)]:
             del self.bylo[n]
+        if self.czat_spot is not None:
+            self.czat_spot.obserwuj(gracze, poz, t, znikl_s)
         self._powiadomienie(t)
         # debounce / koniec
         blisko = [g for g in gracze if g["odl"] <= r]
@@ -182,12 +190,30 @@ class Unikanie:
 
     # --- cele (moby) ---
 
+    def _zabrany(self, g, s, t):
+        """Mob tuż przy graczu g (on go bije): dowód "zabiera moby" dla czat_spot (S3)."""
+        if self.czat_spot is not None and s.get("id") is not None:
+            self.czat_spot.zabrany(g["nazwa"], s["id"], s.get("nazwa"), t)
+
     def pomin_moba(self, s, poz, gryzie=False):
         """True: nie bierzemy tego moba na cel (stoi przy graczu). Mob obok nas albo (przy gryzieniu)
         w odl 2 zostaje: bijemy to, co nas gryzie."""
         if not self.gracze or not self.wlaczone():
             return False
         odl = _cheb((s["x"], s["y"]), poz)
+        if odl <= 1 and not gryzie:
+            # 15.10: mob obok nas, ale też tuż przy innym graczu i nas nie gryzie: to jego mob (12:53 bilismy trolla Qubena)
+            g = next((g for g in self.gracze if g["z"] == s.get("z")
+                      and _cheb((s["x"], s["y"]), (g["x"], g["y"])) <= 1), None)
+            if g is not None:
+                t = self.zegar()
+                self.pominiete_moby += 1
+                self._zabrany(g, s, t)
+                if t - self.mob_log.get(s.get("id"), float("-inf")) > MOB_LOG_S:
+                    self.mob_log[s.get("id")] = t
+                    self.log(f"Unikanie: pomijam {s.get('nazwa')} ({s['x']},{s['y']}) obok nas: stoi przy graczu "
+                             f"{g['nazwa']} i nas nie bije.")
+                return True
         if odl <= 1 or (gryzie and odl <= 2):
             return False
         pr = self._k("UNIKANIE_MOB_PROMIEN", 4)
@@ -195,6 +221,8 @@ class Unikanie:
             if g["z"] == s.get("z") and _cheb((s["x"], s["y"]), (g["x"], g["y"])) <= pr:
                 t = self.zegar()
                 self.pominiete_moby += 1
+                if _cheb((s["x"], s["y"]), (g["x"], g["y"])) <= 1:
+                    self._zabrany(g, s, t)
                 if t - self.mob_log.get(s.get("id"), float("-inf")) > MOB_LOG_S:
                     self.mob_log[s.get("id")] = t
                     if len(self.mob_log) > 200:
