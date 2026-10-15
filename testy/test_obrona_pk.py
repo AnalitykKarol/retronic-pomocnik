@@ -127,6 +127,10 @@ class FakeWyprawa:
         f.ok = True
         f.zablokowany = False
         f.wywolania = []
+        f.depo = JA                   # pole depo (domyślnie tu, gdzie stoi postać: start w karencji = czekanie)
+
+    def _pole_depo(f):
+        return f.depo
 
     def start_pk(f, rodzaj, teraz, baza=None):
         f.wywolania.append((rodzaj, teraz))
@@ -613,6 +617,18 @@ sprawdz("D1 w trakcie karencji nadal czeka (stan PAUZA_PK)", b.pk_stan == "DEPO"
 s.t = 1001.0
 b.tick()
 sprawdz("D2 po karencji koniec obrony, bez trasy powrotnej z depo", b.pk_stan is None and not b.fw.wywolania, f"{b.pk_stan} {b.fw.wywolania}")
+
+# D3 (recenzja 15.10): restart w karencji POZA depo (np. w jaskini po awarii): ucieczka do depo, nie stanie bez obrony
+plikD3 = TMP / "wr-D3.json"
+plikD3.write_text(json.dumps({"wrogowie": {"x": {"nick": "X", "od": 0, "ost": 0, "ile": 1}}, "karencja_do": 1000.0}))
+s = Swiat([(0, 100, [])])
+b = zrob(s, wrogowie=plikD3)
+b.pk_wrogowie.czas = s.zegar
+b.fw.depo = (JA[0] + 40, JA[1], JA[2])
+s.t = 10.0
+b.tick()
+sprawdz("D3 start w karencji z dala od depo: ucieczka PK do depo (start_pk), nie czekanie w miejscu",
+        b.pk_stan == "UCIECZKA" and b.fw.wywolania[:1] == [("ucieczka", 10.0)], f"{b.pk_stan} {b.fw.wywolania}")
 
 # E. przedłużanie karencji nie pisze pliku co obieg
 w = obrona_pk.Wrogowie(TMP / "wr-E.json", czas=lambda: tE[0], log=lambda t: None)
