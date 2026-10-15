@@ -1,4 +1,4 @@
-# SPEC: model D3 - wyjście z utknięcia (15.10 wieczór) — SZKIC, czeka na akcept Karola (Q1-Q4)
+# SPEC: model D3 - wyjście z utknięcia (15.10 wieczór) — ZATWIERDZONY 15.10 ~22:30 (decyzje niżej)
 
 Decyzja Karola 15.10 ~21:50: "D3 tak, najpierw spec". Kontekst: `SPEC_model_lokalny_1015.md` (sekcja 4, D3) oraz
 dzisiejsze straty: exp/h spadł z ~2,4 tys. (08-15) do 0-860 (18-21) wyłącznie przez nawigację (dziura przy spawnie, kieszeń
@@ -54,3 +54,8 @@ Bezpieczeństwo jak w SPEC_model_lokalny: model nigdy nie decyduje o ogniu, ucie
 - Q2 Nauczyciel: Haiku (subskrypcja, wolniej) - OK, czy Jev przez API?
 - Q3 Zaczynamy od kroku A (samo logowanie) od razu po wgraniu dzisiejszych poprawek nawigacji?
 - Q4 Czy mam też uruchamiać `obserwator_reczny` w trakcie gry, żeby Twoje przejęcia były etykietami (dziś 62 rekordy)?
+
+## Decyzje Karola 15.10 ~22:30
+
+- Q1 próg zawieszki 30 s poza walką; Q2 nauczyciel Haiku (przejęcia Karola nadpisują); Q3 krok A od razu;
+  Q4 obserwator ręcznych przejęć startuje zawsze razem z botem.
