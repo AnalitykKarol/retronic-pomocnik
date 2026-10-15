@@ -1,4 +1,4 @@
-"""Budowa zbiorów D1 (wybór celu) i D2 (pościg) ze starej telemetrii (logi/telemetria-*.jsonl).
+"""Budowa zbiorów D1 (wybór celu), D2 (pościg) i D3 (zawieszka) ze starej telemetrii (logi/telemetria-*.jsonl).
 
 Krok B specyfikacji: opcje odtworzone z najbliższej wcześniejszej `probka` — przybliżenie, tylko do oceny sygnału.
 Czysta funkcja rekordów -> zbiór; nic nie zgadujemy: braki dopasowań są liczone w statystykach i zwracane.
@@ -26,6 +26,13 @@ POWODY_D2_0 = ("brak_ruchu", "zawracanie", "objazd", "okno")
 
 CECHY_D1 = ["odl", "adx", "ady", "hp", "osiag_tak", "osiag_nie", "inne_w2", "odl_gracza", "byl_celem"]
 CECHY_D2 = ["odl", "hp_celu", "inne_w2", "odl_gracza", "osiag_tak", "osiag_nie"]
+# D3 (16.10, krok A SPEC_model_D3_utkniecia_1015): jeden wiersz = jedna zawieszka (rekord `decyzja` D3 + `d3_wynik`).
+# Brak wartości (np. A* nie policzono) = -1 plus osobna flaga, nic nie zgadujemy. Cechy per opcja trafią do zbioru
+# dopiero z etykietami nauczyciela (krok B); tu etykieta dotyczy zawieszki jako całości.
+CECHY_D3 = ["stoi_s", "wolne_wokol", "ogien_dziura_wokol", "odl_cel", "cel_droga", "cel_droga_policzona", "gracz_odl",
+            "mob_odl", "hp_gracza", "poprzednie_tu", "skos_mozliwa", "cofnij_mozliwa", "cofnij_kroki",
+            "punkt_osiagalnych", "punkt_droga", "pietro_mozliwe", "pietro_odl"]
+PROG_RUCHU_D3_S = 20.0        # etykieta D3: ruszyliśmy w ciągu tylu sekund od wykrycia zawieszki
 
 
 def _data_z_nazwy(sciezka):
@@ -308,6 +315,73 @@ def zbuduj_d2(rekordy):
         z.y.append(y)
         z.sesja.append(start.get("sesja"))
         z.t.append(start["t"])
+        st["uzyte"] += 1
+        st["etykieta_%d" % y] += 1
+    return z, st
+
+
+def _opt_d3(r, akcja):
+    return next((o for o in r.get("opcje", []) if o.get("akcja") == akcja), {})
+
+
+def _num(v, brak=-1.0):
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else float(brak)
+
+
+def cechy_d3(r):
+    """Wektor cech zawieszki z rekordu `decyzja` D3 (kolejność = CECHY_D3)."""
+    wok = r.get("wokol") or {}
+    sk, co, pu, pi = (_opt_d3(r, a) for a in ("krok_skos", "cofnij", "inny_punkt", "przejscie_pietra"))
+    gr, mo = r.get("gracze_odl") or [], r.get("moby_odl") or []
+    return [_num(r.get("stoi_s")), float(sum(1 for v in wok.values() if v == ".")),
+            float(sum(1 for v in wok.values() if v in ("o", "d", "s"))), _num(r.get("odl_cel")),
+            _num(r.get("cel_droga")), 1.0 if r.get("cel_droga_policzona") else 0.0,
+            float(min(gr)) if gr else DUZA_ODL, float(min(mo)) if mo else DUZA_ODL, _num(r.get("hp_gracza"), 100.0),
+            _num(r.get("poprzednie_tu"), 0.0), 1.0 if sk.get("mozliwa") else 0.0, 1.0 if co.get("mozliwa") else 0.0,
+            _num(co.get("kroki"), 0.0), _num(pu.get("osiagalnych"), 0.0), _num(pu.get("droga")),
+            1.0 if pi.get("mozliwa") else 0.0, _num(pi.get("odl"))]
+
+
+def etykieta_d3(w):
+    """Etykieta zawieszki z `d3_wynik`: 1 = ruszyliśmy w ciągu PROG_RUCHU_D3_S s od wykrycia; 0 = zawieszka trwała dłużej
+    (niezależnie od tego, jak się skończyła); None = obserwacja ucięta przed upływem progu (exp, walka, stop, luka)."""
+    czas = w.get("czas_s")
+    if w.get("ruszyl") and czas is not None and czas <= PROG_RUCHU_D3_S:
+        return 1
+    if czas is not None and czas > PROG_RUCHU_D3_S:
+        return 0
+    return None
+
+
+def zbuduj_d3(rekordy):
+    """Zbiór D3: `decyzja` D3 sparowana z `d3_wynik` (ten sam decyzja_id i sesja). Pomijane i liczone: bez wyniku,
+    zamierzone (PRZERWA/PAUZA/GRACZ), obserwacja ucięta. Zwraca (Zbior, statystyki)."""
+    z = Zbior(CECHY_D3)
+    st = {"decyzje_d3": 0, "bez_wyniku": 0, "zamierzone": 0, "obserwacja_ucieta": 0, "uzyte": 0,
+          "etykieta_1": 0, "etykieta_0": 0}
+    wyniki = {}
+    for r in rekordy:
+        if r.get("typ") == "d3_wynik" and r.get("decyzja_id") is not None:
+            wyniki[(r.get("sesja"), r["decyzja_id"])] = r
+    for r in rekordy:
+        if r.get("typ") != "decyzja" or r.get("rodzaj") != "D3":
+            continue
+        st["decyzje_d3"] += 1
+        w = wyniki.get((r.get("sesja"), r.get("id")))
+        if w is None:
+            st["bez_wyniku"] += 1
+            continue
+        if r.get("zamierzony"):
+            st["zamierzone"] += 1
+            continue
+        y = etykieta_d3(w)
+        if y is None:
+            st["obserwacja_ucieta"] += 1
+            continue
+        z.wiersze.append(cechy_d3(r))
+        z.y.append(y)
+        z.sesja.append(r.get("sesja"))
+        z.t.append(r["t"])
         st["uzyte"] += 1
         st["etykieta_%d" % y] += 1
     return z, st

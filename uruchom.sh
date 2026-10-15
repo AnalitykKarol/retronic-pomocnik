@@ -38,4 +38,6 @@ fi
 export RETRONIC_TELEMETRIA=1
 setsid nohup python3 -I -u mozg.py --tryb hybryda --model haiku --trasa "$MAPA_TRASA" "${DOJSCIE[@]}" --potwory "$MAPA_POTWORY" --prog-hp "$MAPA_PROG_HP" > "$LOG" 2>&1 < /dev/null &
 # dymek startu wysyła mozg.py ("Bot ruszył"), gdy bot naprawdę wystartuje (14.10: bez dubla)
+# 15.10 (SPEC D3 Q4): obserwator ręcznych przejęć startuje razem z botem (etykiety dla modeli); RETRONIC_OBSERWATOR=0 = nie startuj
+"$DIR/obserwator_z_botem.sh" start
 echo "Start (mozg hybryda, $MAPA_TRASA${TRYB:+, tryb $TRYB}${DOJSCIE:+ + dojście})"

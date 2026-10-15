@@ -1,4 +1,4 @@
-"""Trening offline: python3 -I model_lokalny/trenuj.py D1|D2 [--logi DIR] [--wyjscie DIR] [--od RRRRMMDD]
+"""Trening offline: python3 -I model_lokalny/trenuj.py D1|D2|D3 [--logi DIR] [--wyjscie DIR] [--od RRRRMMDD]
 
 Czyta telemetrię (tylko odczyt), buduje zbiór, dzieli PO SESJACH (ostatnie sesje = test), porównuje z baseline,
 zapisuje <wyjscie>/<D>.json (wagi) i <wyjscie>/raport_<D>.md. Nie dotyka bota ani gry.
@@ -130,7 +130,7 @@ def f(v, n=4):
 
 def trenuj(rodzaj_zb, rekordy, wyjscie, info_wejscia=None):
     """Cały przebieg dla D1 albo D2. Zwraca (słownik wyniku, tekst raportu)."""
-    zb, stat = Z.zbuduj_d1(rekordy) if rodzaj_zb == "D1" else Z.zbuduj_d2(rekordy)
+    zb, stat = {"D1": Z.zbuduj_d1, "D2": Z.zbuduj_d2, "D3": Z.zbuduj_d3}[rodzaj_zb](rekordy)
     if len(zb) < 40 or len(set(zb.y)) < 2:
         raise SystemExit("za mało danych w zbiorze %s: %d wierszy, klasy %s" % (rodzaj_zb, len(zb), sorted(set(zb.y))))
     X, y, ses, t = zb.X, zb.Y, zb.sesja, zb.t
@@ -235,7 +235,7 @@ def raport(nazwa, zb, stat, maska_test, maska_walid, ytr, yte, baseline, wyniki,
            waz_lr, waz_perm, wybor, czas, czas_inne, info):
     L = []
     a = L.append
-    opis = {"D1": "wybór celu", "D2": "pościg"}[nazwa]
+    opis = {"D1": "wybór celu", "D2": "pościg", "D3": "zawieszka"}[nazwa]
     a("# Raport modelu lokalnego %s (%s) — krok B, przymiarka offline" % (nazwa, opis))
     a("")
     a("Dane z telemetrii (tylko odczyt); opcje odtworzone z najbliższej wcześniejszej `probka` — przybliżenie.")
@@ -328,8 +328,8 @@ def _hp(par):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="Trening lokalnego modelu D1/D2 z telemetrii (offline).")
-    ap.add_argument("zbior", choices=["D1", "D2"])
+    ap = argparse.ArgumentParser(description="Trening lokalnego modelu D1/D2/D3 z telemetrii (offline).")
+    ap.add_argument("zbior", choices=["D1", "D2", "D3"])
     ap.add_argument("--logi", default=os.path.join(_KORZEN, "logi"))
     ap.add_argument("--wyjscie", default=os.path.join(_KORZEN, "model"))
     ap.add_argument("--od", default=None, help="RRRRMMDD: tylko pliki telemetria-RRRRMMDD.jsonl od tej daty")

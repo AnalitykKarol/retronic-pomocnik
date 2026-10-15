@@ -177,4 +177,42 @@ sprawdz("trenuj D2 syntetyczny: model pobija stałą częstość (AUC > 0.65)", 
         str(wynik["metryki_test"][wynik["wybrany"]]))
 sprawdz("trenuj: raport zawiera sekcje metryk i czasu", "## Metryki na teście" in rap and "## Czas inferencji" in rap)
 sprawdz("trenuj: wynik serializuje się do JSON", len(json.dumps(wynik)) < 100 * 1024 * 2)
+# --- D3 (zawieszka): para decyzja D3 + d3_wynik, etykieta, pomijane przypadki ---
+def d3dec(i, ses, t, **kw):
+    r = {"t": t, "typ": "decyzja", "id": i, "rodzaj": "D3", "sesja": ses, "poz": [1, 2, 7], "wybrana": None, "stoi_s": 31.0,
+         "wokol": {"+1+0": ".", "-1+0": "#", "+0+1": "o", "+0-1": "."}, "odl_cel": 5, "cel_droga": 7, "cel_droga_policzona": True,
+         "gracze_odl": [4, 9], "moby_odl": [], "hp_gracza": 90.0, "poprzednie_tu": 1, "zamierzony": False,
+         "opcje": [{"akcja": "krok_skos", "mozliwa": True}, {"akcja": "cofnij", "mozliwa": True, "kroki": 3},
+                   {"akcja": "inny_punkt", "mozliwa": True, "osiagalnych": 2, "droga": 6}, {"akcja": "przejscie_pietra", "mozliwa": False}]}
+    r.update(kw)
+    return r
+def d3wyn(i, ses, t, **kw):
+    r = {"t": t, "typ": "d3_wynik", "decyzja_id": i, "sesja": ses, "ruszyl": True, "czas_s": 8.0, "koniec": "ruch"}
+    r.update(kw)
+    return r
+R3 = [d3dec(1, 1, 10), d3wyn(1, 1, 20),                                   # ruszył w 8 s -> 1
+      d3dec(2, 1, 100), d3wyn(2, 1, 190, czas_s=90.0),                    # ruszył po 90 s -> 0
+      d3dec(3, 1, 300), d3wyn(3, 1, 305, ruszyl=False, czas_s=5.0, koniec="exp"),   # ucięta
+      d3dec(4, 1, 400, zamierzony=True), d3wyn(4, 1, 450, czas_s=50.0),   # zamierzona
+      d3dec(5, 1, 500),                                                   # bez wyniku
+      d3dec(1, 2, 600), d3wyn(1, 2, 640, ruszyl=False, czas_s=40.0, koniec="stop"),   # stop po 40 s -> 0; id 1 w innej sesji
+      probka(700, 1, [ja])]
+z3, s3 = Z.zbuduj_d3(R3)
+sprawdz("D3: liczby (6 decyzji: 3 użyte, 1 ucięta, 1 zamierzona, 1 bez wyniku)",
+        s3["decyzje_d3"] == 6 and s3["uzyte"] == 3 and s3["obserwacja_ucieta"] == 1 and s3["zamierzone"] == 1 and s3["bez_wyniku"] == 1, str(s3))
+sprawdz("D3: etykiety 1/0/0 (id parowane po sesji, nie samym id)", z3.y == [1, 0, 0], str(z3.y))
+x3 = dict(zip(z3.nazwy, z3.X[0]))
+sprawdz("D3: cechy (stoi 31, wolne 2, ogień/dziura 1, odl_cel 5, droga 7, gracz 4, moby brak=duża odl, skos/cofnij tak, kroki 3, punkt 2/6, piętro nie)",
+        (x3["stoi_s"], x3["wolne_wokol"], x3["ogien_dziura_wokol"], x3["odl_cel"], x3["cel_droga"], x3["gracz_odl"], x3["mob_odl"],
+         x3["skos_mozliwa"], x3["cofnij_kroki"], x3["punkt_osiagalnych"], x3["punkt_droga"], x3["pietro_mozliwe"], x3["pietro_odl"])
+        == (31.0, 2.0, 1.0, 5.0, 7.0, 4.0, Z.DUZA_ODL, 1.0, 3.0, 2.0, 6.0, 0.0, -1.0), str(x3))
+sprawdz("D3: etykieta: ruch w 20 s=1, dłużej=0, ucięte=None", Z.etykieta_d3({"ruszyl": True, "czas_s": 20.0}) == 1
+        and Z.etykieta_d3({"ruszyl": True, "czas_s": 21.0}) == 0 and Z.etykieta_d3({"ruszyl": False, "czas_s": 3.0}) is None)
+try:
+    T.trenuj("D3", R3, tempfile.gettempdir())
+    za_malo = False
+except SystemExit as e:
+    za_malo = "za mało danych" in str(e)
+sprawdz("trenuj D3 na 3 wierszach: komunikat 'za mało danych' (trening dopiero po zebraniu zawieszek)", za_malo)
+
 print("WYNIK:", sum(ok), "/", len(ok)); sys.exit(0 if all(ok) else 1)

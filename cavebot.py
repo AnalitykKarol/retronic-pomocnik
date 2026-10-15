@@ -547,6 +547,9 @@ PAUZA_DLUGA = (0.005, 3.0, 8.0)
 REAKCJA = (0.15, 0.45)             # s od zauważenia potwora do pierwszego ataku
 DRUGI_CEL = 0.15                   # szansa wyboru drugiego najbliższego potwora
 DECYZJE_LOG = 1                    # 15.10: telemetria "decyzja" (D1 wybór celu, D2 start pościgu: opcje z cechami); tylko log, 0 = wyłączone
+D3_LOG = 1                         # 16.10 (SPEC_model_D3_utkniecia_1015, krok A): telemetria "decyzja" D3 + "d3_wynik" przy zawieszce poza walką (opcje wyjścia z cechami); tylko log, 0 = wyłączone
+D3_PROG_S = 30.0                   # s: pozycja w promieniu 2 pól poza walką (< 30% czasu walki), exp bez zmian, tak długo = zawieszka (d3_zawieszka.py)
+D3_ASTAR_MAX = 6                   # najwyżej tyle wywołań A* na jedną zawieszkę przy liczeniu opcji D3 (koszt ograniczony)
 PATROL_RESPAWN_CIEN = 1            # 15.10: tryb cienia (SPEC_patrol_respawn_1015 krok 2): mapa obecności mobów liczona na żywo (obecnosc.py), a przy wyborze
                                    # celu patrolu w telemetrii patrol_cel (cel_respawn, wartosci, zgodny) i "decyzja" D4 wybór nowej metody; bot idzie jak dziś; pokrętło 0/1
 OBECNOSC_ZAPIS_S = 60.0            # s: najwyżej tak często zapis stanu mapy obecności (poza tym na końcu pracy)
@@ -802,6 +805,7 @@ class Cavebot:
         self.reakcja_do = 0            # do kiedy "zauważamy" nowy cel, zanim go zaatakujemy
         self.pogon_odl = 0             # najmniejszy dystans do celu w tej pogoni
         self.tele = self.pokretla = None   # telemetria.py + pokretla.py (tylko na żywo, patrz _hak_telemetrii)
+        self._d3 = None                # d3_zawieszka.Zawieszka (16.10): detektor zawieszki, tworzony przy pierwszym obiegu
         self._decyzja_nr = 0           # 15.10: licznik rekordów "decyzja" w tej sesji (id łączące z nowy_cel/epizod_celu/poscig_*)
         self._d1_id_cel = None         # id decyzji D1, z której wybrano bieżący cel (do powiązania z D2)
         self.mana_ostatnia = None      # poprzedni odczyt many (śledzenie "mana nie rośnie")
@@ -3488,6 +3492,7 @@ class Cavebot:
                 self.nieudane = 0
             self.krok_z = ((x, y, z), teraz)
             self.skos_awaryjny_n += 1
+            self._d3_nota("krok_skos")
             if teraz - self._skos_log_t >= SKOS_LOG_S:
                 self._skos_log_t = teraz
                 log(f"Skos awaryjny: krok ({v[0]},{v[1]}) z ({x},{y}), pola w osiach zablokowane.")
@@ -3656,6 +3661,7 @@ class Cavebot:
         self._ruch_tick(poz, teraz)
         self.zapamietaj_pole(poz)
         self.exp_przed, self.exp_teraz = self.exp_teraz, g.get("exp")
+        self._d3_tick(g, poz, teraz)       # 16.10: detektor zawieszki (D3 krok A), tylko log
         if self.ruch_poz != tuple(poz):
             self.ruch_poz, self.ruch_czas = tuple(poz), teraz
             self.aktywnosc_ts = teraz
@@ -4322,6 +4328,7 @@ class Cavebot:
             st["s"] = 3
             log(f"[STRAZNIK] brak postępu {bez:.0f} s (stan {self.stan}).")
             self._tele_poscig("straznik_postepu", poziom=3, sekundy=round(bez, 1), faza=str(self.stan), poz=list(poz3))
+            self._d3_nota("alarm")
             try:
                 self.alarm(f"Bot bez postępu od {bez:.0f} s (stan {self.stan})")
             except Exception:
@@ -4853,6 +4860,33 @@ class Cavebot:
         if ogien is not None:
             c["ogien_przy"] = any(max(abs(a - sx), abs(b - sy)) <= OGIEN_PARZY_ODL_CELU for a, b in ogien)
         return c
+
+    def _d3_tick(self, g, poz, teraz):
+        """D3 krok A: detektor zawieszki poza walką + log opcji wyjścia; nic nie zmienia w ruchu. Błąd tylko w logu."""
+        try:
+            if not D3_LOG or not self.tele:
+                self._d3 = None                # wyłączone w trakcie: bez wiszącej zawieszki
+                return
+            if getattr(self, "_d3", None) is None:
+                import d3_zawieszka  # noqa: PLC0415
+                self._d3 = d3_zawieszka.Zawieszka(self, sys.modules[__name__])
+            self._d3.tick(g, poz, teraz)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"debug: D3 błąd {e!r}")
+
+    def _d3_nota(self, nazwa):
+        """Akcja istniejącej reguły wyjścia z utknięcia -> d3_wynik.regula (tylko zapis)."""
+        d3 = getattr(self, "_d3", None)
+        if d3 is not None:
+            d3.nota_reguly(nazwa)
+
+    def _d3_zamknij(self):
+        """Koniec pracy: zamknij trwającą zawieszkę (d3_wynik, koniec "stop")."""
+        d3 = getattr(self, "_d3", None)
+        if d3 is not None:
+            d3.zamknij()
 
     def _decyzja_zapisz(self, rodzaj, poz, opcje, wybrana, **d):
         """Zapisuje rekord "decyzja" i zwraca jego id (None: wyłączone, brak telemetrii albo błąd)."""
@@ -7504,6 +7538,7 @@ class Cavebot:
                 k = alt[0]
                 najlepszy = ((self.dystans(poz, self.punkty[k]),), k)
         self.utkniecia_trasy += 1
+        self._d3_nota("inny_punkt")
         log(f"utknięcie, wracam na trasę do punktu {k} (było {self.idx}, droga {najlepszy[0][0]} pól)")
         if self.tele:
             try:
@@ -8867,6 +8902,7 @@ class Cavebot:
             log("Przerwano (Ctrl+C).")
         finally:
             self._poscig_puszcz()     # żaden klawisz ruchu nie zostaje wciśnięty po wyjściu
+            self._d3_zamknij()
             self._obecnosc_zapisz(wymus=True)     # stan mapy obecności na dysk (błąd tylko w logu)
 
 

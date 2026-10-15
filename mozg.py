@@ -3399,6 +3399,7 @@ def main(argv):
         mozg.uruchom_hybryde()
     finally:
         cb._poscig_puszcz()               # wyjątek/STOP/Ctrl+C: żaden klawisz ruchu nie zostaje wciśnięty
+        cb._d3_zamknij()                  # D3 krok A: trwająca zawieszka dostaje wynik (koniec "stop")
 
 
 if __name__ == "__main__":

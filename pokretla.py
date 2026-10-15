@@ -248,6 +248,9 @@ ZAKRESY = {
     "STRAZNIK_POSTEP_S2": (120.0, 300.0),  # s: zmiana celu patrolu / skok na trasę
     "STRAZNIK_POSTEP_S3": (240.0, 600.0),  # s: powiadomienie krytyczne
     "DECYZJE_LOG": (0, 1),              # 15.10: 1 = telemetria "decyzja" (D1 wybór celu, D2 start pościgu) z opcjami; tylko log, bez wpływu na ruch
+    "D3_LOG": (0, 1),                   # 16.10: 1 = telemetria D3 (zawieszka poza walką: "decyzja" D3 z opcjami wyjścia + "d3_wynik"); tylko log, bez wpływu na ruch
+    "D3_PROG_S": (10.0, 300.0),         # s: pozycja w promieniu 2 pól poza walką tak długo = zawieszka (domyślnie 30)
+    "D3_ASTAR_MAX": (0, 12),            # najwyżej tyle wywołań A* na zawieszkę przy liczeniu opcji D3 (domyślnie 6)
 }
 # Pokrętła tekstowe (tylko ręcznie w na_zywo.json): nazwa -> dozwolone wartości
 TEKSTY = {
