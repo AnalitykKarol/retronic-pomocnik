@@ -132,7 +132,7 @@ def kandydaci(mapa, a, b, poz=None, promien=0):
             dodaj(b[0], b[1], False, (b[0], b[1], z + 1))      # założenie wypad.py: dziura leży pod punktem b
         # 15.10: kratka kanału (Edron) nie ma flagi 2 w mapie; nagrana trasa jest dowodem przejścia, więc bez żadnego
         # kandydata bierzemy pole nad b jako domysł (tryby "pewne"=False zaczynają od "use", czyli ctrl+klik na kratkę)
-        if not wyn and cheb((b[0], b[1]), poz or a) <= max(promien, 3):
+        if not wyn and cheb((b[0], b[1]), poz or a) <= max(promien, 3) and not _flaga(mapa, b[0], b[1], z) & 4:
             dodaj(b[0], b[1], False, (b[0], b[1], z + 1))
     else:                                           # w górę: R z dziurą nad sobą, lądowanie (R.x, R.y+1, z-1)
         for dx in range(-3, 4):
@@ -147,7 +147,7 @@ def kandydaci(mapa, a, b, poz=None, promien=0):
         wyn.sort(key=lambda k: (cheb(k["pole"], a), cheb(k["lad"], b)))
         if (b[0], b[1] - 1) not in widziane and _domysl_ok(mapa, (b[0], b[1] - 1, z), poz, promien, 1, 2):
             dodaj(b[0], b[1] - 1, False, (b[0], b[1], z - 1))   # konwencja wypad.py: R = (b.x, b.y-1) na piętrze a
-        if not wyn and cheb((b[0], b[1] - 1), poz or a) <= max(promien, 3):   # 15.10: jak w dół, nagrana trasa = dowód
+        if not wyn and cheb((b[0], b[1] - 1), poz or a) <= max(promien, 3) and not _flaga(mapa, b[0], b[1] - 1, z) & 4:   # 15.10: jak w dół, nagrana trasa = dowód
             dodaj(b[0], b[1] - 1, False, (b[0], b[1], z - 1))
     return wyn[:3]
 
@@ -156,7 +156,7 @@ def kandydaci(mapa, a, b, poz=None, promien=0):
 # potem kolejny "krok" wchodzi w odkopaną dziurę. Wyłączane pokrętłem PIETRA_LOPATA=0 (próba jest wtedy pomijana).
 TRYBY_DOL = {True: ("krok", "lopata", "krok", "use", "lopata", "krok", "use_wlasne"),
              False: ("use", "krok", "use_wlasne", "lopata", "krok", "use", "use_wlasne")}
-TRYBY_GORA = ("R", "krok", "R", "lina", "wlasne", "E", "W", "N")
+TRYBY_GORA = ("R", "lina", "krok", "R", "wlasne", "E", "W", "N")   # 15.10: lina druga (Edron: liny częstsze niż drabiny)
 # 14.10 (R1b, PIETRA_TRYBY_Z_DANYCH=1): tylko tryby, które w danych 12 h kiedykolwiek zadziałały. Typ "schody" (flaga 2 na obu
 # piętrach) = krok w obie strony jako pierwsza próba; drabina w górę = R (ze skosu, bez ustawiania się); dziura w dół = krok.
 # "lopata" tylko dla zasypanej dziury (ZASYPANE) i z pola sąsiedniego; slot bez zastosowania nie zużywa numeru próby.
@@ -658,6 +658,25 @@ class Pietra:
                     raise
                 cb.spij(0.6)                    # dziura otwiera się po chwili; kolejna próba to krok w nią
             elif tryb == "lina":
+                if (poz[0], poz[1]) == (T[0], T[1]):
+                    # 15.10: z własnego pola liny nie da się jej użyć (Edron z11): schodzimy o kratkę, jak przy łopacie
+                    for kier, (kx, ky) in (("Left", (poz[0] - 1, poz[1])), ("Right", (poz[0] + 1, poz[1])),
+                                           ("Up", (poz[0], poz[1] - 1)), ("Down", (poz[0], poz[1] + 1))):
+                        f = _flaga(cb.mapa, kx, ky, z0)
+                        if f & (4 | 2) or (f and not f & 1):
+                            continue
+                        self.log(f"Przejście pięter: stoję na polu liny {T[:2]}, schodzę {kier} o kratkę")
+                        try:
+                            cb.postac.krok(kier)
+                        except bot.Zatrzymano:
+                            raise
+                        except Exception:
+                            pass
+                        cb.pauza(0.3, 0.5)
+                        nowa = tuple(cb.postac.pozycja())
+                        if nowa != tuple(poz):
+                            poz = nowa
+                            break
                 self.log(f"Przejście pięter: próba {n + 1}/{len(tryby)} (lina z plecaka) z {tuple(poz)}, pole {T[:2]}")
                 self.ops.uzyj_line(T, poz)
             else:
