@@ -600,6 +600,7 @@ PVP_MAX_WROGOW = 1                 # tylu napastników w widoku naraz dopuszcza 
 PVP_DRUGI_ODL = 5                  # pola: inny obcy gracz (nie GM) tak blisko, znany wróg albo gracz z groźną czaszką liczy się jako DRUGI napastnik
 PVP_HP_MIN = 40                    # % HP: wejście w walkę tylko przy HP >= tyle (w trakcie walki nie uciekamy przy 40%)
 PVP_UH_HP = 20                     # % HP: <= tyle w walce -> UH na siebie (brak UH = ucieczka)
+PVP_HMM_STOP_PP = 0              # pp nad PVP_UH_HP, poniżej których nie strzelamy HMM (strzał blokuje ~2 s); 0 = strzelamy do końca (decyzja Karola)
 PVP_EXURA_HP = 80                  # % HP: <= tyle w walce i jest mana -> exura (hotkey F2)
 PVP_HMM_CO_S = 2.0                 # s: odstęp między strzałami HMM w napastnika (cooldown runy)
 PVP_ZASIEG = 7                     # pola (chebyshev): dalej od napastnika nie strzelamy, tylko podchodzimy
@@ -7086,7 +7087,7 @@ class Cavebot:
             if self._pvp_w_zasiegu(nap, poz):
                 st["niedost_od"] = None
                 # tuż nad progiem UH nie blokujemy obiegu ~2 s strzałem (kliknięcia): UH ma być gotowe w następnym obiegu
-                if teraz - st["hmm_ost"] >= PVP_HMM_CO_S and proc > PVP_UH_HP + 10:
+                if teraz - st["hmm_ost"] >= PVP_HMM_CO_S and proc > PVP_UH_HP + PVP_HMM_STOP_PP:
                     self._pvp_strzal(st, nap, g, poz, teraz)
                     akcje.append("atak_hmm")
             elif self._pvp_podejdz(st, nap, poz):

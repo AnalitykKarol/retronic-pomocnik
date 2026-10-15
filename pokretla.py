@@ -92,6 +92,7 @@ ZAKRESY = {
     "PVP_DRUGI_ODL": (2, 8),            # pola: inny gracz tak blisko liczy się jako drugi napastnik
     "PVP_HP_MIN": (20, 100),            # % HP: wejście w walkę tylko przy HP >= tyle
     "PVP_UH_HP": (5, 60),               # % HP: <= tyle w walce -> UH na siebie (brak UH = ucieczka)
+    "PVP_HMM_STOP_PP": (0, 40),         # pp nad PVP_UH_HP: tam bez strzału HMM, tylko leczenie (0 = strzelamy do końca)
     "PVP_EXURA_HP": (30, 95),           # % HP: <= tyle w walce i jest mana -> exura
     "PVP_HMM_CO_S": (1.0, 5.0),         # s: odstęp między strzałami HMM
     "PVP_ZASIEG": (1, 7),               # pola: dalej od napastnika nie strzelamy, tylko podchodzimy

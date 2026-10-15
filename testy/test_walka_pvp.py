@@ -548,11 +548,17 @@ odtworz(b, s, 0, 10, krok=0.25)
 n_tick = int(10 / 0.25)
 sprawdz("20 ticki co 0,25 s: odczytów plecaka wyraźnie mniej niż obiegów", b.runa_klik_env.odczyty < n_tick * 0.6, f"{b.runa_klik_env.odczyty} z {n_tick}")
 
-# 21. nie strzelamy tuż nad progiem UH (HP 28% > 20, <= 30): bez HMM, bez UH; HP 35%: HMM
+# 21. PVP_HMM_STOP_PP=10: nie strzelamy tuż nad progiem UH (HP 28% > 20, <= 30): bez HMM, bez UH; HP 35%: HMM
+cavebot.PVP_HMM_STOP_PP = 10
 s = Swiat(atakuje(90, 1, [(2, 90, [gr("Zly Gracz", 1, 0)]), (4, 28, [gr("Zly Gracz", 1, 0)])]))
 b = zrob(s)
 odtworz(b, s, 0, 7)
-sprawdz("21 HP 28% (<= UH+10): HMM wstrzymany, czekamy na UH", not [x for x in s.strzaly if x[0] >= 4] and b.pk_stan == "WALKA", f"{s.strzaly}")
+sprawdz("21 STOP_PP=10, HP 28%: HMM wstrzymany, czekamy na UH", not [x for x in s.strzaly if x[0] >= 4] and b.pk_stan == "WALKA", f"{s.strzaly}")
+cavebot.PVP_HMM_STOP_PP = 0
+s = Swiat(atakuje(90, 1, [(2, 90, [gr("Zly Gracz", 1, 0)]), (4, 28, [gr("Zly Gracz", 1, 0)])]))
+b = zrob(s)
+odtworz(b, s, 0, 7)
+sprawdz("21b domyślnie (STOP_PP=0), HP 28%: HMM leci do końca", [x for x in s.strzaly if x[0] >= 4 and x[1] == HMM], f"{s.strzaly}")
 s = Swiat(atakuje(90, 1, [(2, 90, [gr("Zly Gracz", 1, 0)]), (4, 35, [gr("Zly Gracz", 1, 0)])]))
 b = zrob(s)
 odtworz(b, s, 0, 7)
