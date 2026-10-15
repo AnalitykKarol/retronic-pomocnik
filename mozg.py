@@ -54,6 +54,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bot  # noqa: E402
 import cavebot  # noqa: E402
+import czaszka  # noqa: E402
 import instancja  # noqa: E402
 import powiadom  # noqa: E402
 
@@ -73,8 +74,8 @@ CZAT_WAZNOSC = 25                  # s: odpowiedź starsza (od decyzji modelu) n
 CZAT_OKNO_ODPOWIEDZI = 90          # s: odpowiedź rozmówcy w tym oknie po NASZEJ wysyłce do niego dotyczy bota
 # 15.10 czat_spot (SPEC_czat_spot_1015): wiadomość do gracza, który wraca na spot / zabiera moby
 CZAT_SPOT_MIN_HP = 70              # % HP: niżej nie piszemy
-CZAR_TEKST = re.compile(r"\s*(?:ex(?:ura|ori|evo|ani|iva|ana)|ad(?:ori|ura|evo|ana|eta|ito)|ut(?:evo|ani|amo|ana|ura|ito|ori))\b",
-                        re.IGNORECASE)   # inkantacja czaru na Default (z hotkeya bota), nie rozmowa
+CZAR_TEKST = re.compile(r"\s*(?:ex(?:ura|ori|evo|ani|iva|ana|eta)|ad(?:ori|ura|evo|ana|eta|ito)|ut(?:evo|ani|amo|ana|ura|ito|ori))\b",
+                        re.IGNORECASE)   # inkantacja czaru na Default (z hotkeya bota albo innego gracza), nie rozmowa
 CZAT_SPOT_RECZNE_S = 300           # s po ręcznej wiadomości Karola: bot się nie wtrąca
 CZAT_SPOT_OPOZNIENIE = (3.0, 10.0)  # s od decyzji do wysyłki
 CZAT_SPOT_WAZNOSC = 120            # s: niewysłana (walka, loot) przepada
@@ -168,6 +169,8 @@ def do_nas(autor, tekst, kanal, nazwa, na_ekranie=(), po_naszej=False):
     odpowiedź w oknie CZAT_OKNO_ODPOWIEDZI po naszej wysyłce do tego samego gracza (po_naszej), a na kanale
     lokalnym także powitanie albo pytanie ("ty"/"you"/"?"), ale tylko od gracza stojącego obok.
     Ogólny gwar, ogłoszenia, pytania do innych i krótkie "hmm?"/"xd" bez kontekstu: NIE."""
+    if CZAR_TEKST.match(tekst or ""):
+        return False       # 15.10: "exura"/"utevo lux" innego gracza to jego czar, nie wiadomość do bota
     if kanal_prywatny(kanal) or po_naszej:
         return True
     t = na_ascii(tekst or "").casefold()
@@ -213,6 +216,7 @@ ZWLOKI_PAMIEC = 600                # s: sprobuj_loot tylko na zwłokach zabitych
 PROG_RUCHU_HP = 60                 # % HP: poniżej żadnych akcji ruchu
 # zrzut ekranu dla modelu (opcja --zrzuty)
 ZRZUT_TYPY = ("brak_okna_lootu", "nie_doszedl_do_zwlok", "punkt_nieosiagalny", "problem_plecaka", "loot_nieudany")
+CZASZKA_CZEKAJ_S = 12              # s: tyle wątek modelu czeka na odczyt czaszki przed pytaniem o obcego gracza
 ZRZUT_MAKS_B = 4_000_000           # większy zrzut nie idzie do modelu
 ZRZUT_ZOSTAW = 20                  # tyle ostatnich zrzutów w logi/zrzuty
 ZNANE_KANALY = {"default", "trade", "game-chat", "help", "server log", "loot", "npcs", "rook", "rookgaard",
@@ -240,7 +244,7 @@ OPISY_ZDARZEN = {
     "nie_doszedl_do_zwlok": "bot nie doszedł do zwłok i pominął loot",
     "punkt_nieosiagalny": "bot nie może dojść do punktu trasy i go pomija",
     "odpuszczone_poscigi": "bot kilka razy z rzędu odpuścił gonienie potwora (nie zbliża się)",
-    "obcy_gracz": "obcy gracz na ekranie (bot gra dalej; staje tylko przy czaszce/GM)",
+    "obcy_gracz": "obcy gracz na ekranie (bot gra dalej; staje tylko przy czaszce/GM; czaszka tylko z pola czaszka, nieznana = brak odczytu)",
     "ucieczka": "niskie HP, bot ucieka",
     "seria_bledow": "kilka błędów bota z rzędu (odczyt albo akcja)",
     "wiadomosc_czatu": "nowa wiadomość od innego gracza (kanał lokalny albo prywatna)",
@@ -259,8 +263,12 @@ Zasady:
 - Bezpieczeństwo przede wszystkim. HP poniżej 50% albo stan UCIECZKA: żadnego czatu ani zmiany trasy,
   najwyżej pauza_bota albo zakoncz_sesje (skrypt sam ucieka i wraca do gry).
 - Obcy gracz z czaszką/PK albo kilku graczy blisko: rozważ pauza_bota albo alarm_gm.
-- Zwykły obcy gracz w widoku (bez czaszki, nie GM) NIE jest powodem do pauzy ani do zmiany trasy:
-  skrypt gra normalnie. Pauza_bota tylko przy graczu z czaszką/PK albo kilku graczach, którzy się zbliżają.
+- CZASZKA: wiesz o niej TYLKO z pola "czaszka" gracza w stanie ("biala", "czerwona", "brak" = odczytano, bez
+  czaszki, albo "nieznana" = brak odczytu). Przy "nieznana" NIE WOLNO ci pisać ani zakładać, że gracz jest "bez
+  czaszki", "zwykły" ani "bezpieczny": napisz "czaszka nieznana". Pisz "bez czaszki" tylko przy "brak".
+- Zwykły obcy gracz w widoku (czaszka "brak" albo "nieznana", nie GM) sam z siebie NIE jest powodem do pauzy
+  ani do zmiany trasy: skrypt gra normalnie. Pauza_bota tylko przy graczu z czaszką biala/czerwona
+  albo kilku graczach, którzy się zbliżają.
 - Gdy ktoś pisze do ciebie (priv albo na Default z twoim nickiem / zwrotem), skrypt sam zatrzymał postać
   na czas rozmowy: odpowiedz krótko, a skrypt po wysłaniu wznowi grę.
 - Każda twoja odpowiedź idzie PUBLICZNIE na kanał Default, więc widzą ją wszyscy wokół: krótko, neutralnie,
@@ -271,6 +279,8 @@ Zasady:
   nicka albo skrótu, prywatna, odpowiedź rozmówcy w ciągu 90 s po TWOJEJ wysyłce do niego, powitanie od gracza
   obok). Ogólny gwar kanału, ogłoszenia (gildie, handel), pytania do innych graczy i krótkie "hmm?", "xd", "?"
   bez kontekstu to NIE zaczepka: wybierz kontynuuj. Skrypt i tak nie wyśle odpowiedzi na wiadomość bez "do_bota".
+  Wpisy z "czar": true to inkantacje czarów innych graczy (exura, utani hur, utevo lux...): to NIE wiadomość
+  do ciebie i nie rozmowa, nigdy na nie nie odpowiadaj.
   Gdy w widoku jest tylko jeden inny gracz i pisze na lokalnym kanale, skrypt oznacza to jako "do_bota": wtedy
   odpowiedz krótko i naturalnie, nawet na samo ":)" albo "hi" (np. ":)", "hej", "siema"), bez wdawania się w rozmowę.
   Nie zakładaj powiązań, których nie ma w danych: "moje_wyslane_ostatnio" to JEDYNE wiadomości, które
@@ -325,7 +335,8 @@ Wtedy zdecyduj, co z nim zrobić:
   gdy powtarza się często, notatka i ignoruj_zdarzenie.
 - punkt_nieosiagalny / odpuszczone_poscigi: zwykle przeszkoda (gracz, potwór, drzwi); idz_do na wolne pole
   obok albo pauza_bota na chwilę; gdy to stały problem trasy, notatka.
-- obcy_gracz: patrz zasady wyżej; zwykły gracz bez zaczepki = kontynuuj (bot go już ignoruje).
+- obcy_gracz: patrz zasady wyżej; zwykły gracz bez zaczepki = kontynuuj (bot go już ignoruje). Czaszkę czytaj
+  z pola "czaszki"/"czaszka" ("nieznana" to brak odczytu, nie brak czaszki).
 - ucieczka: tylko akcje defensywne.
 - wiadomosc_czatu: odpowiedz krótko tylko, jeśli jest wiadomość z "do_bota": true (zasady czatu wyżej;
   odpowiedź idzie publicznie na Default); w każdym innym przypadku kontynuuj.
@@ -943,6 +954,9 @@ class Czat:
                 continue
             self.widziane.append(klucz)
             w["nowa"] = not poczatek and self._swiezy(w)   # stary czas klienta = historia, nie zdarzenie
+            if w["autor"] != self.nazwa and CZAR_TEKST.match(w["tekst"]) and not GM_NAZWA.search(w["autor"] or ""):
+                w["czar"] = True       # 15.10: czar innego gracza ("exura") to nie wiadomość: bez zdarzenia i odpowiedzi
+                w["nowa"] = False
             w["tekst"] = w["tekst"][:CZAT_TRESC_MAKS]
             self.ostatnie.append(w)
             if kanal_prywatny(w["kanal"]) and w["autor"] != self.nazwa:
@@ -993,6 +1007,8 @@ class Czat:
             wpis = {k: w[k] for k in ("czas", "autor", "kanal", "tekst", "nowa") if w.get(k) not in ("", None)}
             if w.get("do_bota"):
                 wpis["do_bota"] = True
+            if w.get("czar"):
+                wpis["czar"] = True
             if kanal_prywatny(w["kanal"]):
                 wpis["prywatna"] = True
             if w["autor"] == self.nazwa:
@@ -1873,7 +1889,7 @@ def dostepne_trasy():
 class Mozg:
     def __init__(self, tryb, zapytaj=None, nazwa=None, model=None, cb=None, pamiec=None, log=None,
                  zegar=time.monotonic, czat_wyslij=None, trasy=None, co_ile=None, alarm=None,
-                 losuj=random.uniform, zrzuty=False, zrzut=None, log_bota=None):
+                 losuj=random.uniform, zrzuty=False, zrzut=None, log_bota=None, czytnik_czaszki=None):
         self.tryb = tryb
         self.zapytaj = zapytaj or bot.zapytaj
         self.nazwa = nazwa or bot.nazwa_postaci()
@@ -1925,6 +1941,11 @@ class Mozg:
         self.spot_watek = None
         self.spot_model = None
         self.spot_blokada_log = float("-inf")
+        # 15.10 czaszka ze zrzutu (czaszka.py): domyślnie tylko z prawdziwym Claude (atrapa modelu w testach = brak)
+        self.czytnik_czaszki = czytnik_czaszki if czytnik_czaszki is not None else (
+            czaszka.CzytnikCzaszki(Claude(model=czaszka.MODEL_CZASZKI, timeout=czaszka.TIMEOUT_MODELU_S),
+                                   katalog=LOGI / "zrzuty", log=self.log)
+            if isinstance(self.model, Claude) and cb is not None else None)
 
     # --- stan ---
 
@@ -1993,6 +2014,8 @@ class Mozg:
                         continue
                     wpis = {"nazwa": s["nazwa"], "odl": max(abs(s["x"] - poz[0]), abs(s["y"] - poz[1])),
                             "hp_proc": s.get("hp"), "x": s["x"], "y": s["y"]}
+                    if s.get("gracz"):   # 15.10: czaszka tylko z odczytu ekranu; brak odczytu = "nieznana", nie "brak"
+                        wpis["czaszka"] = czaszka.dla_modelu(s["nazwa"])
                     (gracze if s.get("gracz") else potwory).append(wpis)
                 stan["potwory_w_widoku"] = sorted(potwory, key=lambda w: w["odl"])[:8]
                 stan["gracze_w_widoku"] = sorted(gracze, key=lambda w: w["odl"])[:6]
@@ -2092,6 +2115,8 @@ class Mozg:
 
         def opis(z):
             wpis = {"typ": z["typ"], "opis": z["opis"], "sekund_temu": round(teraz - z["czas"]), **z["dane"]}
+            if z["typ"] == "obcy_gracz":
+                wpis["czaszki"] = {n: czaszka.dla_modelu(n) for n in z["dane"].get("gracze") or ()}
             pole = z["dane"].get("zwloki") or z["dane"].get("pole")
             if poz and pole:   # model źle liczy odległości sam
                 wpis["odl_od_postaci"] = "inne pietro" if pole[2] != poz[2] else \
@@ -2155,6 +2180,8 @@ class Mozg:
     def pomysl(self, zdarzenia=None):
         """Pełny obieg: stan -> model -> zapis decyzji. Wołane w wątku (hybryda) albo wprost (doradca).
         zdarzenia: lista "dziwnych" zdarzeń bota (pytanie o zdarzenie z logiem bota i kontenerami)."""
+        if zdarzenia and zdarzenia[0]["typ"] == "obcy_gracz" and self.czytnik_czaszki is not None:
+            self.czytnik_czaszki.czekaj(CZASZKA_CZEKAJ_S)   # wątek modelu: poczekaj na odczyt czaszki (Haiku ~kilka s)
         stan = self.zbuduj_stan()
         obraz = None
         if zdarzenia:
@@ -2748,7 +2775,12 @@ class Mozg:
                 ja = next((s for s in odczyt[1] if s["nazwa"] == self.nazwa), None)
                 if ja:
                     poz = (ja["x"], ja["y"], ja["z"])
-                    obcy = {s["nazwa"] for s in self.cb.inni_gracze(odczyt[1], poz)}
+                    inni = self.cb.inni_gracze(odczyt[1], poz)
+                    obcy = {s["nazwa"] for s in inni}
+                    if self.czytnik_czaszki is not None and inni:   # 15.10: czaszka z ekranu (wątek, kesz per nick)
+                        self.czytnik_czaszki.zlec(sorted(
+                            ((s["nazwa"], s["x"] - poz[0], s["y"] - poz[1]) for s in inni),
+                            key=lambda g: max(abs(g[1]), abs(g[2]))))
                     if obcy - self.gracze_widziani:   # ten sam klucz co linia [GRACZ]: jedno zgłoszenie
                         self.zdarzenia.gracze(obcy)
                     self.gracze_widziani = obcy

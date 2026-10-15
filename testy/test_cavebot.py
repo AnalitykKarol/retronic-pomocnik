@@ -178,11 +178,18 @@ sprawdz("4 zwykły obcy gracz: gramy dalej, bez alarmu", b.stan != "GRACZ" and s
 wpisy = [l for l in cavelog[n0:] if "Gracz w pobliżu: Obcy" in l]
 sprawdz("4a zwykły gracz: jeden wpis info w logu (bez [GRACZ])", len(wpisy) == 1 and not any("[GRACZ]" in l for l in cavelog[n0:]), wpisy)
 s = Swiat(); s.stwory = [gracz_obcy(czaszka=1)]
+b = zrob(s, trasa(), okrazenia=1)
+for _ in range(2): b.tick()
+sprawdz("4d0 gracz z czaszką przy PK_OBRONA=1: ucieczka PK (obrona_pk), nie pauza GRACZ", b.pk_stan == "UCIECZKA" and b.stan != "GRACZ",
+        f"pk={b.pk_stan} stan={b.stan}")
+cavebot.PK_OBRONA = 0      # dawne zachowanie (stan GRACZ) zostaje dla PK_OBRONA=0; obrona PK ma własny test_obrona_pk.py
+s = Swiat(); s.stwory = [gracz_obcy(czaszka=1)]
 b = zrob(s, trasa(), okrazenia=1); p0 = list(s.poz)
 for _ in range(5): b.tick()
 sprawdz("4d gracz z czaszką: pauza + alarm, bez ruchu i klawiszy", b.stan == "GRACZ" and s.poz == p0 and len(s.alarmy) == 1 and not s.ataki, f"alarmy={s.alarmy}")
 s.stwory.clear(); b.tick(); b.tick()
 sprawdz("4b gracz zniknal -> idzie", b.stan == "IDZ" and s.poz != p0)
+cavebot.PK_OBRONA = 1
 s = Swiat(); s.stwory = [gracz_obcy("GM Janusz")]
 b = zrob(s, trasa(), okrazenia=1); p0 = list(s.poz)
 for _ in range(3): b.tick()

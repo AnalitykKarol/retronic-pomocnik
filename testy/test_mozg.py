@@ -217,7 +217,9 @@ m.obieg_doradcy()
 stan = json.loads(mdl.prompty[0].split("\n", 1)[1].split("\n\n")[0])
 sprawdz("7a doradca: czat niedostępny opisany", "niedostepny" in stan["czat"])
 sprawdz("7b doradca: gracz i potwory w widoku (daleki odfiltrowany)",
-        stan["gracze_w_widoku"] == [{"nazwa": "Kowal", "odl": 2, "hp_proc": 100, "x": 32022, "y": 32150}] and len(stan["potwory_w_widoku"]) == 1, stan)
+        stan["gracze_w_widoku"] == [{"nazwa": "Kowal", "odl": 2, "hp_proc": 100, "x": 32022, "y": 32150,
+                                        "czaszka": "nieznana"}]    # 15.10: brak odczytu czaszki = "nieznana"
+        and len(stan["potwory_w_widoku"]) == 1, stan)
 sprawdz("7c doradca: statystyki z logu", stan["cavebot"]["stan"] == "IDZ" and stan["sesja"]["zabite"] == {"Rat": 1}
         and stan["sesja"]["zebrany_loot"] == {"gold coin": 1} and stan["cavebot"]["okrazenia"] == 2, stan["cavebot"])
 sprawdz("7d doradca: akcje tylko w logu, notatka w pamięci",
