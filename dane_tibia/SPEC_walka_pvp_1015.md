@@ -1,4 +1,4 @@
-# SPEC: walka z graczami (PvP) - 15.10 wieczór — SZKIC, czeka na decyzje Karola (Q1-Q5)
+# SPEC: walka z graczami (PvP) - 15.10 wieczór — ZATWIERDZONY 15.10 ~21:50 (decyzje Karola niżej)
 
 Cel: gdy atakuje nas gracz, bot nie tylko ucieka (SPEC_obrona_pk_1015.md), ale umie się bronić: bije napastnika
 runami HMM (adori gran) i leczy się UH (adura vita) / exurą. Karol nosi HMM i UH w plecaku. Każde starcie jest zapisane
@@ -43,3 +43,12 @@ napastnik, HP 90% -> HMM co 2 s; HP spada do 50% -> UH przed HMM; brak UH -> uci
 - Q3 UH na siebie przy 50%, exura przy 80% - OK? (dziś HMM robi F6, UH nauczony?)
 - Q4 Ucieczka po przegranej wymianie: zostaje jak w obronie PK (depo, karencja 30 min)?
 - Q5 Najpierw sprawdzenie na żywo strzału HMM i UH na siebie (próba na mobie / na sobie), potem walka - OK?
+
+## Decyzje Karola 15.10 ~21:50
+
+- Q1: atakujemy **tylko napastnika** (gracza, który nas uderzył; detekcja z obrony PK). Nikogo innego.
+- Q2/Q3: **UH na siebie przy HP <= 20%**; HMM "napierdalamy w nich ile wlezie": strzał HMM przy każdej okazji (cooldown runy),
+  bez progu zapasu HMM i bez progu UH do rozpoczęcia walki. Pozostałe progi (1 na 1, HP >= 40% do wejścia w walkę, exura 80%)
+  zostają jako pokrętła z wartościami ze szkicu; ucieczka przy HP < PVP_HP_MIN albo braku HMM.
+- Q4: po przegranej wymianie ucieczka jak w obronie PK (depo, karencja 30 min).
+- Q5: przed walką z ludźmi próba na żywo strzału HMM i UH na siebie (na mobie / na sobie).
