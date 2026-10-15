@@ -482,11 +482,23 @@ def czy_runy(kontener):
     # tarcza odłożona na czas runy (uh.py, gdy w głównym plecaku brak widocznego wolnego pola) nie zmienia roli bagu
     # 14.10: monety (gold/platinum/crystal) też nie zmieniają roli: loot wrzucił gold do pustego bagu na runy i bot
     # brał go potem za drugi plecak (UH "kilka okien plecaka", łopata "niejednoznaczne dopasowanie okien")
-    if not (ids & ID_RUN_W_POJEMNIKU) or not ids <= (ID_RUN_W_POJEMNIKU | ID_TARCZ_W_POJEMNIKU | ID_MONET_W_POJEMNIKU):
-        return False
     przedm = kontener.get("przedmioty", [])
+    if ids & ID_RUN_W_POJEMNIKU and not ids <= (ID_RUN_W_POJEMNIKU | ID_TARCZ_W_POJEMNIKU | ID_MONET_W_POJEMNIKU):
+        # 15.10: bag z lootem pomieszanym z runami (np. rope/gold obok UH i blanków) nadal jest bagiem na runy,
+        # gdy runy to wyraźna większość (inaczej pełny bag na runy brany za główny plecak -> "pełny plecak")
+        n_run = sum(1 for p in przedm if p.get("id") in ID_RUN_W_POJEMNIKU)
+        return n_run >= 3 and n_run * 4 >= len(przedm) * 3
+    if not (ids & ID_RUN_W_POJEMNIKU):
+        return False
     monety = sum(1 for p in przedm if p.get("id") in ID_MONET_W_POJEMNIKU)
     return monety < sum(1 for p in przedm if p.get("id") in ID_RUN_W_POJEMNIKU)   # pojedynczy stos złota w bagu na runy
+
+
+def _wyglada_na_runy(kontener):
+    """True, gdy w kontenerze są runy z uh.py (UH/blanki itd.) i to one przeważają: nigdy nie główny plecak."""
+    przedm = kontener.get("przedmioty", [])
+    n_run = sum(1 for p in przedm if p.get("id") in ID_RUN_W_POJEMNIKU)
+    return n_run > 0 and n_run * 2 >= len(przedm)
 
 
 def rola_z_tytulu(tytul):
@@ -560,7 +572,7 @@ def _plan_z_pamieci(obraz, wynik, kontenery, idy, nazwy):
         o.rola = rola_kontenera(k)
     plecaki = [o for o in okna if o.rola == "plecak"]
     # 14.10: kilka okien "plecak" (np. pusty bag na runy po depo): główny to ten z największą liczbą rzeczy, nie pierwszy
-    plecaki.sort(key=lambda o: -len((o.kontener or {}).get("przedmioty", [])))
+    plecaki.sort(key=lambda o: (_wyglada_na_runy((o.kontener or {})), -len((o.kontener or {}).get("przedmioty", []))))
     zwloki = [o for o in okna if o.rola == "zwloki"]
     runy = [o for o in okna if o.rola == "runy"]
     wynik.update(zrodlo="pamiec", plecak=plecaki[0] if plecaki else None,
@@ -749,9 +761,33 @@ def scalenie(plecak):
 
 # --- plan zbierania ----------------------------------------------------------
 
+def _role_luzno_z_pamieci(obraz, okna, kontenery):
+    """Plan z obrazka (pamięć nie zgadza się z ekranem): ze znanych kontenerów wyłapujemy tylko okna bagu na runy
+    (15.10: pełny bag na runy o tytule "backpack" był brany za plecak lootu). Okno "plecak" staje się "runy",
+    gdy zgadza się co do zajętości slotów z bagiem na runy, a z żadnym innym kontenerem nie-na-runy.
+    Przy błędzie albo niejednoznaczności role zostają z tytułów."""
+    try:
+        if not kontenery or not okna:
+            return
+        runowe = [k for k in kontenery if czy_runy(k)]
+        inne = [k for k in kontenery if not czy_runy(k)]
+        if len(runowe) != 1:
+            return
+        for o in okna:
+            if o.rola != "plecak":
+                continue
+            if _niezgodnosci(obraz, o, runowe[0]) != 0:
+                continue
+            if all(_niezgodnosci(obraz, o, k) not in (0,) for k in inne):
+                o.rola = "runy"
+    except Exception:
+        return
+
+
 def _plan_z_obrazu(obraz, wynik, nazwy):
     """Dawne rozpoznawanie: role okien po tytule, przedmioty po ikonach."""
     okna = wynik["okna"]
+    _role_luzno_z_pamieci(obraz, okna, wynik.get("kontenery"))
     plecaki = [o for o in okna if o.rola == "plecak"]
     zwloki = [o for o in okna if o.rola == "zwloki"]
     runy = [o for o in okna if o.rola == "runy"]
@@ -775,14 +811,19 @@ def _plan_z_obrazu(obraz, wynik, nazwy):
     if wynik["plecak"]:
         nazwa_przedmiotu = wynik["przedmiot"][1] if wynik["przedmiot"] else None
         if nazwa_przedmiotu in STOSOWE:
-            for slot, nazwa, _ in zawartosc(obraz, wynik["plecak"]):
-                if nazwa == nazwa_przedmiotu:
-                    wynik["cel"] = slot
+            # stos szukamy we wszystkich oknach "plecak" (nie w bagu na runy), nie tylko w pierwszym
+            for okno in plecaki:
+                for slot, nazwa, _ in zawartosc(obraz, okno):
+                    if nazwa == nazwa_przedmiotu:
+                        wynik["plecak"], wynik["cel"] = okno, slot
+                        break
+                if wynik["cel"] is not None:
                     break
         if wynik["cel"] is None:
-            for slot in wynik["plecak"].sloty:
-                if czy_pusty(obraz, slot):
-                    wynik["cel"] = slot
+            for okno in plecaki:
+                wolny = next((s for s in okno.sloty if czy_pusty(obraz, s)), None)
+                if wolny is not None:
+                    wynik["plecak"], wynik["cel"] = okno, wolny
                     break
 
 

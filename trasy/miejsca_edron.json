@@ -1,0 +1,681 @@
+{
+ "opis": "mapa spotu trolli w Edronie (z8) jako graf: miejsca = spawny trolli z Tibia 7.4 spawns.xml leżące przy nagranej pętli edron_trolle_petla, waga = mieszanka udziału zabić (telemetria 15.10) i liczby potworów w spawnie. Bez przejść pięter. Nauczona dziura (33081,31742,8) jest ścianą dla punktów i dróg. Patrz generuj_miejsca_edron.py. Zachowanie wg cavebot.PATROL_*.",
+ "trasa": "edron_trolle_petla",
+ "promien": 4,
+ "start": [
+  33117,
+  31775,
+  8
+ ],
+ "telemetria": [
+  "pomocnik/telemetria-20261015.jsonl",
+  "pomocnik-stabilny/telemetria-20261015.jsonl"
+ ],
+ "zabicia_przypisane": 127,
+ "przejscia": [],
+ "laczniki": [],
+ "graf": {
+  "opis": "wezly = konce przejsc/laczników i miejsca; komp = skladowa spojnosci (A* bota na mapie); odl = [i, j, dlugosc A*] dla par w jednej skladowej (liczone offline, patrz buduj_graf)",
+  "wezly": [
+   {
+    "pole": [
+     33073,
+     31732,
+     8
+    ],
+    "komp": 1
+   },
+   {
+    "pole": [
+     33096,
+     31737,
+     8
+    ],
+    "komp": 1
+   },
+   {
+    "pole": [
+     33085,
+     31738,
+     8
+    ],
+    "komp": 1
+   },
+   {
+    "pole": [
+     33115,
+     31748,
+     8
+    ],
+    "komp": 1
+   },
+   {
+    "pole": [
+     33078,
+     31757,
+     8
+    ],
+    "komp": 1
+   },
+   {
+    "pole": [
+     33081,
+     31762,
+     8
+    ],
+    "komp": 1
+   },
+   {
+    "pole": [
+     33082,
+     31772,
+     8
+    ],
+    "komp": 1
+   },
+   {
+    "pole": [
+     33115,
+     31774,
+     8
+    ],
+    "komp": 1
+   }
+  ],
+  "odl": [
+   [
+    0,
+    1,
+    30
+   ],
+   [
+    0,
+    2,
+    18
+   ],
+   [
+    0,
+    3,
+    72
+   ],
+   [
+    0,
+    4,
+    72
+   ],
+   [
+    0,
+    5,
+    64
+   ],
+   [
+    0,
+    6,
+    81
+   ],
+   [
+    0,
+    7,
+    84
+   ],
+   [
+    1,
+    2,
+    12
+   ],
+   [
+    1,
+    3,
+    62
+   ],
+   [
+    1,
+    4,
+    62
+   ],
+   [
+    1,
+    5,
+    54
+   ],
+   [
+    1,
+    6,
+    71
+   ],
+   [
+    1,
+    7,
+    74
+   ],
+   [
+    2,
+    3,
+    54
+   ],
+   [
+    2,
+    4,
+    54
+   ],
+   [
+    2,
+    5,
+    46
+   ],
+   [
+    2,
+    6,
+    63
+   ],
+   [
+    2,
+    7,
+    66
+   ],
+   [
+    3,
+    4,
+    72
+   ],
+   [
+    3,
+    5,
+    64
+   ],
+   [
+    3,
+    6,
+    67
+   ],
+   [
+    3,
+    7,
+    42
+   ],
+   [
+    4,
+    5,
+    8
+   ],
+   [
+    4,
+    6,
+    23
+   ],
+   [
+    4,
+    7,
+    60
+   ],
+   [
+    5,
+    6,
+    17
+   ],
+   [
+    5,
+    7,
+    54
+   ],
+   [
+    6,
+    7,
+    39
+   ]
+  ]
+ },
+ "dziury_omijane": [
+  [
+   33081,
+   31742,
+   8
+  ]
+ ],
+ "pominiete_spawny": [
+  {
+   "x": 33130,
+   "y": 31751,
+   "ile": 4,
+   "powod": "15 pól od nagranej pętli (> 6), droga nieprzetestowana"
+  },
+  {
+   "x": 33057,
+   "y": 31762,
+   "ile": 3,
+   "powod": "16 pól od nagranej pętli (> 6), droga nieprzetestowana"
+  },
+  {
+   "x": 33063,
+   "y": 31778,
+   "ile": 2,
+   "powod": "8 pól od nagranej pętli (> 6), droga nieprzetestowana"
+  }
+ ],
+ "miejsca": [
+  {
+   "id": 1,
+   "nazwa": "z8_spawn_33069_31728",
+   "x": 33073,
+   "y": 31732,
+   "z": 8,
+   "opis": "spawn 7x Troll 7, środek (33069,31728), punkt: na pętli",
+   "zabicia": 13,
+   "udzial_zabic": 0.108,
+   "mobow": 6,
+   "zrodlo": "troll",
+   "waga": 0.154,
+   "gniazdo": true,
+   "sasiedzi": [
+    {
+     "id": 2,
+     "droga": 30,
+     "przez": []
+    },
+    {
+     "id": 3,
+     "droga": 18,
+     "przez": []
+    },
+    {
+     "id": 4,
+     "droga": 72,
+     "przez": []
+    },
+    {
+     "id": 5,
+     "droga": 72,
+     "przez": []
+    },
+    {
+     "id": 6,
+     "droga": 64,
+     "przez": []
+    },
+    {
+     "id": 7,
+     "droga": 81,
+     "przez": []
+    },
+    {
+     "id": 8,
+     "droga": 84,
+     "przez": []
+    }
+   ],
+   "od_startu": 87,
+   "komp": 1
+  },
+  {
+   "id": 2,
+   "nazwa": "z8_spawn_33097_31736",
+   "x": 33096,
+   "y": 31737,
+   "z": 8,
+   "opis": "spawn 3x Troll 3, środek (33097,31736), punkt: na pętli",
+   "zabicia": 10,
+   "udzial_zabic": 0.083,
+   "mobow": 3,
+   "zrodlo": "troll",
+   "waga": 0.085,
+   "gniazdo": false,
+   "sasiedzi": [
+    {
+     "id": 1,
+     "droga": 30,
+     "przez": []
+    },
+    {
+     "id": 3,
+     "droga": 12,
+     "przez": []
+    },
+    {
+     "id": 4,
+     "droga": 62,
+     "przez": []
+    },
+    {
+     "id": 5,
+     "droga": 62,
+     "przez": []
+    },
+    {
+     "id": 6,
+     "droga": 54,
+     "przez": []
+    },
+    {
+     "id": 7,
+     "droga": 71,
+     "przez": []
+    },
+    {
+     "id": 8,
+     "droga": 74,
+     "przez": []
+    }
+   ],
+   "od_startu": 77,
+   "komp": 1
+  },
+  {
+   "id": 3,
+   "nazwa": "z8_spawn_33084_31739",
+   "x": 33085,
+   "y": 31738,
+   "z": 8,
+   "opis": "spawn 4x Troll 4, środek (33084,31739), punkt: na pętli",
+   "zabicia": 26,
+   "udzial_zabic": 0.217,
+   "mobow": 4,
+   "zrodlo": "troll",
+   "waga": 0.165,
+   "gniazdo": true,
+   "sasiedzi": [
+    {
+     "id": 1,
+     "droga": 18,
+     "przez": []
+    },
+    {
+     "id": 2,
+     "droga": 12,
+     "przez": []
+    },
+    {
+     "id": 4,
+     "droga": 54,
+     "przez": []
+    },
+    {
+     "id": 5,
+     "droga": 54,
+     "przez": []
+    },
+    {
+     "id": 6,
+     "droga": 46,
+     "przez": []
+    },
+    {
+     "id": 7,
+     "droga": 63,
+     "przez": []
+    },
+    {
+     "id": 8,
+     "droga": 66,
+     "przez": []
+    }
+   ],
+   "od_startu": 69,
+   "komp": 1
+  },
+  {
+   "id": 4,
+   "nazwa": "z8_spawn_33113_31744",
+   "x": 33115,
+   "y": 31748,
+   "z": 8,
+   "opis": "spawn 4x Troll 4, środek (33113,31744), punkt: na pętli",
+   "zabicia": 9,
+   "udzial_zabic": 0.075,
+   "mobow": 4,
+   "zrodlo": "troll",
+   "waga": 0.095,
+   "gniazdo": true,
+   "sasiedzi": [
+    {
+     "id": 1,
+     "droga": 72,
+     "przez": []
+    },
+    {
+     "id": 2,
+     "droga": 62,
+     "przez": []
+    },
+    {
+     "id": 3,
+     "droga": 54,
+     "przez": []
+    },
+    {
+     "id": 5,
+     "droga": 72,
+     "przez": []
+    },
+    {
+     "id": 6,
+     "droga": 64,
+     "przez": []
+    },
+    {
+     "id": 7,
+     "droga": 67,
+     "przez": []
+    },
+    {
+     "id": 8,
+     "droga": 42,
+     "przez": []
+    }
+   ],
+   "od_startu": 45,
+   "komp": 1
+  },
+  {
+   "id": 5,
+   "nazwa": "z8_spawn_33074_31753",
+   "x": 33078,
+   "y": 31757,
+   "z": 8,
+   "opis": "spawn 3x Troll 3, środek (33074,31753), punkt: na pętli",
+   "zabicia": 6,
+   "udzial_zabic": 0.05,
+   "mobow": 4,
+   "zrodlo": "troll",
+   "waga": 0.068,
+   "gniazdo": true,
+   "sasiedzi": [
+    {
+     "id": 1,
+     "droga": 72,
+     "przez": []
+    },
+    {
+     "id": 2,
+     "droga": 62,
+     "przez": []
+    },
+    {
+     "id": 3,
+     "droga": 54,
+     "przez": []
+    },
+    {
+     "id": 4,
+     "droga": 72,
+     "przez": []
+    },
+    {
+     "id": 6,
+     "droga": 8,
+     "przez": []
+    },
+    {
+     "id": 7,
+     "droga": 23,
+     "przez": []
+    },
+    {
+     "id": 8,
+     "droga": 60,
+     "przez": []
+    }
+   ],
+   "od_startu": 63,
+   "komp": 1
+  },
+  {
+   "id": 6,
+   "nazwa": "z8_spawn_33083_31763",
+   "x": 33081,
+   "y": 31762,
+   "z": 8,
+   "opis": "spawn 4x Troll 4, środek (33083,31763), punkt: na pętli",
+   "zabicia": 17,
+   "udzial_zabic": 0.142,
+   "mobow": 4,
+   "zrodlo": "troll",
+   "waga": 0.128,
+   "gniazdo": true,
+   "sasiedzi": [
+    {
+     "id": 1,
+     "droga": 64,
+     "przez": []
+    },
+    {
+     "id": 2,
+     "droga": 54,
+     "przez": []
+    },
+    {
+     "id": 3,
+     "droga": 46,
+     "przez": []
+    },
+    {
+     "id": 4,
+     "droga": 64,
+     "przez": []
+    },
+    {
+     "id": 5,
+     "droga": 8,
+     "przez": []
+    },
+    {
+     "id": 7,
+     "droga": 17,
+     "przez": []
+    },
+    {
+     "id": 8,
+     "droga": 54,
+     "przez": []
+    }
+   ],
+   "od_startu": 57,
+   "komp": 1
+  },
+  {
+   "id": 7,
+   "nazwa": "z8_spawn_33082_31773",
+   "x": 33082,
+   "y": 31772,
+   "z": 8,
+   "opis": "spawn 5x Troll 5, środek (33082,31773), punkt: na pętli",
+   "zabicia": 27,
+   "udzial_zabic": 0.225,
+   "mobow": 6,
+   "zrodlo": "troll",
+   "waga": 0.184,
+   "gniazdo": true,
+   "sasiedzi": [
+    {
+     "id": 1,
+     "droga": 81,
+     "przez": []
+    },
+    {
+     "id": 2,
+     "droga": 71,
+     "przez": []
+    },
+    {
+     "id": 3,
+     "droga": 63,
+     "przez": []
+    },
+    {
+     "id": 4,
+     "droga": 67,
+     "przez": []
+    },
+    {
+     "id": 5,
+     "droga": 23,
+     "przez": []
+    },
+    {
+     "id": 6,
+     "droga": 17,
+     "przez": []
+    },
+    {
+     "id": 8,
+     "droga": 39,
+     "przez": []
+    }
+   ],
+   "od_startu": 42,
+   "komp": 1
+  },
+  {
+   "id": 8,
+   "nazwa": "z8_spawn_33115_31775",
+   "x": 33115,
+   "y": 31774,
+   "z": 8,
+   "opis": "spawn 5x Troll 5, środek (33115,31775), punkt: na pętli",
+   "zabicia": 12,
+   "udzial_zabic": 0.1,
+   "mobow": 4,
+   "zrodlo": "troll",
+   "waga": 0.121,
+   "gniazdo": true,
+   "sasiedzi": [
+    {
+     "id": 1,
+     "droga": 84,
+     "przez": []
+    },
+    {
+     "id": 2,
+     "droga": 74,
+     "przez": []
+    },
+    {
+     "id": 3,
+     "droga": 66,
+     "przez": []
+    },
+    {
+     "id": 4,
+     "droga": 42,
+     "przez": []
+    },
+    {
+     "id": 5,
+     "droga": 60,
+     "przez": []
+    },
+    {
+     "id": 6,
+     "droga": 54,
+     "przez": []
+    },
+    {
+     "id": 7,
+     "droga": 39,
+     "przez": []
+    }
+   ],
+   "od_startu": 3,
+   "komp": 1
+  }
+ ]
+}

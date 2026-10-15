@@ -130,6 +130,10 @@ def kandydaci(mapa, a, b, poz=None, promien=0):
         wyn.sort(key=lambda k: ((k["pole"][0], k["pole"][1]) != (b[0], b[1]), cheb(k["pole"], a)))
         if (b[0], b[1]) not in widziane and _domysl_ok(mapa, (b[0], b[1], z), poz, promien, 2, 0):
             dodaj(b[0], b[1], False, (b[0], b[1], z + 1))      # założenie wypad.py: dziura leży pod punktem b
+        # 15.10: kratka kanału (Edron) nie ma flagi 2 w mapie; nagrana trasa jest dowodem przejścia, więc bez żadnego
+        # kandydata bierzemy pole nad b jako domysł (tryby "pewne"=False zaczynają od "use", czyli ctrl+klik na kratkę)
+        if not wyn and cheb((b[0], b[1]), poz or a) <= max(promien, 3):
+            dodaj(b[0], b[1], False, (b[0], b[1], z + 1))
     else:                                           # w górę: R z dziurą nad sobą, lądowanie (R.x, R.y+1, z-1)
         for dx in range(-3, 4):
             for dy in range(-3, 4):
@@ -143,6 +147,8 @@ def kandydaci(mapa, a, b, poz=None, promien=0):
         wyn.sort(key=lambda k: (cheb(k["pole"], a), cheb(k["lad"], b)))
         if (b[0], b[1] - 1) not in widziane and _domysl_ok(mapa, (b[0], b[1] - 1, z), poz, promien, 1, 2):
             dodaj(b[0], b[1] - 1, False, (b[0], b[1], z - 1))   # konwencja wypad.py: R = (b.x, b.y-1) na piętrze a
+        if not wyn and cheb((b[0], b[1] - 1), poz or a) <= max(promien, 3):   # 15.10: jak w dół, nagrana trasa = dowód
+            dodaj(b[0], b[1] - 1, False, (b[0], b[1], z - 1))
     return wyn[:3]
 
 
@@ -716,6 +722,7 @@ class Pietra:
         cb = self.cb
         self.st = None
         cb.pietra_porazki = 0
+        cb.pietra_zmiana_t = cb.zegar()    # 15.10: planowana zmiana piętra (wpadniecie.py nie uzna jej za upadek)
         cb._wypad_reset_klik()          # klik, droga, utknięcie: nowe piętro = nowy odczyt
         cb.stwory_pola.clear()          # (x, y) bez z: stare wpisy z innego piętra by mylily naukę ścian
         cb.krok_prosto_ost = None

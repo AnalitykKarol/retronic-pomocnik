@@ -51,6 +51,8 @@ UH_MAKS_PROB = 2             # prób rzutu i prób każdego przeciągnięcia
 UH_POTWIERDZ_S = 1.6         # czas na potwierdzenie przeciągnięcia w pamięci
 UH_CAST_S = 2.2              # czas na potwierdzenie rzutu
 UH_MAKS_AKCJI = 14           # twardy limit obiegów maszyny stanów
+UH_TARCZE = (3426, 3431)     # znane ID tarcz (3426 tarcza, 3431 viking shield): kandydaci do "tarcza_naprawa"
+UH_WOLNY_START_S = 15.0      # start (odczyty + zrzut) dłuższy niż to: nie zaczynamy (wolny rdzeń), ponowna próba później
 UH_PONOW_BRAK_MIEJSCA_S = 60.0   # s do kolejnej próby, gdy nie ma gdzie odłożyć tarczy (zamiast serii porażek)
 UH_SPADEK_MANY = 0.5         # spadek many >= UH_KOSZT * tyle uznajemy za rzut
 
@@ -308,9 +310,8 @@ def zgodnosc_plecaka(obraz, srodki, przedmioty):
             blad = float(np.abs(ikony[i] - ikony[j]).sum(axis=2)[maska].mean() / 3)
             if zajete[i]["id"] == zajete[j]["id"] and blad > BLAD_TEN_SAM:
                 return False, f"pola {i} i {j} to ten sam przedmiot {zajete[i]['id']}, a ikony różne ({blad:.0f})"
-            if zajete[i]["id"] != zajete[j]["id"] and blad < BLAD_INNY:
-                return False, (f"pola {i} ({zajete[i]['id']}) i {j} ({zajete[j]['id']}) to różne przedmioty, "
-                               f"a ikony podobne ({blad:.0f})")
+            # 15.10: bez reguły "różne ID, a ikony podobne": różne przedmioty bywają podobne (złoto i ham) i blokowało
+            # to przekładanie tarczy przy zwykłej zawartości plecaka; siatkę pilnują pola zajęte/puste i ten sam ID
     return True, "ok"
 
 
@@ -319,19 +320,100 @@ class _Brak(Exception):
     pass
 
 
-def _odczyt(env, proby=3, pauza=0.25):
-    """(ekwipunek, kontenery) albo (None, None) po `proby` nieudanych odczytach."""
+def _odczyt(env, proby=3, pauza=0.25, bez_ekw=False):
+    """(ekwipunek, kontenery) albo (None, None) po `proby` nieudanych odczytach.
+    bez_ekw: tarcza jest zdjęta, więc brak tablicy ekwipunku (None, np. po relogu) nie wstrzymuje powrotu:
+    zwracamy (None, kontenery), a miejsce tarczy ustalają kontenery (_wid)."""
     for i in range(proby):
         try:
             e, k = env.ekwipunek(), env.kontenery()
         except Exception as ex:                   # zerwane połączenie z rdzeniem
             e, k = None, None
             env.log(f"[UH] odczyt: {type(ex).__name__}: {ex}")
-        if e is not None and k:
+        if k and (e is not None or bez_ekw):
             return e, k
         if i + 1 < proby:
             env.spij(pauza)
     return None, None
+
+
+def _odczyt_start(env):
+    """Odczyt na starcie BEZ czekania: (ekwipunek, kontenery, powód). powód: None | "brak_ekwipunku" (kontenery są,
+    tablicy ekwipunku nie ma: rdzeń szuka jej najwyżej co 20 s, więc dalsze próby nic nie dadzą) | "brak_odczytu"
+    (zerwane połączenie, jedna powtórka)."""
+    for i in range(2):
+        try:
+            e, k = env.ekwipunek(), env.kontenery()
+        except Exception as ex:
+            env.log(f"[UH] odczyt: {type(ex).__name__}: {ex}")
+            e, k = None, None
+            if i == 0:
+                env.spij(0.25)
+            continue
+        if not k:
+            if i == 0:
+                env.spij(0.25)
+            continue
+        if e is None:
+            return None, k, "brak_ekwipunku"
+        return e, k, None
+    return None, None, "brak_odczytu"
+
+
+_tarcza_znana = {}            # slot -> ID tarczy, którą widzieliśmy w slocie (kandydat do tarcza_naprawa)
+
+
+def _ile_tarczy(kont, ident):
+    """Ile przedmiotów o tym ID leży w plecaku i pojemniku na runy (z kontenerów, nie z tablicy ekwipunku)."""
+    n = 0
+    for k in (_plecak(kont) if kont else None, _runy(kont) if kont else None):
+        if k:
+            n += sum(1 for x in k.get("przedmioty", []) if x["id"] == ident)
+    return n
+
+
+def _rozbieznosc(p, co, **kw):
+    """Loguje raz na rodzaj: ekwipunek z pamięci kłóci się z kontenerami/ekranem (nieaktualna tablica)."""
+    if co in p.rozb:
+        return
+    p.rozb.add(co)
+    p.krok("rozbieznosc_ekwipunku", ok=True, co=co, **kw)
+
+
+def _ekran_tarczy(p, kont):
+    """True/False/None: czy zrzut slotu pokazuje tarczę (ikona zgodna z ikoną takiej tarczy w plecaku)."""
+    f = getattr(p.env, "tarcza_na_ekranie", None)
+    if f is None or p.geom is None or p.tarcza_id is None:
+        return None
+    try:
+        return f(p.slot, p.tarcza_id, p.geom, kont)
+    except Exception as ex:
+        if type(ex).__name__ in ("Zatrzymano", "ZrzutNiedostepny"):
+            raise
+        return None
+
+
+def _wid(p, ekw, kont, ekran=True):
+    """ID przedmiotu w slocie z uwzględnieniem DOWODÓW z kontenerów (i zrzutu ekranu), nie tylko tablicy ekwipunku.
+    Tablica ekwipunku z pamięci bywa nieaktualna (10.15: po zmianie tarczy/relogu pokazywała tarczę w slocie,
+    choć leżała w plecaku) albo jej brak (None po relogu). Tarcza jest w slocie, gdy liczba tarcz w plecakach
+    wraca do p.baza (stan z chwili, gdy była w slocie); o jedną więcej = jest w plecaku. Niezgodność: wygrywa zrzut
+    (jeśli rozstrzyga), inaczej kontenery; zawsze z wpisem do kroków."""
+    mem = _ekw_slot(ekw, p.slot) if ekw is not None else None
+    t = p.tarcza_id
+    if t is None or p.baza is None or not kont:
+        return mem
+    if mem is not None and mem != t:
+        return mem                                   # w ręce coś innego (blank, runa): tarczy tam nie ma
+    n = _ile_tarczy(kont, t)
+    kont_w_slocie = n <= p.baza
+    if ekw is not None and (mem == t) == kont_w_slocie:
+        return t if kont_w_slocie else None
+    ekr = _ekran_tarczy(p, kont) if ekran else None
+    wynik = ekr if ekr is not None else kont_w_slocie
+    _rozbieznosc(p, "ekwipunek_vs_kontenery", ekwipunek=("brak" if ekw is None else mem), tarcz_w_plecakach=n,
+                 baza=p.baza, ekran=ekr, przyjeto="w slocie" if wynik else "w plecaku")
+    return t if wynik else None
 
 
 def _plecak(kontenery):
@@ -443,6 +525,11 @@ class _Przebieg:
         self.proby = {}
         self.casty = 0
         self.bez_runy = False         # pojemnik na runy odmówił: dalej odkładamy tylko do plecaka
+        self.baza = None              # ile tarcz tego ID leży w plecakach, gdy tarcza jest w slocie (dowód z kontenerów)
+        self.ambig = False            # start: tarcza w slocie wg ekwipunku, a taka sama leży też w plecaku
+        self.naprawa = False          # start: slot pusty, tarcza w plecaku: tylko ją zakładamy
+        self.geom = None
+        self.rozb = set()
 
     def krok(self, nazwa, ok=True, **kw):
         self.kroki.append(dict(nazwa=nazwa, ok=ok, t=round(self.env.zegar() - self.t0, 2), **kw))
@@ -465,7 +552,7 @@ def _ekw_slot(ekw, slot):
     return None if v is None else v.get("id")
 
 
-def _czekaj(env, slot, warunek, ile_s, krok_s=0.15):
+def _czekaj(env, slot, warunek, ile_s, krok_s=0.15, bez_ekw=False):
     """Odpytuje pamięć, aż warunek(ekw, kont) lub upłynie czas. Zwraca (spelniony, ekw, kont)."""
     t_koniec = env.zegar() + ile_s
     ekw = kont = None
@@ -474,7 +561,7 @@ def _czekaj(env, slot, warunek, ile_s, krok_s=0.15):
             ekw, kont = env.ekwipunek(), env.kontenery()
         except Exception:
             ekw, kont = None, None
-        if ekw is not None and kont:
+        if (ekw is not None or bez_ekw) and kont:
             try:
                 if warunek(ekw, kont):
                     return True, ekw, kont
@@ -502,7 +589,7 @@ def _przed_ruchem(p, z, do, geom, zrodlo_id, pojedyncze):
             ekw, kont = None, None
             powod = f"odczyt: {type(ex).__name__}"
         pl = _plecak(kont) if kont else None
-        if powod is None and (ekw is None or pl is None):
+        if powod is None and ((ekw is None and z[0] == "reka") or pl is None):
             powod = "brak odczytu plecaka"
         if powod is None:
             przedm = pl.get("przedmioty", [])
@@ -554,7 +641,7 @@ def _przed_ruchem(p, z, do, geom, zrodlo_id, pojedyncze):
         env.spij(0.15)
 
 
-def _przeciagnij(p, z, do, geom, plecak, warunek, nazwa, zrodlo_id=None, pojedyncze=False, **kw):
+def _przeciagnij(p, z, do, geom, plecak, warunek, nazwa, zrodlo_id=None, pojedyncze=False, bez_ekw=False, **kw):
     """Jedno przeciągnięcie z weryfikacją przed i po. z/do: ("reka",) albo ("plecak", indeks).
     zrodlo_id: ID, jakie MUSI być w źródle tuż przed ruchem (inaczej nie ruszamy niczego)."""
     def xy(w):
@@ -583,7 +670,7 @@ def _przeciagnij(p, z, do, geom, plecak, warunek, nazwa, zrodlo_id=None, pojedyn
             raise
         p.krok(nazwa, ok=False, powod=f"drag: {type(ex).__name__}: {ex}", **kw)
         return False
-    ok, _, _ = _czekaj(p.env, p.slot, warunek, UH_POTWIERDZ_S)
+    ok, _, _ = _czekaj(p.env, p.slot, warunek, UH_POTWIERDZ_S, bez_ekw=bez_ekw)
     p.krok(nazwa, ok=ok, **kw)
     return ok
 
@@ -635,12 +722,20 @@ def _wynik(p, wynik, powod=None):
 
 
 def zrob_runa(env, slot=None, klawisz=None, koszt=None):
-    """Cała procedura. Zwraca {"wynik": "ok"|"przerwane"|"brak_blank", "powod", "kroki", "alarm", ...}.
-    "alarm": True = tarcza mogła zostać poza slotem (wymaga uwagi człowieka). Nie rzuca wyjątków poza STOP."""
+    """Cała procedura robienia runy (opis wyników: _uruchom)."""
+    return _uruchom(env, slot, klawisz, koszt, False)
+
+
+def _uruchom(env, slot=None, klawisz=None, koszt=None, tylko_naprawa=False):
+    """Cała procedura. Zwraca {"wynik": "ok"|"przerwane"|"brak_blank"|"brak_ekwipunku"|"naprawiono", "powod", "kroki",
+    "alarm", ...}. "alarm": True = tarcza mogła zostać poza slotem (wymaga uwagi człowieka).
+    "brak_ekwipunku": tablicy ekwipunku nie da się odczytać (np. tuż po relogu): nic nie ruszone, ponów za ~25 s.
+    "naprawiono": slot tarczy był pusty, a tarcza leżała w plecaku: założona, runy nie robiono.
+    tylko_naprawa: tylko kontrola/naprawa tarczy (start bota), bez robienia runy. Nie rzuca wyjątków poza STOP."""
     slot = UH_SLOT if slot is None else slot
     p = _Przebieg(env, slot, klawisz, koszt)
     try:
-        return _przebieg(p)
+        return _przebieg(p, tylko_naprawa)
     except Exception as ex:
         if type(ex).__name__ == "Zatrzymano":
             raise
@@ -652,6 +747,67 @@ def zrob_runa(env, slot=None, klawisz=None, koszt=None):
         return _wynik(p, "przerwane", p.powod)
 
 
+def naprawa(env, slot=None):
+    """Kontrola tarczy na starcie bota/UH: slot pusty, a tarcza znanego ID w plecaku => założ ("tarcza_naprawa").
+    Wynik jak zrob_runa: "ok" (nic do naprawy), "naprawiono", "brak_ekwipunku", "przerwane"."""
+    return _uruchom(env, slot, tylko_naprawa=True)
+
+
+def _kandydat_tarczy(p, plecak, runy):
+    """ID tarczy z listy znanych (ostatnio widziana w slocie, UH_TARCZE), która leży w plecaku/pojemniku na runy."""
+    for c in dict.fromkeys([_tarcza_znana.get(p.slot), *UH_TARCZE]):
+        if c and (_gdzie(plecak, c) is not None or (runy is not None and _gdzie(runy, c) is not None)):
+            return c
+    return None
+
+
+def _geom_dla(p, plecak, runy):
+    """Geometria okien dopasowana do pojemności kontenerów albo None."""
+    geom = p.env.geometria()
+    if geom and geom.get("plecak"):
+        geom = dict(geom, plecak=list(geom["plecak"])[:max(1, int(plecak.get("pojemnosc") or 0))])
+    if not geom or p.slot not in geom.get("reka", {}) or not geom.get("plecak"):
+        return None
+    if geom.get("runy"):
+        geom = dict(geom, runy=list(geom["runy"])[:max(1, int((runy or {}).get("pojemnosc") or 0))])
+    return geom
+
+
+def _ratunek(p):
+    """Ostatnia deska: tarcza leży w plecaku/runach, a slot (wg dowodów) jest pusty albo niepewny: przeciągnij ją do
+    ręki. Sukces = liczba tarcz w kontenerach spadła albo zrzut pokazuje tarczę w slocie. True: tarcza jest w slocie."""
+    env, slot = p.env, p.slot
+    ekw, kont = _odczyt(env, bez_ekw=True)
+    if not kont or p.tarcza_id is None:
+        return False
+    plecak, runy = _plecak(kont), _runy(kont)
+    if plecak is None:
+        return False
+    if _wid(p, ekw, kont) == p.tarcza_id and not p.ambig:
+        return True
+    n = _gdzie(plecak, p.tarcza_id)
+    skad = "plecak"
+    if n is None and runy is not None:
+        n, skad = _gdzie(runy, p.tarcza_id), "runy"
+    if n is None:
+        return False
+    if p.geom is None:
+        p.geom = _geom_dla(p, plecak, runy)
+    if p.geom is None:
+        return False
+    n0 = _ile_tarczy(kont, p.tarcza_id)
+    p.krok("tarcza_ratunek", ok=True, skad=skad, pole=n)
+    ok = _przeciagnij(p, (skad, n), ("reka",), p.geom, plecak,
+                      lambda e, k, t=p.tarcza_id, n0=n0: _ile_tarczy(k, t) < n0 or _ekran_tarczy(p, k) is True,
+                      "tarcza_ratunek_ruch", zrodlo_id=p.tarcza_id, bez_ekw=True, id=p.tarcza_id, pole=n, skad=skad)
+    if ok:
+        p.ambig = False
+        e2, k2 = _odczyt(env, bez_ekw=True)
+        if k2:
+            p.baza = _ile_tarczy(k2, p.tarcza_id)
+    return ok
+
+
 def _odmowa_miejsca(p):
     """Nie ma widocznego miejsca na tarczę: przerwanie bez alarmu i pauza UH_PONOW_BRAK_MIEJSCA_S w mozna_robic."""
     global _brak_miejsca_od
@@ -659,31 +815,53 @@ def _odmowa_miejsca(p):
     p.przerwij("brak_miejsca w plecaku na tarczę")
 
 
-def _przebieg(p):
+def _przebieg(p, tylko_naprawa=False):
     env, slot = p.env, p.slot
-    ekw, kont = _odczyt(env)
-    if ekw is None:
-        p.przerwij("brak_odczytu")
+    ekw, kont, brak = _odczyt_start(env)
+    if brak == "brak_ekwipunku":
+        # szybkie wycofanie: bez czekania i bez ruchu (tablicę ekwipunku rdzeń szuka najwyżej co 20 s)
+        p.przerwij("brak_ekwipunku")
+        return _wynik(p, "brak_ekwipunku", p.powod)
+    if brak:
+        p.przerwij(brak)
         return _wynik(p, "przerwane", p.powod)
     plecak = _plecak(kont)
     if plecak is None:
         p.przerwij("brak_plecaka (zero lub kilka okien plecaka)")
         return _wynik(p, "przerwane", p.powod)
+    runy = _runy(kont)
     # powrót po poprzednim przerwaniu: tarcza zapamiętana jako zdjęta
     stan = getattr(env, "stan", None)
     zapamietana = stan.get("tarcza_id") if isinstance(stan, dict) else None
-    if zapamietana and _ekw_slot(ekw, slot) != zapamietana:
+    wid = _ekw_slot(ekw, slot)
+    if zapamietana and wid != zapamietana:
         p.tarcza_id, p.zdjeto = zapamietana, True
+        p.baza = max(_ile_tarczy(kont, zapamietana) - 1, 0)
         p.krok("wznowienie_powrotu", tarcza_id=zapamietana)
         p.powod = "wznowienie powrotu tarczy"
     else:
-        wid = _ekw_slot(ekw, slot)
-        if wid is None or wid == UH_BLANK_ID:
+        kand = _kandydat_tarczy(p, plecak, runy) if wid is None else None
+        if kand is not None:
+            # slot tarczy pusty, a tarcza znanego ID leży w plecaku (np. po przerwanym UH): zakładamy ją
+            p.tarcza_id, p.zdjeto, p.naprawa = kand, True, True
+            p.baza = max(_ile_tarczy(kont, kand) - 1, 0)
+            p.powod = "tarcza_naprawa"
+            p.krok("tarcza_naprawa", id=kand, powod="slot pusty, tarcza w plecaku")
+        elif wid is None or wid == UH_BLANK_ID:
+            if tylko_naprawa:
+                return {"wynik": "ok", "powod": "nic do naprawy", "kroki": p.kroki, "alarm": False,
+                        "czas_s": round(p.czas(), 2), "rzuty": 0}
             p.przerwij("slot_bez_tarczy (pusty albo blank runa)")
             return _wynik(p, "przerwane", p.powod)
-        p.tarcza_id = wid
-    runy = _runy(kont)
-    if not p.zdjeto:
+        else:
+            p.tarcza_id = wid
+            p.baza = _ile_tarczy(kont, wid)
+            p.ambig = p.baza >= 1                 # taka sama tarcza leży też w plecaku: tablica może być nieaktualna
+            _tarcza_znana[slot] = wid
+            if tylko_naprawa and not p.ambig:
+                return {"wynik": "ok", "powod": "nic do naprawy", "kroki": p.kroki, "alarm": False,
+                        "czas_s": round(p.czas(), 2), "rzuty": 0}
+    if not p.zdjeto and not tylko_naprawa:
         if _gdzie_blank(plecak, runy, tylko_pojedyncze=True) is None:
             if _gdzie_blank(plecak, runy) is not None:
                 p.przerwij("blank_stos (ilosc > 1, przeciągnięcie otworzy okno ilości)")
@@ -697,14 +875,39 @@ def _przebieg(p):
         if powod:
             p.przerwij(f"przed startem: {powod}")
             return _wynik(p, "przerwane", p.powod)
-    geom = env.geometria()
-    if geom and geom.get("plecak"):
-        geom = dict(geom, plecak=list(geom["plecak"])[:max(1, int(plecak.get("pojemnosc") or 0))])
-    if not geom or slot not in geom.get("reka", {}) or not geom.get("plecak"):
+    geom = _geom_dla(p, plecak, runy)
+    if geom is None:
         p.przerwij("brak_geometrii (nie widzę panelu ekwipunku albo okna plecaka)")
         return _wynik(p, "przerwane", p.powod)
-    if geom.get("runy"):
-        geom = dict(geom, runy=list(geom["runy"])[:max(1, int((runy or {}).get("pojemnosc") or 0))])
+    p.geom = geom
+    if p.ambig and not p.zdjeto:
+        # tarcza w slocie wg tablicy, ale taka sama leży w plecaku: rozstrzyga zrzut slotu, potem świeża tablica
+        ekr = _ekran_tarczy(p, kont)
+        if ekr is None:
+            f = getattr(env, "odswiez_ekwipunek", None)      # wymusza ponowne szukanie tablicy (po restarcie gry)
+            if f is not None:
+                try:
+                    e2 = f()
+                except Exception as ex:
+                    if type(ex).__name__ == "Zatrzymano":
+                        raise
+                    e2 = None
+                if e2 is not None:
+                    ekr = _ekw_slot(e2, slot) == p.tarcza_id
+        if ekr is True:
+            p.ambig = False
+        elif ekr is False:
+            _rozbieznosc(p, "start_slot_pusty", ekwipunek=p.tarcza_id, tarcz_w_plecakach=p.baza)
+            p.zdjeto, p.naprawa, p.ambig = True, True, False
+            p.baza = max(p.baza - 1, 0)
+            p.powod = "tarcza_naprawa"
+            p.krok("tarcza_naprawa", id=p.tarcza_id, powod="slot pusty wg zrzutu, ekwipunek nieaktualny")
+    if tylko_naprawa and not p.naprawa:
+        return {"wynik": "ok", "powod": "nic do naprawy", "kroki": p.kroki, "alarm": False,
+                "czas_s": round(p.czas(), 2), "rzuty": 0}
+    if not p.zdjeto and p.czas() > UH_WOLNY_START_S:
+        p.przerwij(f"wolny_start ({p.czas():.0f} s odczytów)")
+        return _wynik(p, "przerwane", p.powod)
 
     termin = UH_MAKS_CZAS_S
     for _ in range(UH_MAKS_AKCJI):
@@ -713,8 +916,8 @@ def _przebieg(p):
         if p.czas() > termin + UH_CZAS_POWROTU_S:
             p.przerwij("przekroczony czas powrotu tarczy", alarm=True)
             return _wynik(p, "przerwane", p.powod)
-        ekw, kont = _odczyt(env)
-        if ekw is None:
+        ekw, kont = _odczyt(env, bez_ekw=p.zdjeto or bool(p.proby.get("tarcza_do_plecaka")))
+        if kont is None:
             p.przerwij("brak_odczytu w trakcie", alarm=p.zdjeto)
             return _wynik(p, "przerwane", p.powod)
         plecak = _plecak(kont)
@@ -730,7 +933,11 @@ def _przebieg(p):
                 powod = f"przerwanie: {type(ex).__name__}"
             if powod:
                 p.przerwij(powod)
-        wid = _ekw_slot(ekw, slot)
+        wid = _wid(p, ekw, kont)
+        if p.powod is None and "ekwipunek_vs_kontenery" in p.rozb:
+            # tablica ekwipunku kłóci się z kontenerami (nieaktualna albo brak po relogu): nie da się potwierdzić
+            # rzutu ani ruchów blanka, więc nie idziemy dalej, tylko bezpiecznie oddajemy tarczę
+            p.przerwij("ekwipunek_nieaktualny (tablica ekwipunku kłóci się z kontenerami)", alarm=False)
         wracaj = p.powod is not None or p.rzucono
         wolne = _wolne(plecak)
 
@@ -765,9 +972,10 @@ def _przebieg(p):
                 break
             if isinstance(stan, dict):
                 stan["tarcza_id"] = p.tarcza_id      # zapis zamiaru przed ruchem (restart w środku)
+            # potwierdzenie: tablica ekwipunku ALBO kontenery (tarcza przybyła w plecaku); tablica bywa nieaktualna
             if _przeciagnij(p, ("reka",), cel_t, geom, plecak,
-                         lambda e, k, s=slot, t=p.tarcza_id: _ekw_slot(e, s) != t,
-                         "tarcza_do_plecaka", zrodlo_id=p.tarcza_id, id=p.tarcza_id, pole=cel_t[1], dokad=cel_t[0]):
+                         lambda e, k, t=p.tarcza_id: _wid(p, e, k, ekran=False) != t,
+                         "tarcza_do_plecaka", zrodlo_id=p.tarcza_id, bez_ekw=True, id=p.tarcza_id, pole=cel_t[1], dokad=cel_t[0]):
                 p.zdjeto = True
             continue
 
@@ -784,8 +992,9 @@ def _przebieg(p):
                     p.przerwij("tarcza nie wróciła do slotu", alarm=True)
                     break
                 _przeciagnij(p, (skad_t, n), ("reka",), geom, plecak,
-                             lambda e, k, s=slot, t=p.tarcza_id: _ekw_slot(e, s) == t,
-                             "tarcza_do_reki", zrodlo_id=p.tarcza_id, id=p.tarcza_id, pole=n, skad=skad_t)
+                             lambda e, k, t=p.tarcza_id: _wid(p, e, k, ekran=False) == t,
+                             "tarcza_do_reki", zrodlo_id=p.tarcza_id, bez_ekw=True,
+                             id=p.tarcza_id, pole=n, skad=skad_t)
                 continue
             # slot pusty, tarcza w plecaku: blank do ręki
             zb = _gdzie_blank(plecak, runy, tylko_pojedyncze=True,
@@ -846,9 +1055,22 @@ def _przebieg(p):
     else:
         p.przerwij("limit akcji", alarm=p.zdjeto)
 
-    # końcowa weryfikacja z pamięci
-    ekw, kont = _odczyt(env)
-    wrocila = ekw is not None and _ekw_slot(ekw, slot) == p.tarcza_id
+    # końcowa weryfikacja: ekwipunek z pamięci + kontenery (+ zrzut), nie sama tablica ekwipunku
+    ekw, kont = _odczyt(env, bez_ekw=True)
+    wrocila = bool(kont) and _wid(p, ekw, kont) == p.tarcza_id
+    ratunek_potrzebny = (not wrocila) or (p.ambig and not p.zdjeto and p.proby.get("tarcza_do_plecaka", 0) >= UH_MAKS_PROB)
+    if ratunek_potrzebny and p.tarcza_id is not None and kont:
+        # ostatnia deska: tarcza w plecaku, a slot pusty/niepewny => załóż (też gdy ekwipunek twierdzi co innego)
+        try:
+            if _ratunek(p):
+                ekw, kont = _odczyt(env, bez_ekw=True)
+                wrocila = True
+                if p.powod is None or "tarcza" in p.powod:
+                    p.powod = (p.powod + "; " if p.powod else "") + "tarcza_naprawiona_awaryjnie"
+        except Exception as ex:
+            if type(ex).__name__ in ("Zatrzymano", "ZrzutNiedostepny"):
+                raise
+            env.log(f"[UH] ratunek tarczy: {type(ex).__name__}: {ex}")
     if not wrocila:
         p.alarm = True
         if p.powod is None or "tarcza" not in p.powod:
@@ -861,6 +1083,8 @@ def _przebieg(p):
         return _wynik(p, "przerwane", p.powod)
     if isinstance(stan, dict):
         stan.pop("tarcza_id", None)
+    if p.naprawa and p.powod == "tarcza_naprawa":
+        return _wynik(p, "naprawiono", p.powod)
     if p.powod is not None:
         return _wynik(p, "przerwane", p.powod)
     return _wynik(p, "ok")
@@ -897,8 +1121,44 @@ class SrodowiskoGry:
         e = self._zapytaj({"cmd": "kontenery", "ekwipunek": True}).get("ekwipunek")
         return None if e is None else {int(k): v for k, v in e.items()}
 
+    def odswiez_ekwipunek(self):
+        """Jak ekwipunek(), ale prosi rdzeń o ponowne szukanie tablicy (parametr "odswiez"). Starszy kontenery.py
+        (działający w procesie gry do jej restartu) ignoruje parametr i zwraca to samo co ekwipunek()."""
+        e = self._zapytaj({"cmd": "kontenery", "ekwipunek": True, "odswiez": True}).get("ekwipunek")
+        return None if e is None else {int(k): v for k, v in e.items()}
+
     def kontenery(self):
         return self._zapytaj({"cmd": "kontenery"}).get("kontenery")
+
+    def tarcza_na_ekranie(self, slot, ident, geom, kontenery):
+        """True/False/None: czy zrzut slotu pokazuje przedmiot `ident`. Porównanie ikony slotu z ikoną takiego
+        przedmiotu w oknie plecaka/pojemnika na runy (BLAD_TEN_SAM / BLAD_INNY); None, gdy brak wzorca albo wynik
+        nie rozstrzyga. Nie weryfikowane na żywo: ikona w panelu ekwipunku może mieć inne tło niż w oknie plecaka."""
+        import numpy as np
+        import ekran
+        srodek = (geom.get("reka_obraz") or {}).get(slot)
+        if srodek is None:
+            return None
+        wzor = None
+        for k, siatka in ((_plecak(kontenery), geom.get("plecak_obraz")), (_runy(kontenery), geom.get("runy_obraz"))):
+            for x in (k or {}).get("przedmioty", []):
+                if x["id"] == ident and x.get("ilosc", 1) == 1 and siatka and x["slot"] < len(siatka):
+                    wzor = siatka[x["slot"]]
+                    break
+            if wzor is not None:
+                break
+        if wzor is None:
+            return None
+        a = np.asarray(ekran.zrzut().convert("RGB")).astype(np.int16)
+        i1, i2 = _ikona_pola(a, srodek), _ikona_pola(a, wzor)
+        if i1 is None or i2 is None:
+            return None
+        blad = float(np.abs(i1 - i2).sum(axis=2).mean() / 3)
+        if blad <= BLAD_TEN_SAM:
+            return True
+        if blad >= BLAD_INNY:
+            return False
+        return None
 
     def mana(self):
         return self._zapytaj({"cmd": "gracz"})["gracz"].get("mana")
@@ -916,6 +1176,7 @@ class SrodowiskoGry:
         if not g:
             return None
         rozmiar = ekran._rozmiar_ekranu()
+        reka_obraz = dict(g["reka"])               # współrzędne zrzutu slotów ręki (porównanie ikony tarczy)
         plecak_obraz = list(g["plecak"])           # współrzędne zrzutu (do porównania ikon)
         runy_obraz = list(g.get("runy") or [])
         if obraz.size != rozmiar:                  # współrzędne zrzutu -> ekranu
@@ -923,6 +1184,7 @@ class SrodowiskoGry:
             g = {"reka": {k: (round(x * sx), round(y * sy)) for k, (x, y) in g["reka"].items()},
                  "plecak": [(round(x * sx), round(y * sy)) for x, y in g["plecak"]],
                  "runy": [(round(x * sx), round(y * sy)) for x, y in runy_obraz]}
+        g["reka_obraz"] = reka_obraz
         g["plecak_obraz"] = plecak_obraz
         g["runy_obraz"] = runy_obraz
         return g

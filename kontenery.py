@@ -380,6 +380,11 @@ def obsluz(p, z):
     t0 = time.monotonic()
     if z.get("ekwipunek"):
         try:
+            if z.get("odswiez"):
+                # wymuszone ponowne szukanie tablicy (bot po relogu/zmianie tarczy); działa po restarcie gry
+                st = _stan(p)
+                st["ekw"] = None
+                st["ekw_proba"] = -1e9
             e = ekwipunek(p)
         except Exception as ex:
             return {"ekwipunek": None, "blad": f"{type(ex).__name__}: {ex}"}

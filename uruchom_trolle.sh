@@ -37,11 +37,15 @@ elif [ -z "$Z" ]; then
 fi
 # BEZ_DOJSCIA=1: start bez dojścia z depo (np. najpierw wyprawa po blanki/jedzenie; wyprawa nie startuje w trakcie dojścia)
 [ "${BEZ_DOJSCIA:-0}" = "1" ] && DOJSCIE=()
+# WYMUS_DOJSCIE=1: dojście także poza z7 (np. postać już zeszła pod ziemię; mozg startuje od najbliższego punktu na jej piętrze)
+[ "${WYMUS_DOJSCIE:-0}" = "1" ] && DOJSCIE=(--dojscie depo_troll_cave)
 # Opcjonalnie MAPA=trolle_nowe (mapy.json) zamiast TRASA, TRYB=sredni,runy (tryby.json). Bez obu zmiennych bez zmian.
 if [ -n "$MAPA$TRYB" ]; then
   printf 'MAPA=%q\nTRYB=%q\n' "$MAPA" "$TRYB" > "$DIR/ostatni_start${RETRONIC_ID:+.$RETRONIC_ID}.env"   # guzik/panel (uruchom.sh) startuje ostatni tryb
   WYN=$(python3 -I "$DIR/tryb.py" --mapa "${MAPA:-trolle}" --tryb "${TRYB:-}") || exit 1
   eval "$WYN"; [ -n "$MAPA" ] && TRASA="$MAPA_TRASA"
+  # dojście z mapy (mapy.json "dojscie"), np. edron_depo_trolle zamiast domyślnego depo_troll_cave
+  [ -n "$MAPA_DOJSCIE" ] && [ ${#DOJSCIE[@]} -gt 0 ] && DOJSCIE[1]="$MAPA_DOJSCIE"
 fi
 # P4 (13.10): telemetria pisze tylko z tą zmienną (testy i skrypty pomocnicze jej nie mają)
 export RETRONIC_TELEMETRIA=1

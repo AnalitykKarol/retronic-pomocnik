@@ -490,5 +490,98 @@ try:
 except ImportError:
     pass
 
+# 17. awarie 15.10: ekwipunek nieczytelny po relogu i nieaktualny po zmianie tarczy
+VIK = 3431
+class SwiatEkw(Swiat):
+    """Opcje: ekw_none_n (tyle pierwszych odczytów ekwipunku = None), koszt_odczytu (s zegara na odczyt),
+    ekw_zamrozony (ekwipunek zawsze zwraca ten stan = nieaktualna tablica), ekw_none_po_ruchu (n odczytów None po 1. ruchu)."""
+    def ekwipunek(s):
+        s._lacze(); s.t += s.o.get("koszt_odczytu", 0.05)
+        s.odczyty_ekw = getattr(s, "odczyty_ekw", 0) + 1
+        if s.odczyty_ekw <= s.o.get("ekw_none_n", 0):
+            return None
+        n = s.o.get("ekw_none_po_ruchu")
+        if n and s.drag_n >= 1:
+            s.po_ruchu = getattr(s, "po_ruchu", 0) + 1
+            if s.po_ruchu <= n:
+                return None
+        e = s.o.get("ekw_zamrozony", s.ekw)
+        return {k: {"id": v, "ilosc": 1} for k, v in e.items()}
+
+def srod2(s):
+    e = srod(s)
+    if "ekran" in s.o:
+        e.tarcza_na_ekranie = lambda slot, ident, geom, kont: s.o["ekran"]
+    return e
+
+def uruchom2(**kw):
+    s = SwiatEkw(**kw)
+    return s, uh.zrob_runa(srod2(s), slot=5)
+
+# 17a. ekwipunek None na starcie (co odczyt 17 s jak wolne szukanie tablicy): bez czekania, bez ruchów, bez alarmu
+s, w = uruchom2(ekw_none_n=99, koszt_odczytu=17.0)
+sprawdz("17a brak_ekwipunku od razu", w["wynik"] == "brak_ekwipunku" and w["powod"] == "brak_ekwipunku" and not w["alarm"]
+        and s.drag_log == [] and s.klawisze == [] and s.ekw[5] == TARCZA, w)
+sprawdz("17b bez 52 s czekania (jeden odczyt)", w["czas_s"] <= 20 and s.odczyty_ekw == 1, (w["czas_s"], s.odczyty_ekw))
+s, w = uruchom2(ekw_none_n=0)
+sprawdz("17c po powrocie ekwipunku normalny przebieg", w["wynik"] == "ok" and s.ekw[5] == TARCZA and UHR in s.plecak, w)
+# 17d. wolny start: odczyt 16 s => nie ruszamy tarczy
+s, w = uruchom2(koszt_odczytu=16.0)
+sprawdz("17d wolny_start: bez ruchów", w["wynik"] == "przerwane" and w["powod"].startswith("wolny_start")
+        and s.drag_log == [] and s.ekw[5] == TARCZA and not w["alarm"], w)
+
+# 17e. nieaktualny ekwipunek: tarcza naprawdę zeszła do plecaka, tablica dalej pokazuje ją w slocie
+s, w = uruchom2(ekw_zamrozony={5: VIK, 6: MIECZ})
+s.ekw = {5: VIK, 6: MIECZ}
+s2 = SwiatEkw(ekw_zamrozony={5: VIK, 6: MIECZ}); s2.ekw = {5: VIK, 6: MIECZ}
+w2 = uh.zrob_runa(srod2(s2), slot=5)
+sprawdz("17e krok tarcza_do_plecaka uznany przez kontenery", [k for k in w2["kroki"] if k["nazwa"] == "tarcza_do_plecaka"][0]["ok"], kroki(w2))
+sprawdz("17f rozbieżność zalogowana", any(k["nazwa"] == "rozbieznosc_ekwipunku" for k in w2["kroki"]), kroki(w2))
+sprawdz("17g po procedurze tarcza z powrotem w slocie, bez alarmu i bez rzutu",
+        s2.ekw.get(5) == VIK and VIK not in s2.plecak and not w2["alarm"] and s2.klawisze == []
+        and w2["wynik"] == "przerwane" and w2["powod"].startswith("ekwipunek_nieaktualny"), (w2, s2.ekw, s2.plecak))
+sprawdz("17h bez czekania do limitu", w2["czas_s"] < 15, w2["czas_s"])
+
+# 17i. druga próba z incydentu: tarcza już w plecaku, tablica (nieaktualna) pokazuje ją w slocie; zrzut mówi: slot pusty
+s = SwiatEkw(ekw_zamrozony={5: VIK, 6: MIECZ}, ekran=False, plecak=[ZLOTO, VIK, BLANK])
+s.ekw = {6: MIECZ}
+w = uh.zrob_runa(srod2(s), slot=5)
+sprawdz("17i start: zrzut mówi pusto => tarcza_naprawa", s.ekw.get(5) == VIK and w["wynik"] == "naprawiono"
+        and s.klawisze == [] and not w["alarm"], (w, s.ekw, s.plecak))
+# 17j. to samo bez zrzutu: UH próbuje zdjąć "tarczę", nic się nie dzieje, ratunek zakłada ją z plecaka
+s = SwiatEkw(ekw_zamrozony={5: VIK, 6: MIECZ}, plecak=[ZLOTO, VIK, BLANK])
+s.ekw = {6: MIECZ}
+w = uh.zrob_runa(srod2(s), slot=5)
+sprawdz("17j bez zrzutu: ratunek zakłada tarczę, nigdy bez tarczy", s.ekw.get(5) == VIK and not w["alarm"]
+        and s.klawisze == [], (w, s.ekw, s.plecak))
+sprawdz("17k ratunek w krokach", any(k["nazwa"] == "tarcza_ratunek_ruch" and k["ok"] for k in w["kroki"]), kroki(w))
+
+# 17l. tarcza_naprawa na starcie (po przerwanym UH): slot pusty, tarcza w plecaku, ekwipunek poprawny
+s = SwiatEkw(plecak=[ZLOTO, TARCZA, BLANK])
+s.ekw = {6: MIECZ}
+w = uh.naprawa(srod2(s), slot=5)
+sprawdz("17l naprawa zakłada tarczę", w["wynik"] == "naprawiono" and s.ekw.get(5) == TARCZA and TARCZA not in s.plecak
+        and s.klawisze == [] and "tarcza_naprawa" in kroki(w), (w, kroki(w)))
+s = SwiatEkw()
+w = uh.naprawa(srod2(s), slot=5)
+sprawdz("17m naprawa: tarcza w slocie => nic", w["wynik"] == "ok" and s.drag_log == [], w)
+s = SwiatEkw(ekw_none_n=99)
+w = uh.naprawa(srod2(s), slot=5)
+sprawdz("17n naprawa przy nieczytelnym ekwipunku: brak_ekwipunku, bez ruchu", w["wynik"] == "brak_ekwipunku" and s.drag_log == [], w)
+
+# 17o. relog w trakcie: po zdjęciu tarczy ekwipunek None przez kilka odczytów, tarcza wraca wg kontenerów
+s = SwiatEkw(ekw_none_po_ruchu=14)
+w = uh.zrob_runa(srod2(s), slot=5)
+sprawdz("17o ekwipunek None po zdjęciu: tarcza wraca, bez alarmu", s.ekw.get(5) == TARCZA and TARCZA not in s.plecak
+        and not w["alarm"] and s.klawisze == [], (w, s.ekw, s.plecak, kroki(w)))
+
+# 17p. każde przerwanie po zdjęciu tarczy kończy się tarczą w slocie (przerwania w różnych miejscach)
+wszystkie = True
+for n in range(0, 6):
+    s = SwiatEkw(przerwij_po=n)
+    w = uh.zrob_runa(srod2(s), slot=5)
+    wszystkie = wszystkie and s.ekw.get(5) == TARCZA and not w["alarm"]
+sprawdz("17p przerwanie po n-tym ruchu: zawsze tarcza w slocie", wszystkie)
+
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

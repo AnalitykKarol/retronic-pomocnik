@@ -47,6 +47,8 @@ TRYB = []
 def fake_zrob(env, *a, **k):
     WYW.append(1); return {"wynik": "ok", "powod": "ok", "alarm": False, "czas_s": 5.0, "rzuty": 1}
 uh.zrob_runa = fake_zrob
+NAPRAWY = []
+uh.naprawa = lambda env, *a, **k: (NAPRAWY.append(1), {"wynik": "ok", "powod": "nic do naprawy", "alarm": False, "kroki": []})[1]
 def mob(x, id=9, nazwa="Troll", gracz=False, dx=None):
     return {"id": id, "nazwa": nazwa, "gracz": gracz, "x": x, "y": 100, "z": 7, "hp": 100}
 
