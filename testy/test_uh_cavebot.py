@@ -71,6 +71,8 @@ def fake_przywroc(env, *a, **k):
     env.stan.pop("tarcza_id", None)
     return {"wynik": "ok", "powod": "ok", "alarm": False, "czas_s": 1.0, "rzuty": 0}
 uh.zrob_runa = fake_zrob; uh.przywroc = fake_przywroc
+NAPRAWY = []
+uh.naprawa = lambda env, *a, **k: (NAPRAWY.append(1), {"wynik": "ok", "powod": "nic do naprawy", "alarm": False, "kroki": []})[1]
 def reset():
     WYWOLANIA.clear(); WYNIKI.clear(); ALARMY.clear()
     if cavebot.UH_STAN_PLIK.exists(): cavebot.UH_STAN_PLIK.unlink()
@@ -216,6 +218,20 @@ s.stwory = [mob(106, gracz=True, nazwa="Obcy")]
 sprawdz("7n callback: gracz na 6 przerywa", "Obcy" in (b._uh_przerwanie() or ""))
 s.stwory = [mob(106, hp=0)]
 sprawdz("7o callback: martwy daleko nie przerywa", b._uh_przerwanie() is None)
+
+# 8. brak_ekwipunku / ekwipunek_nieaktualny: krótka pauza ~25 s, bez liczenia porażek; naprawiono: 5 s
+uh.zrob_runa = fake_zrob
+for wyn, pw, oczek in (("brak_ekwipunku", "brak_ekwipunku", 25.0), ("przerwane", "ekwipunek_nieaktualny (x)", 25.0),
+                       ("przerwane", "wolny_start (16 s odczytów)", 25.0), ("naprawiono", "tarcza_naprawa", 5.0)):
+    reset(); cavebot.UH_AKTYWNY = 1; s = Swiat(); b = zrob(s)
+    g = s.zapytaj({"cmd": "gracz"})["gracz"]; g["proc"] = 100.0
+    for i in range(3):
+        WYNIKI.append({"wynik": wyn, "powod": pw, "alarm": False, "czas_s": 1.0, "rzuty": 0})
+        b.uh_ostatni = float("-inf"); b.uh_wylaczony_do = float("-inf")
+        b._uh_tick(g, (100, 100, 7), [], 100.0 + i)
+    sprawdz(f"8 {wyn}/{pw[:14]}: pauza {oczek:.0f} s, 3 próby bez wyłączenia na 30 min",
+            b.uh_porazki == 0 and abs(b.uh_wylaczony_do - b.zegar() - oczek) < 3.0 and len(WYWOLANIA) == 3,
+            (b.uh_porazki, b.uh_wylaczony_do - b.zegar(), len(WYWOLANIA)))
 
 import shutil; shutil.rmtree(TMP, ignore_errors=True)
 print(f"{sum(ok)}/{len(ok)}")

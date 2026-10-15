@@ -303,6 +303,7 @@ UH_PORAZKI = 3                     # tyle nieudanych prób z rzędu wyłącza UH
 UH_PRZERWA_PO_PORAZKACH_S = 1800.0 # s wyłączenia po porażkach / alarmie
 UH_PRZERWA_BRAK_BLANK_S = 600.0    # s wyłączenia, gdy brak blank run
 UH_HOLD_MAX_S = 300.0              # s: tyle ML (utevo lux) czeka na manę dla UH (potem rzuca; bez zakleszczenia)
+UH_PONOW_BRAK_EKW_S = 25.0         # s do kolejnej próby, gdy ekwipunek nieczytelny (po relogu); bez liczenia porażek
 UH_W_WALCE = 0                     # pokrętło 0/1 (na_zywo.json): 1 = runa także W TRAKCIE WALKI, gdy mana prawie pełna (regen się marnuje)
 UH_W_WALCE_MANA_MARGINES = 5       # pokrętło: w walce start, gdy mana >= max_mana - tyle (i >= UH_KOSZT)
 UH_W_WALCE_DYSTANS = 0             # pokrętło 0-3: w trybie walki stwór w tej odległości (Chebyshev) blokuje start i przerywa runę; 0 = moby ignorowane (tylko gracz, HP, ucieczka), 1 = przylegający
@@ -936,6 +937,8 @@ class Cavebot:
         self.uh_wylaczony_do = float("-inf")
         self.uh_porazki = 0
         self.uh_runy = 0
+        self.uh_naprawa_ok = False     # True po starcie: kontrola "slot tarczy pusty, tarcza w plecaku" już wykonana
+        self.uh_naprawa_od = float("-inf")
         self.uh_restore = None         # None = nie sprawdzono; True = po restarcie/alarmie tarcza może być zdjęta
         self.uh_czeka_ts = float("-inf")   # kiedy ostatnio UH czekał tylko na manę (ML wtedy nie zjada many)
         self.uh_hold_od = None
@@ -1518,6 +1521,27 @@ class Cavebot:
             self.uh_hold_od = None
             return False
         import uh  # noqa: PLC0415
+        if not self.uh_naprawa_ok and not restore and teraz >= self.uh_naprawa_od:
+            # raz po starcie bota: slot tarczy pusty, a tarcza znanego ID w plecaku => załóż ("tarcza_naprawa")
+            nap = uh.naprawa(self._uh_srodowisko())
+            self.aktywnosc_ts = teraz
+            if nap.get("wynik") in ("brak_ekwipunku",) or str(nap.get("powod")).startswith(("wolny_start", "brak_odczytu", "brak_zrzutu")):
+                self.uh_naprawa_od = teraz + UH_PONOW_BRAK_EKW_S
+                log(f"[UH] kontrola tarczy odroczona ({nap.get('powod')}), ponowię za {UH_PONOW_BRAK_EKW_S:.0f} s.")
+            else:
+                self.uh_naprawa_ok = True
+                log(f"[UH] kontrola tarczy na starcie: {nap.get('wynik')} ({nap.get('powod')})")
+                if nap.get("alarm"):
+                    self.uh_wylaczony_do = self.zegar() + UH_PRZERWA_PO_PORAZKACH_S
+                    try:
+                        self.alarm(f"UH: {nap.get('powod')} (tarcza może być poza slotem)")
+                    except Exception:
+                        pass
+                    return True
+                if nap.get("wynik") == "naprawiono":
+                    self.uh_ostatni = self.zegar()
+                    self.pauza(0.1, 0.3)
+                    return True
         mx = g.get("max_mana")
         mana_min = max(int(UH_KOSZT), min(int(UH_MANA_MIN), int(mx))) if mx else int(UH_MANA_MIN)
         walka = (not restore) and self._uh_walka_ok(g)     # ten sam warunek co w _uh_blokada (g bez zmian)
@@ -1579,6 +1603,14 @@ class Cavebot:
             self.uh_porazki = 0
             if not restore:
                 self.uh_runy += wynik.get("rzuty") or 1
+        elif w == "brak_ekwipunku" or str(pw).startswith(("wolny_start", "ekwipunek_nieaktualny")):
+            # tablica ekwipunku nieczytelna (tuż po relogu; rdzeń szuka jej najwyżej co 20 s) albo wolny rdzeń:
+            # nic nie ruszone, krótka pauza i ponowna próba, bez liczenia porażek
+            self.uh_wylaczony_do = t + UH_PONOW_BRAK_EKW_S
+            log(f"[UH] {pw}: ponowię za {UH_PONOW_BRAK_EKW_S:.0f} s (bez porażki).")
+        elif w == "naprawiono":
+            self.uh_wylaczony_do = t + 5.0
+            log("[UH] tarcza założona z plecaka (tarcza_naprawa), runę zrobię w następnej próbie.")
         elif w == "brak_blank":
             self.uh_wylaczony_do = t + UH_PRZERWA_BRAK_BLANK_S
             log(f"[UH] brak blank run: wyłączam UH na {UH_PRZERWA_BRAK_BLANK_S / 60:.0f} min.")
