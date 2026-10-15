@@ -42,6 +42,8 @@ PLAN_MAX_ROZWINIEC = 40
 PLAN_MAX_KAND = 14                # maks. przejść na piętrze, do których liczymy drogę
 PROMIEN_MAPY = 25                 # pola: okno szukania niepewnych przejść w górę (flaga 2 piętro wyżej)
 PLAN_PROBY = 3                    # tyle razy z rzędu brak planu = koniec (alarm)
+OSIAG_KAND = 6                    # 15.10 (kieszeń): ile najbliższych punktów trasy/miejsc na piętrze sprawdzamy A*
+OSIAG_ODSWIEZ_S = 3.0             # co ile s w stanie WPADNIECIE ponawiamy sprawdzenie "trasa osiągalna"
 
 
 def _cheb(a, b):
@@ -145,6 +147,79 @@ class Wpadniecie:
             pass
         return False
 
+    def _kandydaci_trasy(self, z):
+        """Punkty trasy i miejsca patrolu (x, y) leżące na piętrze z (miejsca tylko gdy patrol wielopiętrowy je uwzględnia)."""
+        cb = self.cb
+        wyn = [(p[0], p[1]) for p in (cb.punkty or []) if p[2] == z]
+        try:
+            if cb._patrol_pietra_ok():
+                wyn += [(m["x"], m["y"]) for m in (cb.miejsca or []) if m.get("z") == z]
+        except Exception:
+            pass
+        return wyn
+
+    def _trasa_osiagalna(self, p):
+        """15.10 (kieszeń): trasa/patrol ma punkty na piętrze p.z ORAZ któryś z najbliższych jest osiągalny A* (cb.droga:
+        mapa serwera + nauczone ściany) z pozycji p. Upadek do zamkniętej kieszeni z9 (32506..32509, 32267..32273) miał
+        punkty trasy na z9, ale żaden nieosiągalny: samo "piętro jest na trasie" nie wystarcza. Bez cb.droga albo przy
+        błędzie A*: dawne zachowanie (wystarcza piętro)."""
+        cb = self.cb
+        if not self._trasa_na_pietrze(p[2]):
+            return False
+        droga = getattr(cb, "droga", None)
+        if droga is None:
+            return True
+        kand = sorted(set(self._kandydaci_trasy(p[2])), key=lambda q: _cheb(q, p))[:OSIAG_KAND]
+        if not kand:
+            return True                       # piętro jest na trasie, ale bez punktów do sprawdzenia: dawne zachowanie
+        blad = False
+        for q in kand:
+            if _cheb(q, p) <= 1:
+                return True
+            try:
+                if droga((p[0], p[1], p[2]), q, dlugosc=1) is not None:
+                    return True
+            except bot.Zatrzymano:
+                raise
+            except Exception:
+                blad = True
+        return blad                           # błąd A* = nie wiemy: dawne zachowanie
+
+    def z_kieszeni(self, poz, teraz):
+        """15.10: patrol nie znalazł osiągalnego miejsca (np. start bota w kieszeni bez wykrytego upadku). Jeśli żaden
+        punkt trasy/miejsce na piętrze poz.z nie jest osiągalny A*, a trasa ma punkty na innym piętrze: wchodzimy w stan
+        WPADNIECIE (z0 = piętro najbliższego takiego punktu), jak po upadku, ale bez liny (nie znamy rope spotu).
+        True = stan ustawiony."""
+        if self.st is not None:
+            return False
+        cb = self.cb
+        p = (int(poz[0]), int(poz[1]), int(poz[2]))
+        if self._trasa_osiagalna(p):
+            return False
+        inne = [(q[0], q[1], q[2]) for q in (cb.punkty or []) if q[2] != p[2]]
+        try:
+            inne += [(m["x"], m["y"], m["z"]) for m in (cb.miejsca or []) if m.get("z") not in (None, p[2])]
+        except Exception:
+            pass
+        if not inne:
+            return False
+        z0 = min(inne, key=lambda q: (abs(q[2] - p[2]), _cheb(q, p)))[2]
+        self.wykryte += 1
+        self.log(f"Wpadnięcie: kieszeń, z{p[2]} {p[:2]} bez osiągalnego punktu trasy/miejsca, wychodzę na z{z0} planem po mapie.")
+        self._tele("wpadniecie_kieszen", poz=list(p), z0=z0, n=self.wykryte)
+        try:
+            cb.zatrzymaj_klik(p)
+        except bot.Zatrzymano:
+            raise
+        except Exception:
+            pass
+        cb.cel = None
+        cb._wypad_reset_klik()
+        self.st = {"z0": z0, "z1": p[2], "od": teraz, "p0": p, "lad": p, "lina": int(self._k("WPADNIECIE_LINA_PROB", 3)),
+                   "dojscie": 0, "nast": teraz, "zle": set(), "krok": None, "brak_planu": 0, "alarm": False,
+                   "osiag": (teraz, False)}
+        return True
+
     def obserwuj(self, poz, teraz):
         """Początek obiegu: porównanie z poprzednią pozycją. True, gdy wykryto wpadnięcie."""
         p = (int(poz[0]), int(poz[1]), int(poz[2]))
@@ -169,7 +244,7 @@ class Wpadniecie:
         nauczona = False
         if z1 == z0 + 1 and self._k("DZIURY_NAUCZONE", 1):
             nauczona = self.ucz((p[0], p[1], z0))
-        w_trasie = self._trasa_na_pietrze(z1)
+        w_trasie = self._trasa_osiagalna(p)
         self._tele("wpadniecie", z_od=z0, z_do=z1, poz_od=list(p0), poz_do=list(p), nauczona=nauczona,
                    w_trasie=w_trasie, n=self.wykryte)
         # zatrzymanie pościgu i kliknięć
@@ -187,10 +262,12 @@ class Wpadniecie:
             pass
         cb._wypad_reset_klik()
         if w_trasie:
-            self.log(f"Wpadnięcie: z{z1} jest na trasie/patrolu, dalej normalnie (pietra.py zsynchronizuje trasę).")
+            self.log(f"Wpadnięcie: z{z1} jest na trasie/patrolu (punkt osiągalny), dalej normalnie (pietra.py zsynchronizuje trasę).")
             return True
+        if self._trasa_na_pietrze(z1):
+            self.log(f"Wpadnięcie: z{z1} ma punkty trasy/patrolu, ale żaden nie jest osiągalny z {p[:2]} (kieszeń), szukam wyjścia.")
         self.st = {"z0": z0, "z1": z1, "od": teraz, "p0": p0, "lad": p, "lina": 0, "dojscie": 0, "nast": teraz,
-                   "zle": set(), "krok": None, "brak_planu": 0, "alarm": False}
+                   "zle": set(), "krok": None, "brak_planu": 0, "alarm": False, "osiag": (teraz, False)}
         return True
 
     # --- obieg ---
@@ -209,9 +286,12 @@ class Wpadniecie:
             return self._powrot(p, teraz)
         if p[2] != st["z1"]:
             self.log(f"Wpadnięcie: kolejna zmiana piętra z{st['z1']} -> z{p[2]} w {p}, liczę od nowa.")
-            st.update(z1=p[2], lad=p, lina=int(self._k("WPADNIECIE_LINA_PROB", 3)), krok=None, nast=teraz)
-        if self._trasa_na_pietrze(p[2]) and p[2] != st["z0"]:
-            self.log(f"Wpadnięcie: z{p[2]} jest na trasie, koniec wpadnięcia.")
+            st.update(z1=p[2], lad=p, lina=int(self._k("WPADNIECIE_LINA_PROB", 3)), krok=None, nast=teraz,
+                      osiag=(float("-inf"), False))
+        if p[2] != st["z0"] and st["krok"] is None and teraz - st["osiag"][0] >= OSIAG_ODSWIEZ_S:
+            st["osiag"] = (teraz, self._trasa_osiagalna(p))        # A* ma limit; w kieszeni kończy się od razu
+        if p[2] != st["z0"] and st["osiag"][1]:
+            self.log(f"Wpadnięcie: z{p[2]} jest na trasie (punkt osiągalny), koniec wpadnięcia.")
             self.st = None
             return None
         cb.ustaw_stan("WPADNIECIE", f"z{st['z0']} <- z{p[2]} od {teraz - st['od']:.0f} s")
@@ -408,6 +488,36 @@ class Wpadniecie:
                 if not lf & 1 or lf & 4:
                     continue
                 wyn.append({"T": (x, y, z), "L": (x, y + 1, z - 1), "pewne": False, "zrodlo": "mapa_flaga2"})
+        wyn += self._z_mapy_schody_tu(poz)
+        return wyn
+
+    def _z_mapy_schody_tu(self, poz):
+        """15.10 (kieszeń): niepewne przejścia w górę z flagi 2 na WŁASNYM piętrze (drabina/schody w górę stoją na polu
+        piętra z, nie pod dziurą piętra z-1). Lądowanie nieznane: pierwsze chodliwe pole obok (x, y+1), (x, y-1), (x+1, y),
+        (x-1, y), (x, y) na z-1. Dziury w dół (chodliwe pole pod spodem, nauczone dziury) pomijamy. pietra.py próbuje
+        R (Ctrl+klik) i krok, sukces = zmiana piętra."""
+        m = self.cb.mapa
+        z = poz[2]
+        if m is None or z <= 0:
+            return []
+        wyn = []
+        for dx in range(-PROMIEN_MAPY, PROMIEN_MAPY + 1):
+            for dy in range(-PROMIEN_MAPY, PROMIEN_MAPY + 1):
+                x, y = poz[0] + dx, poz[1] + dy
+                f = m.flagi(x, y, z)
+                if not (f & 1 and f & 2) or f & 4 or (x, y, z) in self.dziury:
+                    continue
+                pod = m.flagi(x, y, z + 1)
+                if pod & 1 and not pod & 4:
+                    continue                          # coś chodliwego pod spodem = górny koniec dziury/schodów (w dół), nie wyjście w górę
+                L = None
+                for lx, ly in ((x, y + 1), (x, y - 1), (x + 1, y), (x - 1, y), (x, y)):
+                    lf = m.flagi(lx, ly, z - 1)
+                    if lf & 1 and not lf & 4:
+                        L = (lx, ly, z - 1)
+                        break
+                if L is not None:
+                    wyn.append({"T": (x, y, z), "L": L, "pewne": False, "zrodlo": "mapa_flaga2_tu"})
         return wyn
 
     def _znajdz_plan(self, p, zle):

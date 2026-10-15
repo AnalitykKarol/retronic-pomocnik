@@ -115,6 +115,7 @@ WPADNIECIE_LINA_PROB = 3           # prób liny (pokrętło 1-5)
 WPADNIECIE_PLAN = 1                # pokrętło 0/1: 1 = gdy lina nie działa, plan wielopiętrowy po mapie i przejściach z danych (wykonuje pietra.py)
 WPADNIECIE_ODL = 3                 # pola: tak blisko poprzedniej pozycji musi być lądowanie, żeby zmiana piętra była upadkiem (nie teleportem/śmiercią); pokrętło 1-6
 DZIURY_NAUCZONE = 1                # pokrętło 0/1: 1 = pola z trasy/dziury_nauczone.json są ścianą dla każdej drogi A* i kroku na danym piętrze
+DZIURA_PRZY_CELU = 1               # 15.10: pokrętło 0/1: 1 = nie atakujemy/nie gonimy celu stojącego przy znanej dziurze (chebyshev <= 1) w prostokącie między nami a nim, chyba że sami dojdziemy A* (dziury = ściany) do pola obok celu krótką drogą (klient w trybie ataku sam idzie za celem i wpadł w dziurę)
 PIETRA_RESYNC_MAX = 6              # tyle resynchronizacji (piętro poza trasą) w 120 s = porażka
 PIETRA_DOJSCIE_S = 25.0            # s bez zbliżenia do pola przejścia = następny kandydat
 TRYB_PATROL = 0                    # 12.10: 1 = patrol po miejscach z trasy/miejsca.json (losowo, ważony zabiciami i odległością) zamiast pętli trasy; mozg --trasa patrol ustawia 1; pokrętło 0-1
@@ -2410,6 +2411,51 @@ class Cavebot:
         y0, y1 = sorted((poz[1], cel_xy[1]))
         return any(h[2] == poz[2] and x0 - 1 <= h[0] <= x1 + 1 and y0 - 1 <= h[1] <= y1 + 1 for h in w.dziury)
 
+    def _dziury_przy(self, pole, z):
+        """Znane dziury piętra z (x, y) w Chebyshev <= 1 od pola (x, y): flaga 2 + chodliwe na mapie serwera albo nauczone."""
+        wyn = set()
+        m = self.mapa
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                x, y = pole[0] + dx, pole[1] + dy
+                try:
+                    if m is not None:
+                        f = m.flagi(x, y, z)
+                        if f & 1 and f & 2 and not f & 4:
+                            wyn.add((x, y))
+                except Exception:
+                    pass
+                if self.dziura_nauczona((x, y, z)):
+                    wyn.add((x, y))
+        return wyn
+
+    def _cel_przez_dziure(self, s, poz):
+        """15.10 (kieszeń): True, gdy cel `s` (stwór z x, y, z) stoi przy znanej dziurze, ta leży w prostokącie poz-cel, a my
+        sami nie dojdziemy do pola obok celu A* (dziury jako ściany) drogą <= Chebyshev + 1. Klient w trybie ataku idzie
+        za celem własną drogą i wchodził w dziurę (21:33:59 Troll (32509,32273) przy dziurze (32508,32273): upadek na z9).
+        Cel obok nas (Chebyshev <= 1) nie jest sprawdzany: nie trzeba za nim iść."""
+        if not DZIURA_PRZY_CELU or s.get("z", poz[2]) != poz[2]:
+            return False
+        cx, cy = s["x"], s["y"]
+        odl = max(abs(cx - poz[0]), abs(cy - poz[1]))
+        if odl <= 1:
+            return False
+        dz = self._dziury_przy((cx, cy), poz[2])
+        if not dz:
+            return False
+        x0, x1 = sorted((poz[0], cx))
+        y0, y1 = sorted((poz[1], cy))
+        if not any(x0 <= x <= x1 and y0 <= y <= y1 for x, y in dz):
+            return False
+        try:
+            zajete = [(x, y, poz[2]) for x, y in dz]
+            d = self.droga((poz[0], poz[1], poz[2]), (cx, cy), zajete=zajete, dlugosc=1)
+        except bot.Zatrzymano:
+            raise
+        except Exception:
+            return False                       # błąd A*: nie blokujemy walki
+        return d is None or len(d) > odl + 1
+
     def _ogien_tick(self, poz, teraz, wymus=False):
         """Odświeża pola ognia (najwyżej co OGIEN_ODSWIEZ_S; wymus=True: teraz). Wykrycie to jeden zrzut ppm
         (ok. 40 ms) + analiza; bez źródła (testy, brak gry) nic nie robi. Błąd odczytu nie zatrzymuje bota."""
@@ -3781,6 +3827,26 @@ class Cavebot:
                 cel = None
             kand = [s_ for s_ in kand if self.dystans((s_["x"], s_["y"]), poz) <= 1
                     or not self._ogien_przy_parzacym((s_["x"], s_["y"], s_.get("z", poz[2])))]
+        # 15.10: cel przy znanej dziurze, do którego klient poszedłby przez dziurę: nie atakujemy (jak ogień wyżej); Escape
+        # zatrzymuje marsz klienta, który już wlecze się za celem (tryb ataku = follow). Cel obok nas zostaje.
+        if DZIURA_PRZY_CELU and self.mapa is not None:
+            if cel is not None and self._cel_przez_dziure(cel, poz):
+                ost = getattr(self, "_dziura_cel_log", {})
+                if teraz - ost.get(cel["id"], float("-inf")) >= 30.0:
+                    ost[cel["id"]] = teraz
+                    self._dziura_cel_log = ost
+                    log(f"[DZIURA] odpuszczam {cel['nazwa']} ({cel['x']},{cel['y']}): stoi przy dziurze na drodze klienta, "
+                        f"nie gonię (czekam aż odejdzie od dziury).")
+                try:
+                    if not self.zatrzymaj_klik(poz):
+                        self.postac.klawisz("Escape")  # follow/atak klienta nie opiera się na klik_cel
+                except bot.Zatrzymano:
+                    raise
+                except Exception:
+                    pass
+                self.cel = None
+                cel = None
+            kand = [s_ for s_ in kand if not self._cel_przez_dziure(s_, poz)]
         if self._zwloki_przed_celem(cel, kand, g, poz, lista, teraz):
             return True
         if cel is None and kand:
@@ -7664,6 +7730,18 @@ class Cavebot:
                 self._patrol_sync_idx(poz)
                 self.patrol_pierwszy = True
                 log(f"Patrol: brak osiągalnego miejsca, jadę trasą {PATROL_FALLBACK_S:.0f} s.")
+                if WPADNIECIE:
+                    # 15.10: kieszeń (np. start bota po upadku z z8 do zamkniętego rope spotu na z9): żaden punkt trasy/miejsce
+                    # na tym piętrze nie jest osiągalny A* = wyjście jak po wykrytym upadku (lina/plan po mapie), nie ślepy marsz
+                    wp = self._wp()
+                    try:
+                        if wp is not None and wp.z_kieszeni(poz, teraz):
+                            self.patrol_fallback_do = float("-inf")
+                            return True
+                    except bot.Zatrzymano:
+                        raise
+                    except Exception as e:
+                        log(f"debug: wpadniecie.z_kieszeni błąd {e!r}")
                 return None
         luka = p["tick"] is not None and teraz - p["tick"] > PATROL_LUKA_S
         dt = min(teraz - p["tick"], 2.0) if p["tick"] is not None else 0.0
