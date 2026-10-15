@@ -233,6 +233,7 @@ JEDZENIE_BRAK_PROBY = 2            # ile razy ponownie odczytać kontenery po ni
 GLOD_ZAPAS_WAZNY_S = 120           # s: potwierdzony głód (wyprawa) ważny tylko, gdy zapas był odczytany wiarygodnie w tym oknie
 WYPRAWA_WZNOW_WALIDUJ = 1          # 1 = po restarcie wyprawa po jedzenie sprawdza powód (zapas/kontenery) i wygasa, gdy już nie zachodzi
 WYPRAWA_CZEKAJ_NA_GLOD = 0         # 1 = wyprawa po jedzenie dopiero po potwierdzonym głodzie (nieudana próba jedzenia), nie od razu przy zapasie 0
+WYPRAWA_JEDZENIE = 1             # 0 = brak jedzenia nie jest powodem wyprawy (wyprawa.py; 15.10 decyzja Karola: na razie tylko blanki)
 WYPRAWA_DEPO_W_WALCE = 1           # 1 = wyprawa do depo (po potwierdzonym głodzie) startuje także w walce i biegnie; 0 = tylko w spokoju
 WYPRAWA_DEPO_ZLOZ = 0                # 1 = zwykła wyprawa zaczyna od depo: składa UH w skrzyni, potem Frodo/Xodet
 WYPRAWA_TYLKO_DEPO = 0              # 1 = wyprawa idzie tylko do depo (troll_do_miasta + A* do pola depo), tam STOP + powiadomienie; bez zakupów i powrotu

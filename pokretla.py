@@ -152,6 +152,7 @@ ZAKRESY = {
     "JEDZENIE_BRAK_PROBY": (1, 5),      # odczytów kontenerów po nieudanym jedzeniu, zanim uznamy je za nieczytelne
     "GLOD_ZAPAS_WAZNY_S": (30, 600),    # s: potwierdzony głód wyprawy wymaga wiarygodnego odczytu zapasu w tym oknie
     "WYPRAWA_WZNOW_WALIDUJ": (0, 1),    # 1 = po restarcie wyprawa po jedzenie wygasa, gdy powód (zapas/głód) już nie zachodzi
+    "WYPRAWA_JEDZENIE": (0, 1),         # 0 = brak jedzenia nie jest powodem wyprawy (zostają blanki itd.; domyślnie 1)
     "WYPRAWA_CZEKAJ_NA_GLOD": (0, 1),   # 1 = powody zapas/glod dopiero po potwierdzonym głodzie (nieudana próba jedzenia)
     "WYPRAWA_TYLKO_DEPO": (0, 1),       # 1 = wyprawa kończy się w depo (bez zakupów, bez powrotu): alarm + STOP (tryb wyprawa_depo)
     "JEDZENIE_ZAPAS_MIN": (1, 20),      # poniżej tylu sztuk jedzenia w plecaku rzucamy exevo pan (przy JEDZENIE_CZAR_AKTYWNY=1)

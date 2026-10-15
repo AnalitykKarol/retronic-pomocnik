@@ -485,6 +485,10 @@ s.t += 5000
 sprawdz("1d6 CZEKAJ_NA_GLOD=1, stary głód (> 10 min): nie rusza", not pre(s, cb, w, 4))
 s, cb, w, k = nowy(jedzenie=0, konf=konf_glod(0))
 sprawdz("1d7 CZEKAJ_NA_GLOD=0: dawne zachowanie, zapas 0 rusza od razu", pre(s, cb, w) and cb.wypad_aktywny, w.powod)
+kj = konf_glod(0); kj.WYPRAWA_JEDZENIE = 0
+s, cb, w, k = nowy(jedzenie=0, konf=kj)
+cb.jedzenie_nie_do = s.t + 100
+sprawdz("1d7b WYPRAWA_JEDZENIE=0: zapas 0 i głód nie ruszają wyprawy", not pre(s, cb, w, 6) and not cb.wypad_aktywny)
 okg, blg = pokretla.waliduj({"WYPRAWA_CZEKAJ_NA_GLOD": 1}, {"WYPRAWA_CZEKAJ_NA_GLOD": 0})
 sprawdz("1d8 analityk nie podniesie CZEKAJ_NA_GLOD (nie_wyzej), zakres 0/1", not okg and len(blg) == 1, f"{okg} {blg}")
 k = Konf(); k.WYPRAWA_AKTYWNA = 0

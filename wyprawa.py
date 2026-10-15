@@ -93,7 +93,7 @@ DOMYSLNE = {                                             # gdy konf (cavebot) ni
     "WYPRAWA_JEDZ_NA_MIEJSCU": 1, "WYPRAWA_JEDZ_MAKS": 12, "WYPRAWA_BLANKI": 0, "WYPRAWA_BLANKI_PROG": 2,
     "WYPRAWA_BLANKI_MAX_KOSZT": 500, "WYPRAWA_POCHODNIE": 1, "WYPRAWA_CAP_REZERWA": 8, "WYPRAWA_ZLOTO_MIN": 30,
     "WYPRAWA_MIN_HP": 70, "WYPRAWA_CO_MIN": 20, "WYPRAWA_MAX_CZAS_S": 1800, "WYPRAWA_MAX_KROKOW": 6000,
-    "WYPRAWA_STOP_PRZY_UTKNIECIU": 1, "WYPRAWA_CZEKAJ_NA_GLOD": 0, "GLOD_ZAPAS_WAZNY_S": 120, "WYPRAWA_WZNOW_WALIDUJ": 1, "WYPRAWA_DEPO_W_WALCE": 1, "WYPRAWA_DEPO_ZLOZ": 0, "WYPRAWA_TYLKO_DEPO": 0, "WYPRAWA_DEPO_POWROT": 0, "WYPRAWA_DEPO_POSTOJ_S": 0, "WYPRAWA_DEPO_BLANKI": 1, "WYPRAWA_PO_DEPO_S": 900, "WYPRAWA_PO_DOJSCIU_S": 300, "BLANKI_AUTO_BAG": 1, "BLANKI_AUTO_BAG_MIN": 10, "JEDZENIE_ZAPAS_MIN": 5, "WYPAD_ILE_TORCHY": 5,
+    "WYPRAWA_STOP_PRZY_UTKNIECIU": 1, "WYPRAWA_CZEKAJ_NA_GLOD": 0, "WYPRAWA_JEDZENIE": 1, "GLOD_ZAPAS_WAZNY_S": 120, "WYPRAWA_WZNOW_WALIDUJ": 1, "WYPRAWA_DEPO_W_WALCE": 1, "WYPRAWA_DEPO_ZLOZ": 0, "WYPRAWA_TYLKO_DEPO": 0, "WYPRAWA_DEPO_POWROT": 0, "WYPRAWA_DEPO_POSTOJ_S": 0, "WYPRAWA_DEPO_BLANKI": 1, "WYPRAWA_PO_DEPO_S": 900, "WYPRAWA_PO_DOJSCIU_S": 300, "BLANKI_AUTO_BAG": 1, "BLANKI_AUTO_BAG_MIN": 10, "JEDZENIE_ZAPAS_MIN": 5, "WYPAD_ILE_TORCHY": 5,
 }
 
 POTWIERDZ = 2                  # kolejne odczyty z warunkiem = start
@@ -723,7 +723,9 @@ class Wyprawa(Wypad):
         # WYPRAWA_CZEKAJ_NA_GLOD=1: "zapas"/"glod" liczą się dopiero po potwierdzonym głodzie (nieudana próba jedzenia
         # w trybie głodu = cb.jedzenie_nie_do w przyszłości; pamiętamy to GLOD_WAZNY_S), samo zapas 0 w plecaku nie wystarcza
         glod_ok = True
-        if int(self._kw("WYPRAWA_CZEKAJ_NA_GLOD")) or self._tryb_depo():    # do depo zawsze po potwierdzonym głodzie
+        if not int(self._kw("WYPRAWA_JEDZENIE")):
+            glod_ok = False     # 15.10: WYPRAWA_JEDZENIE=0 - jedzenie nie jest powodem wyprawy (tylko blanki)
+        elif int(self._kw("WYPRAWA_CZEKAJ_NA_GLOD")) or self._tryb_depo():    # do depo zawsze po potwierdzonym głodzie
             watpliwy = getattr(cb, "jedzenie_odczyt_watpliwy", None)
             if teraz < getattr(cb, "jedzenie_nie_do", float("-inf")) and zapas is not None \
                     and not (callable(watpliwy) and watpliwy(teraz)):
