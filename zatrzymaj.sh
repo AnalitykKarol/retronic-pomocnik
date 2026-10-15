@@ -7,7 +7,6 @@ eval "$(python3 -I "$DIR/instancja.py" powloka 2>/dev/null)" || true
 TYTUL="Bot Retronic${RETRONIC_ID:+ [$RETRONIC_ID]}"
 mkdir -p "$INST_STAN"
 touch "$INST_STOP" "$INST_STOP_RECZNY"
-notify-send -u critical "$TYTUL: STOP" "Zatrzymuję bota..."
 # tylko prawdziwe procesy python3 (nie powłoki z tekstem w argumentach)
 pidy() {   # tylko bot tej instancji; awaryjnie (instancja.py nie działa) dawna pętla po wszystkich botach
   python3 -I "$DIR/instancja.py" pidy '(mozg|cavebot)\.py' 2>/dev/null && return
@@ -29,4 +28,6 @@ if ! czekaj 3; then
 fi
 # bot zabity w trakcie pościgu mógł zostawić wciśnięty klawisz ruchu (trzymany XTEST): puść strzałki i numpad
 timeout 5 python3 -I -c "import sys; sys.path.insert(0, '$DIR'); import bot, klawisz_x11; klawisz_x11.puszczaj_wszystkie_strzalki(bot.ekran_gry())" >/dev/null 2>&1
-notify-send "$TYTUL" "$wynik"
+# zwykły stop zgłasza mozg.py ("Bot zatrzymany"); tu tylko wymuszone zabicie, którego bot sam nie zgłosi (14.10)
+[ "$wynik" = "zatrzymany" ] || notify-send -u critical "$TYTUL" "$wynik"
+echo "$wynik"

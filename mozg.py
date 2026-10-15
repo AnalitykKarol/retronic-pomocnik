@@ -2570,8 +2570,10 @@ class Mozg:
             for w in self.czat.ostatnie:
                 if w.get("nowa") and w["autor"] and w["autor"] != self.nazwa and w["autor"] not in self.czat.npc:
                     priv = kanal_prywatny(w["kanal"])
-                    if priv or (self.nazwa or "\0").casefold() in w["tekst"].casefold():
+                    if priv or w.get("do_bota") or (self.nazwa or "\0").casefold() in w["tekst"].casefold():
                         powiadom.czat(w["autor"], w["tekst"], priv)
+                    elif (w["kanal"] or "").casefold() in KANALY_ROZMOWY:
+                        powiadom.czat_obok(w["autor"], w["tekst"])     # 14.10: każdy gracz na Default (obok nas)
             prywatne = sorted({w["kanal"] for w in self.czat.ostatnie if w.get("nowa") and kanal_prywatny(w["kanal"])})
             dane = {"od": self.czat.nowi_autorzy[:5], "nowych": nowe}
             if prywatne:

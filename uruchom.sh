@@ -37,4 +37,5 @@ fi
 # P4 (13.10): telemetria pisze tylko z tą zmienną (testy i skrypty pomocnicze jej nie mają)
 export RETRONIC_TELEMETRIA=1
 setsid nohup python3 -I -u mozg.py --tryb hybryda --model haiku --trasa "$MAPA_TRASA" "${DOJSCIE[@]}" --potwory "$MAPA_POTWORY" --prog-hp "$MAPA_PROG_HP" > "$LOG" 2>&1 < /dev/null &
-notify-send "$TYTUL" "Start (mozg hybryda, $MAPA_TRASA${TRYB:+, tryb $TRYB}${DOJSCIE:+ + dojście})"
+# dymek startu wysyła mozg.py ("Bot ruszył"), gdy bot naprawdę wystartuje (14.10: bez dubla)
+echo "Start (mozg hybryda, $MAPA_TRASA${TRYB:+, tryb $TRYB}${DOJSCIE:+ + dojście})"
