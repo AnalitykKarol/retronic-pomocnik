@@ -16,6 +16,7 @@ from pathlib import Path
 import instancja
 
 PLIK_WROGOW = instancja.S.stan / "wrogowie.json"
+KARENCJA_ZAPIS_S = 60.0
 
 
 def _cheb(a, b):
@@ -41,6 +42,8 @@ class Wrogowie:
         self.log = log
         self.dane = {}                  # klucz_nicku -> {"nick","od","ost","ile","powod","miejsce"}
         self.karencja_do = 0.0          # czas ścienny
+        self._karencja_zapis = 0.0      # karencja_do zapisana na dysku (zapis tylko przy przedłużeniu o >= KARENCJA_ZAPIS_S)
+        self._mtime = None              # mtime_ns pliku po ostatnim odczycie/zapisie (zmiana z zewnątrz = ponowny odczyt)
         self.wczytaj()
 
     def wczytaj(self):
@@ -50,6 +53,21 @@ class Wrogowie:
             self.karencja_do = float(d.get("karencja_do") or 0.0)
         except (OSError, ValueError, TypeError, AttributeError):
             self.dane, self.karencja_do = {}, 0.0
+        self._karencja_zapis = self.karencja_do
+        self._mtime = self._stat()
+
+    def _stat(self):
+        try:
+            return self.plik.stat().st_mtime_ns
+        except OSError:
+            return None
+
+    def odswiez(self):
+        """Ręczna zmiana pliku (CLI --usun) trafia do działającego bota; inaczej następny zapis by ją cofnął."""
+        if self._stat() != self._mtime:
+            self.wczytaj()
+            return True
+        return False
 
     def zapisz(self):
         """Zapis atomowy (tmp + os.replace). Błąd tylko w logu: obrona nie może wywrócić bota."""
@@ -59,6 +77,8 @@ class Wrogowie:
             tmp.write_text(json.dumps({"wrogowie": self.dane, "karencja_do": self.karencja_do},
                                       ensure_ascii=False, indent=1))
             os.replace(tmp, self.plik)
+            self._karencja_zapis = self.karencja_do
+            self._mtime = self._stat()
             return True
         except OSError as e:
             self.log(f"PK: nie zapisałem {self.plik.name} ({e})")
@@ -90,10 +110,12 @@ class Wrogowie:
         return True
 
     def przedluz_karencje(self, minuty):
-        """Karencja = `minuty` od TERAZ (każde zobaczenie wroga ją odsuwa). Zapis tylko, gdy realnie się wydłuża."""
+        """Karencja = `minuty` od TERAZ (każde zobaczenie wroga ją odsuwa). W pamięci zawsze, na dysk tylko przy
+        przedłużeniu o >= KARENCJA_ZAPIS_S względem zapisanej (wróg w widoku nie piszy pliku co obieg)."""
         do = self.czas() + max(0.0, float(minuty)) * 60.0
-        if do > self.karencja_do + 1.0:
+        if do > self.karencja_do:
             self.karencja_do = do
+        if self.karencja_do - self._karencja_zapis >= KARENCJA_ZAPIS_S:
             self.zapisz()
 
     def karencja_aktywna(self):
@@ -109,6 +131,7 @@ class DetektorPK:
     def __init__(self, konf, zegar=time.monotonic, log=print):
         self.konf, self.zegar, self.log = konf, zegar, log
         self.hist = []                      # [(czas, % HP)] z ostatnich PK_OKNO_S s
+        self.mob_ost = float("-inf")        # kiedy ostatnio żywy potwór stał w odl <= 1 (cios mógł być jego)
 
     def _k(self, nazwa, domyslna):
         return getattr(self.konf, nazwa, domyslna)
@@ -143,27 +166,79 @@ class DetektorPK:
             wynik.append(s)
         return wynik
 
-    def wykryj_atak(self, lista, poz, wlasna, spadek, ogien=False, pomin=None):
-        """-> {"gracze": [s...], "spadek": pp, "odl": najmniejsza odległość} albo None.
-        Warunki: spadek >= PK_SPADEK_PP, obcy gracz w PK_ODL (albo PK_ODL_CZAR > 0), żaden żywy potwór w odl <= 1,
-        postać nie stoi w polu ognia."""
+    def zapamietaj_moby(self, lista, poz, teraz):
+        """Odnotowuje czas, gdy żywy potwór stoi przy nas (odl <= 1). Wołane też z listy poprzedniego obiegu,
+        żeby wiedzieć o potworze, który zginął/odszedł tuż przed pojawieniem się przechodnia."""
+        pozxy = (poz[0], poz[1])
+        if any(not s.get("gracz") and s.get("z") == poz[2] and s.get("hp", 100) > 0
+               and _cheb((s["x"], s["y"]), pozxy) <= 1 for s in lista or ()):
+            self.mob_ost = teraz
+            return True
+        return False
+
+    def wykryj_atak(self, lista, poz, wlasna, spadek, ogien=False, pomin=None, teraz=None):
+        """-> {"gracze": [s...], "spadek": pp, "odl": najmniejsza odległość} albo None. `gracze` = tylko najbliżsi
+        (prawdopodobny napastnik), nie każdy gracz w PK_ODL.
+        Warunki: spadek >= PK_SPADEK_PP, obcy gracz w PK_ODL (albo PK_ODL_CZAR > 0), żaden żywy potwór w odl <= 1
+        TERAZ ani w ostatnich PK_OKNO_S s (potwór mógł zadać cios i zginąć), postać nie stoi w polu ognia."""
         if not self.wlaczony() or ogien:
             return None
+        t = self.zegar() if teraz is None else teraz
+        przy_nas = self.zapamietaj_moby(lista, poz, t)
         if spadek < float(self._k("PK_SPADEK_PP", 8.0)):
             return None
+        if przy_nas or t - self.mob_ost <= self._okno():
+            return None                 # potwór przy nas teraz albo przed chwilą: to on bił (zwykła walka / UCIECZKA)
         odl = max(int(self._k("PK_ODL", 1)), int(self._k("PK_ODL_CZAR", 0)))
         pozxy = (poz[0], poz[1])
-        for s in lista:
-            if not s.get("gracz") and s.get("z") == poz[2] and s.get("hp", 100) > 0 \
-                    and _cheb((s["x"], s["y"]), pozxy) <= 1:
-                return None             # potwór przy nas: to on bije (zwykła walka / UCIECZKA)
         blisko = [s for s in self.obcy(lista, poz, wlasna, pomin) if _cheb((s["x"], s["y"]), pozxy) <= odl]
         if not blisko:
             return None
-        blisko.sort(key=lambda s: _cheb((s["x"], s["y"]), pozxy))
-        return {"gracze": blisko, "spadek": spadek, "odl": _cheb((blisko[0]["x"], blisko[0]["y"]), pozxy)}
+        d0 = min(_cheb((s["x"], s["y"]), pozxy) for s in blisko)
+        najblizsi = [s for s in blisko if _cheb((s["x"], s["y"]), pozxy) == d0]
+        return {"gracze": najblizsi, "spadek": spadek, "odl": d0}
 
     def wrogowie_w_widoku(self, lista, poz, wlasna, wrogowie, pomin=None):
         """Znani wrogowie (lista Wrogowie, ważni PK_WROG_WAZNY_H godzin) widoczni teraz na piętrze postaci."""
         wazny = float(self._k("PK_WROG_WAZNY_H", 72.0))
         return [s for s in self.obcy(lista, poz, wlasna, pomin) if wrogowie.znany(s.get("nazwa"), wazny)]
+
+
+def main(argv=None):
+    """CLI do listy wrogów: `python3 obrona_pk.py --lista` / `--usun NICK` / `--zeruj-karencje` (opcjonalnie --plik P).
+    Działający bot odczytuje zmianę pliku sam (Wrogowie.odswiez)."""
+    import argparse  # noqa: PLC0415
+    p = argparse.ArgumentParser(description="Lista wrogów PK (wrogowie.json)")
+    p.add_argument("--plik", help="inny plik niż stan instancji")
+    p.add_argument("--lista", action="store_true", help="wypisz wrogów i karencję")
+    p.add_argument("--usun", metavar="NICK", help="usuń nick z listy wrogów")
+    p.add_argument("--zeruj-karencje", action="store_true", help="skasuj karencję powrotu na spot")
+    a = p.parse_args(argv)
+    w = Wrogowie(a.plik)
+    if a.usun:
+        k = klucz_nicku(a.usun)
+        if k in w.dane:
+            del w.dane[k]
+            w.zapisz()
+            print(f"usunięto: {a.usun}")
+        else:
+            print(f"brak na liście: {a.usun}")
+            return 1
+    if a.zeruj_karencje:
+        w.karencja_do = 0.0
+        w.zapisz()
+        print("karencja wyzerowana")
+    if a.lista or not (a.usun or a.zeruj_karencje):
+        t = w.czas()
+        for k, v in sorted(w.dane.items()):
+            print(f"{v.get('nick', k)}: ost {(t - float(v.get('ost', 0))) / 3600:.1f} h temu, ataków {v.get('ile', 0)}, "
+                  f"{v.get('powod', '')}, miejsce {v.get('miejsce')}")
+        print(f"karencja: {w.karencja_pozostalo_s() / 60:.0f} min" if w.karencja_aktywna() else "karencja: brak")
+        if not w.dane:
+            print("(lista pusta)")
+    return 0
+
+
+if __name__ == "__main__":
+    import sys  # noqa: PLC0415
+    sys.exit(main())

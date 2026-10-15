@@ -278,7 +278,9 @@ sprawdz("6 znany wróg w widoku, HP 100%: natychmiastowa ucieczka PK (przed cios
         f"pierwsze={pierwsze} {b2.fw.wywolania}")
 s3 = Swiat([(0, 100, [gr("Nieznany Gracz", 5, 3)]), (1, 100, [gr("Nieznany Gracz", 1, 0)])])
 b3 = zrob(s3, wrogowie=plik)
-sprawdz("6b nieznany gracz w widoku bez ataku: bez reakcji", odtworz(b3, s3, 0, 1) is None)
+odtworz(b3, s3, 0, 1)
+sprawdz("6b nieznany gracz w widoku bez ataku: bez ucieczki (jest tylko czekanie po starcie w karencji)",
+        not b3.fw.wywolania and b3.pk_stan in (None, "DEPO"), f"{b3.fw.wywolania} {b3.pk_stan}")
 s4 = Swiat([(0, 100, [gr("krzyssxd", 5, 3)])])        # inna wielkość liter = ten sam nick
 b4 = zrob(s4, wrogowie=plik)
 sprawdz("6c nick wroga porównywany bez wielkości liter", odtworz(b4, s4, 0, 0) == 0)
@@ -522,6 +524,150 @@ if _mapa.PLIK_MAPY.is_file():
             f"poz={s.poz} uzycia={ops.uzycia[:1]}")
     sprawdz("13c po drodze brak plików STOP i brak wyjątków wypadu", not (TMP / "int_STOP").exists()
             and not any("wypad: błąd" in l for l in cavelog))
+
+# --- poprawki po przeglądzie (A-F, CLI) ---
+import czaszka
+
+# A. POWROT: trasa przerwana z zewnątrz (Wypad.przerwij: w=None, wypad_aktywny=False) bez zdarzenia końca -> z powrotem DEPO
+s = Swiat([(0, 100, [])])
+b = zrob(s, wrogowie=TMP / "wr-A.json")
+b.pk_stan = "POWROT"
+b.fw.w, b.wypad_aktywny = None, False
+s.t = 5.0
+b.tick()
+sprawdz("A POWROT przerwany z zewnątrz (w=None): wraca do DEPO i liczy nieudaną próbę", b.pk_stan == "DEPO" and b.pk_powrot_proby == 1,
+        f"{b.pk_stan} proby={b.pk_powrot_proby}")
+b.pk_wrogowie.karencja_do = 0.0
+s.t = 100.0
+b.tick()
+sprawdz("A1 po przerwie 30 s ponowna próba powrotu", b.pk_stan == "POWROT" and [w[0] for w in b.fw.wywolania] == ["powrot"],
+        f"{b.pk_stan} {b.fw.wywolania}")
+b.pk_stan, b.pk_powrot_proby = "DEPO", 3
+stop_plik = TMP / "STOP-A"
+bot_stop0 = bot.STOP
+bot.STOP = stop_plik
+b.pk_wrogowie.karencja_do = 0.0
+s.t = 300.0
+b.tick()
+bot.STOP = bot_stop0
+sprawdz("A2 po PK_POWROT_PROBY nieudanych powrotach STOP + powiadomienie krytyczne", stop_plik.exists()
+        and any(k == "pk_stop" for _, _, k in b.powiadomienia), f"{stop_plik.exists()} {b.powiadomienia}")
+
+# B. potwór bił i zginął, po 2 s przechodzień obok: to nie PK; po oknie PK_OKNO_S znów działa; w liście tylko najbliższy
+s = Swiat([(0, 100, [troll(1, 1, 0)]), (1, 80, [troll(1, 1, 0)]), (2, 80, []), (3, 80, [gr("Przechodzien", 1, 0)]),
+           (4, 80, [gr("Przechodzien", 1, 0)])])
+b = zrob(s, wrogowie=TMP / "wr-B.json")
+sprawdz("B troll bił (HP 100->80) i zginął, po 2 s przechodzień obok: NIE PK", odtworz(b, s, 0, 4) is None and not b.pk_wrogowie.dane,
+        f"{b.pk_wrogowie.dane}")
+s = Swiat([(0, 100, [troll(1, 1, 0)]), (1, 80, [troll(1, 1, 0)]), (2, 80, []), (3, 80, []), (8, 80, [gr("Przechodzien", 1, 0)]),
+           (9, 60, [gr("Przechodzien", 1, 0)])])
+b = zrob(s, wrogowie=TMP / "wr-B2.json")
+sprawdz("B1 po upływie okna od potwora nowy cios gracza obok = PK", odtworz(b, s, 0, 9) == 9)
+cavebot.PK_ODL = 2
+s = Swiat([(0, 100, []), (1, 70, [gr("Napastnik", 1, 0), gr("Gapiowicz", 2, 1)])])
+b = zrob(s, wrogowie=TMP / "wr-B3.json")
+odtworz(b, s, 0, 1)
+cavebot.PK_ODL = 1
+sprawdz("B2 na liście wrogów tylko najbliższy gracz (napastnik), nie każdy w PK_ODL",
+        set(v["nick"] for v in b.pk_wrogowie.dane.values()) == {"Napastnik"}, f"{b.pk_wrogowie.dane.keys()}")
+
+# C. groźna czaszka (Haiku, czaszka.py): ucieczka PK zamiast pauzy GRACZ, nick na liście wrogów
+czaszka.wyczysc()
+czaszka.ustaw("Skuller", "biala", 600)
+s = Swiat([(0, 100, [gr("Skuller", 5, 2)]), (1, 100, [gr("Skuller", 4, 2)])])
+b = zrob(s, wrogowie=TMP / "wr-C.json")
+pierwsze = odtworz(b, s, 0, 1)
+sprawdz("C biała czaszka w widoku (HP 100%, daleko): ucieczka PK od razu (w obiegu, w którym ją zobaczyliśmy), nie stan GRACZ",
+        pierwsze == 0 and str(b.stan) != "GRACZ"
+        and b.fw.wywolania[:1] == [("ucieczka", 0.0)], f"{pierwsze} {b.stan} {b.fw.wywolania}")
+sprawdz("C1 nick z czaszką na liście wrogów z powodem 'czaszka', alarm poszedł",
+        b.pk_wrogowie.dane.get("skuller", {}).get("powod") == "czaszka" and s.alarmy, f"{b.pk_wrogowie.dane} {s.alarmy}")
+czaszka.wyczysc()
+czaszka.ustaw("Czysty", "brak", 600)
+s = Swiat([(0, 100, [gr("Czysty", 3, 1)]), (1, 100, [gr("Czysty", 2, 1)])])
+b = zrob(s, wrogowie=TMP / "wr-C2.json")
+sprawdz("C2 odczyt 'brak czaszki' / brak odczytu: bez ucieczki", odtworz(b, s, 0, 1) is None)
+czaszka.wyczysc()
+cavebot.PK_OBRONA = 0
+czaszka.ustaw("Skuller", "czerwona", 600)
+s = Swiat([(0, 100, [gr("Skuller", 5, 2)])])
+b = zrob(s, wrogowie=TMP / "wr-C3.json")
+odtworz(b, s, 0, 0)
+cavebot.PK_OBRONA = 1
+sprawdz("C3 PK_OBRONA=0: zostaje dawny stan GRACZ dla groźnego gracza", str(b.stan) == "GRACZ" and b.pk_stan is None, f"{b.stan}")
+czaszka.wyczysc()
+
+# D. restart w karencji: czekamy zamiast wracać na spot, po karencji koniec obrony bez trasy powrotnej
+plikD = TMP / "wr-D.json"
+plikD.write_text(json.dumps({"wrogowie": {"x": {"nick": "X", "od": 0, "ost": 0, "ile": 1}}, "karencja_do": 1000.0}))
+s = Swiat([(0, 100, [])])
+b = zrob(s, wrogowie=plikD)
+b.pk_wrogowie.czas = s.zegar
+s.t = 10.0
+b.tick()
+sprawdz("D start w karencji: stan DEPO (czekanie), bez wyprawy, powiadomienie", b.pk_stan == "DEPO" and b.pk_start_wait
+        and not b.fw.wywolania, f"{b.pk_stan} {b.stan}")
+s.t = 500.0
+b.tick()
+sprawdz("D1 w trakcie karencji nadal czeka (stan PAUZA_PK)", b.pk_stan == "DEPO" and str(b.stan) == "PAUZA_PK")
+s.t = 1001.0
+b.tick()
+sprawdz("D2 po karencji koniec obrony, bez trasy powrotnej z depo", b.pk_stan is None and not b.fw.wywolania, f"{b.pk_stan} {b.fw.wywolania}")
+
+# E. przedłużanie karencji nie pisze pliku co obieg
+w = obrona_pk.Wrogowie(TMP / "wr-E.json", czas=lambda: tE[0], log=lambda t: None)
+tE = [1000.0]
+zapisy = []
+_z0 = w.zapisz
+w.zapisz = lambda: (zapisy.append(1), _z0())[1]
+for i in range(40):
+    tE[0] = 1000.0 + i
+    w.przedluz_karencje(30)
+sprawdz("E 40 przedłużeń w 40 s: jeden zapis na dysk (próg 60 s)", len(zapisy) == 1, f"{len(zapisy)}")
+tE[0] = 1000.0 + 61
+w.przedluz_karencje(30)
+sprawdz("E1 po >= 60 s przedłużenia kolejny zapis", len(zapisy) == 2 and w.karencja_do == tE[0] + 1800, f"{len(zapisy)}")
+
+# F. DEPO bez regeneracji HP: po PK_DEPO_MAX_MIN STOP + powiadomienie
+s = Swiat([(0, 40, [])])
+b = zrob(s, wrogowie=TMP / "wr-F.json")
+b.pk_stan, b.pk_start_wait = "DEPO", False
+b.jedzenie_potrzebne = lambda g, t, p: False
+stop_plik = TMP / "STOP-F"
+bot.STOP = stop_plik
+b.pk_wrogowie.karencja_do = 0.0
+for t in (0.0, 600.0, 1100.0):
+    s.t = t
+    b.tick()
+nie_jeszcze = stop_plik.exists()
+s.t = 1300.0
+b.tick()
+bot.STOP = bot_stop0
+sprawdz("F HP nie rośnie w depo: przed 20 min bez STOP, po 20 min STOP + powiadomienie", not nie_jeszcze and stop_plik.exists()
+        and any(k == "pk_depo_hp" for _, _, k in b.powiadomienia), f"{nie_jeszcze} {stop_plik.exists()}")
+
+# G. CLI i odświeżanie pliku działającego bota
+plikG = TMP / "wr-G.json"
+wG = obrona_pk.Wrogowie(plikG, czas=lambda: 5000.0, log=lambda t: None)
+wG.dodaj("Zly Gracz", "atak", (1, 2, 3))
+wG.dodaj("Inny", "czaszka", (1, 2, 3))
+import io
+import contextlib
+buf = io.StringIO()
+with contextlib.redirect_stdout(buf):
+    r1 = obrona_pk.main(["--plik", str(plikG), "--lista"])
+sprawdz("G CLI --lista pokazuje wrogów", r1 == 0 and "Zly Gracz" in buf.getvalue() and "Inny" in buf.getvalue(), buf.getvalue())
+buf = io.StringIO()
+with contextlib.redirect_stdout(buf):
+    r2 = obrona_pk.main(["--plik", str(plikG), "--usun", "zly  gracz"])
+d = json.loads(plikG.read_text())
+sprawdz("G1 CLI --usun usuwa nick (bez wielkości liter), brak nicku = kod 1",
+        r2 == 0 and "zly gracz" not in d["wrogowie"] and "inny" in d["wrogowie"]
+        and obrona_pk.main(["--plik", str(plikG), "--usun", "nie ma"]) == 1)
+import os as _os2
+_os2.utime(plikG, (1, 1))                                   # inny mtime niż zapamiętany (zmiana z zewnątrz)
+wG.odswiez()
+sprawdz("G2 działający bot odczytuje zmianę pliku (odswiez) i nie przywraca usuniętego", not wG.znany("Zly Gracz") and wG.znany("Inny"))
 
 print()
 print(f"WYNIK: {sum(ok)} / {len(ok)}")

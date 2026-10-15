@@ -586,7 +586,9 @@ PK_UH_HP = 40                      # % HP: poniżej tego w ucieczce klikamy UH z
 PK_UH_ODSTEP_S = 2.5               # s: minimalny odstęp między próbami UH na siebie
 PK_UH_ID = 3160                    # id runy Ultimate Healing (jak mozg.TRADE_ID_UH)
 PK_SKAN_WIEK = 0.25                # s: cache skanu stworów w detekcji PK (bez drugiego pełnego skanu w obiegu)
+_PK_TEST_N = 0                     # licznik plików wrogów w testach (RETRONIC_TESTY)
 PK_FALLBACK_PONOW_S = 10.0         # s: w ucieczce awaryjnej (brak planu do depo) co tyle ponawiamy start trasy do depo
+PK_DEPO_MAX_MIN = 20               # min: tyle w depo czekamy na regenerację HP (bez jedzenia HP nie rośnie), potem STOP + powiadomienie
 PK_POWROT_PROBY = 3                # nieudane starty powrotu z depo na spot, po których STOP (potrzebny człowiek)
 LOOT_HP_MARGINES = 10              # pp nad progiem ucieczki: poniżej przerywamy loot (bijemy się dalej / uciekamy)
 LOOT_HP_ZAGROZENIE = 3             # pp nad progiem ucieczki: HP tak blisko przerywa loot także bez mobów w pobliżu
@@ -1001,6 +1003,10 @@ class Cavebot:
         self.pk_alarm_ost = float("-inf")
         self.pk_proba_ost = float("-inf")      # ostatnia próba startu trasy (fallback / powrót)
         self.pk_powrot_proby = 0
+        self.pk_lista_ref = None       # lista stworów z poprzedniego obiegu już zapisana w pamięci potworów detektora
+        self.pk_start_sprawdzony = False   # karencja z pliku sprawdzona przy pierwszym obiegu po starcie
+        self.pk_start_wait = False     # DEPO wynika ze startu w karencji (po niej koniec obrony, bez trasy powrotnej)
+        self.pk_depo_hp_od = None      # od kiedy w DEPO czekamy na zdrowie (HP < wznowienie_hp)
         self.pk_uh_ost = float("-inf")
         self.pk_uh_porazki = 0
         self.pk_uh_do = float("-inf")
@@ -3475,9 +3481,10 @@ class Cavebot:
 
     @staticmethod
     def gracz_grozny(s):
-        """GM/CM/God/Tutor po nicku albo czaszka/PK, jeśli odczyt stworów ją podaje.
-        Rdzeń (rdzen.py stwory) NIE czyta jeszcze czaszki z pamięci; gdy dojdzie pole "czaszka"
-        (albo "skull", >0 / True), ten warunek zacznie działać bez zmian tutaj."""
+        """GM/CM/God/Tutor po nicku albo czaszka/PK. Rdzeń (rdzen.py stwory) NIE czyta czaszki z pamięci gry; źródłem jest
+        odczyt ze zrzutu przez Haiku (czaszka.py, biała/czerwona) albo pole "czaszka"/"skull"/"pk" w odczycie stworów.
+        Uwaga: gdy PK_OBRONA=1, gracz z groźną czaszką uruchamia ucieczkę do depo (_pk_tick) PRZED tym warunkiem;
+        stan GRACZ (stój i alarmuj) zostaje dla GM/CM/God/Tutor i dla PK_OBRONA=0."""
         if GM_NAZWA.search(s.get("nazwa") or ""):
             return True
         if czaszka.czaszka_grozna(s.get("nazwa")):   # 15.10: czaszka odczytana ze zrzutu (czaszka.py, Haiku)
@@ -3661,6 +3668,9 @@ class Cavebot:
         # 2. obcy gracz: zatrzymuje tylko groźny (GM/CM/God/Tutor, czaszka/PK) albo każdy przy stop_przy_graczach
         if self.zatrzymaj_przy_graczu and self.pk_stan is None:   # w ucieczce PK stanie w GRACZ = śmierć
             obcy = self.inni_gracze(lista, poz)
+            if PK_OBRONA and any(self._pk_czaszka(s) for s in obcy) and self._pk_tick(g, poz, teraz):
+                self._tele_wczesny(g, poz, "pk")      # gracz z groźną czaszką w widoku: ucieczka PK, nie pauza GRACZ
+                return True
             grozni = [s for s in obcy if self.stop_przy_graczach or self.gracz_grozny(s)]
             if grozni:
                 nazwy = ", ".join(s["nazwa"] for s in grozni)
@@ -6576,7 +6586,13 @@ class Cavebot:
             plik = None
             if os.environ.get("RETRONIC_TESTY"):          # testy nigdy nie piszą do prawdziwego wrogowie.json
                 import tempfile  # noqa: PLC0415
-                plik = os.path.join(tempfile.gettempdir(), f"wrogowie-test-{os.getpid()}.json")
+                global _PK_TEST_N
+                _PK_TEST_N += 1                       # osobny, świeży plik na instancję (id() bywa ponownie użyte)
+                plik = os.path.join(tempfile.gettempdir(), f"wrogowie-test-{os.getpid()}-{_PK_TEST_N}.json")
+                try:
+                    os.remove(plik)
+                except OSError:
+                    pass
             self.pk_det = obrona_pk.DetektorPK(sys.modules[__name__], zegar=self.zegar, log=lambda t: log(t))
             self.pk_wrogowie = obrona_pk.Wrogowie(plik, czas=czas, log=lambda t: log(t))
         return self.pk_det, self.pk_wrogowie
@@ -6615,45 +6631,86 @@ class Cavebot:
             log(f"PK: błąd {e!r}")
             return False
 
-    def _pk_tick_u(self, g, poz, teraz):
-        if not PK_OBRONA and self.pk_stan is None:
+    def _pk_czaszka(self, s):
+        """Obcy gracz z odczytaną groźną czaszką (biała/czerwona z czaszka.py albo pole czaszka/skull/pk): wróg, uciekamy
+        zanim zaatakuje (SPEC pkt 2). GM/CM/God/Tutor to nie PK (obsługuje ich stan GRACZ)."""
+        if not s.get("gracz") or GM_NAZWA.search(s.get("nazwa") or ""):
             return False
+        wl = getattr(self.postac, "nazwa", None)
+        if wl and " ".join(str(s.get("nazwa") or "").split()).casefold() == " ".join(str(wl).split()).casefold():
+            return False
+        return bool(czaszka.czaszka_grozna(s.get("nazwa")) or s.get("czaszka") or s.get("skull") or s.get("pk"))
+
+    def _pk_tick_u(self, g, poz, teraz):
+        if self.pk_stan is None and (not PK_OBRONA or not self.zatrzymaj_przy_graczu):
+            return False                              # --ignoruj-graczy: żadnej reakcji na graczy, także PK
         det, wr = self._pk_dane()
+        wr.odswiez()                                  # ręczna zmiana wrogowie.json (CLI --usun) trafia do działającego bota
         spadek = det.zapisz_hp(g["proc"], teraz)
+        if self.ostatnie_stwory is not self.pk_lista_ref:       # lista poprzedniego obiegu (za darmo): pamięć potworów przy nas
+            self.pk_lista_ref = self.ostatnie_stwory
+            det.zapamietaj_moby(self.ostatnie_stwory, poz, teraz)
         wazny = float(PK_WROG_WAZNY_H)
         znani = any(wr.znany(r.get("nick"), wazny) for r in wr.dane.values())
-        if self.pk_stan is None and spadek < PK_SPADEK_PP and not znani:
-            return False                              # tanie wyjście: bez spadku HP i bez znanych wrogów nie skanujemy
+        czaszki_wczesniej = self.pk_stan != "DEPO" and any(self._pk_czaszka(s) for s in self.ostatnie_stwory or ())
+        if self.pk_stan is None and spadek < PK_SPADEK_PP and not znani and not czaszki_wczesniej:
+            if not self.pk_start_sprawdzony:
+                self.pk_start_sprawdzony = True
+                if wr.karencja_aktywna():             # restart w karencji: nie wracamy na spot, dopóki nie minie
+                    return self._pk_start_karencja(wr, teraz)
+            return False                              # tanie wyjście: bez spadku HP, wrogów i czaszek nie skanujemy
         lista = self.stwory(PK_SKAN_WIEK)
         wlasna = getattr(self.postac, "nazwa", None)
         pomin = lambda s: bool(GM_NAZWA.search(s.get("nazwa") or ""))      # GM/CM/God/Tutor to nie PK (obsługuje je GRACZ)
-        atak = det.wykryj_atak(lista, poz, wlasna, spadek, ogien=bool(self._ogien_na(poz)), pomin=pomin)
+        atak = det.wykryj_atak(lista, poz, wlasna, spadek, ogien=bool(self._ogien_na(poz)), pomin=pomin, teraz=teraz)
         widoczni = det.wrogowie_w_widoku(lista, poz, wlasna, wr, pomin=pomin)
+        czaszki = [] if self.pk_stan == "DEPO" else [s for s in lista if self._pk_czaszka(s)]
         nicki = []
         if atak:
-            for s in atak["gracze"]:
+            for s in atak["gracze"]:                  # tylko najbliżsi (prawdopodobny napastnik)
                 wr.dodaj(s["nazwa"], f"atak: HP -{atak['spadek']:.0f} pp, odl {atak['odl']}", (s["x"], s["y"], s["z"]))
                 nicki.append(s["nazwa"])
             log(f"PK: ATAK gracza z danych: {', '.join(nicki)} (odl {atak['odl']}, HP -{atak['spadek']:.0f} pp "
                 f"do {g['proc']:.0f}%, bez potwora przy nas).")
+        for s in czaszki:
+            if not wr.znany(s["nazwa"]):
+                wr.dodaj(s["nazwa"], "czaszka", (s["x"], s["y"], s["z"]))
+                log(f"PK: gracz {s['nazwa']} z groźną czaszką w widoku: wróg, uciekam zanim zaatakuje.")
+            if s["nazwa"] not in nicki:
+                nicki.append(s["nazwa"])
         for s in widoczni:
             wr.widziany(s["nazwa"])
             if s["nazwa"] not in nicki:
                 nicki.append(s["nazwa"])
-        if atak or widoczni:
+        if atak or widoczni or czaszki:
             wr.przedluz_karencje(PK_KARENCJA_MIN)
             self.pk_widoczni_ost = teraz
-        zagrozenie = bool(atak or widoczni)
+        zagrozenie = bool(atak or widoczni or czaszki)
 
         if self.pk_stan is None:
             if zagrozenie:
-                self._pk_start("atak" if atak else "wróg w widoku", nicki, g, poz, teraz)
+                self.pk_start_sprawdzony = True
+                self._pk_start("atak" if atak else ("czaszka" if czaszki else "wróg w widoku"), nicki, g, poz, teraz)
                 return True
+            if not self.pk_start_sprawdzony:
+                self.pk_start_sprawdzony = True
+                if wr.karencja_aktywna():
+                    return self._pk_start_karencja(wr, teraz)
             return False
         if self.pk_stan == "POWROT":
             if zagrozenie:                            # wróg wrócił w drodze na spot: znów do depo
                 self._pk_start("wróg w widoku w drodze powrotnej", nicki, g, poz, teraz)
                 return True
+            w = self.wyprawa
+            if w is not None and getattr(w, "w", None) is None and not self.wypad_aktywny:
+                # trasa powrotna przerwana z zewnątrz (Wypad.przerwij: ALARM_GM, STOP) bez zdarzenia końca
+                self.pk_powrot_proby += 1
+                log(f"PK: trasa powrotna na spot przerwana bez zdarzenia końca, wracam do czekania w depo "
+                    f"(próba {self.pk_powrot_proby}/{PK_POWROT_PROBY}).")
+                self.pk_stan = "DEPO"
+                self.pk_proba_ost = teraz
+                self.pk_depo_hp_od = None
+                return False
             return False
         if self.pk_stan == "DEPO":
             return self._pk_depo_tick(g, poz, teraz, zagrozenie)
@@ -6678,6 +6735,17 @@ class Cavebot:
             self._pk_awaryjna(teraz, "wyprawa do depo zgubiona")
             return False
         return self._pk_lecz(g, poz, teraz, lista)
+
+    def _pk_start_karencja(self, wr, teraz):
+        """Start bota w trakcie karencji (zapisanej w wrogowie.json): czekamy, aż minie, zamiast wracać na spot."""
+        log(f"PK: start w karencji po ataku gracza (jeszcze {wr.karencja_pozostalo_s() / 60:.0f} min): "
+            "czekam, nie wracam na spot.")
+        self.pk_stan, self.pk_fallback = "DEPO", False
+        self.pk_start_wait = True
+        self.pk_depo_hp_od = None
+        self._pk_powiadom("PK: karencja po restarcie", f"Bot wystartował w karencji PK (jeszcze "
+                          f"{wr.karencja_pozostalo_s() / 60:.0f} min), czeka.", "pk_karencja_start")
+        return True
 
     def _pk_start(self, powod, nicki, g, poz, teraz):
         """Wejście w ucieczkę PK: stan, alarm + powiadomienie, trasa do depo (inaczej ucieczka awaryjna)."""
@@ -6742,11 +6810,14 @@ class Cavebot:
                 log(f"PK: powrót na spot nieudany ({opis}), próba {self.pk_powrot_proby}/{PK_POWROT_PROBY}.")
                 self.pk_stan = "DEPO"
                 self.pk_proba_ost = teraz
+                self.pk_depo_hp_od = None
             return
         if wynik == "depo":
             log(f"PK: JESTEM W DEPO {tuple(poz)}, czekam co najmniej do końca karencji ({PK_KARENCJA_MIN} min po ostatnim "
                 "zobaczeniu wroga) i aż żaden wróg nie będzie w widoku.")
             self.pk_stan, self.pk_fallback = "DEPO", False
+            self.pk_start_wait = False
+            self.pk_depo_hp_od = None
             self.pk_powrot_proby = 0
             self._pk_powiadom("PK: jestem w depo", f"Uciekłem przed graczem, stoję w depo {tuple(poz)}; "
                               f"na spot wrócę po karencji {PK_KARENCJA_MIN} min.", "pk_depo")
@@ -6761,7 +6832,25 @@ class Cavebot:
         if g["hp"] < g["max_hp"] and self.jedzenie_potrzebne(g, teraz, poz):
             self.zjedz(teraz, g)
             return True
-        if zagrozenie or wr.karencja_aktywna() or g["proc"] < self.wznowienie_hp:
+        if self.pk_start_wait:                        # start w karencji: po niej koniec obrony (bez trasy powrotnej z depo)
+            if zagrozenie or wr.karencja_aktywna():
+                self.pauza(1.0, 2.0)
+                return True
+            log("PK: karencja po restarcie minęła, nikogo w widoku: wracam do normalnej gry.")
+            self.pk_stan, self.pk_start_wait = None, False
+            return False
+        slabe = g["proc"] < self.wznowienie_hp
+        if slabe:                                     # bez jedzenia HP nie rośnie: ograniczony czas czekania na zdrowie
+            if self.pk_depo_hp_od is None:
+                self.pk_depo_hp_od = teraz
+            elif teraz - self.pk_depo_hp_od > PK_DEPO_MAX_MIN * 60.0:
+                self._pk_powiadom("PK: HP nie rośnie w depo", f"HP {g['proc']:.0f}% od {PK_DEPO_MAX_MIN} min (brak jedzenia?), "
+                                  "bot zatrzymany.", "pk_depo_hp")
+                self._pk_stop(f"HP {g['proc']:.0f}% w depo od {PK_DEPO_MAX_MIN} min")
+                self.pk_depo_hp_od = teraz            # STOP zatrzyma pętlę; bez ponownego zapisu co obieg
+        else:
+            self.pk_depo_hp_od = None
+        if zagrozenie or wr.karencja_aktywna() or slabe:
             self._pk_lecz(g, poz, teraz, [], uh=False)
             self.pauza(1.0, 2.0)
             return True

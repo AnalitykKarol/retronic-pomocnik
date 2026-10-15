@@ -85,6 +85,7 @@ ZAKRESY = {
     "PK_KARENCJA_MIN": (5, 240),        # min: tyle po ostatnim zobaczeniu wroga nie wracamy na spot
     "PK_WROG_WAZNY_H": (1, 720),        # h: wróg z listy wywołuje ucieczkę na sam widok
     "PK_LECZ": (0, 1),                  # 1 = leczenie po drodze do depo (exura F2, UH na siebie)
+    "PK_DEPO_MAX_MIN": (5, 120),        # min: tyle w depo czekamy na regenerację HP, potem STOP + powiadomienie
     "PK_UH_HP": (0, 70),                # % HP: poniżej klikamy UH na siebie (0 = wyłączone)
     "UNIKANIE_PROMIEN": (5, 12),        # pola: gracz tak blisko włącza unikanie
     "UNIKANIE_PROMIEN_MAX": (10, 20),   # pola: dalej gracz się nie liczy
@@ -271,7 +272,7 @@ KIERUNEK = {
     "PATROL_KOORD": "nie_wyzej",        # analityk nie może włączyć koordynatora (tylko Karol w na_zywo.json)
     # obrona PK: analityk nie może jej wyłączyć ani poluzować (tylko zaostrzyć); ręczny plik tylko ZAKRESY
     "PK_OBRONA": "nie_nizej", "PK_ODL": "nie_nizej", "PK_ODL_CZAR": "nie_nizej", "PK_SPADEK_PP": "nie_wyzej",
-    "PK_KARENCJA_MIN": "nie_nizej", "PK_WROG_WAZNY_H": "nie_nizej", "PK_LECZ": "nie_nizej", "PK_UH_HP": "nie_nizej",
+    "PK_KARENCJA_MIN": "nie_nizej", "PK_WROG_WAZNY_H": "nie_nizej", "PK_LECZ": "nie_nizej", "PK_UH_HP": "nie_nizej", "PK_DEPO_MAX_MIN": "nie_wyzej",
     "UNIKANIE": "nie_nizej", "UNIKANIE_PROMIEN": "nie_nizej", "UNIKANIE_PROMIEN_MAX": "nie_nizej",
     "UNIKANIE_MOB_PROMIEN": "nie_nizej", "UNIKANIE_PUNKT_D": "nie_nizej", "UNIKANIE_DROGA_MIN": "nie_nizej",
     "UNIKANIE_BLOK_S": "nie_wyzej", "UNIKANIE_ZNIKL_S": "nie_nizej",
