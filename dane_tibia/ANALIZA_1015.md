@@ -91,3 +91,26 @@ Te same błędy na czystej gałęzi i po scaleniu z desktopem (nie wynikają ze 
 - Brass helmet w Thais: Gamel (piwnica przy dokach, NW od depo), nie Sam. Lepszy: soldier helmet (Ulrik, Greenshore).
 - Edron troll cave: wejście z7 (33117,31775); brak drogi z miasta po mapie (285 przeszukanych obszarów pięter) – przejście czymś,
   czego minimapa nie oznacza.
+
+## 7. Poprawki 15.10 po południu [POTW testami; na żywo jak opisano]
+
+- **Ogień (śmierć Mastafiana 15.10):** przyczyną było ręczne oznaczenie pola (32497,32301) jako bezpiecznego wbrew `hp: true`
+  w danych, bot stał w ogniu ~2 min. Poprawka w `cavebot.py`: spadek HP przypisywany tylko polu, na które weszliśmy tuż przed
+  spadkiem (`OGIEN_WEJSCIE_S`), bez stwora obok i poza trwającym podpaleniem (`OGIEN_PODPALENIE_S=60`); pola `hp:true` są
+  omijane w drodze, cel stojący przy nich dalej niż 1 pole jest porzucany. Dane: `hp:true` tylko (32497,32300,8) i
+  (32506,32279,9).
+- **Zawrót patrolu** (`PATROL_ZAWROT`): miejsce spawnu razem z okolicą w widoku i puste przez 1,5 s = zawracamy
+  (na żywo 12:41:49), `testy/test_patrol_zawrot.py` 11/11.
+- **Wspólny troll:** mob obok nas, ale tuż przy innym graczu i nas nie bije = nie bierzemy go (12:53 bity razem z graczem),
+  `test_unikanie` U2j/U2k.
+- **Wiadomość do gracza na spocie** (`czat_spot.py`, SPEC `SPEC_czat_spot_1015.md`, pokrętło `CZAT_SPOT_AKTYWNY`):
+  `test_czat_spot` 54/54. Czar z hotkeya (`adori gran`, `exura`) widać na Default jako wpis "ja": nie liczy się jako ręczna
+  rozmowa (inaczej blokował wiadomość na 5 min po każdej runie).
+- **Gracze na innych piętrach:** unikanie, czat_spot, stan GRACZ (`inni_gracze`), stan dla modelu i telemetria biorą tylko
+  graczy z tego samego `z`; pod ziemią odczyt stworów i tak zwraca tylko bieżące piętro.
+- **HMM:** koszt 70, start poza walką od 90 (rezerwa na exurę), w walce od max-5; liczba run ogranicza regeneracja
+  (~70 many / 7 min), nie próg. Ostatni blank -> wyprawa do depo (`WYPRAWA_TYLKO_DEPO=1`, `WYPRAWA_BLANKI=1`,
+  `WYPRAWA_BLANKI_PROG=1`): 14:06:08 start, 14:09:52 depo, STOP. Dziura z8->z9 przy (32482,32296) blokowana przez trolla
+  (4 próby, ok. 45 s).
+- **Otwarte:** zastój przy schodach (32476,32272) w patrolu (restart pomógł, przyczyna nieustalona); restart bota w trakcie
+  robienia runy przerywa ją po zdjęciu tarczy (po starcie UH dokończył, ale lepiej nie restartować przy `[UH] start`).
