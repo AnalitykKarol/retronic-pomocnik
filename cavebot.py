@@ -109,6 +109,12 @@ POSCIG_BEZ_ZMIANY_PIETRA = True    # 12.10: pościg/podejście nigdy nie wchodzi
 TRASA_PIETRA = 2                   # 13.10: trasa wielopiętrowa w pętli łowiska (pietra.py): 0 = wyłączona, 1 = zawsze, 2 = tylko gdy trasa ma > 1 piętro (domyślnie); pokrętło 0-2
 PIETRA_MAX_S = 150.0               # s na jedno przejście pięter (dojście do schodów + próby), potem porażka (zawrócenie trasy)
 PIETRA_PORAZKI_STOP = 3            # tyle porażek przejścia z rzędu = bot przerywa (powiadomienie krytyczne)
+WPADNIECIE = 1                     # 15.10: pokrętło 0/1: 1 = niespodziewana zmiana piętra (wpadnięcie w dziurę) = nauka dziury, wyjście liną / planem po mapie, a gdy się nie da ALARM + STOP (wpadniecie.py)
+WPADNIECIE_LINA = 1                # pokrętło 0/1: 1 = pierwsza próba wyjścia: Use liny na polu lądowania (rope spot pod dziurą)
+WPADNIECIE_LINA_PROB = 3           # prób liny (pokrętło 1-5)
+WPADNIECIE_PLAN = 1                # pokrętło 0/1: 1 = gdy lina nie działa, plan wielopiętrowy po mapie i przejściach z danych (wykonuje pietra.py)
+WPADNIECIE_ODL = 3                 # pola: tak blisko poprzedniej pozycji musi być lądowanie, żeby zmiana piętra była upadkiem (nie teleportem/śmiercią); pokrętło 1-6
+DZIURY_NAUCZONE = 1                # pokrętło 0/1: 1 = pola z trasy/dziury_nauczone.json są ścianą dla każdej drogi A* i kroku na danym piętrze
 PIETRA_RESYNC_MAX = 6              # tyle resynchronizacji (piętro poza trasą) w 120 s = porażka
 PIETRA_DOJSCIE_S = 25.0            # s bez zbliżenia do pola przejścia = następny kandydat
 TRYB_PATROL = 0                    # 12.10: 1 = patrol po miejscach z trasy/miejsca.json (losowo, ważony zabiciami i odległością) zamiast pętli trasy; mozg --trasa patrol ustawia 1; pokrętło 0-1
@@ -874,6 +880,7 @@ class Cavebot:
         self._ogien_stale_wczytaj()    # R1a: zasiew maski stałych pól (wymaga mapy)
         self.ostatni_objazd = ""       # opis ostatniego odrzuconego celu (do logu)
         self._klucze, self._klucze_n = {}, -1   # pamięć podręczna droga(): piętro -> klucze pól
+        self.wpadniecie = None         # wpadniecie.Wpadniecie (15.10): wykrycie upadku, nauczone dziury, wyjście (tworzone przy pierwszym użyciu)
         self.pietra = None             # pietra.Pietra: przejścia pięter z trasy wielopiętrowej (tworzone przy pierwszym użyciu)
         self.ruch_kliki = self.ruch_strzalki = 0   # R0b: liczniki do ruch_okno (klik w mapę / krok strzałką)
         self.ruch_pietra_t = float("-inf")         # R0b: kiedy ostatnio pietra.py zużyło obieg
@@ -1024,7 +1031,7 @@ class Cavebot:
         """Droga A* do `cel` (x,y) z pominięciem pól `blok` (strefa gracza) i nauczonych ścian; bez
         fallbacku "bez blokad" z droga() (on wprowadzałby nas z powrotem w strefę gracza)."""
         z = start[2]
-        zaj = list(blok) + [p for p in list(self.sciany) if p[2] == z and self.sciana(p)]
+        zaj = list(blok) + self._zakaz_lista(start, cel) + [p for p in list(self.sciany) if p[2] == z and self.sciana(p)]
         if self.mapa_zna(start, cel):
             return self.mapa.droga(start, cel, zaj, 0, False, limit=MAPA_LIMIT, znane=self._pola_pietra(z))
         return self._droga_znane(start, cel, zaj, 0, False)
@@ -2300,6 +2307,17 @@ class Cavebot:
         y0, y1 = sorted((poz[1], cel_xy[1]))
         return any(x0 - 1 <= x <= x1 + 1 and y0 - 1 <= y <= y1 + 1 for x, y in ogien)
 
+    def _dziura_na_drodze(self, poz, cel_xy):
+        """Czy nauczona dziura leży w prostokącie poz-cel (+1 pole zapasu): klik poprowadziłby klienta przez nią."""
+        if not DZIURY_NAUCZONE:
+            return False
+        w = self._wp()
+        if not w or not w.dziury:
+            return False
+        x0, x1 = sorted((poz[0], cel_xy[0]))
+        y0, y1 = sorted((poz[1], cel_xy[1]))
+        return any(h[2] == poz[2] and x0 - 1 <= h[0] <= x1 + 1 and y0 - 1 <= h[1] <= y1 + 1 for h in w.dziury)
+
     def _ogien_tick(self, poz, teraz, wymus=False):
         """Odświeża pola ognia (najwyżej co OGIEN_ODSWIEZ_S; wymus=True: teraz). Wykrycie to jeden zrzut ppm
         (ok. 40 ms) + analiza; bez źródła (testy, brak gry) nic nie robi. Błąd odczytu nie zatrzymuje bota."""
@@ -2968,6 +2986,9 @@ class Cavebot:
         cel_kliku = (poz[0] + dx, poz[1] + dy)
         if self._ogien_na_drodze(poz, cel_kliku):
             return self._ogien_krok(poz, cel_kliku, krok)    # klient poprowadziłby klik przez ogień: idziemy sami
+        if self._dziura_na_drodze(poz, cel_kliku):
+            self.klik_cel = None
+            return self.krok_do(krok or cel)                 # 15.10: klient poprowadziłby klik przez nauczoną dziurę: idziemy sami
         if self.klik_cel is not None and (
                 teraz - self.klik_czas < KLIK_ODSTEP
                 or (pilne and cel_kliku == self.klik_cel and teraz - self.klik_czas < KLIK_PONOW)
@@ -3027,6 +3048,8 @@ class Cavebot:
                 continue
             if self._ogien_na((x + bot.KIERUNKI[k][0], y + bot.KIERUNKI[k][1], z)):
                 continue                       # pole ognia: nie wchodzimy (najpierw omijanie, potem czekanie)
+            if self.dziura_nauczona((x + bot.KIERUNKI[k][0], y + bot.KIERUNKI[k][1], z)):
+                continue                       # 15.10: nauczona dziura (wpadniecie.py): nigdy, także gdy to cel kroku
             if pietra_on:
                 d = bot.KIERUNKI[k]
                 n_xy = (x + d[0], y + d[1])
@@ -3059,7 +3082,7 @@ class Cavebot:
             return None
         v = ((dx > 0) - (dx < 0), (dy > 0) - (dy < 0))
         pole = (x + v[0], y + v[1], z)
-        if self.sciana(pole) or self._ogien_na(pole):
+        if self.sciana(pole) or self._ogien_na(pole) or self.dziura_nauczona(pole):
             return None
         if self.mapa is not None:
             try:
@@ -3359,6 +3382,15 @@ class Cavebot:
         poz = self.postac.pozycja()
         teraz = self.zegar()
         fazy = {"gracz": teraz - t_start}
+        if WPADNIECIE:
+            wp = self._wp()
+            if wp is not None:
+                try:
+                    wp.obserwuj(poz, teraz)          # 15.10: piętro zmienione poza planowanym przejściem = wpadnięcie
+                except bot.Zatrzymano:
+                    raise
+                except Exception as e:
+                    log(f"debug: wpadniecie.obserwuj błąd {e!r}")
         self._ruch_tick(poz, teraz)
         self.zapamietaj_pole(poz)
         self.exp_przed, self.exp_teraz = self.exp_teraz, g.get("exp")
@@ -3697,6 +3729,17 @@ class Cavebot:
             self.zapamietaj_ruch_celu(cel)
             self.cel.update(poz=(cel["x"], cel["y"], cel["z"]), hp=cel["hp"], odl=self.dystans((cel["x"], cel["y"]), poz))
             return self.walcz(cel, g, poz)
+
+        # 3b. wpadnięcie na piętro bez trasy (wpadniecie.py): lina / plan po mapie / ALARM; walka ma pierwszeństwo
+        if WPADNIECIE and self.wpadniecie:
+            try:
+                if self.wpadniecie.tick(poz, teraz) is not None:
+                    return True
+            except bot.Zatrzymano:
+                raise
+            except Exception as e:
+                log(f"Wpadnięcie: błąd {e!r}")
+                self.wpadniecie.st = None
 
         if self.lww is not None:
             self._lww_przerwij("brak_celu", teraz, pilne=True)
@@ -4051,13 +4094,13 @@ class Cavebot:
     def _droga_do1(self, start, cel, zajete, skosy):
         if self.mapa_zna(start, cel):
             z = start[2]
-            blok = list(zajete) + [p for p in list(self.sciany) if p[2] == z and self.sciana(p)]
+            blok = list(zajete) + self._zakaz_lista(start, cel) + [p for p in list(self.sciany) if p[2] == z and self.sciana(p)]
             dz = self._drzwi_xy(z)
             if dz:
                 blok = [p for p in blok if tuple(p[:2]) not in dz]
             return self.mapa.droga(start, cel, blok, 1, skosy, limit=MAPA_LIMIT, znane=self._pola_pietra(z),
                                    **({"przepusc": {x * _K + y for x, y in dz}} if dz else {}))
-        return self._droga_znane(start, cel, zajete, 1, skosy)
+        return self._droga_znane(start, cel, list(zajete) + self._zakaz_lista(start, cel), 1, skosy)
 
     def blokujacy_na_drodze(self, cel, poz, lista, kand):
         """Gdy cel jest nieosiągalny TYLKO dlatego, że drogę zajmują inne moby (bez nich droga jest i jest
@@ -6357,14 +6400,49 @@ class Cavebot:
     def _zakaz_aktywny(self):
         return bool(POSCIG_BEZ_ZMIANY_PIETRA) and not self.wypad_aktywny and self.mapa is not None
 
+    def _wp(self):
+        """wpadniecie.Wpadniecie (leniwie; None, gdy moduł niedostępny). Wczytuje nauczone dziury przy pierwszym użyciu."""
+        w = self.wpadniecie
+        if w is None:
+            try:
+                import wpadniecie  # noqa: PLC0415
+                w = self.wpadniecie = wpadniecie.Wpadniecie(self, konf=sys.modules[__name__], log=lambda t: log(t))
+                if w.dziury:
+                    log(f"Wpadnięcie: wczytano {len(w.dziury)} nauczonych dziur ({sorted(w.dziury)[:5]}).")
+            except Exception as e:   # moduł nigdy nie wywraca bota
+                log(f"debug: wpadniecie.py niedostępne ({e!r})")
+                w = self.wpadniecie = False
+        return w or None
+
+    def dziura_nauczona(self, pole):
+        """True, gdy pole (x, y, z) to nauczona dziura (DZIURY_NAUCZONE): ściana dla dróg i kroków."""
+        if not DZIURY_NAUCZONE:
+            return False
+        w = self._wp()
+        return bool(w and (pole[0], pole[1], pole[2]) in w.dziury) if len(pole) > 2 else False
+
+    def _dziury_lista(self, start, cel):
+        """Nauczone dziury piętra start[2] w prostokącie start-cel (+ margines) jako lista (x, y, z) dla A*."""
+        if not DZIURY_NAUCZONE:
+            return []
+        w = self._wp()
+        return w.lista(start[2], start, cel) if w else []
+
     def pole_zmiany_pietra(self, pole):
-        """True, gdy wejście na to pole (x, y, z) zmieniłoby piętro, a zmiana jest zakazana (poza wypadem)."""
+        """True, gdy wejście na to pole (x, y, z) zmieniłoby piętro, a zmiana jest zakazana (poza wypadem);
+        nauczona dziura jest zakazana zawsze (DZIURY_NAUCZONE)."""
+        if len(pole) > 2 and self.dziura_nauczona(pole):
+            return True
         if not self._zakaz_aktywny():
             return False
         return (pole[0], pole[1]) in self._zakaz_pol(pole[2])
 
     def _zakaz_lista(self, start, cel):
-        """Pola zmiany piętra w prostokącie start-cel (+ margines drogi) jako lista (x, y, z) dla A*."""
+        """Pola zmiany piętra w prostokącie start-cel (+ margines drogi) jako lista (x, y, z) dla A*
+        oraz nauczone dziury (wpadniecie.py)."""
+        return self._zakaz_pietra_lista(start, cel) + self._dziury_lista(start, cel)
+
+    def _zakaz_pietra_lista(self, start, cel):
         if not self._zakaz_aktywny():
             return []
         z = start[2]

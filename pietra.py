@@ -716,6 +716,7 @@ class Pietra:
         cb = self.cb
         self.st = None
         cb.pietra_porazki = 0
+        cb.pietra_zmiana_t = cb.zegar()    # 15.10: planowana zmiana piętra (wpadniecie.py nie uzna jej za upadek)
         cb._wypad_reset_klik()          # klik, droga, utknięcie: nowe piętro = nowy odczyt
         cb.stwory_pola.clear()          # (x, y) bez z: stare wpisy z innego piętra by mylily naukę ścian
         cb.krok_prosto_ost = None
