@@ -1467,11 +1467,16 @@ sprawdz("27a2 strzałka dopiero po zmianie pozycji: odstępy >= czasu kroku (0,2
         len(odstepy) >= 3 and min(odstepy) >= 0.25 - 1e-6 and len(s.czasy_klawiszy) == len(s.pozycje_czasy),
         f"odstepy={odstepy} klawisze={len(s.czasy_klawiszy)} zmiany={len(s.pozycje_czasy)}")
 sprawdz("27a3 brak telemetrii/próbek/pokręteł w pętli; tylko start i koniec poza pętlą",
-        [t for t, d, w in s.tele_wywolania if w] == [] and [t for t, d, w in s.tele_wywolania] == ["poscig_start", "poscig_koniec"],
+        [t for t, d, w in s.tele_wywolania if w] == [] and [t for t, d, w in s.tele_wywolania if t != "decyzja"] == ["poscig_start", "poscig_koniec"],   # 15.10: decyzja D2 jest przed pętlą
         s.tele_wywolania)
 koniec = zdarzenia(s, "poscig_koniec")[0]
 sprawdz("27a4 poscig_koniec: kroki, czas, powód",
         koniec["powod"] == "odl<=1" and koniec["kroki"] == 5 and koniec["czas"] > 0 and not b.w_poscigu, koniec)
+dd2 = zdarzenia(s, "decyzja"); start = zdarzenia(s, "poscig_start")[0]
+sprawdz("27a5 decyzja D2 (15.10): jeden rekord, id w poscig_start i poscig_koniec, cel i opcja gonić",
+        len(dd2) == 1 and dd2[0]["rodzaj"] == "D2" and dd2[0]["wybrana"] == "gonic" and dd2[0]["cel_id"] == 1100
+        and start.get("decyzja_id") == dd2[0]["id"] == koniec.get("decyzja_id") and dd2[0]["opcje"][0]["odl"] == 6,
+        (dd2, start.get("decyzja_id"), koniec.get("decyzja_id")))
 
 # 27b. brak zmiany pozycji > POSCIG_BRAK_ZMIANY (ściana/blokada): jedna strzałka, wyjście po ~0,45 s
 s, b = swiat_poscigu(sciana=True)

@@ -528,6 +528,7 @@ PAUZA_KROTKA = (0.04, 0.4, 1.5)    # szansa na krok, min s, max s
 PAUZA_DLUGA = (0.005, 3.0, 8.0)
 REAKCJA = (0.15, 0.45)             # s od zauważenia potwora do pierwszego ataku
 DRUGI_CEL = 0.15                   # szansa wyboru drugiego najbliższego potwora
+DECYZJE_LOG = 1                    # 15.10: telemetria "decyzja" (D1 wybór celu, D2 start pościgu: opcje z cechami); tylko log, 0 = wyłączone
 ODWROCENIE_TRASY = 0.35            # szansa na przejście kolejnego okrążenia w drugą stronę
 # Przerwy: nieregularne, losowane z mieszanki przedziałów (szansa, od s, do s); ostatni przedział bierze resztę.
 # Odstęp: okazjonalnie bardzo krótki, najczęściej 20-45 min, czasem do 100 min. Długość: krótkie częściej, czasem długa.
@@ -747,6 +748,8 @@ class Cavebot:
         self.reakcja_do = 0            # do kiedy "zauważamy" nowy cel, zanim go zaatakujemy
         self.pogon_odl = 0             # najmniejszy dystans do celu w tej pogoni
         self.tele = self.pokretla = None   # telemetria.py + pokretla.py (tylko na żywo, patrz _hak_telemetrii)
+        self._decyzja_nr = 0           # 15.10: licznik rekordów "decyzja" w tej sesji (id łączące z nowy_cel/epizod_celu/poscig_*)
+        self._d1_id_cel = None         # id decyzji D1, z której wybrano bieżący cel (do powiązania z D2)
         self.mana_ostatnia = None      # poprzedni odczyt many (śledzenie "mana nie rośnie")
         self.mana_wzrost = zegar()     # kiedy mana ostatnio rosła, była pełna albo po jedzeniu/rzucie czaru
         self.jedzenie_nie_do = float("-inf")   # do kiedy nie ponawiamy jedzenia (brak jedzenia w plecaku)
@@ -3763,6 +3766,13 @@ class Cavebot:
             self.nieosiagalne = {k: v for k, v in self.nieosiagalne.items() if k in self.ignorowane}
             self.ignor_powod = {k: v for k, v in self.ignor_powod.items() if k in self.ignorowane}
             self.ignor_droga_cache = {k: v for k, v in self.ignor_droga_cache.items() if k in self.ignorowane}
+            # 15.10: log decyzji D1 (tylko odczyt); id trafia do "nowy_cel" przez telemetria.linia (nast_decyzja)
+            self._d1_id_cel = self._decyzja_d1(kand, cel, poz, g, lista, klucz, gryzie)
+            if self.tele is not None:
+                try:
+                    self.tele.nast_decyzja = self._d1_id_cel
+                except Exception:
+                    pass
             log(f"Nowy cel: {cel['nazwa']} ({cel['x']},{cel['y']}) HP {cel['hp']}%")
         if cel is not None:
             self.zapamietaj_ruch_celu(cel)
@@ -4553,6 +4563,74 @@ class Cavebot:
             except Exception as e:   # telemetria nigdy nie wywraca bota
                 log(f"debug: telemetria błąd {e!r}")
 
+    # --- 15.10: log decyzji D1/D2 dla przyszłego modelu lokalnego (SPEC_model_lokalny_1015, krok A) ---
+    # Tylko odczyt: bez zapytań do gry, bez A*, bez losowania, bez zmiany stanu bota poza licznikiem id.
+    def _cechy_opcji(self, s, poz, lista, ogien):
+        """Cechy jednego kandydata na cel z tego, co bot już ma (lista stworów, pozycja, maska parzącego ognia)."""
+        sx, sy = s["x"], s["y"]
+        wokol = sum(1 for m in lista if m.get("id") != s.get("id") and not m.get("gracz") and m.get("hp", 100) > 0
+                    and m.get("z", poz[2]) == poz[2] and max(abs(m["x"] - sx), abs(m["y"] - sy)) <= 2)
+        gr = [max(abs(m["x"] - sx), abs(m["y"] - sy)) for m in lista
+              if m.get("gracz") and m.get("nazwa") != self.postac.nazwa and m.get("z", poz[2]) == poz[2]]
+        c = {"id": s["id"], "n": s["nazwa"], "dx": sx - poz[0], "dy": sy - poz[1],
+             "odl": self.dystans((sx, sy), poz), "droga": None,   # droga A*: bot jej tu nie liczy, więc null
+             "hp": s.get("hp"), "przy_celu2": wokol, "odl_gracza": min(gr) if gr else None,
+             "ucieka": bool(self.uciekajacy(s))}
+        if ogien is not None:
+            c["ogien_przy"] = any(max(abs(a - sx), abs(b - sy)) <= OGIEN_PARZY_ODL_CELU for a, b in ogien)
+        return c
+
+    def _decyzja_zapisz(self, rodzaj, poz, opcje, wybrana, **d):
+        """Zapisuje rekord "decyzja" i zwraca jego id (None: wyłączone, brak telemetrii albo błąd)."""
+        if not DECYZJE_LOG or not self.tele:
+            return None
+        try:
+            self._decyzja_nr = getattr(self, "_decyzja_nr", 0) + 1
+            self.tele.zdarzenie("decyzja", id=self._decyzja_nr, rodzaj=rodzaj, poz=list(poz[:3]), opcje=opcje,
+                                wybrana=wybrana, **d)
+            return self._decyzja_nr
+        except Exception as e:   # telemetria nigdy nie wywraca bota
+            log(f"debug: telemetria decyzja błąd {e!r}")
+            return None
+
+    def _decyzja_d1(self, kand, cel, poz, g, lista, klucz, gryzie):
+        """D1: wybór celu. Opcje = kandydaci po filtrach (to, z czego bot faktycznie wybierał); regula = id pierwszego
+        wg klucza (bez losowania DRUGI_CEL), wybrana = id faktycznego celu. Zwraca id decyzji albo None."""
+        if not DECYZJE_LOG or not self.tele:
+            return None
+        try:
+            ogien = self._ogien_parzy_dane(poz[2]) if OGIEN_PARZY_ODL_CELU >= 0 else None
+            opcje = []
+            for s_ in kand:
+                c = self._cechy_opcji(s_, poz, lista, ogien)
+                c["klucz"] = round(klucz(s_)[0], 2)      # wynik reguły bota (mniejszy = lepszy)
+                opcje.append(c)
+            regula = min(kand, key=klucz)["id"] if kand else None
+            obok2 = sum(1 for m in lista if not m.get("gracz") and m.get("hp", 100) > 0
+                        and m.get("z", poz[2]) == poz[2] and self.dystans((m["x"], m["y"]), poz) <= 2)
+            return self._decyzja_zapisz("D1", poz, opcje, cel["id"], regula=regula, w_opcjach=any(
+                s_["id"] == cel["id"] for s_ in kand), gryzie=bool(gryzie), mobow_obok2=obok2,
+                hp_gracza=g.get("proc") if g else None)
+        except Exception as e:
+            log(f"debug: telemetria decyzja błąd {e!r}")
+            return None
+
+    def _decyzja_d2(self, cel, poz, g):
+        """D2: start szybkiego pościgu (jedyna opcja "gonić" z cechami celu, jakie są pod ręką; tu bez A*)."""
+        if not DECYZJE_LOG or not self.tele:
+            return None
+        try:
+            lista = getattr(self, "ostatnie_stwory", None) or []
+            ogien = self._ogien_parzy_dane(poz[2]) if OGIEN_PARZY_ODL_CELU >= 0 else None
+            c = self._cechy_opcji(cel, poz, lista, ogien)
+            c["akcja"] = "gonic"
+            c["ogien_na_drodze"] = bool(self._ogien_na_drodze(poz, (cel["x"], cel["y"])))
+            return self._decyzja_zapisz("D2", poz, [c], "gonic", cel_id=cel["id"], d1_id=getattr(self, "_d1_id_cel", None),
+                                        hp_gracza=g.get("proc") if g else None)
+        except Exception as e:
+            log(f"debug: telemetria decyzja błąd {e!r}")
+            return None
+
     def _czas_kroku(self, poz):
         """Szacowany czas jednego kroku (s) po prędkości pola z mapy (najwolniejsze z pola i sąsiadów:
         czas zależy od pola, na które wchodzimy). 0.0, gdy mapa nie zna prędkości."""
@@ -4783,7 +4861,9 @@ class Cavebot:
             except Exception:
                 pass
             self._poscig_puszcz()
-        self._tele_poscig("poscig_start", cel=cel["nazwa"], odl=odl0, hp_celu=cel.get("hp"))
+        d2_id = self._decyzja_d2(cel, poz, g)          # 15.10: log decyzji D2 (tylko odczyt)
+        d2_pole = {"decyzja_id": d2_id} if d2_id is not None else {}
+        self._tele_poscig("poscig_start", cel=cel["nazwa"], odl=odl0, hp_celu=cel.get("hp"), **d2_pole)
         self.w_poscigu = True
         try:
             while True:
@@ -5096,7 +5176,7 @@ class Cavebot:
                               sciezka=slad if hold else None,
                               # 11.10: powód puszczenia klawisza (licznik per powód; "strazni" = watchdog klawisz_x11),
                               # kliki ataku (ponow_atak) w pętli, czas do pierwszego kroku
-                              puszczenia=puszczenia_t or None,
+                              puszczenia=puszczenia_t or None, **d2_pole,
                               kliki_ataku=getattr(self, "kliki_ataku_poscig", 0) - kliki0,
                               t_pierwszy_krok=round(t_pierwszy_krok, 2) if t_pierwszy_krok is not None else None)
         return None if wynik is None else True
