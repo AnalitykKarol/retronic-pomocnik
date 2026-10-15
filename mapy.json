@@ -34,5 +34,12 @@
   "potwory": "Troll,Orc,Orc Spearman,Orc Warrior",
   "prog_hp": 30,
   "dojscie": "depo_troll_cave"
+ },
+ "trolle_edron": {
+  "opis": "Edron troll cave z8: pętla edron_trolle_petla (nagrana 15.10), dojście z depo edron_depo_trolle",
+  "trasa": "edron_trolle_petla",
+  "potwory": "Troll,Bear,Swamp Troll,Frost Troll",
+  "prog_hp": 30,
+  "dojscie": "edron_depo_trolle"
  }
 }
