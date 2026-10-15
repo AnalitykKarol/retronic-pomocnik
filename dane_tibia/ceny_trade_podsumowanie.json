@@ -1,5 +1,5 @@
 {
-  "wygenerowano": "2026-10-15T09:48:32",
+  "wygenerowano": "2026-10-15T12:40:21",
   "uwagi": "liczba = unikalne pewne oferty (nadawca+intencja+przedmiot+cena+ilosc); mediana/min/max tylko z cena za sztuke (ea)",
   "okna": {
     "24h": {
@@ -33,13 +33,13 @@
       },
       "axe ring": {
         "sprzedaz": {
-          "liczba": 9,
+          "liczba": 8,
           "mediana": 400,
           "min": 400.0,
           "max": 400.0
         },
         "kupno": {
-          "liczba": 2,
+          "liczba": 1,
           "mediana": null,
           "min": null,
           "max": null
@@ -61,7 +61,7 @@
       },
       "barbarian axe": {
         "sprzedaz": {
-          "liczba": 3,
+          "liczba": 1,
           "mediana": null,
           "min": null,
           "max": null
@@ -131,13 +131,13 @@
       },
       "blue robe": {
         "sprzedaz": {
-          "liczba": 1,
+          "liczba": 0,
           "mediana": null,
           "min": null,
           "max": null
         },
         "kupno": {
-          "liczba": 12,
+          "liczba": 11,
           "mediana": null,
           "min": null,
           "max": null
@@ -145,7 +145,7 @@
       },
       "brass legs": {
         "sprzedaz": {
-          "liczba": 3,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
@@ -173,13 +173,13 @@
       },
       "broadsword": {
         "sprzedaz": {
-          "liczba": 3,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
         },
         "kupno": {
-          "liczba": 1,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
@@ -213,20 +213,6 @@
           "max": null
         }
       },
-      "club": {
-        "sprzedaz": {
-          "liczba": 1,
-          "mediana": null,
-          "min": null,
-          "max": null
-        },
-        "kupno": {
-          "liczba": 0,
-          "mediana": null,
-          "min": null,
-          "max": null
-        }
-      },
       "club ring": {
         "sprzedaz": {
           "liczba": 3,
@@ -243,7 +229,7 @@
       },
       "coconut": {
         "sprzedaz": {
-          "liczba": 5,
+          "liczba": 4,
           "mediana": 600,
           "min": 500.0,
           "max": 600.0
@@ -277,7 +263,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 2,
+          "liczba": 1,
           "mediana": null,
           "min": null,
           "max": null
@@ -299,7 +285,7 @@
       },
       "crown shield": {
         "sprzedaz": {
-          "liczba": 7,
+          "liczba": 6,
           "mediana": null,
           "min": null,
           "max": null
@@ -327,7 +313,7 @@
       },
       "daramanian axe": {
         "sprzedaz": {
-          "liczba": 2,
+          "liczba": 3,
           "mediana": null,
           "min": null,
           "max": null
@@ -397,7 +383,7 @@
       },
       "double axe": {
         "sprzedaz": {
-          "liczba": 2,
+          "liczba": 3,
           "mediana": null,
           "min": null,
           "max": null
@@ -425,27 +411,13 @@
       },
       "dragon hammer": {
         "sprzedaz": {
-          "liczba": 21,
+          "liczba": 22,
           "mediana": null,
           "min": null,
           "max": null
         },
         "kupno": {
-          "liczba": 4,
-          "mediana": null,
-          "min": null,
-          "max": null
-        }
-      },
-      "dragon lance": {
-        "sprzedaz": {
-          "liczba": 0,
-          "mediana": null,
-          "min": null,
-          "max": null
-        },
-        "kupno": {
-          "liczba": 2,
+          "liczba": 5,
           "mediana": null,
           "min": null,
           "max": null
@@ -453,7 +425,7 @@
       },
       "dragon shield": {
         "sprzedaz": {
-          "liczba": 10,
+          "liczba": 9,
           "mediana": null,
           "min": null,
           "max": null
@@ -467,7 +439,7 @@
       },
       "dwarven axe": {
         "sprzedaz": {
-          "liczba": 15,
+          "liczba": 14,
           "mediana": null,
           "min": null,
           "max": null
@@ -495,27 +467,13 @@
       },
       "dwarven shield": {
         "sprzedaz": {
-          "liczba": 1,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
         },
         "kupno": {
-          "liczba": 8,
-          "mediana": null,
-          "min": null,
-          "max": null
-        }
-      },
-      "energy bomb rune": {
-        "sprzedaz": {
-          "liczba": 0,
-          "mediana": null,
-          "min": null,
-          "max": null
-        },
-        "kupno": {
-          "liczba": 1,
+          "liczba": 7,
           "mediana": null,
           "min": null,
           "max": null
@@ -537,13 +495,13 @@
       },
       "energy ring": {
         "sprzedaz": {
-          "liczba": 5,
-          "mediana": null,
-          "min": null,
-          "max": null
+          "liczba": 6,
+          "mediana": 1500,
+          "min": 1500.0,
+          "max": 1500.0
         },
         "kupno": {
-          "liczba": 1,
+          "liczba": 0,
           "mediana": null,
           "min": null,
           "max": null
@@ -557,7 +515,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 3,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
@@ -613,7 +571,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 6,
+          "liczba": 5,
           "mediana": null,
           "min": null,
           "max": null
@@ -621,13 +579,13 @@
       },
       "great fireball rune": {
         "sprzedaz": {
-          "liczba": 57,
+          "liczba": 53,
           "mediana": 2500,
           "min": 145.0,
           "max": 2900.0
         },
         "kupno": {
-          "liczba": 11,
+          "liczba": 12,
           "mediana": 2,
           "min": 2.4,
           "max": 2.4
@@ -655,7 +613,7 @@
           "max": 3500.0
         },
         "kupno": {
-          "liczba": 5,
+          "liczba": 4,
           "mediana": null,
           "min": null,
           "max": null
@@ -705,13 +663,13 @@
       },
       "heavy magic missile rune": {
         "sprzedaz": {
-          "liczba": 37,
+          "liczba": 29,
           "mediana": 1500,
           "min": 1300.0,
           "max": 1600.0
         },
         "kupno": {
-          "liczba": 27,
+          "liczba": 25,
           "mediana": 1200,
           "min": 1.4,
           "max": 1400.0
@@ -733,7 +691,7 @@
       },
       "knight armor": {
         "sprzedaz": {
-          "liczba": 10,
+          "liczba": 9,
           "mediana": null,
           "min": null,
           "max": null
@@ -761,13 +719,13 @@
       },
       "knight legs": {
         "sprzedaz": {
-          "liczba": 6,
+          "liczba": 7,
           "mediana": null,
           "min": null,
           "max": null
         },
         "kupno": {
-          "liczba": 7,
+          "liczba": 5,
           "mediana": null,
           "min": null,
           "max": null
@@ -803,7 +761,7 @@
       },
       "mace": {
         "sprzedaz": {
-          "liczba": 3,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
@@ -859,7 +817,7 @@
       },
       "naginata": {
         "sprzedaz": {
-          "liczba": 6,
+          "liczba": 5,
           "mediana": null,
           "min": null,
           "max": null
@@ -873,7 +831,7 @@
       },
       "noble armor": {
         "sprzedaz": {
-          "liczba": 7,
+          "liczba": 1,
           "mediana": null,
           "min": null,
           "max": null
@@ -887,13 +845,13 @@
       },
       "obsidian lance": {
         "sprzedaz": {
-          "liczba": 3,
+          "liczba": 4,
           "mediana": null,
           "min": null,
           "max": null
         },
         "kupno": {
-          "liczba": 1,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
@@ -915,7 +873,7 @@
       },
       "plate armor": {
         "sprzedaz": {
-          "liczba": 13,
+          "liczba": 14,
           "mediana": 500,
           "min": 500.0,
           "max": 500.0
@@ -935,7 +893,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 12,
+          "liczba": 11,
           "mediana": null,
           "min": null,
           "max": null
@@ -1117,7 +1075,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 11,
+          "liczba": 10,
           "mediana": null,
           "min": null,
           "max": null
@@ -1139,7 +1097,7 @@
       },
       "steel helmet": {
         "sprzedaz": {
-          "liczba": 12,
+          "liczba": 11,
           "mediana": 400,
           "min": 400.0,
           "max": 400.0
@@ -1153,10 +1111,10 @@
       },
       "sudden death rune": {
         "sprzedaz": {
-          "liczba": 13,
+          "liczba": 10,
           "mediana": 4500,
           "min": 4500.0,
-          "max": 5000.0
+          "max": 4500.0
         },
         "kupno": {
           "liczba": 1,
@@ -1181,16 +1139,16 @@
       },
       "sword ring": {
         "sprzedaz": {
-          "liczba": 5,
+          "liczba": 6,
           "mediana": null,
           "min": null,
           "max": null
         },
         "kupno": {
-          "liczba": 1,
-          "mediana": null,
-          "min": null,
-          "max": null
+          "liczba": 2,
+          "mediana": 400,
+          "min": 400.0,
+          "max": 400.0
         }
       },
       "time ring": {
@@ -1237,13 +1195,13 @@
       },
       "ultimate healing rune": {
         "sprzedaz": {
-          "liczba": 122,
+          "liczba": 109,
           "mediana": 2500,
           "min": 1000.0,
           "max": 2700.0
         },
         "kupno": {
-          "liczba": 48,
+          "liczba": 46,
           "mediana": 2200,
           "min": 2200.0,
           "max": 2300.0
@@ -1265,7 +1223,7 @@
       },
       "war hammer": {
         "sprzedaz": {
-          "liczba": 4,
+          "liczba": 5,
           "mediana": null,
           "min": null,
           "max": null
@@ -1427,7 +1385,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 12,
+          "liczba": 14,
           "mediana": null,
           "min": null,
           "max": null
@@ -1469,7 +1427,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 1,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
@@ -1589,7 +1547,7 @@
       },
       "crown shield": {
         "sprzedaz": {
-          "liczba": 8,
+          "liczba": 9,
           "mediana": null,
           "min": null,
           "max": null
@@ -1617,7 +1575,7 @@
       },
       "daramanian axe": {
         "sprzedaz": {
-          "liczba": 2,
+          "liczba": 3,
           "mediana": null,
           "min": null,
           "max": null
@@ -1701,7 +1659,7 @@
       },
       "double axe": {
         "sprzedaz": {
-          "liczba": 2,
+          "liczba": 3,
           "mediana": null,
           "min": null,
           "max": null
@@ -1729,13 +1687,13 @@
       },
       "dragon hammer": {
         "sprzedaz": {
-          "liczba": 23,
+          "liczba": 27,
           "mediana": null,
           "min": null,
           "max": null
         },
         "kupno": {
-          "liczba": 4,
+          "liczba": 5,
           "mediana": null,
           "min": null,
           "max": null
@@ -1771,7 +1729,7 @@
       },
       "dwarven axe": {
         "sprzedaz": {
-          "liczba": 16,
+          "liczba": 18,
           "mediana": null,
           "min": null,
           "max": null
@@ -1799,7 +1757,7 @@
       },
       "dwarven shield": {
         "sprzedaz": {
-          "liczba": 2,
+          "liczba": 3,
           "mediana": null,
           "min": null,
           "max": null
@@ -1841,10 +1799,10 @@
       },
       "energy ring": {
         "sprzedaz": {
-          "liczba": 5,
-          "mediana": null,
-          "min": null,
-          "max": null
+          "liczba": 6,
+          "mediana": 1500,
+          "min": 1500.0,
+          "max": 1500.0
         },
         "kupno": {
           "liczba": 1,
@@ -1875,7 +1833,7 @@
           "max": null
         },
         "kupno": {
-          "liczba": 3,
+          "liczba": 4,
           "mediana": null,
           "min": null,
           "max": null
@@ -1953,13 +1911,13 @@
       },
       "great fireball rune": {
         "sprzedaz": {
-          "liczba": 63,
+          "liczba": 69,
           "mediana": 2500,
           "min": 145.0,
           "max": 2900.0
         },
         "kupno": {
-          "liczba": 12,
+          "liczba": 16,
           "mediana": 2,
           "min": 2.4,
           "max": 2.4
@@ -2043,7 +2001,7 @@
           "max": 1600.0
         },
         "kupno": {
-          "liczba": 29,
+          "liczba": 31,
           "mediana": 1200,
           "min": 1.4,
           "max": 1400.0
@@ -2079,7 +2037,7 @@
       },
       "knight axe": {
         "sprzedaz": {
-          "liczba": 23,
+          "liczba": 25,
           "mediana": null,
           "min": null,
           "max": null
@@ -2093,7 +2051,7 @@
       },
       "knight legs": {
         "sprzedaz": {
-          "liczba": 6,
+          "liczba": 8,
           "mediana": null,
           "min": null,
           "max": null
@@ -2177,7 +2135,7 @@
       },
       "might ring": {
         "sprzedaz": {
-          "liczba": 4,
+          "liczba": 5,
           "mediana": null,
           "min": null,
           "max": null
@@ -2219,13 +2177,13 @@
       },
       "obsidian lance": {
         "sprzedaz": {
-          "liczba": 5,
+          "liczba": 6,
           "mediana": null,
           "min": null,
           "max": null
         },
         "kupno": {
-          "liczba": 1,
+          "liczba": 2,
           "mediana": null,
           "min": null,
           "max": null
@@ -2247,7 +2205,7 @@
       },
       "plate armor": {
         "sprzedaz": {
-          "liczba": 14,
+          "liczba": 16,
           "mediana": 500,
           "min": 500.0,
           "max": 500.0
@@ -2261,7 +2219,7 @@
       },
       "plate legs": {
         "sprzedaz": {
-          "liczba": 17,
+          "liczba": 20,
           "mediana": null,
           "min": null,
           "max": null
@@ -2401,7 +2359,7 @@
       },
       "serpent sword": {
         "sprzedaz": {
-          "liczba": 16,
+          "liczba": 17,
           "mediana": null,
           "min": null,
           "max": null
@@ -2443,7 +2401,7 @@
       },
       "spike sword": {
         "sprzedaz": {
-          "liczba": 10,
+          "liczba": 12,
           "mediana": null,
           "min": null,
           "max": null
@@ -2505,7 +2463,7 @@
           "max": 400.0
         },
         "kupno": {
-          "liczba": 4,
+          "liczba": 5,
           "mediana": null,
           "min": null,
           "max": null
@@ -2513,7 +2471,7 @@
       },
       "sudden death rune": {
         "sprzedaz": {
-          "liczba": 14,
+          "liczba": 15,
           "mediana": 4500,
           "min": 4500.0,
           "max": 5000.0
@@ -2527,7 +2485,7 @@
       },
       "sword": {
         "sprzedaz": {
-          "liczba": 7,
+          "liczba": 8,
           "mediana": null,
           "min": null,
           "max": null
@@ -2541,16 +2499,16 @@
       },
       "sword ring": {
         "sprzedaz": {
-          "liczba": 5,
+          "liczba": 6,
           "mediana": null,
           "min": null,
           "max": null
         },
         "kupno": {
-          "liczba": 1,
-          "mediana": null,
-          "min": null,
-          "max": null
+          "liczba": 2,
+          "mediana": 400,
+          "min": 400.0,
+          "max": 400.0
         }
       },
       "time ring": {
@@ -2597,14 +2555,14 @@
       },
       "ultimate healing rune": {
         "sprzedaz": {
-          "liczba": 129,
+          "liczba": 130,
           "mediana": 2500,
           "min": 1000.0,
           "max": 2700.0
         },
         "kupno": {
-          "liczba": 52,
-          "mediana": 2200,
+          "liczba": 57,
+          "mediana": 2250,
           "min": 2200.0,
           "max": 2300.0
         }
@@ -2625,7 +2583,7 @@
       },
       "war hammer": {
         "sprzedaz": {
-          "liczba": 8,
+          "liczba": 10,
           "mediana": null,
           "min": null,
           "max": null
@@ -2639,7 +2597,7 @@
       },
       "warrior helmet": {
         "sprzedaz": {
-          "liczba": 9,
+          "liczba": 10,
           "mediana": null,
           "min": null,
           "max": null

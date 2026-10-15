@@ -310,9 +310,8 @@ def zgodnosc_plecaka(obraz, srodki, przedmioty):
             blad = float(np.abs(ikony[i] - ikony[j]).sum(axis=2)[maska].mean() / 3)
             if zajete[i]["id"] == zajete[j]["id"] and blad > BLAD_TEN_SAM:
                 return False, f"pola {i} i {j} to ten sam przedmiot {zajete[i]['id']}, a ikony różne ({blad:.0f})"
-            if zajete[i]["id"] != zajete[j]["id"] and blad < BLAD_INNY:
-                return False, (f"pola {i} ({zajete[i]['id']}) i {j} ({zajete[j]['id']}) to różne przedmioty, "
-                               f"a ikony podobne ({blad:.0f})")
+            # 15.10: bez reguły "różne ID, a ikony podobne": różne przedmioty bywają podobne (złoto i ham) i blokowało
+            # to przekładanie tarczy przy zwykłej zawartości plecaka; siatkę pilnują pola zajęte/puste i ten sam ID
     return True, "ok"
 
 
