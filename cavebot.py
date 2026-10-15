@@ -322,7 +322,8 @@ OGIEN_KROK_S = 0.6                 # s: min. odstęp między krokami z pola ogni
 OGIEN_SZUKAJ = 6                   # pola (Manhattan): tak daleko szukamy wolnego pola poza ogniem
 OGIEN_ZLY_KROK_S = 3.0             # s: krok z ognia, który nie przesunął postaci, pomijamy tak długo
 OGIEN_CZEKAJ_MAX_S = 30.0          # s: tyle czekamy, aż ogień zgaśnie, gdy zamyka drogę; potem go ignorujemy
-OGIEN_IGNORUJ_S = 20.0             # s ignorowania ognia po wyczerpaniu czekania
+OGIEN_IGNORUJ_S = 0.0              # s ignorowania ognia po wyczerpaniu czekania; 15.10: 0 = nigdy (droga skosem jest zawsze,
+                                   # skoro mob tam wszedł; bez drogi: inny cel trasy zamiast marszu przez ogień)
 OGIEN_LOOT_CHLOD_S = 5.0           # s: zwłoki leżące na ogniu wracają do kolejki po tym czasie
 OGIEN_LOG_S = 10.0                 # s: min. odstęp między wpisami "[OGIEN] pola" (13.10, P6: było 1; pokrętło 1-60)
 OGIEN_STALY = 1                    # pokrętło 0/1: 1 = maska stałych pól ognia (nie logujemy, nie blokują drogi)
@@ -2605,6 +2606,10 @@ class Cavebot:
         (po OGIEN_CZEKAJ_MAX_S przestajemy się przejmować ogniem na OGIEN_IGNORUJ_S)."""
         teraz = self.zegar()
         d = self.droga(tuple(poz), (cel_xy[0], cel_xy[1]), dlugosc=0)
+        if not d:
+            # 15.10: cel to schody/dziura (zakaz w A*) albo pole zajęte: droga do pola obok celu (15:03 stał 162 s
+            # w kieszeni (32491,32288) przy ogniu, jedyne wyjście skosem, a A* do samych schodów nie miał drogi)
+            d = self.droga(tuple(poz), (cel_xy[0], cel_xy[1]), dlugosc=1)
         self.klik_cel = None
         cel_kroku = d[0][:2] if d else (krok[:2] if krok else cel_xy)
         if self.krok_do(cel_kroku):
@@ -2613,9 +2618,13 @@ class Cavebot:
         if self.ogien_czeka_od is None:
             self.ogien_czeka_od = teraz
         elif teraz - self.ogien_czeka_od >= OGIEN_CZEKAJ_MAX_S:
+            self.ogien_czeka_od = None
+            if OGIEN_IGNORUJ_S <= 0:
+                log(f"[OGIEN] ogień zamyka drogę do ({cel_xy[0]},{cel_xy[1]}) od {OGIEN_CZEKAJ_MAX_S:.0f} s "
+                    f"(brak drogi także skosem): nie wchodzę, inny cel trasy.")
+                return False
             log(f"[OGIEN] ogień zamyka drogę od {OGIEN_CZEKAJ_MAX_S:.0f} s, ignoruję go przez {OGIEN_IGNORUJ_S:.0f} s.")
             self.ogien_ignoruj_do = teraz + OGIEN_IGNORUJ_S
-            self.ogien_czeka_od = None
         return True
 
     def droga(self, start, cel, zajete=(), dlugosc=1, skosy=True):

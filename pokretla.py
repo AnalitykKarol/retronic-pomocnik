@@ -153,6 +153,7 @@ ZAKRESY = {
     "OGIEN_STALY": (0, 1),              # 1 = maska stałych pól ognia (widziane >= 20 razy przez >= 10 min): bez logu i bez bloku drogi (domyślnie 1)
     "POSCIG_SKOSY_ZAPAS": (0, 1),       # 1 = bez drogi prostej druga próba ze skosami (korytarz skośny z8), też dla ignorowanych "za ścianą"
     "PATROL_ZAWROT": (0, 1),            # 15.10: 1 = zawrót z miejsca, gdy jest w widoku i puste
+    "OGIEN_IGNORUJ_S": (0, 60),         # 15.10: s ignorowania ognia po OGIEN_CZEKAJ_MAX_S bez drogi; 0 = nigdy
     "CZAT_SPOT_AKTYWNY": (0, 1),        # 15.10: 1 = wiadomość do gracza, który wraca na spot / zabiera moby (SPEC_czat_spot_1015)
     "CZAT_SPOT_SPOTKAN": (2, 10),       # S1: spotkań z tym samym graczem w CZAT_SPOT_OKNO_MIN
     "CZAT_SPOT_OKNO_MIN": (5, 60),      # S1: okno w minutach

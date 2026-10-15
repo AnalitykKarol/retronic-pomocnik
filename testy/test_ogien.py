@@ -300,8 +300,23 @@ s.t += cavebot.OGIEN_CZEKAJ_MAX_S + 1
 b.ogien_pola[(103, 100, 7)] = s.t
 for _ in range(3):
     s.t += 1.0; b._ogien_krok(tuple(s.poz), (106, 100))
-sprawdz("3g5 po czekaniu ignoruje ogień na OGIEN_IGNORUJ_S", b.ogien_ignoruj_do > s.t - 5
+# 15.10: domyślnie OGIEN_IGNORUJ_S = 0: po czekaniu nie ignorujemy ognia, tylko krok nieudany (inny cel trasy)
+sprawdz("3g5 po czekaniu NIE ignoruje ognia (OGIEN_IGNORUJ_S 0), nie wchodzi w ogień", b.ogien_ignoruj_do < s.t
+        and not any(n == (103, 100) for _, n in s.kroki) and any("nie wchodzę" in l for l in LOGI),
+        f"{b.ogien_ignoruj_do} {s.t} {s.kroki}")
+stary_ign = cavebot.OGIEN_IGNORUJ_S
+cavebot.OGIEN_IGNORUJ_S = 20.0
+s = Swiat(pas(90, 120, 100, 100)); b = zrob(s, klik=True)
+ogien_w(b, s, (103, 100))
+for _ in range(3):
+    s.t += 1.0; b._ogien_krok((100, 100, 7), (106, 100))
+s.t += cavebot.OGIEN_CZEKAJ_MAX_S + 1
+b.ogien_pola[(103, 100, 7)] = s.t
+for _ in range(3):
+    s.t += 1.0; b._ogien_krok(tuple(s.poz), (106, 100))
+sprawdz("3g6 pokrętło OGIEN_IGNORUJ_S 20: dawne ignorowanie po czekaniu", b.ogien_ignoruj_do > s.t - 5
         and any("ignoruję go" in l for l in LOGI), f"{b.ogien_ignoruj_do} {s.t}")
+cavebot.OGIEN_IGNORUJ_S = stary_ign
 
 # --- 6. P6: maska stałych pól, rzadszy log, podsumowanie
 cavebot.OGIEN_MASKA_TYLKO_SCIANY = 0   # starsze testy P6 zakładają maskę także dla pól przechodnich

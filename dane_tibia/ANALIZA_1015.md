@@ -114,3 +114,7 @@ Te same błędy na czystej gałęzi i po scaleniu z desktopem (nie wynikają ze 
   (4 próby, ok. 45 s).
 - **Otwarte:** zastój przy schodach (32476,32272) w patrolu (restart pomógł, przyczyna nieustalona); restart bota w trakcie
   robienia runy przerywa ją po zdjęciu tarczy (po starcie UH dokończył, ale lepiej nie restartować przy `[UH] start`).
+- **15:02:52 drugi ogień (32491,32289,z8):** 98 przejść bez straty HP, potem spadek (~29 HP) = ogień w tym miejscu się zmienił;
+  bot sam oznaczył pole `hp:true`. Zejście z ognia do kieszeni (32491,32288), zastój 162 s: cel = schody (zakaz w A*), brak
+  drogi -> poprawka `_ogien_krok` (droga do pola obok celu, skosem). Po 30 s bez drogi bot już nie ignoruje ognia
+  (`OGIEN_IGNORUJ_S` = 0): krok nieudany, inny cel trasy. Otwarte: rozpoznawanie dużego ognia po rozmiarze (decyzja Karola).
