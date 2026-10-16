@@ -16,7 +16,7 @@ def sprawdz(nazwa, warunek, info=""):
     ok.append(bool(warunek)); print(("OK  " if warunek else "FAIL"), nazwa, info)
 
 # --- 1. wykrywanie na zrzutach -------------------------------------------------------------
-R1 = (0, 195, 551, 598)      # mapa na zrzucie z1/z2 (ekran.prostokat_mapy wykrywa ją tak samo)
+R1 = (0, 196, 551, 599)      # mapa na zrzucie z1/z2 (ekran.prostokat_mapy wykrywa ją tak samo; 2b z 13.10 daje T=196, B=599)
 def pola(plik, rect=R1): return ogien.pola_ognia(Image.open(DANE / plik).convert("RGB"), rect)
 ekran._cache_mapy.clear()
 sprawdz("1a prostokąt mapy z1 jak R1", ekran.prostokat_mapy(Image.open(DANE / "ogien_z1.png").convert("RGB")) == R1)

@@ -26,20 +26,16 @@ def wpis(adres, ident, hp=100):
     x, y, z = POZ[adres]
     return {"id": ident, "nazwa": "Jointoramix", "gracz": True, "x": x, "y": y, "z": z, "hp": hp, "adres": hex(adres)}
 
-a = A()
-a.lista = [wpis(0x132719f8, 268478551), wpis(0x1169ca88, 268852462)]
-a.g = {"hp": 200, "max_hp": 200, "adres": "0x13271e68"}
-a.adres_postaci = 0x1169ca88            # stary, błędny wybór z cache
-p = a.pozycja("Jointoramix")
-sprawdz("duplikat: wybrany wpis żywej sesji (adres bloku)", p == {"x": 32490, "y": 32294, "z": 8}, p)
-sprawdz("adres_postaci przestawiony", a.adres_postaci == 0x132719f8, hex(a.adres_postaci))
-
-a = A()
-a.lista = [wpis(0x132719f8, 268478551, hp=75), wpis(0x1169ca88, 268852462, hp=100)]
-a.g = {"hp": 150, "max_hp": 200}       # brak adresu: rozstrzyga HP
-a.adres_postaci = 0x1169ca88
-p = a.pozycja("Jointoramix")
-sprawdz("duplikat: rozstrzyga HP", p == {"x": 32490, "y": 32294, "z": 8}, p)
+# Wybór wpisu przy duplikacie nazwy przeniesiono z rdzen.Pamiec.pozycja do bot.wybierz_wlasny (34c4842, 15.10):
+# pozycja() tylko czyta zapamiętany adres_postaci, a wybór (ruch, potem HP i adres bloku) robi bot. Tu: reguły awaryjne
+# (bez ruchu) bota; ruch pokrywa testy/test_widmo_zywe.py.
+import bot
+k1, k2 = wpis(0x132719f8, 268478551), wpis(0x1169ca88, 268852462)
+w = bot.wybierz_wlasny([k2, k1], {"hp": 200, "max_hp": 200, "adres": "0x13271e68"})
+sprawdz("duplikat: wybrany wpis żywej sesji (adres bloku)", w and w["adres"] == hex(0x132719f8), w)
+k1, k2 = wpis(0x132719f8, 268478551, hp=75), wpis(0x1169ca88, 268852462, hp=100)
+w = bot.wybierz_wlasny([k1, k2], {"hp": 150, "max_hp": 200})   # brak adresu: rozstrzyga HP
+sprawdz("duplikat: rozstrzyga HP", w and w["adres"] == hex(0x132719f8), w)
 
 a = A()
 a.lista = [wpis(0x1169ca88, 268852462)]

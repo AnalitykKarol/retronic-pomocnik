@@ -304,7 +304,9 @@ class SwiatSch(Swiat):
 def schody(poz, a, b, c):
     LOG.clear()
     s = SwiatSch(poz, gora="krok")
-    bb = zrob(s, [a, b, c], okrazenia=1); bb.idx = 1
+    # trasa dopełniona kopiami c: _idz_trasa szuka pozycji postaci w min(10, n) punktach do przodu (cyklicznie), więc przy
+    # 3 punktach stojąc na a z idx=1 zaliczyłby a jako osiągnięty (zawinięcie) i kończył okrążenie bez przejścia pięter
+    bb = zrob(s, [a, b, c] + [c] * 10, okrazenia=1); bb.idx = 1
     for _ in range(300):
         if s.zmiany or not bb.tick(): break
     return s, bb
@@ -343,7 +345,7 @@ finally:
     cavebot.PIETRA_TRYBY_Z_DANYCH = 1; cavebot.PIETRA_LOPATA_TYLKO_Z7 = stary_t7
 # zasypana (32493,32259,z7): łopata z pola sąsiedniego, nie z własnego
 tr7 = [(32492, 32258, 7), (32493, 32259, 8), (32493, 32260, 8)]
-s, bb = z_lopata((32492, 32258, 7), tr7, 1)
+s, bb = z_lopata((32492, 32258, 7), tr7 + [tr7[-1]] * 10, 1)   # dopełnienie: jak w schody() (bez zawinięcia podglądu do punktu 0)
 kop = bb.pietra_ops.kopal
 sprawdz("10b zasypana dziura: łopata użyta", bool(kop) and kop[0][0] == (32493, 32259, 7), f"{kop}")
 sprawdz("10b łopata z pola sąsiedniego, nie z własnego", all(max(abs(c[0] - p[0]), abs(c[1] - p[1])) == 1 for c, p in kop), f"{kop}")

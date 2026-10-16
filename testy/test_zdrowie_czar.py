@@ -10,6 +10,7 @@ cavebot.REAKCJA = (0.0, 0.0); cavebot.DRUGI_CEL = 0.0; cavebot.ROZRZUT_PROGU = 0
 cavebot.ODWROCENIE_TRASY = 0.0; cavebot.SCINANIE = (0.0, 2)
 cavebot.PAUZA_KROTKA = (0.0, 0.4, 1.5); cavebot.PAUZA_DLUGA = (0.0, 3.0, 8.0)
 cavebot.ATAK_TYLKO_PRZY_CELU = False
+cavebot.ML_CZAR_DLUGA_SZANSA = 0.0   # "zamyślenie" 5-14 s (8%) wychodzi poza okno 4,5 s sekcji 8 = losowe FAIL 8b/8b2
 LOGI = []
 _l0 = cavebot.log
 cavebot.log = lambda *a: (LOGI.append(" ".join(map(str, a))), _l0(*a))
@@ -69,7 +70,7 @@ def zrob(s, zdrowie=1, jedzenie=0, **kw):
     b.wypad_czat = types.SimpleNamespace(zablokowany=False, wyslano=lambda t: None)
     b.przerwa_od = float("inf")
     b.zd = []
-    b.tele = types.SimpleNamespace(zdarzenie=lambda typ, **d: b.zd.append((typ, d)), probka=lambda *a: None)
+    b.tele = types.SimpleNamespace(zdarzenie=lambda typ, **d: b.zd.append((typ, d)), probka=lambda *a, **k: None, ruch_tick=lambda *a, **k: None)
     return b
 
 def zdr(b, s):
@@ -193,7 +194,7 @@ sprawdz("8c pełny tick: exura (F2) przed ML (F1)", s.klawisze[:1] == ["F2"], s.
 s = Swiat(hp=100, mana=60); b = zrob(s); cavebot.ML_CZAR_AKTYWNY = 1; s.t += 5
 for _ in range(15):
     s.t += 0.3; b._ml_czar_tick(b.gracz(), b.postac.pozycja(), b.stwory(), s.t)
-t_ml = f(s, "F1")[0]
+t_ml = f(s, "F1")[-1]   # ostatni rzut: pętla 15 ticków może rzucić ML dwa razy (odstęp >= 2,5 s)
 s.hp = 50; s.mana = 60; s.t = t_ml + 1.0
 sprawdz("8d exura 1 s po ML: exhaust dzielony, brak rzutu", not zdr(b, s) and not f(s, "F2"))
 s.t = t_ml + 2.6
@@ -211,9 +212,9 @@ def glodny(s, b, **kw):
 s = Swiat(hp=60, mana=60, food=0); b = zrob(s, zdrowie=0, jedzenie=1); s.t += 5; glodny(s, b)
 sprawdz("9a głód + brak jedzenia + mana 35: rzut F3 + log", jed(b, s) and f(s, "F3") and
         any(l.startswith("[JEDZENIE] exevo pan [F3]") for l in LOGI), s.rzuty)
-s.t += 1.0
+s.t = b.jc_oczekuje[0] + 1.0   # od chwili rzutu (losowa pauza po rzucie nie może dobić do 1,5 s)
 sprawdz("9b przed upływem 1.5 s jeszcze nie jemy", not jed(b, s) and s.food == 1)
-s.t += 0.6
+s.t = b.jc_oczekuje[0] + 1.6
 sprawdz("9c po 1.5 s zjadamy powstałe jedzenie", jed(b, s) and s.food == 0 and b.jc_porazki == 0, f"food={s.food} {LOGI[-1]}")
 sprawdz("9c2 telemetria jedzenie_czar", any(t == "jedzenie_czar" and d.get("wynik") == "ok" for t, d in b.zd), b.zd[-2:])
 s = Swiat(hp=60, mana=29); b = zrob(s, zdrowie=0, jedzenie=1); s.t += 5; glodny(s, b)

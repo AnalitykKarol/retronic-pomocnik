@@ -78,6 +78,7 @@ def poscig(b, s, cel, n=60):
 
 LOGR = LOG
 sk0 = (cavebot.POSCIG_SKOSY_ZAPAS, cavebot.POSCIG_SKOS_AWARYJNY, cavebot.PATROL_DRZWI)
+zawrot0 = cavebot.PATROL_ZAWROT
 CEL_SK = (32500, 32303)
 START_SK = (32492, 32295, 8)
 
@@ -175,6 +176,7 @@ def patrol_do_pokoju(dzialaja):
     return s, b, m
 
 cavebot.PATROL_DRZWI = 1
+cavebot.PATROL_ZAWROT = 0     # PATROL_ZAWROT (15.10) zalicza pusty spawn w widoku bez dojścia; ten test sprawdza dojście przez drzwi
 s, b, m = patrol_do_pokoju(True)
 dosz = any(q[:2] == (m["x"], m["y"]) and q[2] == 8 for q in s.odwiedzone)
 sprawdz("4a patrol: zamknięte drzwi -> Use, dojście do pokoju", dosz and s.uzycia.count(DR) >= 1, f"uz={s.uzycia} poz={s.poz} t={s.t:.0f}")
@@ -194,5 +196,6 @@ dj = _json.loads((KAT / "trasy" / "drzwi_jaskinia.json").read_text())
 sprawdz("5d trasy/drzwi_jaskinia.json: drzwi (32505,32270,8)", dj["drzwi"][0]["pole"] == [32505, 32270, 8])
 
 cavebot.POSCIG_SKOSY_ZAPAS, cavebot.POSCIG_SKOS_AWARYJNY, cavebot.PATROL_DRZWI = sk0
+cavebot.PATROL_ZAWROT = zawrot0
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

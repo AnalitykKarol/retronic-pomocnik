@@ -176,7 +176,8 @@ sprawdz("2 wczytanie przy starcie", w2.dziury == {DZIURA})
 sprawdz("2 ta sama dziura drugi raz: bez duplikatu", w2.ucz(DZIURA) is False and len(json.loads(plik.read_text())["dziury"]) == 1)
 # zasiany plik w repo
 zas = json.loads((TRASY / "dziury_nauczone.json").read_text())
-sprawdz("2 zasiany trasy/dziury_nauczone.json ma jedno pole (33081,31742,8)", zas["dziury"] == [list(DZIURA)], f"{zas['dziury']}")
+# plik rośnie, bo bot uczy się nowych dziur na żywo: sprawdzamy, że zasiane pole (33081,31742,8) nadal w nim jest
+sprawdz("2 zasiany trasy/dziury_nauczone.json zawiera pole (33081,31742,8)", list(DZIURA) in zas["dziury"], f"{zas['dziury']}")
 
 # --- 3. A* omija pole (droga, _droga_do, unikanie, krok, loot) ---
 s, b = nowy(poz=(33078, 31739, 8))

@@ -123,6 +123,8 @@ b.stan = "IDZ"; b.tele.utknieto = True
 sprawdz("4g utknięcie", b._ruch_powod((100, 100, 7), s.t) == "utkniecie")
 
 # 5. próbka przed wczesnym return True (stoimy na ogniu: _ogien_wyjdz kończy obieg)
+# OGIEN_WYJDZ_POTWIERDZ=1 (domyślne) wymaga spadku HP/czasu na polu; tu testujemy tylko próbkę, więc wyłączamy potwierdzenie
+_potw = cavebot.OGIEN_WYJDZ_POTWIERDZ; cavebot.OGIEN_WYJDZ_POTWIERDZ = 0
 s = Swiat(pas(95, 110, 100, 100)); b = z_tele(s)
 b.tick()                       # zwykły obieg: pierwsza próbka
 s.t += 2.0
@@ -137,6 +139,7 @@ b.postac.s.poz[0] = 99
 b.tick()
 sprawdz("5b RUCH_PROBKA_WCZESNA=0: bez nowej próbki wczesnej", len([r for r in b.tele.rek if r.get("wczesna")]) == 1)
 cavebot.RUCH_PROBKA_WCZESNA = 1
+cavebot.OGIEN_WYJDZ_POTWIERDZ = _potw
 
 # 6. wyjątek w telemetrii nie wywraca obiegu
 s = Swiat(pas(90, 140, 100, 100)); b = z_tele(s, klik=True, okrazenia=None, punkty=[(135 + i, 100, 7) for i in range(5)])

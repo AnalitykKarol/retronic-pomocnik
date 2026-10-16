@@ -63,7 +63,7 @@ class Env:
     def odczyt(self): raise ekran.ZrzutNiedostepny(["grim"], 4, czas=8.0, proby=2)
 p = uh._Przebieg(Env(), 5, None, None)
 orig = uh._przebieg
-uh._przebieg = lambda p_: (_ for _ in ()).throw(ekran.ZrzutNiedostepny(["grim"], 4, czas=8.0, proby=2))
+uh._przebieg = lambda p_, tylko_naprawa=False: (_ for _ in ()).throw(ekran.ZrzutNiedostepny(["grim"], 4, czas=8.0, proby=2))
 try:
     w = uh.zrob_runa(Env())
 finally:
