@@ -115,6 +115,7 @@ WPADNIECIE_LINA = 1                # pokrętło 0/1: 1 = pierwsza próba wyjści
 WPADNIECIE_LINA_PROB = 3           # prób liny (pokrętło 1-5)
 WPADNIECIE_PLAN = 1                # pokrętło 0/1: 1 = gdy lina nie działa, plan wielopiętrowy po mapie i przejściach z danych (wykonuje pietra.py)
 WPADNIECIE_ODL = 3                 # pola: tak blisko poprzedniej pozycji musi być lądowanie, żeby zmiana piętra była upadkiem (nie teleportem/śmiercią); pokrętło 1-6
+WPADNIECIE_WALIDACJA = 0           # pokrętło 0/1 (domyślnie 0 = jak dotąd): 1 = przed nauką dziury sprawdź mapę (flaga 2, brak 4) i brak schodów w cheb<=1 od lądowania/p0; inaczej bez nauki (wpadniecie.py)
 DZIURY_NAUCZONE = 1                # pokrętło 0/1: 1 = pola z trasy/dziury_nauczone.json są ścianą dla każdej drogi A* i kroku na danym piętrze
 DZIURA_PODEJSCIE_S = 10.0           # s: tyle idziemy sami obok celu stojącego przy dziurze, potem go odpuszczamy (DZIURA_PRZY_CELU)
 DZIURA_PRZY_CELU = 1               # 15.10: pokrętło 0/1: 1 = nie atakujemy/nie gonimy celu stojącego przy znanej dziurze (chebyshev <= 1) w prostokącie między nami a nim, chyba że sami dojdziemy A* (dziury = ściany) do pola obok celu krótką drogą (klient w trybie ataku sam idzie za celem i wpadł w dziurę)

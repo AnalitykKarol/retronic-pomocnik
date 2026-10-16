@@ -236,17 +236,67 @@ class Wpadniecie:
             return False
         return self._wykryto(p0, p, teraz)
 
+    def _flaga_mapy(self, x, y, z):
+        m = getattr(self.cb, "mapa", None)
+        try:
+            return int(m.flagi(x, y, z)) if m is not None else None
+        except Exception:
+            return None
+
+    def _przejscia_troll(self):
+        """Pola przejść z trasy/miejsca_troll.json (wszystkie pola opisujące przejście) jako zbiór (x, y, z)."""
+        if getattr(self, "_pola_troll", None) is None:
+            wyn = set()
+            try:
+                for e in json.loads(PLIK_MIEJSC_TROLL.read_text()).get("przejscia", []):
+                    for k in ("pole", "wejscie_gora", "wyjscie_dol", "wejscie_dol", "wyjscie_gora"):
+                        if e.get(k) and len(e[k]) == 3:
+                            wyn.add(tuple(int(v) for v in e[k]))
+            except Exception:
+                pass
+            self._pola_troll = wyn
+        return self._pola_troll
+
+    def _walidacja(self, p0, p):
+        """WPADNIECIE_WALIDACJA=1: czy pole (p.x, p.y, z0) wolno uczyć jako dziurę. None = wolno, inaczej powód odmowy."""
+        import pietra  # noqa: PLC0415
+        z0, z1 = p0[2], p[2]
+        m = getattr(self.cb, "mapa", None)
+        f = self._flaga_mapy(p[0], p[1], z0)
+        if m is None or f is None or not (f & 2) or f & 4:
+            return "bez dziury na mapie"
+        troll = self._przejscia_troll()
+        for c in (p, p0):
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    x, y = c[0] + dx, c[1] + dy
+                    if pietra._schody(m, (x, y, z0), (x, y, z1)) or (x, y, z0) in troll or (x, y, z1) in troll:
+                        return "przejście schodowe w pobliżu"
+        return None
+
     def _wykryto(self, p0, p, teraz):
         cb = self.cb
         z0, z1 = p0[2], p[2]
         self.wykryte += 1
         self.log(f"Wpadłem: ({p0[0]},{p0[1]},{z0}) -> ({p[0]},{p[1]},{z1})")
         nauczona = False
+        extra = {}
         if z1 == z0 + 1 and self._k("DZIURY_NAUCZONE", 1):
-            nauczona = self.ucz((p[0], p[1], z0))
+            if self._k("WPADNIECIE_WALIDACJA", 0):
+                powod = self._walidacja(p0, p)
+                extra["znana"] = (p[0], p[1], z0) in self.dziury
+                if powod:
+                    self.log(f"Wpadnięcie: nie uczę dziury {p[:2]} na z{z0} ({powod}).")
+                    if powod == "bez dziury na mapie":
+                        self._tele("wpadniecie_bez_dziury", opis="wpadniecie bez dziury na mapie", poz_od=list(p0),
+                                   poz_do=list(p), flaga=self._flaga_mapy(p[0], p[1], z0))
+                else:
+                    nauczona = self.ucz((p[0], p[1], z0))
+            else:
+                nauczona = self.ucz((p[0], p[1], z0))
         w_trasie = self._trasa_osiagalna(p)
         self._tele("wpadniecie", z_od=z0, z_do=z1, poz_od=list(p0), poz_do=list(p), nauczona=nauczona,
-                   w_trasie=w_trasie, n=self.wykryte)
+                   w_trasie=w_trasie, n=self.wykryte, **extra)
         # zatrzymanie pościgu i kliknięć
         try:
             cb.zatrzymaj_klik(p0)
