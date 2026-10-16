@@ -332,6 +332,7 @@ TRADE_OGLOSZENIA = 0               # pokrętło 0/1 (na_zywo.json): 1 = ogłosze
 TRADE_MIN_S = 180                  # pokrętło: s min. odstępu między ogłoszeniami (losowo równomiernie MIN-MAX)
 TRADE_MAX_S = 300                  # pokrętło: s max. odstępu między ogłoszeniami
 TRADE_MIN_UH = 20                  # pokrętło: ogłaszamy dopiero, gdy w plecakach jest tyle run UH ({bp} = pełne po 20)
+TRADE_PRIV_ODPOWIEDZI = 0            # pokrętło 0/1 (na_zywo.json): 1 = prywatna odpowiedź (trade_odpowiedz.txt) komuś, kto pisze na priv z intencją kupna (domyślnie WYŁĄCZONE)
 # --- pola ognia (ogien.py): wykrywane ze zrzutu (pomijają je pamięć stworów i mapa), liczone jak zablokowane pole ---
 OGIEN_UNIKAJ = 1                   # pokrętło 0/1 (na_zywo.json): 1 = omijamy pola ognia, schodzimy z nich, nie lootujemy z ognia
 OGIEN_ODSWIEZ_S = 0.8              # s: min. odstęp między wykryciami w tickach (zrzut ppm ok. 40 ms + analiza ok. 20 ms)

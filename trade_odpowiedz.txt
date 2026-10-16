@@ -1,0 +1,5 @@
+# Prywatne odpowiedzi na pytania o kupno UH (mozg.py TradePriv). Jeden wariant na linie, losowany; puste i '#' pomijane.
+# ASCII, max 80 znakow, bez komend. Liczba bagow ma byc spojna z trade_ogloszenie.txt (tu stale 2). Hot reload.
+hi, im in edron depot, have 2 bps uh 2.3k each
+hello, im in edron depot, got 2 bps uh, 2.3k each
+hi, edron depot, 2 bps uh 2.3k each

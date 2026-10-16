@@ -236,6 +236,7 @@ ZAKRESY = {
     "TRADE_MIN_S": (120, 900),          # s: min. odstęp między ogłoszeniami
     "TRADE_MAX_S": (120, 1800),         # s: max. odstęp między ogłoszeniami
     "TRADE_MIN_UH": (20, 2000),         # run UH w plecakach wymaganych do ogłoszenia (min. 20 = 1 pełny BP)
+    "TRADE_PRIV_ODPOWIEDZI": (0, 1),    # 1 = prywatne odpowiedzi na pytania o kupno UH (domyślnie 0; mozg.py TradePriv)
     "RUNA_MIN_HP_CELU": (0, 100),       # nie strzelaj do celu o HP% poniżej tego (0 = bez limitu)
     # 13.10 (G2: spec P1/P2): twarde ignorowanie, strażnicy, blokujący na wyjściu
     "IGNOR_TWARDE": (0, 1),             # 1 = ignorowanie celu nie znika przy podejściu na IGNOROWANIE_BLISKO (domyślnie 1)
@@ -337,7 +338,7 @@ KIERUNEK = {
     "WYPRAWA_STOP_PRZY_UTKNIECIU": "nie_nizej", "WYPRAWA_CZEKAJ_NA_GLOD": "nie_wyzej", "JEDZENIE_BRAK_WALIDUJ": "nie_nizej", "JEDZENIE_BRAK_PROBY": "nie_nizej", "GLOD_ZAPAS_WAZNY_S": "nie_wyzej", "WYPRAWA_WZNOW_WALIDUJ": "nie_nizej", "WYPAD_BIEGNIJ": "nie_nizej", "DOJSCIE_BIEGNIJ": "nie_nizej", "WPADNIECIE": "nie_nizej", "WPADNIECIE_WALIDACJA": "nie_wyzej", "WPADNIECIE_LINA": "nie_nizej", "WPADNIECIE_PLAN": "nie_nizej", "DZIURY_NAUCZONE": "nie_nizej", "DZIURA_PRZY_CELU": "nie_nizej", "WPADNIECIE_LINA_PROB": "nie_nizej", "PIETRA_LOPATA": "nie_nizej", "PIETRA_TRYBY_Z_DANYCH": "nie_nizej", "PIETRA_STARTY_DOMYSLNE": "nie_nizej", "WYPRAWA_DEPO_POWROT": "nie_wyzej", "WYPRAWA_DEPO_POSTOJ_S": "nie_wyzej", "WYPRAWA_TYLKO_DEPO": "nie_wyzej", "WYPRAWA_ZLOTO_MIN": "nie_nizej", "WYPRAWA_CAP_REZERWA": "nie_nizej",
     # ogłoszenia Trade: analityk nie może ich włączyć ani skrócić odstępów (tylko Karol w na_zywo.json)
     "MODEL_TRASA_MIASTA": "nie_wyzej", "MODEL_TRASA_ZAMROZENIE_S": "nie_wyzej", "MODEL_TRASA_MAX_ODL": "nie_wyzej",
-    "TRADE_OGLOSZENIA": "nie_wyzej", "TRADE_MIN_S": "nie_nizej", "TRADE_MAX_S": "nie_nizej", "TRADE_MIN_UH": "nie_nizej",
+    "TRADE_OGLOSZENIA": "nie_wyzej", "TRADE_PRIV_ODPOWIEDZI": "nie_wyzej", "TRADE_MIN_S": "nie_nizej", "TRADE_MAX_S": "nie_nizej", "TRADE_MIN_UH": "nie_nizej",
     "UH_AKTYWNY": "nie_wyzej", "UH_MIN_HP": "nie_nizej", "UH_MOB_DYSTANS": "nie_nizej", "UH_MANA_MIN": "nie_nizej", "UH_ODSTEP_S": "nie_nizej",
     "LOOT_DYNAMICZNY": "nie_nizej",
     "UH_W_WALCE": "nie_wyzej", "UH_W_WALCE_MANA_MARGINES": "nie_wyzej", "UH_W_WALCE_MIN_HP": "nie_nizej",

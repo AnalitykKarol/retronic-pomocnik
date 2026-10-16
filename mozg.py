@@ -793,6 +793,7 @@ class Czat:
         self.ostatnia_obca = float("-inf")
         self.wyslane_czasy = deque(maxlen=CZAT_NA_GODZINE)
         self.nowi_autorzy = []         # autorzy zaczepek z ostatniego odczytu (do zdarzenia)
+        self.priv_nowe = []            # nowe wiadomości z zakładek priv (odbiera Mozg.czat_zdarzenie -> TradePriv.zglos)
         self.prywatne = set()          # zakładki rozmów prywatnych, w których ktoś do nas pisał
         self.alarmy = []               # powody alarmu GM z ostatniego odczytu (odbiera Mozg)
         self.zablokowany = False       # po ALARM_GM nic nie wysyłamy
@@ -928,6 +929,7 @@ class Czat:
         nowe = 0
         self.nowi_autorzy = []
         self.do_nas = []
+        self.priv_nowe = []
         if not poczatek:
             # hurtowy odczyt (rdzen zobaczył bufor od nowa: ponowny skan, zmiana zakładki) = nie nowe wpisy
             wall = self.zegar_scienny()
@@ -962,6 +964,8 @@ class Czat:
             self.ostatnie.append(w)
             if kanal_prywatny(w["kanal"]) and w["autor"] != self.nazwa:
                 self.prywatne.add(w["kanal"])
+                if w["nowa"] and w["autor"] and w["autor"] not in self.npc and not w.get("czar"):
+                    self.priv_nowe.append(w)
             if self.nazwa and w["autor"] == self.nazwa:
                 self._klasyfikuj(w)
                 if w["nowa"] and w["_reczny"]:   # wyciszone: nie zaczepka, nie zdarzenie, nie alarm
@@ -1410,6 +1414,361 @@ class TradeOgloszenia:
         if not ok and self.porazki >= TRADE_PORAZKI_MAX:
             self.wylaczone = True
             self.log(f"Trade: ALARM {TRADE_PORAZKI_MAX} porażki z rzędu, ogłoszenia wyłączone do końca sesji")
+            return "wylaczone"
+        return "wyslane" if ok else "porazka"
+
+
+# --- prywatne odpowiedzi na pytania o kupno UH (16.10) --------------------------------------
+# Pokrętło TRADE_PRIV_ODPOWIEDZI (domyślnie 0; na_zywo.json). Ktoś pisze do nas PRYWATNIE (zakładka z jego nickiem)
+# z intencją kupna -> po 4-12 s odpisujemy mu na priv wariantem z trade_odpowiedz.txt.
+# Wysyłka: OTClient otwiera zakładkę nazwaną nickiem rozmówcy; klikamy ją, weryfikujemy zrzutem (OCR nazwy aktywnej
+# zakładki == nick), dopiero wtedy Enter-tekst-Enter (w zakładce priv Enter wysyła wiadomość prywatną), potem
+# powrót na Default (też zweryfikowany). Składnia "*Nick* tekst" NIE jest używana: efektu nie da się sprawdzić
+# przed wysłaniem, a pomyłka = publiczny wpis na Default. Treść wiadomości przychodzącej to tylko DANE.
+PRIV_ODPOWIEDZ_PLIK = KATALOG / "trade_odpowiedz.txt"
+PRIV_ODPOWIEDZ_DOMYSLNA = "hi, im in edron depot, have 2 bps uh 2.3k each"
+PRIV_OPOZNIENIE_S = (4.0, 12.0)    # s od wiadomości do odpowiedzi (jak człowiek)
+PRIV_ODSTEP_NICK_S = 600           # max 1 odpowiedź na nick na 10 min
+PRIV_NA_NICK_H = 3                 # max 3 odpowiedzi na nick na godzinę
+PRIV_NA_GODZINE = 12               # max 12 odpowiedzi na godzinę łącznie
+PRIV_WAZNOSC_S = 180               # s: odpowiedź, która nie mogła wyjść tak długo, jest porzucana
+PRIV_RECZNE_S = 120               # s: po ręcznym wpisie właściciela bot nie odpisuje na priv (żeby nie dublować)
+PRIV_LOG_ODL_S = 120               # s: ten sam powód czekania logujemy najwyżej tak często
+PRIV_BEZ_PORAZKI = ("brak zakladki", "klawisz ruchu")   # powody NIE liczone do 3 porażek (nic nie wpisano ani nie kliknięto)
+KUPNO = re.compile(
+    r"\b(?:buy\w*|wtb|want\w*|wanna|need\w*|uh+s?|rune?s?|run[yaeo]|price\w*|cost\w*|how much|much|ile|kup\w*|"
+    r"sprzed\w*|sell\w*|selling|still|bp+s?|bags?|backpacks?|avail\w*|offer\w*|stock|sztuk\w*|cena|cene|ceny)\b",
+    re.IGNORECASE)
+TAB_OCR_GAP = 13 / 734             # przerwa (ułamek szerokości ekranu) rozdzielająca napisy zakładek
+TAB_PROG_JASNOSCI = 100            # piksel tekstu zakładki: max(R,G,B) >= tyle
+TAB_PASEK_X = (40 / 734, 452 / 734)   # zakres poziomy zakładek (między strzałkami przewijania)
+TAB_KLIK_Y = 776 / 910
+
+
+def intencja_kupna(tekst):
+    """Prosty słownik EN+PL: czy wiadomość wygląda na pytanie o kupno/cenę/dostępność runy UH."""
+    t = na_ascii(str(tekst or "")).casefold()
+    return bool(KUPNO.search(t))
+
+
+def _zloz_odpowiedz(szablon):
+    """Tekst gotowy do wpisania albo None (pusty/nie-ASCII/z polem/komenda/za długi)."""
+    if not szablon or any(ord(c) < 32 or ord(c) > 126 for c in szablon) or "{" in szablon or "}" in szablon:
+        return None
+    tekst = oczysc_wiadomosc(szablon)
+    if not tekst or len(tekst) > TRADE_MAX_ZNAKOW or not bezpieczna_wiadomosc(tekst)[0]:
+        return None
+    return tekst
+
+
+def warianty_odpowiedzi(plik=None):
+    """(lista tekstów, źródło). Plik: jeden wariant na linię (puste i '#' pomijane), hot reload; zły wariant jest
+    odrzucany, brak poprawnych = domyślny."""
+    try:
+        linie = [l.strip() for l in Path(plik or PRIV_ODPOWIEDZ_PLIK).read_text(encoding="utf-8").splitlines()]
+    except (OSError, ValueError):
+        linie = []
+    wynik = [t for t in (_zloz_odpowiedz(l) for l in linie if l and not l.startswith("#")) if t]
+    if wynik:
+        return wynik, "plik"
+    dom = _zloz_odpowiedz(PRIV_ODPOWIEDZ_DOMYSLNA)
+    return ([dom], "domyslny") if dom else ([], "szablon domyslny odrzucony")
+
+
+def _fold_nick(tekst):
+    """Porównanie nicka z OCR: ASCII, małe litery, tylko litery/cyfry, mylone znaki (I l 1 | oraz O 0) sklejone."""
+    t = re.sub(r"[^a-z0-9]", "", na_ascii(str(tekst or "")).casefold())
+    return t.translate(str.maketrans({"i": "l", "1": "l", "o": "0"}))
+
+
+def _odleglosc(a, b):
+    """Odległość edycyjna (Levenshtein) dla krótkich napisów."""
+    d = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        prev, d[0] = d[0], i
+        for j, cb in enumerate(b, 1):
+            prev, d[j] = d[j], min(d[j] + 1, d[j - 1] + 1, prev + (ca != cb))
+    return d[len(b)]
+
+
+def pasuje_do_nicka(napis, nick):
+    """Napis z zakładki (OCR) vs nick: równy po normalizacji, albo (nick >= 6 znaków) różni się o 1 znak."""
+    a, b = _fold_nick(napis), _fold_nick(nick)
+    if not a or not b:
+        return False
+    return a == b or (len(b) >= 6 and len(a) >= 5 and _odleglosc(a, b) <= 1)
+
+
+def ocr_tesseract(obraz):
+    """Napis z małego obrazka (PIL, czarny tekst na białym). Pusty napis przy każdym błędzie."""
+    import io  # noqa: PLC0415
+    import subprocess  # noqa: PLC0415
+    bufor = io.BytesIO()
+    obraz.save(bufor, "PNG")
+    try:
+        r = subprocess.run(["tesseract", "stdin", "stdout", "--psm", "7"], input=bufor.getvalue(),
+                           capture_output=True, timeout=6)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return r.stdout.decode("utf-8", "replace").strip() if r.returncode == 0 else ""
+
+
+def zakladki_paska(obraz, ocr=ocr_tesseract):
+    """Zakładki czatu ze zrzutu sesji: lista {"tekst","cx","x0","x1","aktywna"} od lewej. Napisy grupowane po
+    przerwach w kolumnach jasnych pikseli; aktywna = jasny neutralny tekst (biały), nieaktywna = szary/czerwony."""
+    import numpy as np  # noqa: PLC0415
+    from PIL import Image as _Img, ImageOps as _Ops  # noqa: PLC0415
+    w, h = obraz.size
+    a = np.asarray(obraz.convert("RGB"), dtype=np.int16)
+    y0, y1 = int(TRADE_PASEK_Y[0] * h), int(TRADE_PASEK_Y[1] * h) + 1
+    xs0, xs1 = int(TAB_PASEK_X[0] * w), int(TAB_PASEK_X[1] * w)
+    pas = a[y0:y1, xs0:xs1]
+    jasne = pas.max(axis=2) >= TAB_PROG_JASNOSCI
+    kol = jasne.any(axis=0)
+    grupy, start, ost = [], None, None
+    luka = max(4, int(round(TAB_OCR_GAP * w)))
+    for i, c in enumerate(kol):
+        if c:
+            if start is None:
+                start = i
+            elif i - ost > luka:
+                grupy.append((start, ost))
+                start = i
+            ost = i
+    if start is not None:
+        grupy.append((start, ost))
+    wynik = []
+    for g0, g1 in grupy:
+        if g1 - g0 < 6:          # szum / pojedyncza ikona
+            continue
+        reg = pas[:, g0:g1 + 1]
+        maska = jasne[:, g0:g1 + 1]
+        px = reg[maska]
+        if len(px) < 20:
+            continue
+        sr = px.mean(axis=0)
+        neutralny = (px.max(axis=1) - px.min(axis=1)).mean() <= 40
+        aktywna = bool(neutralny and sr.max() >= 190)
+        pad = 3
+        kawalek = np.where(jasne[:, max(0, g0 - pad):g1 + 1 + pad], 0, 255).astype("uint8")
+        img = _Img.fromarray(kawalek).resize((kawalek.shape[1] * 5, kawalek.shape[0] * 5), _Img.LANCZOS)
+        img = _Ops.expand(img, border=20, fill=255)
+        wynik.append({"tekst": ocr(img), "x0": xs0 + g0, "x1": xs0 + g1, "cx": (xs0 + (g0 + g1) / 2) / w,
+                      "aktywna": aktywna})
+    return wynik
+
+
+def _zakladka_kanalu(napis):
+    """Zakładka kanału publicznego (Default, Trade, ...) albo napis do niej podobny (OCR, odległość <= 1):
+    NIGDY nie jest celem priv (wpis poszedłby publicznie)."""
+    f = _fold_nick(napis)
+    return any(_odleglosc(f, _fold_nick(k)) <= 1 for k in ZNANE_KANALY)
+
+
+def znajdz_zakladke(zakladki, nick):
+    """(zakładka, powód). Dokładnie jedna zakładka pasująca do nicka; inaczej None. Dokładne dopasowanie ma
+    pierwszeństwo przed przybliżonym; dwie równie dobre = niejednoznaczne. Zakładki kanałów publicznych pomijane."""
+    zakladki = [z for z in zakladki if not _zakladka_kanalu(z["tekst"])]
+    dokl = [z for z in zakladki if _fold_nick(z["tekst"]) == _fold_nick(nick) and _fold_nick(nick)]
+    if len(dokl) == 1:
+        return dokl[0], ""
+    if len(dokl) > 1:
+        return None, "niejednoznaczna"
+    przyb = [z for z in zakladki if pasuje_do_nicka(z["tekst"], nick)]
+    if len(przyb) == 1:
+        return przyb[0], ""
+    return None, "niejednoznaczna" if przyb else "nie ma jej w pasku"
+
+
+def wyslij_priv(nick, tekst, *, zrzut, kliknij_x, kliknij_default, rusz_mysz, wpisz, anuluj, puszczone,
+                ocr=ocr_tesseract, spij=time.sleep, losuj=random.uniform):
+    """Wysyła `tekst` PRYWATNIE do `nick`: (a) odnajduje zakładkę o jego nazwie (OCR paska), (b) klika ją,
+    (c) weryfikuje zrzutem, że jedyną aktywną zakładką jest ta (OCR == nick, ta sama pozycja), (d) Enter-tekst-Enter,
+    (e) powrót na Default (zweryfikowany). Zwraca (ok, powód, wrocilem_na_default). Bez pewnej weryfikacji NIE wpisuje
+    nic (aktywny Default/Trade = publiczny czat). Zależności wstrzykiwane (testy bez gry)."""
+    if not puszczone():
+        return False, "klawisz ruchu trzymany", True
+    cel, powod = znajdz_zakladke(zakladki_paska(zrzut(), ocr), nick)
+    if cel is None:
+        return False, f"brak zakladki rozmowcy ({powod})", True
+
+    def wroc():
+        for _ in range(2):
+            kliknij_default()
+            rusz_mysz()
+            spij(losuj(0.3, 0.6))
+            if stan_zakladek(zrzut())["Default"] == "aktywna":
+                return True
+        return False
+
+    try:
+        if not cel["aktywna"]:
+            kliknij_x(cel["cx"])
+            rusz_mysz()
+            spij(losuj(0.3, 0.6))
+        pas = zakladki_paska(zrzut(), ocr)
+        aktywne = [z for z in pas if z["aktywna"]]
+        if not (len(aktywne) == 1 and not _zakladka_kanalu(aktywne[0]["tekst"])
+                and pasuje_do_nicka(aktywne[0]["tekst"], nick)
+                and abs(aktywne[0]["cx"] - cel["cx"]) <= 0.03):
+            return False, f"weryfikacja zakladki rozmowcy nieudana ({[z['tekst'] for z in aktywne]})", wroc()
+        if not puszczone():
+            return False, "klawisz ruchu trzymany", wroc()
+        spij(losuj(0.2, 0.5))
+        try:
+            ok = wpisz(tekst)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            try:
+                anuluj()
+            except Exception:
+                pass
+            return False, f"wpisywanie nieudane {e!r}", wroc()
+        spij(losuj(0.3, 0.7))
+        wrocilem = wroc()
+        if ok is False:
+            return False, "tresc odrzucona przez filtr", wrocilem
+        return True, "", wrocilem
+    except bot.Zatrzymano:
+        raise
+
+
+class TradePriv:
+    """Planista prywatnych odpowiedzi. zglos(w) ocenia NOWĄ wiadomość priv (log decyzji), tick() wysyła po terminie.
+    Zależności: spokoj() -> "" albo powód czekania; wyslij(nick, tekst) -> (ok, powód, wrocilem); nazwa/npc: nasz nick
+    i nazwy NPC (nie odpowiadamy sobie ani NPC). TRADE_PRIV_ODPOWIEDZI == 0 (domyślnie): nic nie robi."""
+
+    def __init__(self, zegar, log, spokoj, wyslij, nazwa="", npc=None, losuj=random.uniform, wybierz=random.choice,
+                 konf=None, plik=None, po_alarmie=None):
+        self.zegar, self.log, self.spokoj, self.wyslij = zegar, log, spokoj, wyslij
+        self.nazwa, self.npc = nazwa, npc if npc is not None else set()
+        self.losuj, self.wybierz, self.konf, self.plik, self.po_alarmie = losuj, wybierz, konf, plik, po_alarmie
+        self.kolejka = {}              # nick -> {"termin", "powstalo"}
+        self.historia = {}             # nick -> deque czasów udanych odpowiedzi
+        self.wszystkie = deque(maxlen=64)
+        self.porazki = 0
+        self.wylaczone = False
+        self.wyslane = 0
+        self.ostatni_powod = (None, float("-inf"))
+
+    def _k(self, nazwa, domyslna):
+        konf = self.konf if self.konf is not None else cavebot
+        return getattr(konf, nazwa, domyslna)
+
+    def wlaczone(self):
+        return bool(self._k("TRADE_PRIV_ODPOWIEDZI", 0)) and not self.wylaczone
+
+    def _limit(self, nick, teraz):
+        """Powód odmowy wg limitów spamu albo ""."""
+        h = self.historia.get(nick, ())
+        if h and teraz - h[-1] < PRIV_ODSTEP_NICK_S:
+            return f"limit 1 odpowiedz / {PRIV_ODSTEP_NICK_S // 60} min na nick"
+        if sum(1 for t in h if teraz - t < 3600) >= PRIV_NA_NICK_H:
+            return f"limit {PRIV_NA_NICK_H} odpowiedzi / h na nick"
+        w_godzinie = sum(1 for t in self.wszystkie if teraz - t < 3600)
+        if w_godzinie >= PRIV_NA_GODZINE:
+            return f"limit {PRIV_NA_GODZINE} odpowiedzi / h lacznie"
+        return ""
+
+    def zglos(self, w):
+        """Ocena jednej NOWEJ wiadomości z kanału prywatnego. Każda decyzja = linia logu."""
+        if not self.wlaczone():
+            return None
+        autor, tekst, kanal = str(w.get("autor") or ""), str(w.get("tekst") or ""), str(w.get("kanal") or "")
+        podglad = tekst[:40]
+        teraz = self.zegar()
+
+        def pomin(powod):
+            self.log(f"Trade priv: pominięto {autor!r} ({powod}): {podglad!r}")
+            return "pominieto"
+        if not kanal_prywatny(kanal) or kanal.casefold() != autor.casefold() or not NICK.match(autor):
+            return pomin("kanał nie jest zakładką rozmówcy")
+        if autor == self.nazwa or autor in self.npc:
+            return pomin("nasz nick albo NPC")
+        if alarm_gm_powod(autor, tekst):
+            return pomin("GM albo test, bez odpowiedzi")
+        if CZAR_TEKST.match(tekst):
+            return pomin("czar")
+        if not intencja_kupna(tekst):
+            return pomin("brak intencji kupna")
+        if autor in self.kolejka:
+            return pomin("odpowiedź już zaplanowana")
+        powod = self._limit(autor, teraz)
+        if powod:
+            return pomin(powod)
+        opoznienie = self.losuj(*PRIV_OPOZNIENIE_S)
+        self.kolejka[autor] = {"termin": teraz + opoznienie, "powstalo": teraz}
+        self.log(f"Trade priv: zaplanowano odpowiedź dla {autor!r} za {opoznienie:.0f} s ({podglad!r})")
+        return "zaplanowano"
+
+    def _czekaj_log(self, teraz, powod):
+        p, t = self.ostatni_powod
+        if p != powod or teraz - t >= PRIV_LOG_ODL_S:
+            self.ostatni_powod = (powod, teraz)
+            self.log(f"Trade priv: czekam ({powod})")
+
+    def tick(self):
+        """None = nic; "wyslane" / "porzucone" / "czeka" / "porazka" / "wylaczone"."""
+        if not self.kolejka or not self.wlaczone():
+            return None
+        bot.sprawdz_stop()
+        teraz = self.zegar()
+        nick = next((n for n, z in self.kolejka.items() if z["termin"] <= teraz), None)
+        if nick is None:
+            return None
+        zad = self.kolejka[nick]
+        if teraz - zad["powstalo"] > PRIV_WAZNOSC_S:
+            del self.kolejka[nick]
+            self.log(f"Trade priv: porzucono odpowiedź dla {nick!r} (nieaktualna po {PRIV_WAZNOSC_S} s)")
+            return "porzucone"
+        powod = self._limit(nick, teraz)
+        if powod:
+            del self.kolejka[nick]
+            self.log(f"Trade priv: porzucono odpowiedź dla {nick!r} ({powod})")
+            return "porzucone"
+        powod = self.spokoj()
+        if powod:
+            self._czekaj_log(teraz, powod)
+            return "czeka"
+        warianty, zrodlo = warianty_odpowiedzi(self.plik)
+        if not warianty:
+            del self.kolejka[nick]
+            self.log(f"Trade priv: porzucono odpowiedź dla {nick!r} ({zrodlo})")
+            return "porzucone"
+        tekst = self.wybierz(warianty)
+        del self.kolejka[nick]
+        try:
+            ok, powod, wrocilem = self.wyslij(nick, tekst)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            ok, powod, wrocilem = False, f"wyjatek {e!r}", True
+        if ok:
+            self.porazki = 0
+            self.wyslane += 1
+            t = self.zegar()
+            self.historia.setdefault(nick, deque(maxlen=16)).append(t)
+            self.wszystkie.append(t)
+            self.log(f"Trade priv: odpowiedziano {nick!r} (szablon {zrodlo}, #{self.wyslane}): {tekst!r}"
+                     + ("" if wrocilem else "; ALARM: nie wróciłem na zakładkę Default"))
+        elif powod.startswith(PRIV_BEZ_PORAZKI):
+            self.log(f"Trade priv: pominięto {nick!r} (nie wysłano: {powod})")
+        else:
+            self.porazki += 1
+            self.log(f"Trade priv: NIE wysłano do {nick!r} ({powod}), porażka {self.porazki}/{TRADE_PORAZKI_MAX}")
+        if not wrocilem:
+            self.wylaczone = True
+            self.log("Trade priv: ALARM zakładka Default nie wróciła, odpowiedzi priv wyłączone do końca sesji")
+            if self.po_alarmie:
+                try:
+                    self.po_alarmie("trade priv: zakladka nie wrocila na Default")
+                except Exception:
+                    pass
+            return "wylaczone"
+        if not ok and not powod.startswith(PRIV_BEZ_PORAZKI) and self.porazki >= TRADE_PORAZKI_MAX:
+            self.wylaczone = True
+            self.log(f"Trade priv: ALARM {TRADE_PORAZKI_MAX} porażki z rzędu, odpowiedzi priv wyłączone do końca sesji")
             return "wylaczone"
         return "wyslane" if ok else "porazka"
 
@@ -1890,11 +2249,13 @@ def dostepne_trasy():
 class Mozg:
     def __init__(self, tryb, zapytaj=None, nazwa=None, model=None, cb=None, pamiec=None, log=None,
                  zegar=time.monotonic, czat_wyslij=None, trasy=None, co_ile=None, alarm=None,
-                 losuj=random.uniform, zrzuty=False, zrzut=None, log_bota=None, czytnik_czaszki=None):
+                 losuj=random.uniform, zrzuty=False, zrzut=None, log_bota=None, czytnik_czaszki=None, bez_ruchu=False):
         self.tryb = tryb
+        self.bez_ruchu = bez_ruchu      # 16.10: postać nie robi nic (bez cavebot.tick): tylko czat, trade i analiza
         self.zapytaj = zapytaj or bot.zapytaj
         self.nazwa = nazwa or bot.nazwa_postaci()
-        self.model = model if model is not None else Claude()
+        # 16.10: tryb skrypt = bez modelu; wcześniej domyślny Claude() sprawiał, że skrypt jednak pytał Haiku
+        self.model = model if (model is not None or tryb == "skrypt") else Claude()
         self.cb = cb
         self.pamiec = pamiec or Pamiec()
         self.log = log or Dziennik()
@@ -1937,6 +2298,8 @@ class Mozg:
         self._trade_z = (None, float("-inf"))   # (piętro, od kiedy) do blokady po zmianie piętra
         self.trade = TradeOgloszenia(zegar, self.log, self.trade_uh_ile, self.trade_spokoj, self.trade_wyslij,
                                      losuj=losuj, po_alarmie=lambda t: self.alarm(t))
+        self.trade_priv = TradePriv(zegar, self.log, self.priv_spokoj, self.priv_wyslij, nazwa=self.nazwa,
+                                    npc=self.czat.npc, losuj=losuj, po_alarmie=self._priv_alarm)
         self.spot_zalegly = None        # czat_spot: {"nick","tekst","syg","od","do"} czeka na spokojny moment
         self.spot_odp = deque()         # (nick, tekst) z wątku modelu czat_spot
         self.spot_watek = None
@@ -2578,6 +2941,55 @@ class Mozg:
                 wpisz=lambda t: wpisz_na_czacie(t, ekran=ekran_x),
                 anuluj=lambda: mysz.klawisz("Escape"), puszczone=puszczone)
 
+    def priv_spokoj(self):
+        """Warunki ogłoszeń Trade + nie odpisujemy, gdy właściciel sam pisze na czacie (ręczny wpis < 120 s temu)."""
+        if self.zegar() - self.czat.reczne_czas < PRIV_RECZNE_S:
+            return "wlasciciel pisze recznie"
+        return self.trade_spokoj()
+
+    def _priv_alarm(self, tekst):
+        """Zakładka Default nie wróciła po wysyłce priv: wyłączamy też ogłoszenia Trade (ten sam mechanizm klikania)."""
+        self.trade.wylaczone = True
+        self.alarm(tekst)
+
+    def priv_wyslij(self, nick, tekst):
+        """Żywa wysyłka PRYWATNA (klik zakładki rozmówcy XTEST + zrzut sesji + OCR + wpisz_na_czacie)."""
+        import ekran  # noqa: PLC0415
+        import klawisz_x11  # noqa: PLC0415
+        cb = self.cb
+        ekran_x = getattr(cb.postac, "ekran", None) or bot.ekran_gry()
+
+        def puszczone():
+            cb._poscig_puszcz()
+            return klawisz_x11.trzymany() is None
+
+        with ekran.Mysz(ekran_x) as mysz:
+            scr = mysz.dpy.screen()
+            szer, wys = scr.width_in_pixels, scr.height_in_pixels
+
+            def kliknij_x(fx):
+                mysz.lewy(round(fx * szer), round(TAB_KLIK_Y * wys))
+
+            def kliknij_default():
+                fx, fy = TRADE_KLIK["Default"]
+                mysz.lewy(round(fx * szer), round(fy * wys))
+
+            def rusz_mysz():
+                mysz.ruch(round(TRADE_MYSZ_PO[0] * szer), round(TRADE_MYSZ_PO[1] * wys))
+
+            return wyslij_priv(
+                nick, tekst, zrzut=ekran.zrzut, kliknij_x=kliknij_x, kliknij_default=kliknij_default,
+                rusz_mysz=rusz_mysz, wpisz=lambda t: wpisz_na_czacie(t, ekran=ekran_x),
+                anuluj=lambda: mysz.klawisz("Escape"), puszczone=puszczone)
+
+    def priv_tick(self):
+        try:
+            self.trade_priv.tick()
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            self.log(f"Trade priv: błąd {e!r}")
+
     def trade_tick(self):
         try:
             self.trade.tick()
@@ -2796,6 +3208,25 @@ class Mozg:
 
     # --- pętle ---
 
+    def czaszki_ze_stworow(self):
+        """Czaszki obcych graczy ze zrzutu (czaszka.py) zlecane przy każdym nowym odczycie stworów.
+        Niezależne od modelu: działa też w trybie skrypt (15.10 czaszka = jedyny powód, dla którego Haiku zostaje)."""
+        if self.czytnik_czaszki is None or self.cb is None:
+            return
+        odczyt = self.cb.odczyt_stworow
+        if not odczyt or odczyt[0] == getattr(self, "_czaszki_sprawdzone", None):
+            return
+        self._czaszki_sprawdzone = odczyt[0]
+        ja = next((s for s in odczyt[1] if s["nazwa"] == self.nazwa), None)
+        if not ja:
+            return
+        poz = (ja["x"], ja["y"], ja["z"])
+        inni = self.cb.inni_gracze(odczyt[1], poz)
+        if inni:
+            self.czytnik_czaszki.zlec(sorted(
+                ((s["nazwa"], s["x"] - poz[0], s["y"] - poz[1]) for s in inni),
+                key=lambda g: max(abs(g[1]), abs(g[2]))))
+
     def czas_na_pytanie(self):
         teraz = self.zegar()
         if self.cb is not None:
@@ -2809,10 +3240,6 @@ class Mozg:
                     poz = (ja["x"], ja["y"], ja["z"])
                     inni = self.cb.inni_gracze(odczyt[1], poz)
                     obcy = {s["nazwa"] for s in inni}
-                    if self.czytnik_czaszki is not None and inni:   # 15.10: czaszka z ekranu (wątek, kesz per nick)
-                        self.czytnik_czaszki.zlec(sorted(
-                            ((s["nazwa"], s["x"] - poz[0], s["y"] - poz[1]) for s in inni),
-                            key=lambda g: max(abs(g[1]), abs(g[2]))))
                     if obcy - self.gracze_widziani:   # ten sam klucz co linia [GRACZ]: jedno zgłoszenie
                         self.zdarzenia.gracze(obcy)
                     self.gracze_widziani = obcy
@@ -2917,6 +3344,13 @@ class Mozg:
         if self.czat.alarmy:
             self.wywolaj_alarm_gm("; ".join(self.czat.alarmy[:3]))
             self.czat.alarmy = []
+        priv_nowe, self.czat.priv_nowe = self.czat.priv_nowe, []
+        if self.cb is not None and not self.alarm_gm:      # alarm GM / doradca (bez cavebota): żadnych odpowiedzi
+            for w in priv_nowe:
+                try:
+                    self.trade_priv.zglos(w)
+                except Exception as e:
+                    self.log(f"Trade priv: błąd oceny {e!r}")
         if self.czat.do_nas and not self.alarm_gm:
             self.rozmowa_start(self.czat.do_nas[:3])
         if nowe:
@@ -3014,6 +3448,7 @@ class Mozg:
         if self._martwy():
             self.decyzje.clear()
             return
+        self.czaszki_ze_stworow()
         while self.decyzje:
             d = self.decyzje.popleft()
             if isinstance(d, dict):
@@ -3028,6 +3463,7 @@ class Mozg:
         self.wyslij_zalegly_czat()
         self.czat_spot_tick()
         self.trade_tick()
+        self.priv_tick()
         teraz = self.zegar()
         if self.cb is not None and teraz - getattr(self, "_poz_probka", float("-inf")) >= 5:   # tania próbka pozycji do zmien_trase
             self._poz_probka = teraz
@@ -3035,7 +3471,7 @@ class Mozg:
                 self._sledz_pozycje(self._pozycja())
             except Exception:
                 pass
-        if self.model is not None and teraz - getattr(self, "_czat_odczyt", float("-inf")) >= czat_co:
+        if teraz - getattr(self, "_czat_odczyt", float("-inf")) >= czat_co:   # czat też w trybie skrypt (bez modelu)
             self._czat_odczyt = teraz
             self.czat_zdarzenie()
         if self.alarm_gm or self.model is None or (self.watek is not None and self.watek.is_alive()) \
@@ -3095,10 +3531,9 @@ class Mozg:
     def uruchom_hybryde(self):
         cb = self.cb
         cb.ustaw_najblizszy()
-        if self.model is not None:
-            self._czat_odczyt = self.zegar()
-            self.czat.odswiez()
-            self.log(f"Czat: {'odczyt działa' if self.czat.dostepny else 'niedostępny, nie będę pisać'}.")
+        self._czat_odczyt = self.zegar()          # 16.10: czat czytany także bez modelu (powiadomienia, alarm GM)
+        self.czat.odswiez()
+        self.log(f"Czat: {'odczyt działa' if self.czat.dostepny else 'niedostępny, nie będę pisać'}.")
         self.log(f"Mózg: tryb {self.tryb}, postać {self.nazwa}, trasa {cb.nazwa_trasy} ({len(cb.punkty)} pkt, "
                  f"start {cb.idx}), próg HP {cb.prog_hp}%, "
                  + (f"model co {self.co_ile[0]}-{self.co_ile[1]} s." if self.model is not None else "bez modelu."))
@@ -3114,7 +3549,7 @@ class Mozg:
                     self.log("Kończę sesję na polecenie modelu (postać zostaje zalogowana).")
                     break
                 try:
-                    if not cb.tick():
+                    if not self.bez_ruchu and not cb.tick():
                         break
                     bledy = 0
                     if grim_od is not None:
@@ -3363,6 +3798,8 @@ def main(argv):
                    help="stare zachowanie: każdy obcy gracz zatrzymuje bota i włącza alarm")
     p.add_argument("--czat-enter", action="store_true", help="przestarzałe, ignorowane: Enter przed pisaniem jest teraz zawsze")
     p.add_argument("--bez-czatu", action="store_true", help="nie pisz na czacie (tylko log)")
+    p.add_argument("--bez-ruchu", action="store_true",
+                   help="postać stoi: bez chodzenia, walki i lootu (cavebot.tick nie działa); czat, Trade i analiza działają")
     p.add_argument("--raz", action="store_true", help="doradca: jedno pytanie i koniec")
     p.add_argument("--log-bota", help="doradca: śledź ten plik logu cavebot.py (domyślnie bieżący z logi/ostatni)")
     p.add_argument("--zrzuty", action="store_true",
@@ -3441,8 +3878,11 @@ def main(argv):
     czat = (lambda t: log(f"[bez czatu] napisałbym: {t!r}")) \
         if a.bez_czatu else \
         (lambda t: wpisz_na_czacie(t, ekran=postac.ekran))
+    # czaszka ze zrzutu (Haiku, czaszka.py) działa niezależnie od pętli modelu, więc też w trybie skrypt
+    czytnik = czaszka.CzytnikCzaszki(Claude(model=czaszka.MODEL_CZASZKI, timeout=czaszka.TIMEOUT_MODELU_S),
+                                     katalog=LOGI / "zrzuty", log=log) if cb is not None else None
     mozg = Mozg(a.tryb, model=model, nazwa=postac.nazwa, cb=cb, log=log, czat_wyslij=czat, co_ile=a.co,
-                zrzuty=a.zrzuty)
+                zrzuty=a.zrzuty, czytnik_czaszki=czytnik, bez_ruchu=a.bez_ruchu)
     # zdarzenia cavebota i lootu trafiają do logu mózgu, statystyk sesji i klasyfikatora zdarzeń
     cb.log_lootu = mozg.przechwyc_log(log)
     # wypad po pochodnie (wypad.py): wpisywanie na Default tą samą funkcją co mózg, Czat rozpoznaje je jako nasze,
