@@ -59,3 +59,18 @@ Odkrycie P6: 4 s martwego czasu przed zgonem to synchroniczny `paplay` w `cavebo
 Inne synchroniczne alarmy na ścieżkach reakcji (niskie HP `cavebot.py` ~7508, gracz na ekranie ~3827, strażnik ~4296/4354, PVP ~7101, UH ~1644/1706) NIE zmienione: do osobnej poprawki.
 P7: detektora czaszki nie ma (2 próbki białej, 0 czerwonej/żółtej, 0 obrazów z czaszką); jest `narzedzia/zbierz_czaszki.py` i `CZASZKA_ZAPIS_PROBEK` do zbierania próbek.
 P10: licznik pauzy w obserwatorze ograniczony oknem 300 s, więc warunek „PAUZA_PK > 5 min” praktycznie nie zadziała (do decyzji: dłuższe okno albo licznik w cavebocie).
+
+## 6. Przegląd paczki (16.10 wieczór, 2 niezależnych recenzentów): NITS, bez blokerów startu
+Potwierdzone: przy pokrętłach 0 zachowanie bez zmian, import i walidacja `na_zywo.przyklad.json` OK, testy zielone, kierunki pokręteł (`nie_wyzej`) blokują samodzielne włączenie przez analityka, `SMIERC_STOP` wymaga 3 odczytów HP 0 albo skoku pozycji.
+Do poprawki po teście na żywo (nie blokują):
+1. `PK_UH_SZYBKIE=1` obniża próg UH z 40 do 30 (stary próg pomijany); predykcja (spadek >=15 pp/2 s przy HP<=50) częściowo równoważy.
+2. Gałąź „UH bez menu” w `_pk_uh_na_siebie` woła alarm synchronicznie (`paplay` do 4 s) przy HP<=30%; reszta synchronicznych alarmów (HP niskie ~7508, gracz ~3827, strażnik ~4296/4354, PVP ~7101, UH ~1644/1706) też.
+3. `PK_SZYBKIE=1` wycina `obcy_gracz` przy HP<50% także, gdy HP spadło od moba (np. prośba o handel dostaje samo „kontynuuj”).
+4. P10: `pauza_pk_trwa_s` ograniczone oknem 300 s, więc alert o pauzie po wygaśnięciu karencji praktycznie nie zadziała.
+5. `PK_UH_CTRL`: licznik porażek Ctrl zerowany przy każdym `ok` (też z menu); weryfikacja `ok` przez wzrost HP może przypisać sukces exurze. `_pk_szybkie` czyta `ostatni_gracz` bez sprawdzania wieku próbki. Cień F3: budżet 50 ms dopiero po 3 próbkach. `czaszka._zapisz_probke`: nadpisywanie w tej samej sekundzie, brak limitu katalogu.
+
+## 7. Protokół testu na żywo (runy drogie: minimum prób)
+Kolejność pokręteł po restarcie: `D3_REAKCJA=1` → `WPADNIECIE_WALIDACJA=1` → `SMIERC_STOP=1` → `PK_SZYBKIE=1` → na końcu `PK_UH_SZYBKIE=1` i `OBSERWATOR_PK_KONTEKST=1`.
+- **UH na siebie:** jedna runa, poza walką, przy HP<100%; zmierzyć czas sekwencji (cel <=1 s) i ile HP leczy. `PK_UH_CTRL=0` (Ctrl+klik na runie = UNKNOWN; test osobno, za zgodą, jedna runa).
+- **HMM na potwory:** runa z ręki Karola w moba, który i tak jest w walce; zmierzyć odstęp użyć (exhaust 2 s po ataku? UNKNOWN) i czy telemetria/`obserwator_reczny` zapisują użycie run.
+- **Czaszki:** `CZASZKA_ZAPIS_PROBEK=1` (env) zapisuje wycinki do `logi/czaszki/<wynik>/`; cel >=30 obrazów na klasę (biała/czerwona/żółta/brak), potem `narzedzia/zbierz_czaszki.py` i decyzja o detektorze lokalnym. Do tego czasu rozpoznawanie czaszki to nadal Haiku w wątku (3-4 s).
