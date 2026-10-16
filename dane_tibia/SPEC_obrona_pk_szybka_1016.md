@@ -77,6 +77,25 @@ Wnioski: (a) 8 s martwego czasu od zobaczenia do startu ucieczki, z czego ok. 7,
 - W trybie UH `exura` kosztuje 25 many (mana 28–58 z 245 nie starcza na 3 rzuty). Opcje: zostawiać rezerwę ~60–100 many w trybie UH
   (mniej run/h), albo liczyć wyłącznie na UH z plecaka (R3). Nie wybrano.
 
+
+## 2a. Dane z sieci o odnowieniach (16.10, źródła zewnętrzne, NIE z serwera Retronic)
+Strona retronic.online nie udostępnia zasad (HTTP 403), więc to wiedza o klasycznym Tibia 7.4–7.6 (OTLand). **UNKNOWN, czy Retronic to odwzorowuje — zmierzyć na żywo (R3.6).**
+- Jeden wspólny system „exhaust” dla czarów i run (nie osobne): po ataku (czar ofensywny albo runa ofensywna, np. HMM) blokada **2 s**;
+  po leczeniu/wsparciu (exura, runa UH) blokada **1 s**; płyny (mana/HP potion) ok. 1 s albo wcale. Przykład z wątku:
+  `GFB > 2 s > UE > 2 s > exura vita > 1 s > GFB > 2 s > exura > 1 s > GFB`.
+- Konsekwencje dla rozgraniczenia lecz/atakuj (jeśli Retronic zachowuje się jak klasyk):
+  * po HMM leczyć można dopiero po 2 s; po UH atakować po 1 s. Każdy atak odbiera zdolność leczenia na 2 s, więc przy niskim HP **atak jest zabroniony**
+    (leczenie ma bezwzględny priorytet, atak tylko gdy HP powyżej progu i nic nie blokuje);
+  * UH można ponawiać co ok. **1 s** (dziś kod zakłada 2 s, `RUNA_INTERWAL_S` i `PK_UH_ODSTEP_S` 2,5 s — za wolno, jeśli 1 s się potwierdzi);
+  * rytm 3 s: HMM (2 s blokady), UH (1 s), HMM... czyli 1 atak + 1 leczenie na 3 s; czyste leczenie: do 1 użycia/s.
+- Leczenie: wzory zależą od poziomu i magic level (np. `(level + 1,5·ML)·X`; dla UH w źródłach: `level·5 + ML·7,5` albo `(level + 4·ML)·2,08…2,7`).
+  Poziom i ML Mastafiana nie są czytane z pamięci (AUDYT_odczyt_i_mapa), więc leczenie UH liczy się z pomiaru; `exura` zmierzone: średnio 20 HP / 25 many (16 rzutów).
+
+## 2b. Koszt run i oszczędność prób
+- UH 175 gp (`dane_tibia/AUDYT_odczyt_i_mapa.md`); cena HMM do ustalenia (brak w danych repo). Karol: runy są bardzo drogie, test HMM zrobi sam.
+- Protokół pomiaru oszczędny: minimum run (np. 4×UH + 4×HMM), próby w jednej sesji, każda runa na coś (UH na siebie przy < 100% HP, HMM w moba, który i tak jest w walce).
+  Dane z ręcznej próby Karola na HMM mogą wejść do pomiaru: telemetria + `obserwator_reczny` zapisują czasy użyć (do sprawdzenia, czy zapisują runy).
+
 ## 3. Poza zakresem (dalej)
 - Kontratak, ucieczka magią/teleportem, wylogowanie (w Tibii zablokowane w walce z graczem). Walka z PK: „dojdziemy do tego później” (SPEC 15.10).
 - Odzyskiwanie zwłok i plecaka po zgonie.
