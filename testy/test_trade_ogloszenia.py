@@ -248,7 +248,7 @@ sprawdz("atak_pk: potwór/zwykły czat nie", not mozg.atak_pk("You lose 4 hitpoi
         and not mozg.atak_pk("exura") and not mozg.atak_pk("[sell] 2 bp [uh]"))
 
 # --- Mozg.trade_spokoj: te same warunki co czat + zaostrzone --------------------------------
-def mozg_z(**cbk):
+def mozg_z(bez_ruchu=False, **cbk):
     z = Zegar(5000.0)
     cb = types.SimpleNamespace(stan="IDZ", cel=None, ucieczka=False, ostrozny=False, w_poscigu=False, w_lootcie=False,
                                lww=None, lww_zalegle=None, wypad_aktywny=False, dojscie_aktywne=False, wyprawa=None,
@@ -259,7 +259,7 @@ def mozg_z(**cbk):
     for k, v in cbk.items(): setattr(cb, k, v)
     m = mozg.Mozg("hybryda", zapytaj=lambda q: {}, nazwa="Ja", model=lambda p: ("", {}), cb=cb,
                   pamiec=mozg.Pamiec(tmp / "pamiec.json"), log=lambda *a: None, zegar=z, czat_wyslij=lambda t: None,
-                  trasy=lambda: [], losuj=lambda a, b: a)
+                  trasy=lambda: [], losuj=lambda a, b: a, bez_ruchu=bez_ruchu)
     m._trade_z = (8, -1e9)
     return m, cb, z
 m, cb, z = mozg_z()
@@ -300,6 +300,45 @@ m.trade.wyslij = zakaz
 z.t += 10000
 m.trade_tick()
 sprawdz("Mozg: pokrętło 0 -> trade_tick nic nie wysyła", m.trade.wyslane == 0)
+
+# --- tryb --bez-ruchu (16.10): postać stoi w depo, cb.tick() nie działa -> pomijamy warunki walki/ruchu/HP ---------
+ZLE = dict(stan="WALKA", cel=object(), ucieczka=True, ostatni_gracz=(1.0, {"hp": 10, "max_hp": 200}),
+           odczyt_stworow=(1.0, [{"nazwa": "Bob", "gracz": True, "x": 1, "y": 1, "z": 8}]))
+m, cb, z = mozg_z(bez_ruchu=True, **ZLE)
+m.czat.atak_ts = z() - 5
+sprawdz("bez ruchu: walka/HP/odczyt/atak PK nie blokują", m.trade_spokoj() == "", m.trade_spokoj())
+sprawdz("bez ruchu: priv_spokoj też wolno", m.priv_spokoj() == "", m.priv_spokoj())
+m, cb, z = mozg_z(bez_ruchu=False, **ZLE)
+m.czat.atak_ts = z() - 5
+sprawdz("z ruchem: te same warunki nadal blokują", m.trade_spokoj() != "", m.trade_spokoj())
+m, cb, z = mozg_z(bez_ruchu=True, **ZLE); m.alarm_gm = True
+sprawdz("bez ruchu: alarm_gm nadal blokuje", m.trade_spokoj() == "alarm_gm")
+m, cb, z = mozg_z(bez_ruchu=True, **ZLE); m.czat.zablokowany = True
+sprawdz("bez ruchu: czat zablokowany nadal blokuje", m.trade_spokoj() != "")
+m, cb, z = mozg_z(bez_ruchu=True, **ZLE); m.zalegly_czat = ("hej", z() + 5)
+sprawdz("bez ruchu: zaległa odpowiedź na Default blokuje", m.trade_spokoj() != "")
+m, cb, z = mozg_z(bez_ruchu=True, **ZLE); m.rozmowa_od = z()
+sprawdz("bez ruchu: rozmowa w toku blokuje", m.trade_spokoj() != "")
+m, cb, z = mozg_z(bez_ruchu=True, **ZLE); m.czat.wyslane_czasy.append(z() - 5)
+sprawdz("bez ruchu: świeża odpowiedź na Default blokuje", m.trade_spokoj() != "")
+m, cb, z = mozg_z(bez_ruchu=True, **ZLE); m.cb = None
+sprawdz("bez ruchu: doradca (bez cavebota) nadal nigdy", m.trade_spokoj() != "")
+# bez UH: ogłoszenie ze stałej wartości, bez odczytu kontenerów i bez progu TRADE_MIN_UH
+wywolania.clear()
+t, z, logi = planista(konf(TRADE_MIN_UH=500), uh_ile=lambda: 1 / 0, bez_uh=True)
+z.t = t.nastepne
+sprawdz("bez UH: wysyła bez odczytu kontenerów i progu", t.tick() == "wyslane" and len(wywolania) == 1, str(logi))
+sprawdz("bez UH: tekst ze stałej (2 bp)", "2 bp" in wywolania[0], str(wywolania))
+sprawdz("bez UH: log bez liczby run", any("bez UH" in l and "wysłano" in l for l in logi), str(logi))
+wywolania.clear()
+t, z, logi = planista(konf(TRADE_MIN_UH=500), uh_ile=lambda: 40)
+z.t = t.nastepne
+sprawdz("z UH (domyślnie): próg nadal obowiązuje", t.tick() == "brak_uh" and not wywolania)
+t, z, logi = planista(bez_uh=True, wyslij=zla)
+z.t = t.nastepne
+sprawdz("bez UH: integralność wysyłki (porażka liczona)", t.tick() == "porazka" and t.porazki == 1)
+sprawdz("Mozg: bez_ruchu włącza bez_uh w planiście", mozg_z(bez_ruchu=True)[0].trade.bez_uh is True
+        and mozg_z()[0].trade.bez_uh is False)
 
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

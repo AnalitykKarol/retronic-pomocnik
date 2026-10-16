@@ -317,7 +317,7 @@ c2 = mozg.Czat(g2, "Ja", zc, zegar_scienny=lambda: 5000.0); c2.odswiez()
 sprawdz("historia z pierwszego odczytu nie wyzwala odpowiedzi", c2.priv_nowe == [])
 
 # --- Mozg: integracja (zrzuty/klawisze zablokowane) -----------------------------------------
-def mozg_z():
+def mozg_z(bez_ruchu=False, **cbk):
     z = Zegar(5000.0)
     cb = types.SimpleNamespace(stan="IDZ", cel=None, ucieczka=False, ostrozny=False, w_poscigu=False, w_lootcie=False,
                                lww=None, lww_zalegle=None, wypad_aktywny=False, dojscie_aktywne=False, wyprawa=None,
@@ -325,9 +325,10 @@ def mozg_z():
                                ostatni_gracz=(z(), {"hp": 160, "max_hp": 200}),
                                odczyt_stworow=(z(), [{"nazwa": "Ja", "gracz": True, "x": 100, "y": 100, "z": 8}]),
                                postac=types.SimpleNamespace(ekran=None), rozmowa_do=None, prog_hp=30)
+    for k, v in cbk.items(): setattr(cb, k, v)
     gr = Gra()
     m = mozg.Mozg("skrypt", zapytaj=gr, nazwa="Ja", model=None, cb=cb, pamiec=mozg.Pamiec(tmp / "pamiec.json"),
-                  log=lambda *a: None, zegar=z, czat_wyslij=lambda t: None, trasy=lambda: [], losuj=lambda a, b: a)
+                  log=lambda *a: None, zegar=z, czat_wyslij=lambda t: None, trasy=lambda: [], losuj=lambda a, b: a, bez_ruchu=bez_ruchu)
     m._trade_z = (8, -1e9)
     return m, cb, z, gr
 m, cb, z, gr = mozg_z()
@@ -365,6 +366,31 @@ sprawdz("Mozg: doradca (bez cavebota) nic nie planuje", not m.trade_priv.kolejka
 m, cb, z, gr = mozg_z(); alarm = []; m.alarm = alarm.append
 m._priv_alarm("x")
 sprawdz("_priv_alarm wyłącza też ogłoszenia Trade", m.trade.wylaczone and alarm)
+
+# --- tryb --bez-ruchu (16.10): warunki walki/ruchu pominięte, zostaje ręczny wpis, alarm i odpowiedź na Default -------
+ZLE = dict(stan="WALKA", cel=object(), ucieczka=True, ostatni_gracz=(1.0, {"hp": 10, "max_hp": 200}),
+           odczyt_stworow=(1.0, [{"nazwa": "Bob", "gracz": True, "x": 1, "y": 1, "z": 8}]))
+m, cb, z, gr = mozg_z(bez_ruchu=True, **ZLE); m.czat.atak_ts = z() - 5
+sprawdz("bez ruchu: priv_spokoj pomija walkę/HP/odczyty/atak PK", m.priv_spokoj() == "", m.priv_spokoj())
+m.czat.reczne_czas = z() - 30
+sprawdz("bez ruchu: ręczny wpis właściciela nadal wstrzymuje", "recznie" in m.priv_spokoj())
+m, cb, z, gr = mozg_z(bez_ruchu=False, **ZLE)
+sprawdz("z ruchem: priv_spokoj nadal blokuje", m.priv_spokoj() != "", m.priv_spokoj())
+m, cb, z, gr = mozg_z(bez_ruchu=True, **ZLE); m.alarm_gm = True
+sprawdz("bez ruchu: alarm_gm blokuje priv", m.priv_spokoj() != "")
+m, cb, z, gr = mozg_z(bez_ruchu=True, **ZLE); m.czat.wyslane_czasy.append(z() - 5)
+sprawdz("bez ruchu: świeża odpowiedź na Default blokuje priv", m.priv_spokoj() != "")
+# integracja: w złym stanie bota odpowiedź i tak wychodzi (przez wstrzyknięte wyslij)
+m, cb, z, gr = mozg_z(bez_ruchu=True, **ZLE)
+m.trade_priv.konf = Konf(TRADE_PRIV_ODPOWIEDZI=1); m.trade_priv.plik = tmp / "plan.txt"
+wyslane.clear(); m.trade_priv.wyslij = lambda n, t: (wyslane.append((n, t)) or (True, "", True))
+m.czat_zdarzenie(); gr.dodaj("Bizz", "buy uh", "Bizz"); m.czat_zdarzenie(); z.t += 15; m.priv_tick()
+sprawdz("bez ruchu: priv wychodzi mimo walki/HP/atak PK w nieświeżych danych", wyslane and wyslane[0][0] == "Bizz", str(wyslane))
+m, cb, z, gr = mozg_z(bez_ruchu=False, **ZLE)
+m.trade_priv.konf = Konf(TRADE_PRIV_ODPOWIEDZI=1); m.trade_priv.plik = tmp / "plan.txt"
+wyslane.clear(); m.trade_priv.wyslij = lambda n, t: (wyslane.append((n, t)) or (True, "", True))
+m.czat_zdarzenie(); gr.dodaj("Bizz", "buy uh", "Bizz"); m.czat_zdarzenie(); z.t += 15; m.priv_tick()
+sprawdz("z ruchem: ten sam stan blokuje wysyłkę priv", not wyslane and "Bizz" in m.trade_priv.kolejka)
 
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

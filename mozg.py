@@ -1132,6 +1132,7 @@ TRADE_SZABLON_PLIK = KATALOG / "trade_ogloszenie.txt"
 TRADE_SZABLON_DOMYSLNY = "[SELL] {bp} BP [UH] 2.4k each"
 TRADE_MAX_ZNAKOW = 80
 TRADE_RUN_W_BP = 20                # run UH w pełnym plecaku (stack = 20 run w tym wątku, patrz {bp})
+TRADE_STALE_UH = 2 * TRADE_RUN_W_BP   # tryb --bez-ruchu: ogłoszenie liczone jak dla 2 BP (bez odczytu kontenerów)
 TRADE_ID_UH = 3160                 # id runy UH (loot.ID_RUN_W_POJEMNIKU)
 TRADE_START_S = (60, 120)          # s po starcie mózgu: pierwsze ogłoszenie najwcześniej
 TRADE_ODLOZ_S = (10, 20)           # s: odroczenie, gdy warunki nie spełnione w terminie (bez kolejkowania)
@@ -1329,9 +1330,12 @@ class TradeOgloszenia:
     TRADE_OGLOSZENIA == 0 (domyślnie): nic nie robi, niczego nie czyta."""
 
     def __init__(self, zegar, log, uh_ile, spokoj, wyslij, losuj=random.uniform, konf=None, plik=None,
-                 po_alarmie=None):
+                 po_alarmie=None, bez_uh=False):
         self.zegar, self.log, self.uh_ile, self.spokoj, self.wyslij = zegar, log, uh_ile, spokoj, wyslij
         self.losuj, self.konf, self.plik, self.po_alarmie = losuj, konf, plik, po_alarmie
+        # bez_uh (tryb --bez-ruchu, 16.10): postać stoi w depo, runy UH nie są wymagane ani odczytywane;
+        # tekst z pliku liczony ze stałej wartości (TRADE_STALE_UH run = 2 BP)
+        self.bez_uh = bez_uh
         self.nastepne = zegar() + losuj(*TRADE_START_S)
         self.porazki = 0
         self.wylaczone = False
@@ -1357,7 +1361,7 @@ class TradeOgloszenia:
         if p != powod or teraz - t >= TRADE_ZREDUKUJ_LOG_S:
             self.ostatni_powod = (powod, teraz)
             self.log(f"Trade: odroczone {self.nastepne - teraz:.0f} s ({powod})"
-                     + (f", run UH {uh}" if uh is not None else ""))
+                     + (f", run UH {uh}" if uh is not None and not self.bez_uh else ""))
 
     def tick(self):
         """None = nic się nie stało; "wyslane" / "odroczone" / "brak_uh" / "porazka" / "wylaczone"."""
@@ -1372,11 +1376,11 @@ class TradeOgloszenia:
         if powod:
             self._odloz(teraz, powod)
             return "odroczone"
-        uh = self.uh_ile()
+        uh = TRADE_STALE_UH if self.bez_uh else self.uh_ile()
         if uh is None:
             self._odloz(teraz, "brak odczytu kontenerow")
             return "odroczone"
-        if uh < min_uh:
+        if not self.bez_uh and uh < min_uh:
             self.nastepne = teraz + self.losuj(mn, mx)
             self.log(f"Trade: brak zapasu UH ({uh} < {min_uh}), nie ogłaszam; następne sprawdzenie za "
                      f"{self.nastepne - teraz:.0f} s")
@@ -1395,12 +1399,13 @@ class TradeOgloszenia:
         if ok:
             self.porazki = 0
             self.wyslane += 1
-            self.log(f"Trade: wysłano ({uh} run UH, szablon {zrodlo}, #{self.wyslane}): {tekst!r}; "
+            self.log(f"Trade: wysłano ({'bez UH, stała' if self.bez_uh else str(uh) + ' run UH'}, szablon {zrodlo}, #{self.wyslane}): {tekst!r}; "
                      f"następne za {self.nastepne - teraz:.0f} s"
                      + ("" if wrocilem else "; ALARM: nie wróciłem na zakładkę Default"))
         else:
             self.porazki += 1
-            self.log(f"Trade: NIE wysłano ({powod}), porażka {self.porazki}/{TRADE_PORAZKI_MAX}, run UH {uh}")
+            self.log(f"Trade: NIE wysłano ({powod}), porażka {self.porazki}/{TRADE_PORAZKI_MAX}"
+                     + ("" if self.bez_uh else f", run UH {uh}"))
         if not wrocilem:
             self.wylaczone = True
             self.log("Trade: ALARM zakładka Default nie wróciła, funkcja wyłączona do końca sesji "
@@ -2297,7 +2302,7 @@ class Mozg:
         self.koszt_usd = 0.0
         self._trade_z = (None, float("-inf"))   # (piętro, od kiedy) do blokady po zmianie piętra
         self.trade = TradeOgloszenia(zegar, self.log, self.trade_uh_ile, self.trade_spokoj, self.trade_wyslij,
-                                     losuj=losuj, po_alarmie=lambda t: self.alarm(t))
+                                     losuj=losuj, po_alarmie=lambda t: self.alarm(t), bez_uh=bez_ruchu)
         self.trade_priv = TradePriv(zegar, self.log, self.priv_spokoj, self.priv_wyslij, nazwa=self.nazwa,
                                     npc=self.czat.npc, losuj=losuj, po_alarmie=self._priv_alarm)
         self.spot_zalegly = None        # czat_spot: {"nick","tekst","syg","od","do"} czeka na spokojny moment
@@ -2859,6 +2864,11 @@ class Mozg:
             return "rozmowa / odpowiedz w toku"
         if self.czat.wyslane_czasy and teraz - self.czat.wyslane_czasy[-1] < CZAT_ODSTEP:
             return "swieza odpowiedz na Default"
+        if self.bez_ruchu:
+            # 16.10 tryb --bez-ruchu (postac stoi w depo, brak cavebot.tick()): cb.ostatni_gracz/odczyt_stworow sa
+            # nieswieze, a "atak/PK" bywa falszywy. Walka/ruch/HP/stwory/obcy/pietro/atak/stan bota nie obowiazuja
+            # (decyzja Karola: zwykle wlacz/wylacz). Integralnosc samej wysylki (zrzut zakladki) bez zmian.
+            return ""
         if teraz - self.czat.atak_ts < TRADE_PO_ATAKU_S:
             return "komunikat o ataku/PK < 60 s temu"
         stan = str(cb.stan)
@@ -3549,7 +3559,13 @@ class Mozg:
                     self.log("Kończę sesję na polecenie modelu (postać zostaje zalogowana).")
                     break
                 try:
-                    if not self.bez_ruchu and not cb.tick():
+                    if self.bez_ruchu:
+                        # bez cb.tick() nikt nie czyta na_zywo.json: pokrętła (TRADE_*) zostawały na domyślnych 0
+                        if cb.pokretla and self.zegar() - cb.pokretla_ost >= 2.0:
+                            cb.pokretla_ost = self.zegar()
+                            cb.pokretla.odswiez()
+                        time.sleep(0.3)
+                    elif not cb.tick():
                         break
                     bledy = 0
                     if grim_od is not None:
