@@ -19,11 +19,11 @@ Zasada: najpierw wszystko napisane i przetestowane offline (atrapy + symulator),
 | P2 | D3: cień (log pierwszej dopuszczalnej opcji) i alarm | KOD GOTOWY | `D3_REAKCJA` 0/1, `D3_ALARM_S` | test_d3_zawieszka 8b |
 | P3 | Wpadnięcie: nauka dziur tylko z flagą 2 i bez schodów | KOD GOTOWY (a556d1a) | `WPADNIECIE_WALIDACJA` 0 | test_wpadniecie_walidacja |
 | P4 | Usunąć fałszywy wpis `[32498,32271,8]` z `dziury_nauczone.json` | CZEKA NA ZGODĘ (dane na żywo) | — | symulator waliduj, test zgodności |
-| P5 | PK R5: wykrycie śmierci → stan `MARTWY`, alarm, zero kliknięć/modelu; naprawa odczytu HP po respawnie | SPEC, bez kodu | `PK_SZYBKIE` | atrapa: HP 0 ⇒ `MARTWY` |
+| P5 | PK R5: wykrycie śmierci → stan `MARTWY`, STOP, popup „Bot zginął” (1 raz), model blokowany w `mozg.py` | KOD GOTOWY, niezacommitowany→patrz git log; checker NITS | `SMIERC_STOP` 0 (+ `SMIERC_ODCZYTY` 3, `SMIERC_SKOK` 8) | test_smierc_stop 20/20; replay telemetrii: zgon 15:52:33 potwierdzony po ok. 2 s, 0 fałszywych STOP w całym dniu |
 | P6 | PK R2: reakcja na PK bez wywołania modelu na ścieżce (model w tle, `pauza_bota`/`kontynuuj` zablokowane przy HP<50% / alarmie) | SPEC, bez kodu | `PK_SZYBKIE` | odtworzenie 15:52:08–33, pętla nie blokuje >0,3 s |
 | P7 | PK R1: czaszka lokalnie (<200 ms) | SPEC, UNKNOWN kolory ikon | `PK_SZYBKIE` | zrzuty czaszek (do zebrania) |
 | P8 | PK R3/R4: UH przy 30% + predykcja, szybsza sekwencja (Ctrl+klik), ucieczka nie zamienia się w walkę z orkiem | SPEC, decyzje Karola (sekcja 6 speca) | `PK_UH_HP`, `PK_UH_CTRL` | odtworzenie, atrapa UH |
-| P9 | PK po zgonie: jawny przepływ „respawn → powrót”, zamiast przypadkowego PAUZA_PK; krótsza/dynamiczna karencja? | NOWE, do decyzji | do ustalenia | atrapa po zgonie |
+| P9 | **DECYZJA KAROLA 16.10: po zgonie bot nic nie robi** (żadnej ucieczki/powrotu), tylko STOP i popup — realizuje P5 | ZDECYDOWANE | `SMIERC_STOP` | j.w. |
 | P10 | Obserwator: kontekst z karencją PK (koniec szumu co minutę) | NOWE, małe | — | test_obserwator |
 | P11 | F3: reguły z symulatora wybierają opcję D3 (cień → wykonanie) | PLAN | `D3_REAKCJA` 1→2 | symulator + 99 epizodów |
 | P12 | Serwis w mieście (bank/depo/bag/blanki) | SPEC, UNKNOWN NPC i progi | `WYPRAWA_SERWIS` 0 | atrapy, potem na żywo z Karolem |
@@ -43,3 +43,9 @@ Zasada: najpierw wszystko napisane i przetestowane offline (atrapy + symulator),
 2. Sekcja 6 speca PK: próg UH 30% (+predykcja?), rezerwa many w trybie UH, kolejność paczek (P5+P6+P7 pierwsza, P8 druga).
 3. P9: czy po zgonie bot ma wracać sam (jak dziś, po karencji), czy tylko alarm + STOP do Twojej decyzji (zgon = utrata plecaka z UH).
 4. P4 i restart: kiedy (dziś bot i tak stoi w PAUZA_PK do ok. 16:48, więc restart teraz niczego nie przerywa — ale to Twoja decyzja).
+
+## 4. Znane ograniczenia P5 (checker + budowniczy)
+- Zgon potwierdzany po 3 kolejnych odczytach HP 0 (ok. 2 s) lub przy HP 0 ze skokiem >=8 pól/zmianą piętra; w tym oknie bot nie leczy (1-2 obiegi).
+- Bot uruchomiony z fałszywym HP 0 trwającym >=3 odczyty zatrzyma się jako „martwy” (nie do odróżnienia bez dodatkowej przesłanki).
+- Dymek `notify-send` nieprzetestowany w grze (testy wyłączają powiadomienia); możliwy drugi, generyczny dymek „Bot zatrzymany” z `mozg.py`.
+- Przyczyna HP 0 po respawnie (~16 min w telemetrii) nadal UNKNOWN, obejście: w `MARTWY` odczyt HP nie ma znaczenia.

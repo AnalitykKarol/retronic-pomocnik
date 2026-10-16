@@ -486,6 +486,9 @@ DRZWI_STARA_S = 20.0             # R1c: s od ostatniej próby, po których epizo
 DRZWI_PROB = 3                     # R1c: max Use na drzwiach, potem odpuszczenie z jedną notatką
 DRZWI_ODPUSC_S = 60.0              # R1c: s, przez które odpuszczone drzwi nie są przejściem
 DRZWI_PONOW = 0                    # F1 (17.10): 1 = flaga "drzwi otwarte" starsza niż DRZWI_STARA_S s jest przeterminowana (drzwi mogły się zamknąć): podejście do drzwi i Use znów możliwe; 0 = jak dotąd
+SMIERC_STOP = 0                    # 16.10 (R5/P5): 1 = po zgonie bot nic nie robi: stan MARTWY, jeden STOP + jedno powiadomienie (nick, czas, miejsce), zero kliknięć i modelu; 0 = jak dotąd
+SMIERC_ODCZYTY = 3                 # SMIERC_STOP: tyle kolejnych odczytów HP == 0 potwierdza zgon (jeden/dwa to możliwy fałszywy odczyt; w tym czasie obieg stoi bez akcji)
+SMIERC_SKOK = 8                    # SMIERC_STOP: HP == 0 i skok pozycji o tyle pól (albo zmiana piętra) względem ostatniej żywej próbki = respawn w świątyni, zgon potwierdzony od razu
 SKOS_ZLY_S = 30.0                  # s: pole po skosie, na które nie weszliśmy (brak zmiany pozycji), nie jest ponawiane
 SKOS_LOG_S = 3.0                   # s: min. odstęp wpisów "Skos awaryjny" w logu
 POSCIG_HP_SPADEK = 8               # pp HP gracza: tyle straty w oknie kończy pętlę
@@ -809,6 +812,9 @@ class Cavebot:
         self.reakcja_do = 0            # do kiedy "zauważamy" nowy cel, zanim go zaatakujemy
         self.pogon_odl = 0             # najmniejszy dystans do celu w tej pogoni
         self.tele = self.pokretla = None   # telemetria.py + pokretla.py (tylko na żywo, patrz _hak_telemetrii)
+        self.martwy = False            # 16.10 (SMIERC_STOP): po potwierdzonym zgonie True; tick nic nie robi, model nie wykonuje akcji
+        self._smierc_zero = 0          # kolejne odczyty HP == 0
+        self._smierc_zywy = None       # (poz, czas) ostatniej próbki z HP > 0
         self._d3 = None                # d3_zawieszka.Zawieszka (16.10): detektor zawieszki, tworzony przy pierwszym obiegu
         self._decyzja_nr = 0           # 15.10: licznik rekordów "decyzja" w tej sesji (id łączące z nowy_cel/epizod_celu/poscig_*)
         self._d1_id_cel = None         # id decyzji D1, z której wybrano bieżący cel (do powiązania z D2)
@@ -3646,6 +3652,8 @@ class Cavebot:
     def tick(self):
         """Jeden obieg decyzyjny. Zwraca False, gdy trasa/limit się skończyły."""
         bot.sprawdz_stop()
+        if SMIERC_STOP and self.martwy:
+            return True                     # MARTWY: żadnych zapytań, kliknięć ani modelu; STOP kończy pętlę
         if self.czas_s and self.zegar() - self.start >= self.czas_s:
             log("Upłynął limit czasu.")
             return False
@@ -3658,6 +3666,8 @@ class Cavebot:
         poz = self.postac.pozycja()
         teraz = self.zegar()
         fazy = {"gracz": teraz - t_start}
+        if SMIERC_STOP and self._smierc_tick(g, poz, teraz):
+            return True                     # zgon (albo podejrzenie zgonu) przed PK, walką, lootem i modelem
         if WPADNIECIE:
             wp = self._wp()
             if wp is not None:
@@ -6802,6 +6812,62 @@ class Cavebot:
             log(f"PK: zapisałem {bot.STOP} (zatrzymanie bota: {opis})")
         except OSError as e:
             log(f"PK: nie zapisałem STOP ({e})")
+
+    def _smierc_tick(self, g, poz, teraz):
+        """SMIERC_STOP (R5/P5). True = obieg zużyty (podejrzenie albo zgon): bez żadnej akcji. Zgon = HP == 0 przez
+        SMIERC_ODCZYTY odczytów z rzędu albo HP == 0 ze skokiem pozycji (respawn). Pojedynczy odczyt 0 bez przesłanki
+        tylko wstrzymuje ten obieg. Telemetria po respawnie potrafi długo dawać HP 0: po zgonie to już bez znaczenia (MARTWY)."""
+        try:
+            hp, mx = g.get("hp"), g.get("max_hp")
+            if hp is None or not mx:
+                return False                              # brak wiarygodnego odczytu: nie oceniamy
+            if hp > 0:
+                self._smierc_zero = 0
+                self._smierc_zywy = (tuple(poz), teraz)
+                return False
+            self._smierc_zero += 1
+            zyw = self._smierc_zywy
+            skok = zyw is not None and (poz[2] != zyw[0][2] or max(abs(poz[0] - zyw[0][0]), abs(poz[1] - zyw[0][1])) >= SMIERC_SKOK)
+            if self._smierc_zero < SMIERC_ODCZYTY and not skok:
+                if self._smierc_zero == 1:
+                    log("Śmierć?: HP 0 w jednym odczycie, czekam na potwierdzenie (obieg bez akcji).")
+                return True
+            self._smierc_potwierdz(poz, zyw, skok)
+            return True
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:                            # detekcja nigdy nie wywraca bota
+            log(f"debug: śmierć błąd {e!r}")
+            return False
+
+    def _smierc_potwierdz(self, poz, zyw, skok):
+        """Jednorazowo: stan MARTWY, log, telemetria 'smierc', STOP i jedno powiadomienie."""
+        self.martwy = True
+        ostatni_stan = str(self.stan)
+        czas = time.strftime("%H:%M:%S")
+        miejsce = zyw[0] if zyw else tuple(poz)
+        pow_ = f"{miejsce[0]},{miejsce[1]},{miejsce[2]}"
+        przyczyna = "skok pozycji" if skok else f"HP 0 w {self._smierc_zero} odczytach"
+        self.ustaw_stan("MARTWY", f"HP 0 ({przyczyna}), ostatnia żywa poz {tuple(miejsce)}, teraz {tuple(poz)}")
+        self.cel = None
+        try:
+            self._poscig_puszcz()                         # tylko puszcza klawisze ruchu, nic nie wciska
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"debug: śmierć: puszczenie klawiszy {e!r}")
+        stwory = []
+        for m in (self.ostatnie_stwory or [])[:8]:
+            try:
+                stwory.append({"n": m.get("nazwa"), "dx": m["x"] - miejsce[0], "dy": m["y"] - miejsce[1],
+                               "gracz": bool(m.get("gracz")), "hp": m.get("hp")})
+            except Exception:
+                continue
+        self._tele_poscig("smierc", poz=list(poz[:3]), ostatnia_zywa_poz=list(miejsce[:3]), czas=czas,
+                          ostatni_stan=ostatni_stan, przyczyna=przyczyna, stwory=stwory)
+        nick = getattr(self.postac, "nazwa", None) or "?"
+        self._pk_stop(f"zgon {nick} {czas} {pow_}")
+        self._pk_powiadom("Bot zginął", f"{nick}, {czas}, poz {pow_}. Bot zatrzymany.", "smierc")
 
     def _pk_tick(self, g, poz, teraz):
         """True, gdy obieg zużyty (start ucieczki PK, czekanie w depo, leczenie z postojem)."""

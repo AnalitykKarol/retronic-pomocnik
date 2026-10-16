@@ -2208,6 +2208,9 @@ class Mozg:
         """W trybie doradcy tylko log (i notatki). W hybrydzie steruje cavebotem i czatem.
         kontekst: {"czas": chwila decyzji, ...}; akcje ruchu ze starej decyzji albo w walce odpadają."""
         doradca = self.cb is None
+        if self._martwy():
+            self.log("MARTWY: odrzucam akcje modelu.")
+            return
         for a in akcje:
             typ = a["typ"]
             if typ == "kontynuuj":
@@ -2958,8 +2961,15 @@ class Mozg:
         except Exception as e:  # wątek nie może wywrócić bota
             self.log(f"Błąd wątku modelu: {e!r}")
 
+    def _martwy(self):
+        """SMIERC_STOP: po zgonie model nie wykonuje akcji, nie pisze na czacie i nie jest pytany."""
+        return bool(self.cb is not None and cavebot.SMIERC_STOP and getattr(self.cb, "martwy", False))
+
     def obieg_hybrydy(self, czat_co=CZAT_POLLING):
         """Część pętli hybrydy niezależna od tick(): decyzje, czat, zdarzenia, nowe pytanie."""
+        if self._martwy():
+            self.decyzje.clear()
+            return
         while self.decyzje:
             d = self.decyzje.popleft()
             if isinstance(d, dict):
