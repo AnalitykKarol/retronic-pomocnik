@@ -216,6 +216,7 @@ ZWLOKI_PAMIEC = 600                # s: sprobuj_loot tylko na zwłokach zabitych
 PROG_RUCHU_HP = 60                 # % HP: poniżej żadnych akcji ruchu
 # zrzut ekranu dla modelu (opcja --zrzuty)
 ZRZUT_TYPY = ("brak_okna_lootu", "nie_doszedl_do_zwlok", "punkt_nieosiagalny", "problem_plecaka", "loot_nieudany")
+PK_SZYBKIE_HP = 50                 # % HP: PK_SZYBKIE=1 i HP poniżej = model nie jest pytany o obcego gracza, a pauza_bota/kontynuuj odpadają
 CZASZKA_CZEKAJ_S = 12              # s: tyle wątek modelu czeka na odczyt czaszki przed pytaniem o obcego gracza
 ZRZUT_MAKS_B = 4_000_000           # większy zrzut nie idzie do modelu
 ZRZUT_ZOSTAW = 20                  # tyle ostatnich zrzutów w logi/zrzuty
@@ -2060,7 +2061,22 @@ class Mozg:
                 "exp_na_h": (stan.get("sesja") or {}).get("exp_na_h"),
                 "czat": czat,
                 "gracze": [w["nazwa"] for w in stan.get("gracze_w_widoku") or [] if isinstance(w, dict)],
-                "cavebot": cb.get("stan") if isinstance(cb, dict) else None}
+                "cavebot": cb.get("stan") if isinstance(cb, dict) else None,
+                "pk": self.pk_dla_obserwatora()}
+
+    def pk_dla_obserwatora(self):
+        """P10: pk_stan, karencja i wrogowie (nick + s od ostatniego zobaczenia) cavebota; bez tworzenia plików."""
+        cb, wr = self.cb, getattr(self.cb, "pk_wrogowie", None)
+        if cb is None or wr is None:
+            return None
+        try:
+            t = wr.czas()
+            wrogowie = sorted(({"nick": n, "widziany_s_temu": round(t - float(r.get("ost", 0.0)))}
+                               for n, r in wr.dane.items()), key=lambda x: x["widziany_s_temu"])[:5]
+            return {"pk_stan": getattr(cb, "pk_stan", None), "karencja_pozostalo_s": round(wr.karencja_pozostalo_s()),
+                    "wrogowie": wrogowie}
+        except Exception:
+            return None
 
     def stan_cavebota(self):
         if self.cb is None:
@@ -2180,6 +2196,13 @@ class Mozg:
     def pomysl(self, zdarzenia=None):
         """Pełny obieg: stan -> model -> zapis decyzji. Wołane w wątku (hybryda) albo wprost (doradca).
         zdarzenia: lista "dziwnych" zdarzeń bota (pytanie o zdarzenie z logiem bota i kontenerami)."""
+        szybki, powod = self._pk_szybkie()
+        if szybki and zdarzenia and any(z["typ"] == "obcy_gracz" for z in zdarzenia):
+            # PK_SZYBKIE (P6/R2): reakcję (ucieczka, leczenie, nick do wrogów) robi kod; model nie czeka na czaszkę ani nie decyduje
+            zdarzenia = [z for z in zdarzenia if z["typ"] != "obcy_gracz"]
+            self.log(f"PK_SZYBKIE: pomijam pytanie modelu o obcego gracza ({powod}).")
+            if not zdarzenia:
+                return {}, [{"typ": "kontynuuj"}]
         if zdarzenia and zdarzenia[0]["typ"] == "obcy_gracz" and self.czytnik_czaszki is not None:
             self.czytnik_czaszki.czekaj(CZASZKA_CZEKAJ_S)   # wątek modelu: poczekaj na odczyt czaszki (Haiku ~kilka s)
         stan = self.zbuduj_stan()
@@ -2211,6 +2234,12 @@ class Mozg:
         if self._martwy():
             self.log("MARTWY: odrzucam akcje modelu.")
             return
+        szybki, powod = self._pk_szybkie()
+        if szybki:      # P6/R2b: w PK-alarmie / przy HP < 50% model nie wstrzymuje bota i nie "kontynuuje" (decyzja po fakcie)
+            for a in akcje:
+                if a["typ"] in ("pauza_bota", "kontynuuj"):
+                    self.log(f"PK_SZYBKIE: ignoruję {a['typ']} od modelu ({powod}).")
+            akcje = [a for a in akcje if a["typ"] not in ("pauza_bota", "kontynuuj")]
         for a in akcje:
             typ = a["typ"]
             if typ == "kontynuuj":
@@ -2960,6 +2989,21 @@ class Mozg:
             self.decyzje.append({"akcje": akcje, "czas": t0, "gotowe": self.zegar(), "zdarzenia": zdarzenia})
         except Exception as e:  # wątek nie może wywrócić bota
             self.log(f"Błąd wątku modelu: {e!r}")
+
+    def _pk_szybkie(self):
+        """PK_SZYBKIE=1: (True, powód), gdy trwa PK-alarm albo HP < 50% (reakcja nie czeka na model); inaczej (False, "")."""
+        cb = self.cb
+        if cb is None or not cavebot.PK_SZYBKIE:
+            return False, ""
+        if getattr(cb, "pk_stan", None) is not None:
+            return True, f"PK-alarm ({cb.pk_stan})"
+        g = cb.ostatni_gracz[1] if getattr(cb, "ostatni_gracz", None) else None
+        try:
+            if g and g.get("max_hp") and 100 * g["hp"] / g["max_hp"] < PK_SZYBKIE_HP:
+                return True, f"HP {100 * g['hp'] / g['max_hp']:.0f}%"
+        except (TypeError, KeyError, ZeroDivisionError):
+            pass
+        return False, ""
 
     def _martwy(self):
         """SMIERC_STOP: po zgonie model nie wykonuje akcji, nie pisze na czacie i nie jest pytany."""

@@ -87,6 +87,10 @@ ZAKRESY = {
     "PK_LECZ": (0, 1),                  # 1 = leczenie po drodze do depo (exura F2, UH na siebie)
     "PK_DEPO_MAX_MIN": (5, 120),        # min: tyle w depo czekamy na regenerację HP, potem STOP + powiadomienie
     "PK_UH_HP": (0, 70),                # % HP: poniżej klikamy UH na siebie (0 = wyłączone)
+    "PK_UH_SZYBKIE": (0, 1),            # 16.10 (SPEC R3+R4, P8): 1 = szybkie UH w ucieczce PK + ucieczka bez 8 s walki z mobem (domyślnie 0)
+    "PK_UH_HP_SZYBKI": (30, 70),        # % HP: próg UH przy PK_UH_SZYBKIE=1 (nie niżej niż 30)
+    "PK_UH_PREDYKCJA": (0, 1),          # 1 = spadek >= 15 pp w 2 s => UH już przy HP <= 50% (przy PK_UH_SZYBKIE=1)
+    "PK_UH_CTRL": (0, 1),               # 1 = Ctrl+klik runy zamiast menu 'Use with' (UNKNOWN, czy działa w kliencie; domyślnie 0)
     "PVP_WALKA": (0, 1),                # 1 = z jedynym napastnikiem walczymy (HMM + UH/exura) zamiast uciekać; domyślnie 0 do próby na żywo
     "PVP_MAX_WROGOW": (1, 3),           # tylu napastników w widoku naraz dopuszcza wejście w walkę
     "PVP_DRUGI_ODL": (2, 8),            # pola: inny gracz tak blisko liczy się jako drugi napastnik
@@ -254,7 +258,9 @@ ZAKRESY = {
     "D3_REAKCJA": (0, 1),               # 17.10 (F1): 1 = cień: rekord "d3_reakcja" z opcją, którą wybrałaby reguła; nic nie wykonuje (domyślnie 0)
     "D3_ALARM_S": (0.0, 1800.0),        # 17.10 (F1): >0 = zawieszka D3 trwająca tyle s => jedno powiadomienie krytyczne, bez STOP (domyślnie 0 = wyłączone)
     "DRZWI_PONOW": (0, 1),              # 17.10 (F1): 1 = flaga "drzwi otwarte" starsza niż DRZWI_STARA_S s jest przeterminowana: podejście i Use przy zamkniętych drzwiach (domyślnie 0)
+    "OBSERWATOR_PK_KONTEKST": (0, 1),   # 16.10 (P10): 1 = obserwator dostaje karencję PK i wie, że PAUZA_PK z karencją jest zamierzona (domyślnie 0)
     "SMIERC_STOP": (0, 1),              # 16.10 (R5/P5): 1 = po zgonie stan MARTWY: jeden STOP + powiadomienie, zero kliknięć i modelu (domyślnie 0)
+    "PK_SZYBKIE": (0, 1),               # 16.10 (P6/R2): 1 = reakcja na PK bez czekania na alarm dźwiękowy i model (domyślnie 0)
     "D3_ASTAR_MAX": (0, 12),            # najwyżej tyle wywołań A* na zawieszkę przy liczeniu opcji D3 (domyślnie 6)
 }
 # Pokrętła tekstowe (tylko ręcznie w na_zywo.json): nazwa -> dozwolone wartości
@@ -297,6 +303,7 @@ KIERUNEK = {
     # obrona PK: analityk nie może jej wyłączyć ani poluzować (tylko zaostrzyć); ręczny plik tylko ZAKRESY
     "PK_OBRONA": "nie_nizej", "PK_ODL": "nie_nizej", "PK_ODL_CZAR": "nie_nizej", "PK_SPADEK_PP": "nie_wyzej",
     "PK_KARENCJA_MIN": "nie_nizej", "PK_WROG_WAZNY_H": "nie_nizej", "PK_LECZ": "nie_nizej", "PK_UH_HP": "nie_nizej", "PK_DEPO_MAX_MIN": "nie_wyzej",
+    "PK_UH_SZYBKIE": "nie_wyzej", "PK_UH_CTRL": "nie_wyzej", "PK_UH_HP_SZYBKI": "nie_nizej", "PK_UH_PREDYKCJA": "nie_nizej",
     # walka z napastnikiem: analityk nie może jej włączyć, poluzować wejścia ani opóźnić leczenia (tylko Karol w na_zywo.json)
     "PVP_WALKA": "nie_wyzej", "PVP_MAX_WROGOW": "nie_wyzej", "PVP_DRUGI_ODL": "nie_nizej", "PVP_HP_MIN": "nie_nizej",
     "PVP_UH_HP": "nie_nizej", "PVP_EXURA_HP": "nie_nizej", "PVP_POGON": "nie_wyzej", "PVP_HMM_PORAZKI": "nie_wyzej",
@@ -336,7 +343,7 @@ KIERUNEK = {
     "UH_W_WALCE": "nie_wyzej", "UH_W_WALCE_MANA_MARGINES": "nie_wyzej", "UH_W_WALCE_MIN_HP": "nie_nizej",
     "UH_W_WALCE_DYSTANS": "nie_nizej", "UH_W_WALCE_SPADEK_HP": "nie_wyzej",
     # pola ognia: analityk nie może wyłączyć omijania (tylko Karol w na_zywo.json)
-    "OGIEN_UNIKAJ": "nie_nizej", "OGIEN_STALY": "nie_nizej", "OGIEN_MASKA_TYLKO_SCIANY": "nie_nizej", "OGIEN_WYJDZ_POTWIERDZ": "nie_nizej", "OGIEN_MASKA_DANE": "nie_nizej", "OGIEN_POMIJAJ_PRZY_STWORZE": "nie_nizej", "POSCIG_SKOSY_ZAPAS": "nie_nizej", "PATROL_DRZWI": "nie_nizej", "D3_REAKCJA": "nie_wyzej", "D3_ALARM_S": "nie_wyzej", "DRZWI_PONOW": "nie_wyzej", "SMIERC_STOP": "nie_wyzej", "RUCH_OKNO": "nie_nizej", "RUCH_PROBKA_WCZESNA": "nie_nizej", "OGIEN_ODSWIEZ_WALKA_S": "nie_wyzej",
+    "OGIEN_UNIKAJ": "nie_nizej", "OGIEN_STALY": "nie_nizej", "OGIEN_MASKA_TYLKO_SCIANY": "nie_nizej", "OGIEN_WYJDZ_POTWIERDZ": "nie_nizej", "OGIEN_MASKA_DANE": "nie_nizej", "OGIEN_POMIJAJ_PRZY_STWORZE": "nie_nizej", "POSCIG_SKOSY_ZAPAS": "nie_nizej", "PATROL_DRZWI": "nie_nizej", "D3_REAKCJA": "nie_wyzej", "D3_ALARM_S": "nie_wyzej", "DRZWI_PONOW": "nie_wyzej", "SMIERC_STOP": "nie_wyzej", "PK_SZYBKIE": "nie_wyzej", "OBSERWATOR_PK_KONTEKST": "nie_wyzej", "RUCH_OKNO": "nie_nizej", "RUCH_PROBKA_WCZESNA": "nie_nizej", "OGIEN_ODSWIEZ_WALKA_S": "nie_wyzej",
     # ignorowanie/strażnicy/blokujący: analityk nie może wyłączyć strażników ani włączyć bicia blokującego (tylko Karol)
     # dojście z depo: analityk nie może włączyć wypraw po blanki w depo ani wyłączyć karencji/walki przy przejściu (tylko Karol)
     "WYPRAWA_DEPO_BLANKI": "nie_wyzej", "WYPRAWA_PO_DEPO_S": "nie_nizej", "WYPRAWA_PO_DOJSCIU_S": "nie_nizej", "BLANKI_AUTO_BAG": "nie_wyzej", "BLANKI_AUTO_BAG_MIN": "nie_nizej",

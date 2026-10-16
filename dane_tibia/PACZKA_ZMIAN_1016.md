@@ -49,3 +49,13 @@ Zasada: najpierw wszystko napisane i przetestowane offline (atrapy + symulator),
 - Bot uruchomiony z fałszywym HP 0 trwającym >=3 odczyty zatrzyma się jako „martwy” (nie do odróżnienia bez dodatkowej przesłanki).
 - Dymek `notify-send` nieprzetestowany w grze (testy wyłączają powiadomienia); możliwy drugi, generyczny dymek „Bot zatrzymany” z `mozg.py`.
 - Przyczyna HP 0 po respawnie (~16 min w telemetrii) nadal UNKNOWN, obejście: w `MARTWY` odczyt HP nie ma znaczenia.
+
+## 5. Stan po integracji (16.10 wieczór)
+Patch zbiorczy wprowadzony do repo (P6, P7-narzędzie, P8, P10, F3-cień). 88 plików testowych, czerwone tylko 2 znane (`test_loot_*`, brak zrzutów).
+**Bez niezależnego przeglądu** (checker padł na ECONNRESET, klasyfikator bezpieczeństwa był niedostępny przy P6 i integracji). Wszystkie nowe pokrętła domyślnie 0
+(`PK_SZYBKIE`, `PK_UH_SZYBKIE`, `PK_UH_CTRL`, `OBSERWATOR_PK_KONTEKST`, `SMIERC_STOP`, `D3_REAKCJA`, `D3_ALARM_S`, `DRZWI_PONOW`, `WPADNIECIE_WALIDACJA`);
+`PK_UH_PREDYKCJA=1` i `PK_UH_HP_SZYBKI=30` działają tylko przy `PK_UH_SZYBKIE=1`.
+Odkrycie P6: 4 s martwego czasu przed zgonem to synchroniczny `paplay` w `cavebot.alarm_dzwiekowy` (log: dokładnie +4 s po każdej linii ALARM), nie model.
+Inne synchroniczne alarmy na ścieżkach reakcji (niskie HP `cavebot.py` ~7508, gracz na ekranie ~3827, strażnik ~4296/4354, PVP ~7101, UH ~1644/1706) NIE zmienione: do osobnej poprawki.
+P7: detektora czaszki nie ma (2 próbki białej, 0 czerwonej/żółtej, 0 obrazów z czaszką); jest `narzedzia/zbierz_czaszki.py` i `CZASZKA_ZAPIS_PROBEK` do zbierania próbek.
+P10: licznik pauzy w obserwatorze ograniczony oknem 300 s, więc warunek „PAUZA_PK > 5 min” praktycznie nie zadziała (do decyzji: dłuższe okno albo licznik w cavebocie).

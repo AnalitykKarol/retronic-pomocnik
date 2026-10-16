@@ -11,6 +11,8 @@ liczy się jak brak odczytu). Moduł importuje tylko stdlib (ekran/PIL leniwie),
 Pokrętła (env, czytane przy tworzeniu czytnika; domyślne w stałych):
   CZASZKA_ODCZYT   0/1  (domyślnie 1)  wyłącza całą funkcję
   CZASZKA_LIMIT_H  ile wywołań Haiku na godzinę (domyślnie 20)
+  CZASZKA_ZAPIS_PROBEK 0/1 (domyślnie 0)  P7: zapisuj każdy wycinek przy nicku do logi/czaszki/<wynik>/ (zbiór próbek pod
+                   lokalny detektor, narzedzia/zbierz_czaszki.py; etykieta = odpowiedź Haiku, wymaga potwierdzenia ręcznego)
 """
 import os
 import threading
@@ -18,6 +20,8 @@ import time
 
 CZASZKA_ODCZYT = 1
 CZASZKA_LIMIT_H = 20
+CZASZKA_ZAPIS_PROBEK = 0
+KATALOG_PROBEK = "logi/czaszki"
 TTL_CZASZKA_S = 600          # s: odczytana biała/czerwona czaszka (w grze czaszka trwa minuty)
 TTL_BRAK_S = 300             # s: "brak czaszki" starzeje się szybciej (czaszka pojawia się po ataku)
 TTL_NIECZYTELNE_S = 90       # s: nieczytelne = ponowna próba po tym czasie (nadal w limicie/h)
@@ -121,6 +125,8 @@ class CzytnikCzaszki:
             else bool(wlaczony)
         self.limit_h = int(os.environ.get("CZASZKA_LIMIT_H", CZASZKA_LIMIT_H)) if limit_h is None else limit_h
         self.wytnij = wytnij or wytnij_nick
+        self.zapis_probek = bool(int(os.environ.get("CZASZKA_ZAPIS_PROBEK", CZASZKA_ZAPIS_PROBEK)))
+        self.katalog_probek = KATALOG_PROBEK
         self.wywolania = []          # czasy wywołań modelu (limit na godzinę)
         self.koszt_usd = 0.0
         self.watek = None
@@ -162,6 +168,8 @@ class CzytnikCzaszki:
                 except OSError:
                     pass
         wynik = parsuj(tekst)
+        if self.zapis_probek:
+            self._zapisz_probke(wycinek, nick, wynik)
         koszt = (meta or {}).get("total_cost_usd") if isinstance(meta, dict) else None
         if isinstance(koszt, (int, float)):
             self.koszt_usd += koszt
@@ -170,6 +178,16 @@ class CzytnikCzaszki:
         self.log(f"Czaszka: {nick} = {wynik} (model: {str(tekst).strip()[:40]!r}"
                  + (f", ${koszt:.4f}" if isinstance(koszt, (int, float)) else "") + ").")
         return wynik
+
+    def _zapisz_probke(self, wycinek, nick, wynik):
+        """P7: kopia wycinka do zbioru próbek (logi/czaszki/<wynik>/<nick>-<czas>.png). Błąd zapisu nie psuje odczytu."""
+        try:
+            katalog = os.path.join(self.katalog_probek, wynik)
+            os.makedirs(katalog, exist_ok=True)
+            bezpieczny = "".join(c if c.isalnum() else "_" for c in str(nick))[:24] or "gracz"
+            wycinek.save(os.path.join(katalog, f"{bezpieczny}-{int(self.zegar())}.png"), "PNG")
+        except Exception as e:
+            self.log(f"Czaszka: zapis próbki nie powiódł się: {e!r}")
 
     def _zapisz(self, wycinek):
         import tempfile  # noqa: PLC0415

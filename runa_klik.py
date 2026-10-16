@@ -86,6 +86,29 @@ def ocr_use_with(obraz, x, y, obszar=OBSZAR_MENU, skala=SKALA_OCR):
     return x0 + round(p[0] / skala), y0 + round(p[1] / skala)
 
 
+# --- losowość kliknięcia "na siebie" (PK_UH_SZYBKIE, R3e) ------------------------------
+SIGMA_POLA = 1 / 6          # sigma rozkładu normalnego jako ułamek rozmiaru pola postaci
+ODSTEP_CTRL_MS = (60, 180)  # losowy odstęp Ctrl+klik runy -> klik w siebie
+
+
+def losowy_offset_pola(rng, szer, wys, sigma=SIGMA_POLA):
+    """(ox, oy) w pikselach od środka pola o rozmiarze szer x wys: rozkład normalny (sigma = sigma*rozmiar), obcięty do
+    pola (nigdy poza nie; próbkowanie z odrzucaniem, po 8 próbach przycięcie do krawędzi)."""
+    def os_(rozmiar):
+        pol = rozmiar / 2.0
+        for _ in range(8):
+            v = rng.gauss(0.0, sigma * rozmiar)
+            if abs(v) <= pol:
+                return v
+        return max(-pol, min(pol, v))
+    return os_(szer), os_(wys)
+
+
+def losowy_odstep_ctrl(rng, zakres_ms=ODSTEP_CTRL_MS):
+    """Losowy odstęp (s) między Ctrl+klikiem runy a klikiem w siebie."""
+    return rng.uniform(zakres_ms[0], zakres_ms[1]) / 1000.0
+
+
 # --- logika strzału -------------------------------------------------------------
 def _rodzaj(k):
     """"plecak" (backpack/bag), "runy" (pojemnik na runy: Purple backpack, id 2868) albo None."""
@@ -128,11 +151,16 @@ def _ilosc(kontenery, runa_id):
     return n
 
 
-def strzel(env, cel, runa_id=RUNA_ID, menu_dx=MENU_DX, menu_dy=MENU_DY, weryfikacja_s=WERYFIKACJA_S):
+def strzel(env, cel, runa_id=RUNA_ID, menu_dx=MENU_DX, menu_dy=MENU_DY, weryfikacja_s=WERYFIKACJA_S,
+           szybko=False, ctrl=False, rng=None, budzet_s=1.0):
     """Jedna próba strzału. env: kontenery(), geometria(), prawy(x,y), lewy_pole(dx,dy), zrzut(),
     hp_celu(id) -> % albo None (znikł), klawisz(nazwa), zegar(), spij(s), log(t), pamiec (dict: ostatni offset).
     cel: {"id","dx","dy","hp"}. -> {"wynik": ..., "powod": ...}; wynik: ok | brak_runy | brak_geometrii |
-    bez_menu | bez_efektu | blad."""
+    bez_menu | bez_efektu | blad.
+    szybko=True (PK_UH_SZYBKIE): weryfikacja skrócona (spadek ilości run albo wzrost własnego HP z env.hp_wlasne()),
+    menu niepotwierdzone = krótki powtórny odczyt, potem wynik "bez_menu" BEZ zgadywania offsetu (dopuszczony tylko
+    offset zmierzony wcześniej z OCR, env.pamiec), klik "na siebie" losowo w polu postaci (env.lewy_siebie(rng)),
+    ctrl=True: Ctrl+klik runy (env.ctrl_lewy) zamiast menu; całość w budżecie budzet_s."""
     kont = env.kontenery()
     if not kont:
         return {"wynik": "blad", "powod": "brak odczytu kontenerow"}
@@ -155,6 +183,8 @@ def strzel(env, cel, runa_id=RUNA_ID, menu_dx=MENU_DX, menu_dy=MENU_DY, weryfika
         return {"wynik": "brak_geometrii", "powod": f"slot {slot} poza oknem ({len(g.get(rodzaj) or [])})"}
     sx, sy = pozycja
     hp0 = cel.get("hp")
+    if szybko:
+        return _strzel_szybko(env, cel, runa_id, sx, sy, ilosc0, weryfikacja_s, ctrl, rng, budzet_s)
     env.prawy(sx, sy)
     env.spij(0.25)                                   # menu musi się narysować
     pozycja = None
@@ -195,6 +225,87 @@ def strzel(env, cel, runa_id=RUNA_ID, menu_dx=MENU_DX, menu_dy=MENU_DY, weryfika
         if type(e).__name__ == "Zatrzymano":
             raise
     return {"wynik": "bez_efektu", "powod": "ani runa, ani HP celu się nie zmieniły"}
+
+
+def _anuluj(env):
+    try:
+        env.klawisz("Escape")                        # anuluj celownik / menu, gdyby zostało
+    except Exception as e:
+        if type(e).__name__ == "Zatrzymano":
+            raise
+
+
+def _strzel_szybko(env, cel, runa_id, sx, sy, ilosc0, weryfikacja_s, ctrl, rng, budzet_s):
+    """Wariant PK_UH_SZYBKIE strzelu (R3): krótko, bez zgadywania menu, klik 'na siebie' losowo w polu postaci."""
+    import random
+    rng = rng or random
+    t0 = env.zegar()
+    hp_start = None
+    hw = getattr(env, "hp_wlasne", None)
+    if hw is not None:
+        try:
+            hp_start = hw()
+        except Exception as e:
+            if type(e).__name__ == "Zatrzymano":
+                raise
+    if ctrl:
+        env.ctrl_lewy(sx, sy)                        # Ctrl+klik runy = "Use with" bez menu (UNKNOWN, czy działa w kliencie)
+    else:
+        env.prawy(sx, sy)
+        env.spij(0.12)                               # krótko: menu rysuje się szybko, drugi odczyt gdy nie
+        pozycja = None
+        for proba in range(2):
+            try:
+                obraz = env.zrzut()
+                if obraz is not None:
+                    pozycja = env.ocr(obraz, sx, sy)
+            except Exception as e:
+                if type(e).__name__ == "Zatrzymano":
+                    raise
+                env.log(f"[RUNA-KLIK] OCR menu: {type(e).__name__}: {e}")
+            if pozycja is not None:
+                break
+            if proba == 0:
+                env.spij(0.1)                        # krótki powtórny odczyt
+        pam = env.pamiec
+        if pozycja is not None:
+            pam["offset"] = (pozycja[0] - sx, pozycja[1] - sy)
+        elif pam.get("offset"):
+            off = pam["offset"]                      # offset ZMIERZONY wcześniej z OCR (nie zgadnięty)
+            pozycja = (sx + off[0], sy + off[1])
+            env.log(f"[RUNA-KLIK] 'Use with' niepotwierdzone: zmierzony offset {off}")
+        else:
+            _anuluj(env)
+            return {"wynik": "bez_menu", "powod": "menu 'Use with' niepotwierdzone (2 odczyty), offset nie jest znany"}
+        env.lewy(pozycja[0], pozycja[1])
+    pauza = losowy_odstep_ctrl(rng)
+    zostalo = budzet_s - (env.zegar() - t0) - 0.2
+    env.spij(max(0.0, min(pauza, zostalo)))
+    lewy_siebie = getattr(env, "lewy_siebie", None)
+    if lewy_siebie is not None:
+        lewy_siebie(rng)
+    else:
+        env.lewy_pole(cel["dx"], cel["dy"])
+    wer = min(weryfikacja_s, max(0.2, budzet_s - (env.zegar() - t0)))
+    t_koniec = env.zegar() + wer
+    while True:
+        env.spij(0.15)
+        k2 = env.kontenery()
+        if k2 and _ilosc(k2, runa_id) < ilosc0:
+            return {"wynik": "ok", "powod": "ubyło runy"}
+        if hw is not None and hp_start is not None:
+            try:
+                h = hw()
+            except Exception as e:
+                if type(e).__name__ == "Zatrzymano":
+                    raise
+                h = None
+            if h is not None and h > hp_start + 1.0:
+                return {"wynik": "ok", "powod": f"HP własne {hp_start:.0f}% -> {h:.0f}%"}
+        if env.zegar() >= t_koniec:
+            break
+    _anuluj(env)
+    return {"wynik": "bez_efektu", "powod": "ani runa, ani HP własne się nie zmieniły"}
 
 
 # --- prawdziwe środowisko (nie testowane na X11) -----------------------------------
@@ -252,6 +363,21 @@ class SrodowiskoKlik:
     def lewy_pole(self, dx, dy):
         import ekran
         ekran.klik_pola(dx, dy, 1)                   # zwykły klik, bez modyfikatora (celownik "Use with")
+
+    def ctrl_lewy(self, x, y):
+        import ekran
+        with ekran.Mysz() as m:
+            m.lewy(x, y, modyfikator="Control_L", drganie=1)
+
+    def lewy_siebie(self, rng):
+        """Klik 'na siebie' (pole 0,0): środek pola postaci + normalny rozkład sigma ~1/6 pola, obcięty do pola."""
+        import ekran
+        with ekran.Mysz() as m:
+            L, T, R, B = ekran.aktualny_prostokat(m.ekran)
+            kw, kh = (R - L) / ekran.POLA_X, (B - T) / ekran.POLA_Y
+            ox, oy = losowy_offset_pola(rng, kw, kh)
+            px, py = ekran.pole_na_ekran(0, 0, (L, T, R, B))
+            m.klik(round(px + ox), round(py + oy), 1, None, 0)    # drganie=0: losowość daje rozkład powyżej
 
     def zrzut(self):
         import ekran

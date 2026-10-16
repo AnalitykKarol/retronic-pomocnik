@@ -235,6 +235,27 @@ SYSTEM_OBS = (
     "ucieczki; nie podnoś z jego powodu statusu ponad ok i nie rób z niego problemu."
 )
 
+PK_INSTRUKCJA_OBS = (
+    " PK: pole pk (pk_stan, karencja_pozostalo_s, wrogowie, pauza_pk_trwa_s). Stan cavebota PAUZA_PK przy "
+    "karencja_pozostalo_s > 0 to stan ZAMIERZONY (bot czeka w depo po ucieczce przed graczem): nie zgłaszaj go, "
+    "status ok. Alert (uwaga/problem) o PAUZA_PK tylko, gdy karencja_pozostalo_s == 0 i pauza_pk_trwa_s > 300. "
+    "Brak pola pk albo null = UNKNOWN, nie zgaduj."
+)
+
+
+def pauza_pk_trwa_s(r300, teraz):
+    """Ile s z rzędu (do 300) cavebot stoi w PAUZA_PK wg ostatnich próbek telemetrii; 0 = nie stoi."""
+    probki = [r for r in r300 if r["typ"] == "probka"]
+    if not probki or probki[-1].get("stan") != "PAUZA_PK":
+        return 0
+    od = probki[-1]["t"]
+    for r in reversed(probki):
+        if r.get("stan") != "PAUZA_PK":
+            break
+        od = r["t"]
+    return round(teraz - od)
+
+
 PROG_UCIECZKI_OBS = 30    # % HP: próg ucieczki bota (brak jedzenia podnosi status dopiero blisko niego)
 MARGINES_JEDZENIA_OBS = 15
 RE_JEDZENIE_TEKST = re.compile(r"jedzeni|głód|głod|glod|food|regeneracj", re.I)
@@ -500,6 +521,8 @@ class Obserwator(Analityk):
                          "zakazane": [k for k, t in poz.zakazane.items() if t > teraz],
                          "oczekuje_oceny": bool(poz.oczekuje)},
             "ostatnie_wnioski": self.wnioski[-3:],
+            **({"pk": {**(ex.get("pk") or {}), "pauza_pk_trwa_s": pauza_pk_trwa_s(r300, teraz)}}
+               if getattr(poz.modul, "OBSERWATOR_PK_KONTEKST", 0) else {}),
         }
 
     @staticmethod
@@ -551,7 +574,11 @@ class Obserwator(Analityk):
         self.podpis = pod
         self.wywolania.append(teraz)
         try:
-            tekst, meta = self.model(json.dumps(d, ensure_ascii=False), SYSTEM_OBS)
+            system = SYSTEM_OBS
+            if d.get("pk") is not None:
+                system += PK_INSTRUKCJA_OBS
+                self.log(f"OBSERWATOR: kontekst PK: stan={d['pk'].get('pk_stan')} karencja={d['pk'].get('karencja_pozostalo_s')} s")
+            tekst, meta = self.model(json.dumps(d, ensure_ascii=False), system)
         except Exception as e:
             self.log(f"OBSERWATOR błąd modelu: {e!r}")
             return self.wiersz(teraz, status="blad_modelu", blad=repr(e)[:120])

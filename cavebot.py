@@ -19,6 +19,7 @@ import re
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -487,6 +488,7 @@ DRZWI_PROB = 3                     # R1c: max Use na drzwiach, potem odpuszczeni
 DRZWI_ODPUSC_S = 60.0              # R1c: s, przez które odpuszczone drzwi nie są przejściem
 DRZWI_PONOW = 0                    # F1 (17.10): 1 = flaga "drzwi otwarte" starsza niż DRZWI_STARA_S s jest przeterminowana (drzwi mogły się zamknąć): podejście do drzwi i Use znów możliwe; 0 = jak dotąd
 SMIERC_STOP = 0                    # 16.10 (R5/P5): 1 = po zgonie bot nic nie robi: stan MARTWY, jeden STOP + jedno powiadomienie (nick, czas, miejsce), zero kliknięć i modelu; 0 = jak dotąd
+OBSERWATOR_PK_KONTEKST = 0         # 16.10 (P10): 1 = obserwator (Haiku) dostaje pk_stan, karencję PK i wrogów oraz instrukcję, że PAUZA_PK z aktywną karencją to stan zamierzony; 0 = jak dotąd
 SMIERC_ODCZYTY = 3                 # SMIERC_STOP: tyle kolejnych odczytów HP == 0 potwierdza zgon (jeden/dwa to możliwy fałszywy odczyt; w tym czasie obieg stoi bez akcji)
 SMIERC_SKOK = 8                    # SMIERC_STOP: HP == 0 i skok pozycji o tyle pól (albo zmiana piętra) względem ostatniej żywej próbki = respawn w świątyni, zgon potwierdzony od razu
 SKOS_ZLY_S = 30.0                  # s: pole po skosie, na które nie weszliśmy (brak zmiany pozycji), nie jest ponawiane
@@ -596,8 +598,22 @@ PK_KARENCJA_MIN = 30               # min: tyle po ostatnim zobaczeniu wroga nie 
 PK_DEPO_PROMIEN = 8              # pola: start w karencji tak blisko depo = czekamy na miejscu, dalej = ucieczka do depo
 PK_WROG_WAZNY_H = 72               # h: wróg z listy wywołuje ucieczkę na sam widok, jeśli ostatnio widziany nie dalej niż tyle godzin temu
 PK_LECZ = 1                        # 0/1: w ucieczce PK leczymy po drodze (exura z hotkeya F2, UH z plecaka na siebie)
+PK_SZYBKIE = 0                     # 16.10 (P6/R2): 1 = reakcja na PK nie czeka na dźwięk alarmu ani na model: alarm PK w wątku, leczenie w tym samym obiegu co start ucieczki; mózg nie pyta modelu o obcego gracza w PK-alarmie / przy HP < 50% i odrzuca wtedy pauza_bota/kontynuuj; 0 = jak dotąd
 PK_UH_HP = 40                      # % HP: poniżej tego w ucieczce klikamy UH z plecaka na siebie (0 = wyłączone)
 PK_UH_ODSTEP_S = 2.5               # s: minimalny odstęp między próbami UH na siebie
+PK_UH_SZYBKIE = 0                  # 16.10 (SPEC R3+R4, P8): 1 = szybkie UH na siebie w ucieczce PK (próg PK_UH_HP_SZYBKI + predykcja, bez przerwy 60 s przy HP<progu, weryfikacja ~0,6 s, bez zgadywania menu, losowy klik w polu postaci) i ucieczka bez 8 s walki z mobem; 0 = jak dotąd
+PK_UH_HP_SZYBKI = 30               # % HP: próg UH przy PK_UH_SZYBKIE=1 (nigdy niżej niż 30)
+PK_UH_PREDYKCJA = 1                # 0/1: przy PK_UH_SZYBKIE=1 spadek >= PK_UH_PRED_SPADEK pp w PK_UH_PRED_OKNO_S s => UH już przy HP <= PK_UH_PRED_HP
+PK_UH_CTRL = 0                     # 0/1: przy PK_UH_SZYBKIE=1 Ctrl+klik runy (Use with bez menu/OCR); UNKNOWN czy działa w kliencie, więc domyślnie 0
+PK_UH_PRED_SPADEK = 15.0           # pp: spadek HP w oknie wywołujący predykcję
+PK_UH_PRED_OKNO_S = 2.0            # s: okno predykcji
+PK_UH_PRED_HP = 50                 # % HP: predykcyjne UH tylko poniżej tego
+PK_UH_WERYF_S = 0.6                # s: skrócona weryfikacja UH (spadek ilości run albo wzrost HP)
+PK_UH_BUDZET_S = 1.0               # s: budżet sekwencji UH w trybie szybkim
+PK_UH_ODSTEP_LOS = 0.2             # +-: losowość odstępu między ponowieniami UH (ułamek PK_UH_ODSTEP_S)
+PK_UH_CTRL_PORAZKI = 2             # tyle nieudanych Ctrl+klików z rzędu = wracamy do menu (Ctrl+klik nie działa)
+PK_UCIECZKA_BLOK_S = 1.0           # s: w ucieczce PK (PK_UH_SZYBKIE=1) tyle bez postępu ze stworem obok = droga zamknięta
+PK_UCIECZKA_WALKA_S = 2.0          # s: maks. walka z blokującym w ucieczce PK (PK_UH_SZYBKIE=1)
 PK_UH_ID = 3160                    # id runy Ultimate Healing (jak mozg.TRADE_ID_UH)
 PK_SKAN_WIEK = 0.25                # s: cache skanu stworów w detekcji PK (bez drugiego pełnego skanu w obiegu)
 _PK_TEST_N = 0                     # licznik plików wrogów w testach (RETRONIC_TESTY)
@@ -1043,6 +1059,11 @@ class Cavebot:
         self.pk_uh_ost = float("-inf")
         self.pk_uh_porazki = 0
         self.pk_uh_do = float("-inf")
+        self.pk_uh_nast = float("-inf")    # PK_UH_SZYBKIE: najwcześniejszy czas kolejnej próby UH (odstęp z losowością)
+        self.pk_uh_hist = []               # PK_UH_SZYBKIE: (czas, HP%) z ostatnich ~2,5 s do predykcji
+        self.pk_uh_ctrl_porazki = 0
+        self.pk_uh_alarm_ost = float("-inf")
+        self.pk_rng = random.Random()      # losowość UH (test podaje ziarno)
         self.pk_exura_ost = float("-inf")
         self.pk_det = self.pk_wrogowie = None   # obrona_pk.DetektorPK / Wrogowie (tworzone przy pierwszym użyciu)
         self.pvp = None                # walka z napastnikiem (pk_stan "WALKA"): dict stanu walki albo None
@@ -1218,10 +1239,17 @@ class Cavebot:
             return False
         self._walka_przejscie = False
         walka_s = WYPAD_WALKA_S
+        blok_s, ruch_od = WYPAD_BLOK_S, self.ruch_czas
+        if PK_UH_SZYBKIE and self.pk_stan == "UCIECZKA" and not self.dojscie_aktywne:
+            # R4: w ucieczce PK mob obok to nie powód do walki, dopóki idziemy; droga zamknięta = brak postępu
+            # od startu ucieczki (nie od starego ruch_czas sprzed ucieczki) przez PK_UCIECZKA_BLOK_S, walka max PK_UCIECZKA_WALKA_S
+            blok_s = PK_UCIECZKA_BLOK_S
+            ruch_od = max(self.ruch_czas, getattr(self, "pk_od", float("-inf")))
+            walka_s = min(walka_s, float(PK_UCIECZKA_WALKA_S))
         if obok and self.dojscie_aktywne and DOJSCIE_WALKA_PRZEJSCIE_S > 0 and self._dojscie_przy_przejsciu(poz):
             walka_s = max(WYPAD_WALKA_S, float(DOJSCIE_WALKA_PRZEJSCIE_S))   # P7d: przy dziurze nie cyklujemy co 8 s
             self._walka_przejscie = walka_s > WYPAD_WALKA_S
-        if obok and teraz - self.ruch_czas >= WYPAD_BLOK_S:
+        if obok and teraz - ruch_od >= blok_s:
             self.wypad_walka_do = teraz + walka_s
             log(f"{'Dojście' if self.dojscie_aktywne else 'Wypad'}: droga zablokowana przez {obok[0]['nazwa']}, "
                 f"walczę {walka_s:.0f} s.")
@@ -6799,6 +6827,18 @@ class Cavebot:
         except Exception:
             return False
 
+    def _alarm_pk(self, tekst):
+        """Alarm PK. PK_SZYBKIE=1: w wątku (alarm_dzwiekowy blokuje do 4 s na paplay, a to martwy czas ucieczki); 0: jak dotąd."""
+        if not PK_SZYBKIE:
+            return self.alarm(tekst)
+
+        def _graj():
+            try:
+                self.alarm(tekst)
+            except Exception as e:
+                log(f"PK: alarm nie zadziałał ({e!r})")
+        threading.Thread(target=_graj, daemon=True).start()
+
     def _pk_powiadom(self, tytul, tresc, klucz):
         try:
             import powiadom  # noqa: PLC0415
@@ -6948,6 +6988,8 @@ class Cavebot:
                 if atak and PVP_WALKA and self._pvp_wejscie(atak, lista, poz, wlasna, pomin, det, wr, g, teraz):
                     return True
                 self._pk_start("atak" if atak else ("czaszka" if czaszki else "wróg w widoku"), nicki, g, poz, teraz)
+                if PK_SZYBKIE:                        # P6: leczenie w tym samym obiegu co start ucieczki (exura / UH wg progów)
+                    self._pk_lecz(g, poz, teraz, lista)
                 return True
             if not self.pk_start_sprawdzony:
                 self.pk_start_sprawdzony = True
@@ -7316,7 +7358,7 @@ class Cavebot:
             self.pk_alarm_ost = teraz
             tekst = f"gracz atakuje: {', '.join(nicki) or '?'} ({powod}), uciekam do depo"
             try:
-                self.alarm("PK: " + tekst)
+                self._alarm_pk("PK: " + tekst)
             except Exception as e:
                 log(f"PK: alarm nie zadziałał ({e!r})")
             self._pk_powiadom("PK: uciekam do miasta", f"{tekst}. HP {g['proc']:.0f}%, poz {tuple(poz)}.", "pk_atak")
@@ -7434,9 +7476,34 @@ class Cavebot:
             self.pk_exura_ost = self.czar_ostatni = self.zdrowie_rzut_ts = teraz
             log(f"[PK] leczenie: {ZDROWIE_CZAR_TEKST} [{ZDROWIE_CZAR_KLAWISZ}] (HP {proc:.0f}%, mana {mana})")
             self.postac.klawisz(ZDROWIE_CZAR_KLAWISZ)  # hotkey nie wymaga postoju: marsz trwa (UH poniżej może zużyć obieg)
+        if uh and PK_UH_SZYBKIE:
+            if self._pk_uh_szybkie_warunek(proc, teraz):
+                return self._pk_uh_na_siebie(g, poz, teraz)
+            return False
         if uh and PK_UH_HP > 0 and proc <= PK_UH_HP and teraz >= self.pk_uh_do and teraz - self.pk_uh_ost >= PK_UH_ODSTEP_S \
                 and not self.uh_restore:
             return self._pk_uh_na_siebie(g, poz, teraz)
+        return False
+
+    def _pk_uh_prog(self):
+        """Próg UH w trybie szybkim: PK_UH_HP_SZYBKI, ale nigdy niżej niż 30 (decyzja Karola)."""
+        return max(30, int(PK_UH_HP_SZYBKI))
+
+    def _pk_uh_szybkie_warunek(self, proc, teraz):
+        """PK_UH_SZYBKIE=1: czy teraz próbować UH. Próg 30% albo predykcja (spadek >= PK_UH_PRED_SPADEK pp w
+        PK_UH_PRED_OKNO_S s => już przy HP <= PK_UH_PRED_HP); kolejne próby po odstępie z losowością."""
+        h = self.pk_uh_hist
+        h.append((teraz, proc))
+        while h and teraz - h[0][0] > PK_UH_PRED_OKNO_S + 0.5:
+            h.pop(0)
+        if self.uh_restore or teraz < self.pk_uh_do or teraz < self.pk_uh_nast:
+            return False
+        if self._pk_uh_prog() > 0 and proc <= self._pk_uh_prog():
+            return True
+        if PK_UH_PREDYKCJA and proc <= PK_UH_PRED_HP:
+            okno = [p for t, p in h if teraz - t <= PK_UH_PRED_OKNO_S]
+            if okno and max(okno) - proc >= PK_UH_PRED_SPADEK:
+                return True
         return False
 
     def _pk_uh_na_siebie(self, g, poz, teraz):
@@ -7445,6 +7512,7 @@ class Cavebot:
             self.runa_klik_env = runa_klik.SrodowiskoKlik(self.postac, self.zapytaj, log=lambda t: log(t))
         env = self.runa_klik_env
         proc = g.get("proc", 100.0)
+        szybko = bool(PK_UH_SZYBKIE)
 
         class _Sam:                                   # cel = my: weryfikuje tylko spadek liczby run (hp_celu nie kłamie "znikł")
             def __getattr__(s, n):
@@ -7453,21 +7521,49 @@ class Cavebot:
             def hp_celu(s, ident):
                 return 100.0
 
+            def hp_wlasne(s):                         # tryb szybki: wzrost własnego HP też potwierdza użycie
+                return self.gracz().get("proc")
+
         self.pk_uh_ost = teraz
         self.aktywnosc_ts = teraz
+        kw = {}
+        if szybko:
+            ctrl = bool(PK_UH_CTRL) and self.pk_uh_ctrl_porazki < PK_UH_CTRL_PORAZKI
+            kw = dict(szybko=True, ctrl=ctrl, rng=self.pk_rng, budzet_s=float(PK_UH_BUDZET_S),
+                      weryfikacja_s=float(PK_UH_WERYF_S))
+            self.pk_uh_nast = teraz + float(PK_UH_ODSTEP_S) * self.pk_rng.uniform(1.0 - PK_UH_ODSTEP_LOS,
+                                                                                   1.0 + PK_UH_ODSTEP_LOS)
         wynik = runa_klik.strzel(_Sam(), {"id": None, "dx": 0, "dy": 0, "hp": None}, runa_id=int(PK_UH_ID),
-                                 menu_dx=int(RUNA_MENU_DX), menu_dy=int(RUNA_MENU_DY))
+                                 menu_dx=int(RUNA_MENU_DX), menu_dy=int(RUNA_MENU_DY), **kw)
         w, pw = wynik["wynik"], wynik["powod"]
         if w == "ok":
             self.pk_uh_porazki = 0
+            self.pk_uh_ctrl_porazki = 0
             log(f"[PK] UH na siebie (HP {proc:.0f}%): {pw}")
         else:
             self.pk_uh_porazki += 1
+            if szybko and kw.get("ctrl") and w == "bez_efektu":
+                self.pk_uh_ctrl_porazki += 1
+                if self.pk_uh_ctrl_porazki >= PK_UH_CTRL_PORAZKI:
+                    log("[PK] UH: Ctrl+klik bez efektu, wracam do menu 'Use with'.")
             log(f"[PK] UH na siebie bez efektu ({w}: {pw}), porażka {self.pk_uh_porazki}/3")
-            if w == "brak_runy" or self.pk_uh_porazki >= 3:
+            if szybko and w == "bez_menu" and teraz - self.pk_uh_alarm_ost >= 20.0:
+                self.pk_uh_alarm_ost = teraz
+                try:
+                    self.alarm(f"PK: UH bez menu, HP {proc:.0f}%")
+                except bot.Zatrzymano:
+                    raise
+                except Exception as e:
+                    log(f"[PK] alarm UH nie zadziałał ({e!r})")
+            krytyczne = szybko and proc <= self._pk_uh_prog()
+            if w == "brak_runy" or (self.pk_uh_porazki >= 3 and not krytyczne):
                 self.pk_uh_porazki = 0
                 self.pk_uh_do = teraz + 60.0
                 log("[PK] UH na siebie: przerwa 60 s (brak runy albo 3 porażki).")
+            elif self.pk_uh_porazki >= 3:
+                self.pk_uh_porazki = 0               # HP krytyczne: natychmiast kolejna próba, bez przerwy 60 s
+                self.pk_uh_nast = teraz
+                log(f"[PK] UH: 3 porażki, ale HP {proc:.0f}% <= {self._pk_uh_prog()}%: bez przerwy, próbuję dalej.")
         return True
 
     def uciekaj(self, g, poz):

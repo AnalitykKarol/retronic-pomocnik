@@ -269,7 +269,8 @@ def sciezka_do(ob, pole):
 
 # --------------------------------------------------------------------------- planowanie po grafie pięter (Z2, Z3)
 
-def plan_wyjscia(swiat, poz, cel=None, zle=(), odwiedzone=(), otwarte=frozenset(), max_wezlow=300):
+def plan_wyjscia(swiat, poz, cel=None, zle=(), odwiedzone=(), otwarte=frozenset(), max_wezlow=300,
+                 bfs_limit=BFS_LIMIT, max_wyjsc=None):
     """Dijkstra po węzłach (pole lądowania, zbiór hipotetycznie otwartych drzwi). Kandydat = region OTWARTY (nie startowy).
     Zwraca listę {"koszt", "kroki", "pietro", "poz"} rosnąco po koszcie. Region odwiedzony lub już na planie jest zakazany (Z3)."""
     poz = tuple(poz)
@@ -278,7 +279,7 @@ def plan_wyjscia(swiat, poz, cel=None, zle=(), odwiedzone=(), otwarte=frozenset(
     def ob_dla(node):
         o = cache.get(node)
         if o is None:
-            o = cache[node] = bfs(swiat, node[0], node[1])
+            o = cache[node] = bfs(swiat, node[0], node[1], limit=bfs_limit)
         return o
 
     start = (poz, frozenset(otwarte))
@@ -295,7 +296,7 @@ def plan_wyjscia(swiat, poz, cel=None, zle=(), odwiedzone=(), otwarte=frozenset(
             kand.append({"koszt": koszt, "kroki": kroki, "pietro": node[0][2], "poz": node[0]})
             continue
         otw = node[1]
-        for eid, (d, stand, e) in sorted(ob.wyjscia.items(), key=lambda kv: kv[0]):
+        for eid, (d, stand, e) in sorted(ob.wyjscia.items(), key=lambda kv: kv[0])[:max_wyjsc]:
             if eid in zle:
                 continue
             if e["rodzaj"] == "lacznik":
@@ -337,7 +338,7 @@ def wybierz_plan(kand, cel, rng):
 class Sym:
     def __init__(self, swiat, poz, cel=None, punkty=(), ziarno=0, krok_s=KROK_S, historia=(), losowy_czas_czekania=True,
                  prog_zamkniety_s=PROG_ZAMKNIETY_S, prog_otwarty_s=PROG_OTWARTY_S, koszt_proby_s=KOSZT_NIEUDANEJ_PROBY_S,
-                 prob_max=PROB_MAX, akcje_max=AKCJE_MAX, czas_max_s=CZAS_MAX_S):
+                 prob_max=PROB_MAX, akcje_max=AKCJE_MAX, czas_max_s=CZAS_MAX_S, plan_bfs_limit=BFS_LIMIT, plan_max_wyjsc=None):
         self.swiat = swiat.kopia()
         self.poz = self.start = tuple(poz)
         self.cel = tuple(cel) if cel is not None else None
@@ -356,6 +357,7 @@ class Sym:
         self.porazki, self.czekaj_seria, self.czekan = 0, 0, 0
         self.zdarzenia, self.proby = [], set()
         self.akcji = 0
+        self.plan_bfs_limit, self.plan_max_wyjsc = plan_bfs_limit, plan_max_wyjsc   # F3: budżet planu w cieniu bota
 
     @property
     def t(self):
@@ -458,7 +460,8 @@ class Sym:
         out.append(o)
         # przejscie_pietra (Z2, Z3, Z4): graf pięter / drzwi / łączniki
         o = {"akcja": "przejscie_pietra", "mozliwa": False, "dopuszczalna": False}
-        kand = plan_wyjscia(self.swiat, poz, cel, self.zle, self.odwiedzone)
+        kand = plan_wyjscia(self.swiat, poz, cel, self.zle, self.odwiedzone,
+                            bfs_limit=self.plan_bfs_limit, max_wyjsc=self.plan_max_wyjsc)
         plan, rown = wybierz_plan(kand, cel, self.rng)
         if plan is None:
             o["powod"] = "brak_wyjscia" if not self.zle else "wyczerpane_wyjscia"

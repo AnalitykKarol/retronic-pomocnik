@@ -6,7 +6,12 @@ Na starcie zawieszki: rekord telemetrii `decyzja` rodzaj "D3" (opcje z sekcji 2 
 (reguła bota jeszcze nie wybrała; to, co zrobiła, trafia do `d3_wynik.regula`). Na końcu: rekord `d3_wynik`.
 F1 (17.10), eskalacja za pokrętłami (domyślnie wyłączona, zachowanie bota bez zmian):
 D3_REAKCJA=1 = cień: przy starcie zawieszki rekord `d3_reakcja` z opcją, którą wybrałaby reguła (pierwsza dopuszczalna z OPCJE),
-bez wykonania; 2 (wykonanie) NIE istnieje. D3_ALARM_S>0 = zawieszka trwająca tyle sekund daje jedno powiadomienie krytyczne
+bez wykonania; 2 (wykonanie) NIE istnieje.
+F3 (cień, ten sam pokrętło D3_REAKCJA>=1): rekord `d3_reakcja` ma dodatkowo pole `symulator` = co wybrałaby polityka Z1-Z8
+z narzedzia/symulator_zawieszek.py (klasa, opcja D3, plan wyjścia, powód, zgodność z regułą, czas obliczeń). Nic nie wykonuje
+(`wykonano`=False także w polu symulatora); import leniwy, błąd symulatora tylko w logu. Realny próg D3_PROG_S bez zmian,
+`prog_zamkniety_s` (15 s) to wyłącznie informacja w cieniu. Budżet czasu: średnio < CIEN_BUDZET_MS na obliczenie, inaczej
+skrócony tryb (bez symulacji planu), a potem wyłączenie cienia symulatora. D3_ALARM_S>0 = zawieszka trwająca tyle sekund daje jedno powiadomienie krytyczne
 (`powiadom`) i wpis w logu; bez STOP. 0 = wyłączone.
 Telemetria nigdy nie wywraca bota. Koszt: A* najwyżej D3_ASTAR_MAX razy na zawieszkę (stan A* bota zostaje nietknięty).
 """
@@ -20,6 +25,9 @@ MAX_PRZERWA_OBIEGU_S = 30.0  # luka między obiegami dłuższa niż to = bot nie
 STANY_WALKI = ("WALKA", "WALKA_PVP", "LOOT", "POGON", "UCIECZKA", "UH", "ZDROWIE")
 STANY_ZAMIERZONE = ("PRZERWA", "PAUZA", "PAUZA_PK", "GRACZ")   # bot stoi z własnej woli: rekord jest, z flagą
 KIERUNKI_8 = ((-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1))
+CIEN_BUDZET_MS = 50.0       # F3: średni czas obliczeń polityki w cieniu; powyżej = skrót, potem wyłączenie
+CIEN_BFS_START, CIEN_BFS_PLAN, CIEN_WYJSC = 1500, 80, 12   # F3: ograniczenia BFS/planu w cieniu
+CIEN_PROG_ZAMKNIETY_S = 15.0  # F3: próg dla obszaru zamkniętego (decyzja Karola 16.10), tylko informacja w cieniu
 OPCJE = ("krok_skos", "cofnij", "inny_punkt", "przejscie_pietra", "czekaj", "alarm")
 
 
@@ -48,6 +56,8 @@ class Zawieszka:
         self.dawne = []                                  # (poz, t) startów zawieszek w tej sesji (licznik prób)
         self.regula = []                                 # co zrobiła obecna reguła w trakcie zawieszki
         self.astar_licznik = 0                           # wywołania A* w bieżącym liczeniu opcji (test kosztu)
+        self.cien_czasy = []                             # F3: czasy obliczeń polityki symulatora [ms]
+        self.cien_tryb = "pelny"                         # F3: "pelny" -> "skrocony" -> "wylaczony"
 
     # --- API dla cavebota ---
     def nota_reguly(self, nazwa):
@@ -139,10 +149,117 @@ class Zawieszka:
                 return
             ok = {o["akcja"]: o for o in opcje if o.get("dopuszczalna")}
             wybor = next((a for a in OPCJE if a in ok), None)
+            dod = {}
+            sym = self._cien_symulator(poz3, wybor)
+            if sym is not None:
+                dod["symulator"] = sym
             self.cb.tele.zdarzenie("d3_reakcja", decyzja_id=did, tryb="cien", wykonano=False, proponowana=wybor,
-                                   poz=list(poz3), stan=stan, dopuszczalne=[a for a in OPCJE if a in ok])
+                                   poz=list(poz3), stan=stan, dopuszczalne=[a for a in OPCJE if a in ok], **dod)
         except Exception as e:
             self._log(f"debug: D3 cień błąd {e!r}")
+
+    def _swiat_cien(self, sym, poz3):
+        """Świat symulatora z tego, co bot ma w pamięci (mapa, nauczone dziury, ogień, ściany, przejścia pięter).
+        Brak mapy = None (UNKNOWN: nie zgadujemy). Drzwi nie są modelowane (UNKNOWN)."""
+        cb = self.cb
+        mapa = getattr(cb, "mapa", None)
+        if mapa is None:
+            return None
+        dziury = set()
+        try:
+            w = cb._wp()
+            if w and getattr(cb, "dziura_nauczona", None) and w.dziury:
+                dziury = {tuple(d) for d in w.dziury if len(d) == 3 and d[2] == poz3[2]}
+        except Exception:
+            pass
+        ogien = set()
+        try:
+            if cb._ogien_aktywny():
+                ogien = {tuple(p) for p in cb.ogien_pola if len(p) == 3 and p[2] == poz3[2]}
+        except Exception:
+            pass
+        sciany = {tuple(p) for p in (getattr(cb, "sciany", None) or {}) if len(p) == 3 and p[2] == poz3[2]}
+        prz = []
+        for e in list(getattr(cb, "przejscia", None) or []) + list(getattr(cb, "laczniki", None) or []):
+            try:
+                eid = str(e.get("id"))
+                # wejście w górę (":w_gore") stoi na chodliwym polu: w symulatorze to łącznik, jak w swiat_z_repo
+                if e.get("pieta") and not eid.endswith(":w_gore"):
+                    prz.append(dict(od=tuple(e["wej"]), do=tuple(e["wyj"]), rodzaj="schody", id=eid))
+                else:
+                    prz.append(dict(od=tuple(e["wej"]), do=tuple(e["wyj"]), rodzaj="lacznik", id=eid,
+                                    kroki=[tuple(k) for k in e.get("kroki", [])]))
+            except Exception:
+                continue
+        return sym.Swiat(mapa=mapa, sciany=sciany, dziury=dziury, ogien=ogien, przejscia=prz)
+
+    def _cien_symulator(self, poz3, wybor_reguly):
+        """F3: co wybrałaby polityka Z1-Z8 w tej zawieszce. None = brak pola (wyłączone/błąd); nigdy nie rzuca, nic nie wykonuje."""
+        import time  # noqa: PLC0415
+        try:
+            if self.cien_tryb == "wylaczony":
+                return None
+            try:
+                import narzedzia.symulator_zawieszek as sym  # noqa: PLC0415
+            except Exception:
+                import importlib.util, os  # noqa: PLC0415,E401
+                sciezka = os.path.join(os.path.dirname(os.path.abspath(__file__)), "narzedzia", "symulator_zawieszek.py")
+                spec = importlib.util.spec_from_file_location("symulator_zawieszek", sciezka)
+                sym = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(sym)
+            t0 = time.perf_counter()
+            out = self._cien_licz(sym, poz3, wybor_reguly)
+            ms = (time.perf_counter() - t0) * 1000.0
+            self.cien_czasy.append(ms)
+            del self.cien_czasy[:-20]
+            sr = sum(self.cien_czasy) / len(self.cien_czasy)
+            if out is not None:
+                out["czas_ms"] = round(ms, 2)
+                out["tryb_obliczen"] = self.cien_tryb
+            if len(self.cien_czasy) >= 3 and sr > CIEN_BUDZET_MS:
+                self.cien_tryb = "skrocony" if self.cien_tryb == "pelny" else "wylaczony"
+                self.cien_czasy = []
+                self._log(f"debug: D3 cień symulator: średnio {sr:.0f} ms > {CIEN_BUDZET_MS:.0f} ms, tryb {self.cien_tryb}")
+            return out
+        except Exception as e:
+            self._log(f"debug: D3 cień symulator błąd {e!r}")
+            return None
+
+    def _cien_licz(self, sym, poz3, wybor_reguly):
+        cb = self.cb
+        swiat = self._swiat_cien(sym, poz3)
+        if swiat is None:
+            return {"wynik": "brak_danych", "powod": "brak_mapy", "wykonano": False}
+        cel, _ = self._cel(poz3)
+        punkty = [tuple(q[:3]) for q in (getattr(cb, "punkty", None) or []) if len(q) >= 3]
+        hist = [p for p in list(self.hist)[:-1] if p[2] == poz3[2]]
+        # budżet: BFS startu <= CIEN_BFS_START pól, plan wyjścia na BFS-ach <= CIEN_BFS_PLAN pól (>= 60 pól = już obszar otwarty,
+        # więc klasyfikacja Z1 zostaje poprawna) i <= CIEN_WYJSC wyjść na węzeł; duży obszar otwarty nie kosztuje setek ms
+        s = sym.Sym(swiat, poz3, cel, punkty, 0, historia=hist, plan_bfs_limit=CIEN_BFS_PLAN, plan_max_wyjsc=CIEN_WYJSC)
+        ob = sym.bfs(s.swiat, s.poz, limit=CIEN_BFS_START)
+        kl = sym.klasa(ob, s.cel)
+        opcje = s.opcje(ob, kl)
+        o = s.polityka(opcje, kl)
+        akcja = o["akcja"]
+        out = {"klasa": "zamkniety" if kl == "zamkniety" else "otwarty", "obszar": ob.rozmiar, "opcja": akcja,
+               "w_OPCJE": akcja in OPCJE, "dopuszczalne": [x["akcja"] for x in opcje if x.get("dopuszczalna")],
+               "zgodna_z_regula": akcja == wybor_reguly, "regula": wybor_reguly, "wykonano": False,
+               "prog_zamkniety_s": CIEN_PROG_ZAMKNIETY_S if kl == "zamkniety" else None,
+               "prog_realny_s": float(getattr(self.konf, "D3_PROG_S", 30.0))}
+        if akcja == "przejscie_pietra":
+            out["powod"] = o.get("rodzaj")
+            out["plan"] = {"wej": o.get("wej"), "pietro_docelowe": o.get("pietro_docelowe"), "droga": o.get("droga"),
+                           "krokow_planu": o.get("krokow_planu"), "koszt": o.get("koszt")}
+        elif akcja == "alarm":
+            out["powod"] = "brak_wyjscia" if kl == "zamkniety" else "brak_opcji"
+        else:
+            out["powod"] = "polityka_Z5" if kl == "otwarty" else "polityka_Z2"
+            out["plan"] = {k: o.get(k) for k in ("kierunek", "punkt", "cel_poz", "droga", "kroki") if o.get(k) is not None}
+        if self.cien_tryb == "pelny" and kl == "zamkniety":      # pełna symulacja tylko w małej kieszeni (duży obszar = za drogo)
+            w = sym.symuluj(swiat, poz3, cel, punkty, 0, historia=hist, plan_bfs_limit=CIEN_BFS_PLAN, plan_max_wyjsc=CIEN_WYJSC)
+            out["symulacja"] = {"wynik": w["wynik"], "powod": w["powod"], "alarm": w["alarm"], "stop": False,
+                                "czas_s": w["czas_s"], "kroki": w["kroki"]}
+        return out
 
     def _alarm(self, poz3, teraz, stan):
         """D3_ALARM_S>0: raz na zawieszkę powiadomienie krytyczne, gdy trwa >= tyle sekund. Bez STOP, bez ruchu."""
