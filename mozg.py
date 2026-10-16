@@ -63,7 +63,7 @@ LOGI = instancja.S.logi                  # bez RETRONIC_ID: pomocnik/logi
 PAMIEC = instancja.S.pamiec_mozgu        # bez RETRONIC_ID: pomocnik/mozg_pamiec.json
 CLAUDE_MISE = Path.home() / ".local/share/mise/installs/claude/latest/claude"
 
-CO_ILE = {"doradca": (30, 60), "hybryda": (30, 60), "ai": (15, 25)}
+CO_ILE = {"doradca": (30, 60), "hybryda": (600, 900), "ai": (15, 25)}   # 16.10: hybryda pyta rzadko (tętno 10-15 min), zdarzenia i tak przyspieszają (przyspiesz)
 MIN_ODSTEP_PYTAN = 10              # s między wywołaniami modelu (także wyzwalanymi zdarzeniem)
 TIMEOUT_MODELU = 60                # s na jedno wywołanie claude -p
 CZAT_ODSTEP_GRACZ = 60             # s: najwyżej 1 odpowiedź na tego samego gracza na tyle sekund

@@ -25,7 +25,7 @@ import telemetria  # noqa: E402
 from pokretla import ZAKRESY  # noqa: E402
 
 LOGI = instancja.S.logi
-CO_ILE = (180, 300)
+CO_ILE = (900, 1200)               # 16.10: było (180, 300)
 DEBOUNCE_S = 60
 LIMIT_H = 15
 OKNO_S = 600
@@ -201,7 +201,7 @@ def dopisz_do_poprawy(problemy, logi=LOGI, teraz=None):
 # ---------------------------------------------------------------------------------------------
 # Obserwator: tani, regularny, wnioski na bieżąco (jeden wątek zamiast starego rytmu analityka)
 # ---------------------------------------------------------------------------------------------
-OBS_CYKL_S = 60
+OBS_CYKL_S = 600                  # 16.10: co 10 min (było 60 s); RETRONIC_OBSERWATOR_S nadpisuje
 OBS_MIN_S = 30
 OBS_LIMIT_H = 100
 OBS_ALERT_DEDUP_S = 600
