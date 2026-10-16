@@ -4,6 +4,10 @@ Zawieszka = pozycja w promieniu 2 pól od kotwicy przez >= D3_PROG_S sekund, poz
 exp bez zmian. Liczone z tego, co cavebot ma w każdym obiegu (pozycja, stan, exp); zero RPC.
 Na starcie zawieszki: rekord telemetrii `decyzja` rodzaj "D3" (opcje z sekcji 2 specyfikacji + cechy), wybrana = None
 (reguła bota jeszcze nie wybrała; to, co zrobiła, trafia do `d3_wynik.regula`). Na końcu: rekord `d3_wynik`.
+F1 (17.10), eskalacja za pokrętłami (domyślnie wyłączona, zachowanie bota bez zmian):
+D3_REAKCJA=1 = cień: przy starcie zawieszki rekord `d3_reakcja` z opcją, którą wybrałaby reguła (pierwsza dopuszczalna z OPCJE),
+bez wykonania; 2 (wykonanie) NIE istnieje. D3_ALARM_S>0 = zawieszka trwająca tyle sekund daje jedno powiadomienie krytyczne
+(`powiadom`) i wpis w logu; bez STOP. 0 = wyłączone.
 Telemetria nigdy nie wywraca bota. Koszt: A* najwyżej D3_ASTAR_MAX razy na zawieszkę (stan A* bota zostaje nietknięty).
 """
 import collections
@@ -88,6 +92,8 @@ class Zawieszka:
             if udzial >= UDZIAL_WALKI:
                 self._koniec(poz3, teraz, exp, "walka", ruszyl=False)
                 self.kotwica = {"poz": poz3, "t0": teraz, "exp0": exp, "boj": 0.0}
+            else:
+                self._alarm(poz3, teraz, stan)
             return
         if udzial >= UDZIAL_WALKI:
             self.kotwica = {"poz": poz3, "t0": teraz, "exp0": exp, "boj": 0.0}   # okno z walką: liczymy od nowa
@@ -113,16 +119,50 @@ class Zawieszka:
     def _start(self, g, poz3, teraz, exp, trwa, stan):
         cb = self.cb
         self.regula = []
+        opcje = None
         try:
             opcje, cechy = self._opcje(g, poz3, trwa, stan)
             did = self._zapisz(poz3, opcje, cechy)
         except Exception as e:        # błąd liczenia opcji = brak rekordu, bot idzie dalej
             self._log(f"debug: D3 błąd {e!r}")
             did = None
-        self.akt = {"id": did, "t": teraz, "poz": poz3, "exp0": exp, "t0": self.kotwica["t0"]}
+        self.akt = {"id": did, "t": teraz, "poz": poz3, "exp0": exp, "t0": self.kotwica["t0"], "alarm": False}
         self.dawne.append((poz3, teraz))
         del self.dawne[:-50]
         self._log(f"debug: D3 zawieszka {trwa:.0f} s w {poz3} (stan {stan}, rekord {did})")
+        self._cien(opcje, did, poz3, stan)
+
+    def _cien(self, opcje, did, poz3, stan):
+        """D3_REAKCJA>=1: zapis, co by wybrała reguła (pierwsza dopuszczalna opcja z OPCJE). Nic nie wykonuje."""
+        try:
+            if int(getattr(self.konf, "D3_REAKCJA", 0)) < 1 or did is None or not opcje:
+                return
+            ok = {o["akcja"]: o for o in opcje if o.get("dopuszczalna")}
+            wybor = next((a for a in OPCJE if a in ok), None)
+            self.cb.tele.zdarzenie("d3_reakcja", decyzja_id=did, tryb="cien", wykonano=False, proponowana=wybor,
+                                   poz=list(poz3), stan=stan, dopuszczalne=[a for a in OPCJE if a in ok])
+        except Exception as e:
+            self._log(f"debug: D3 cień błąd {e!r}")
+
+    def _alarm(self, poz3, teraz, stan):
+        """D3_ALARM_S>0: raz na zawieszkę powiadomienie krytyczne, gdy trwa >= tyle sekund. Bez STOP, bez ruchu."""
+        akt = self.akt
+        try:
+            prog = float(getattr(self.konf, "D3_ALARM_S", 0.0))
+            if prog <= 0 or akt is None or akt.get("alarm") or teraz - akt["t0"] < prog:
+                return
+            akt["alarm"] = True
+            stoi = teraz - akt["t0"]
+            self._log(f"D3 ALARM: zawieszka {stoi:.0f} s w {poz3} (stan {stan}, rekord {akt['id']}).")
+            try:
+                self.cb.tele.zdarzenie("d3_alarm", decyzja_id=akt["id"], stoi_s=round(stoi, 1), poz=list(poz3), stan=stan)
+            except Exception:
+                pass
+            import powiadom  # noqa: PLC0415
+            powiadom.powiadom("Bot stoi w miejscu", f"Brak postępu {stoi:.0f} s w {poz3[:2]} z{poz3[2]} (stan {stan}).",
+                              "critical", "d3_zawieszka")
+        except Exception as e:
+            self._log(f"debug: D3 alarm błąd {e!r}")
 
     def _koniec(self, poz3, teraz, exp, jak, ruszyl):
         akt, self.akt = self.akt, None

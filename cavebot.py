@@ -484,6 +484,7 @@ DRZWI_KROK_S = 1.0                 # R1c: s bez ruchu przy drzwiach (zwykły kro
 DRZWI_STARA_S = 20.0             # R1c: s od ostatniej próby, po których epizod przy drzwiach zaczyna się od nowa (licznik prób do zera)
 DRZWI_PROB = 3                     # R1c: max Use na drzwiach, potem odpuszczenie z jedną notatką
 DRZWI_ODPUSC_S = 60.0              # R1c: s, przez które odpuszczone drzwi nie są przejściem
+DRZWI_PONOW = 0                    # F1 (17.10): 1 = flaga "drzwi otwarte" starsza niż DRZWI_STARA_S s jest przeterminowana (drzwi mogły się zamknąć): podejście do drzwi i Use znów możliwe; 0 = jak dotąd
 SKOS_ZLY_S = 30.0                  # s: pole po skosie, na które nie weszliśmy (brak zmiany pozycji), nie jest ponawiane
 SKOS_LOG_S = 3.0                   # s: min. odstęp wpisów "Skos awaryjny" w logu
 POSCIG_HP_SPADEK = 8               # pp HP gracza: tyle straty w oknie kończy pętlę
@@ -549,6 +550,8 @@ DRUGI_CEL = 0.15                   # szansa wyboru drugiego najbliższego potwor
 DECYZJE_LOG = 1                    # 15.10: telemetria "decyzja" (D1 wybór celu, D2 start pościgu: opcje z cechami); tylko log, 0 = wyłączone
 D3_LOG = 1                         # 16.10 (SPEC_model_D3_utkniecia_1015, krok A): telemetria "decyzja" D3 + "d3_wynik" przy zawieszce poza walką (opcje wyjścia z cechami); tylko log, 0 = wyłączone
 D3_PROG_S = 30.0                   # s: pozycja w promieniu 2 pól poza walką (< 30% czasu walki), exp bez zmian, tak długo = zawieszka (d3_zawieszka.py)
+D3_REAKCJA = 0                     # F1 (17.10): 0 = D3 tylko loguje (jak dotąd); 1 = cień: rekord "d3_reakcja" z opcją, którą wybrałaby reguła (bez wykonania)
+D3_ALARM_S = 0.0                   # F1 (17.10): >0 = zawieszka D3 trwająca tyle s daje jedno powiadomienie krytyczne (bez STOP); 0 = wyłączone
 D3_ASTAR_MAX = 6                   # najwyżej tyle wywołań A* na jedną zawieszkę przy liczeniu opcji D3 (koszt ograniczony)
 PATROL_RESPAWN_CIEN = 1            # 15.10: tryb cienia (SPEC_patrol_respawn_1015 krok 2): mapa obecności mobów liczona na żywo (obecnosc.py), a przy wyborze
                                    # celu patrolu w telemetrii patrol_cel (cel_respawn, wartosci, zgodny) i "decyzja" D4 wybór nowej metody; bot idzie jak dziś; pokrętło 0/1
@@ -3422,9 +3425,13 @@ class Cavebot:
                 st["proby"], st["poz"] = 0, None   # stary epizod (odeszliśmy): zaczynamy od nowa
             if poz[:2] == h[:2]:
                 st["otw"] = True               # staliśmy na kafelku drzwi: są otwarte
+                st["otw_t"] = t
                 st["proby"], st["poz"] = 0, None
             if odl >= 2 or poz[:2] == h[:2]:
-                if podejscie and na_drodze and odl >= 2 and not st["otw"] and st["zle_do"] <= t and odl <= 8:
+                otw = st["otw"]
+                if otw and DRZWI_PONOW and t - st.get("otw_t", float("-inf")) > DRZWI_STARA_S:
+                    otw = False                # DRZWI_PONOW: flaga przeterminowana, nie ufamy jej
+                if podejscie and na_drodze and odl >= 2 and not otw and st["zle_do"] <= t and odl <= 8:
                     nast = next((q for q in dalej if self.dystans(poz, q) >= 1 and (len(q) < 3 or q[2] == poz[2])), None)
                     if nast is not None:
                         self.krok_do(nast)     # klik za zamknięte drzwi nie prowadzi: podchodzimy strzałkami

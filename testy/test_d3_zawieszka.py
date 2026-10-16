@@ -350,6 +350,69 @@ except Exception as e:
     print(e)
 sprawdz("8 zepsuty zapis: tick idzie dalej", ok_ and s.t > 75)
 
+# --- 8b. F1 (17.10): eskalacja za pokrętłami D3_REAKCJA i D3_ALARM_S ---
+import d3_zawieszka  # noqa: E402
+import powiadom  # noqa: E402
+sprawdz("8b0 domyślne: D3_REAKCJA 0, D3_ALARM_S 0 (zachowanie jak dotąd)",
+        cavebot.D3_REAKCJA == 0 and cavebot.D3_ALARM_S == 0, (cavebot.D3_REAKCJA, cavebot.D3_ALARM_S))
+WYSLANE = []
+_pow0 = powiadom.powiadom
+powiadom.powiadom = lambda tytul, tresc="", pilnosc="normal", klucz=None: WYSLANE.append((tytul, pilnosc, klucz)) or True
+try:
+    # domyślnie: 10 minut stania = dokładnie jak przed F1: jeden decyzja D3, zero d3_reakcja/d3_alarm, zero powiadomień
+    s, b, tele = scena()
+    ticki(b, s, 0, 600)
+    sprawdz("8b1 domyślnie 600 s stania: 1 rekord D3, brak d3_reakcja/d3_alarm, brak powiadomień",
+            len(rek(tele, "decyzja", "D3")) == 1 and not rek(tele, "d3_reakcja") and not rek(tele, "d3_alarm") and not WYSLANE,
+            ([r["typ"] for r in tele.rek], WYSLANE))
+    # D3_REAKCJA=1: cień, jeden rekord, nic nie wykonane
+    cavebot.D3_REAKCJA = 1
+    s, b, tele = scena()
+    ticki(b, s, 0, 120)
+    rr = rek(tele, "d3_reakcja")
+    sprawdz("8b2 D3_REAKCJA=1: jeden rekord d3_reakcja (cień, wykonano=False, powiązany z decyzją)",
+            len(rr) == 1 and rr[0]["tryb"] == "cien" and rr[0]["wykonano"] is False
+            and rr[0]["decyzja_id"] == rek(tele, "decyzja", "D3")[0]["id"], rr)
+    prop = rr[0]["proponowana"] if rr else None
+    dop = rr[0]["dopuszczalne"] if rr else []
+    sprawdz("8b3 proponowana = pierwsza dopuszczalna opcja w kolejności OPCJE", prop == (dop[0] if dop else None) and prop in d3_zawieszka.OPCJE, rr)
+    sprawdz("8b4 cień nie rusza postaci (detektor nie wysyła klawiszy)", s.klawisze == [], s.klawisze)
+    cavebot.D3_REAKCJA = 0
+    # D3_ALARM_S: jedno powiadomienie na zawieszkę, po progu
+    cavebot.D3_ALARM_S = 120.0
+    WYSLANE.clear()
+    s, b, tele = scena()
+    ticki(b, s, 0, 115)      # stoi_s liczone od początku stania (kotwica t0), alarm przy 120 s
+    sprawdz("8b5 przed progiem alarmu brak powiadomienia", not WYSLANE and not rek(tele, "d3_alarm"), (WYSLANE, rek(tele, "d3_alarm")))
+    ticki(b, s, 116, 400)
+    al = rek(tele, "d3_alarm")
+    sprawdz("8b6 po progu: jedno d3_alarm i jedno powiadomienie krytyczne mimo dalszego stania",
+            len(al) == 1 and len(WYSLANE) == 1 and WYSLANE[0][1] == "critical", (al, WYSLANE))
+    sprawdz("8b7 alarm: stoi_s >= D3_ALARM_S", al and al[0]["stoi_s"] >= 120.0, al)
+    sprawdz("8b8 alarm nie zmienia ruchu ani zegara (brak klawiszy)", s.klawisze == [], s.klawisze)
+    # ruch kończy zawieszkę; kolejna zawieszka dostaje własny alarm
+    ticki(b, s, 401, 405, poz=(110, 100, 7))
+    ticki(b, s, 406, 700, poz=(110, 100, 7))
+    sprawdz("8b9 druga zawieszka: drugi alarm", len(rek(tele, "d3_alarm")) == 2 and len(WYSLANE) == 2, (len(rek(tele, "d3_alarm")), WYSLANE))
+    # walka w trakcie nie alarmuje: zawieszka kończy się "walka"
+    WYSLANE.clear()
+    s, b, tele = scena()
+    ticki(b, s, 0, 400, stan="WALKA")
+    sprawdz("8b10 stanie w walce: brak alarmu", not WYSLANE and not rek(tele, "d3_alarm"), WYSLANE)
+    # błąd powiadomienia nie wywraca detektora
+    powiadom.powiadom = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("zepsute"))
+    s, b, tele = scena()
+    ok_ = True
+    try:
+        ticki(b, s, 0, 400)
+    except Exception as e:
+        ok_ = False
+        print(e)
+    sprawdz("8b11 zepsute powiadomienie: tick idzie dalej, alarm zapisany w telemetrii", ok_ and len(rek(tele, "d3_alarm")) == 1)
+finally:
+    powiadom.powiadom = _pow0
+    cavebot.D3_REAKCJA, cavebot.D3_ALARM_S = 0, 0.0
+
 cavebot.D3_LOG, cavebot.D3_PROG_S, cavebot.D3_ASTAR_MAX = DOMYSLNE
 
 # --- 9. pokrętła: zakres, domyślne, przykład ---
@@ -359,6 +422,12 @@ przyklad = json.loads((Path(__file__).resolve().parent.parent / "na_zywo.przykla
 sprawdz("9a pokrętła D3 w ZAKRESY i w na_zywo.przyklad.json z domyślną",
         all(k in pokretla.ZAKRESY and k in przyklad and przyklad[k] == getattr(cavebot, k) for k in ("D3_LOG", "D3_PROG_S", "D3_ASTAR_MAX")))
 sprawdz("9b domyślne: D3_LOG 1, D3_PROG_S 30, D3_ASTAR_MAX 6", DOMYSLNE == (1, 30.0, 6), DOMYSLNE)
+sprawdz("9a2 pokrętła F1 (D3_REAKCJA, D3_ALARM_S, DRZWI_PONOW) w ZAKRESY i w przykładzie z domyślną",
+        all(k in pokretla.ZAKRESY and k in przyklad and przyklad[k] == getattr(cavebot, k) == 0 for k in ("D3_REAKCJA", "D3_ALARM_S", "DRZWI_PONOW")))
+ok, bl = pokretla.waliduj({"D3_REAKCJA": 1, "D3_ALARM_S": 300.0, "DRZWI_PONOW": 1})
+sprawdz("9c2 walidacja przyjmuje pokrętła F1", len(ok) == 3 and not bl, (ok, bl))
+ok, bl = pokretla.waliduj({"D3_REAKCJA": 2})
+sprawdz("9c3 D3_REAKCJA=2 (wykonanie) odrzucone: nie istnieje", not ok and bl)
 ok, bl = pokretla.waliduj({"D3_PROG_S": 45.0, "D3_LOG": 0})
 sprawdz("9c walidacja przyjmuje 45 s i 0", ok == {"D3_PROG_S": 45.0, "D3_LOG": 0} and not bl, (ok, bl))
 ok, bl = pokretla.waliduj({"D3_PROG_S": 1.0})
