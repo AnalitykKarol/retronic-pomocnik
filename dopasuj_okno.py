@@ -44,6 +44,27 @@ def ogranicz(szer, wys):
     return szer - szer % 2, wys - wys % 2
 
 
+MAKS_SZER_GRY = 1175               # sprawdzone zrzutem 15.10: 1175x910 daje pełny widok, 1468x1136 już nie
+PROPORCJE_GRY = 1175 / 910         # proporcje ekranu, przy których klient pokazuje mapę 15x11 i prawy panel w całości
+
+
+def wpisz_proporcje(rozm, proporcje=PROPORCJE_GRY):
+    """Największy prostokąt o proporcjach gry mieszczący się w oknie (rozm), nie mniejszy niż 800x600 po ogranicz().
+
+    Okno w kafelku bywa wąskie i wysokie (np. 1468x1820): ekran sesji w takim kształcie powiększa mapę i chowa panele
+    klienta (15.10), więc zamiast wypełniać okno, wpisujemy w nie ekran o dobrych proporcjach (reszta okna jest szara)."""
+    if rozm is None:
+        return None
+    szer, wys = rozm
+    if szer / wys < proporcje:
+        wys = int(szer / proporcje)
+    else:
+        szer = int(wys * proporcje)
+    if szer > MAKS_SZER_GRY:                                  # większy ekran: klient chowa panele i zoomuje mapę (15.10)
+        szer, wys = MAKS_SZER_GRY, int(MAKS_SZER_GRY / proporcje)
+    return szer, wys
+
+
 def roznia_sie(a, b, prog=PROG_PX):
     return abs(a[0] - b[0]) >= prog or abs(a[1] - b[1]) >= prog
 
@@ -60,12 +81,30 @@ def hyprctl_klienci(uruchom=subprocess.run):
     return dane if isinstance(dane, list) else []
 
 
-def rozmiar_okna(klienci, pid=None, port=None):
-    """(szer, wys) okna vncviewera tej instancji albo None. Najpierw po pid; w zapasie klasa Vncviewer + port w tytule."""
+def hyprctl_skale(uruchom=subprocess.run):
+    """{id monitora: skala} z `hyprctl monitors -j` albo {} (brak hyprctl / zły JSON)."""
+    try:
+        w = uruchom(["hyprctl", "monitors", "-j"], capture_output=True, text=True, timeout=3)
+        dane = json.loads(w.stdout)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return {}
+    if not isinstance(dane, list):
+        return {}
+    return {m.get("id"): float(m["scale"]) for m in dane
+            if isinstance(m, dict) and isinstance(m.get("scale"), (int, float)) and m["scale"] > 0}
+
+
+def rozmiar_okna(klienci, pid=None, port=None, skale=None):
+    """(szer, wys) okna vncviewera tej instancji w pikselach fizycznych albo None.
+
+    Najpierw po pid; w zapasie klasa Vncviewer + port w tytule. hyprctl podaje rozmiar logiczny, a vncviewer (XWayland)
+    rysuje framebuffer 1:1 w pikselach fizycznych, więc przy skali monitora 2 ekran sesji o rozmiarze okna logicznego
+    zajmował tylko pół okna, reszta była szara (15.10). Dlatego mnożymy przez skalę monitora okna (`skale`)."""
     def rozmiar(k):
         r = k.get("size")
         if isinstance(r, (list, tuple)) and len(r) == 2 and all(isinstance(v, (int, float)) for v in r):
-            return int(r[0]), int(r[1])
+            sk = (skale or {}).get(k.get("monitor"), 1.0)
+            return int(round(r[0] * sk)), int(round(r[1] * sk))
         return None
     vnc = [k for k in klienci if isinstance(k, dict) and "vncviewer" in str(k.get("class", "")).lower()
            and k.get("mapped", True) is not False]
@@ -253,7 +292,7 @@ def main(argv=None):
     if port is None:
         import instancja  # noqa: PLC0415
         port = int((instancja.sesja() / "vnc_port").read_text().strip())
-    d = Dopasowywacz(lambda: rozmiar_okna(hyprctl_klienci(), a.pid, port),
+    d = Dopasowywacz(lambda: wpisz_proporcje(rozmiar_okna(hyprctl_klienci(), a.pid, port, hyprctl_skale())),
                      lambda: odczytaj_rozmiar(port), lambda w, h: ustaw_rozmiar(port, w, h))
     print(f"dopasuj_okno: start (port {port}, pid {a.pid})", flush=True)
     while a.pid is None or zyje(a.pid):

@@ -8,10 +8,10 @@
   8
  ],
  "telemetria": [
-  "pomocnik/telemetria-20261015.jsonl",
-  "pomocnik-stabilny/telemetria-20261015.jsonl"
+  "/telemetria-20261015.jsonl",
+  "/telemetria-20261016.jsonl"
  ],
- "zabicia_przypisane": 127,
+ "zabicia_przypisane": 301,
  "przejscia": [],
  "laczniki": [],
  "graf": {
@@ -227,6 +227,16 @@
  },
  "dziury_omijane": [
   [
+   32498,
+   32271,
+   8
+  ],
+  [
+   32508,
+   32273,
+   8
+  ],
+  [
    33081,
    31742,
    8
@@ -260,11 +270,11 @@
    "y": 31732,
    "z": 8,
    "opis": "spawn 7x Troll 7, środek (33069,31728), punkt: na pętli",
-   "zabicia": 13,
-   "udzial_zabic": 0.108,
-   "mobow": 6,
+   "zabicia": 37,
+   "udzial_zabic": 0.127,
+   "mobow": 7,
    "zrodlo": "troll",
-   "waga": 0.154,
+   "waga": 0.164,
    "gniazdo": true,
    "sasiedzi": [
     {
@@ -313,11 +323,11 @@
    "y": 31737,
    "z": 8,
    "opis": "spawn 3x Troll 3, środek (33097,31736), punkt: na pętli",
-   "zabicia": 10,
-   "udzial_zabic": 0.083,
+   "zabicia": 27,
+   "udzial_zabic": 0.093,
    "mobow": 3,
    "zrodlo": "troll",
-   "waga": 0.085,
+   "waga": 0.089,
    "gniazdo": false,
    "sasiedzi": [
     {
@@ -366,11 +376,11 @@
    "y": 31738,
    "z": 8,
    "opis": "spawn 4x Troll 4, środek (33084,31739), punkt: na pętli",
-   "zabicia": 26,
-   "udzial_zabic": 0.217,
+   "zabicia": 56,
+   "udzial_zabic": 0.192,
    "mobow": 4,
    "zrodlo": "troll",
-   "waga": 0.165,
+   "waga": 0.153,
    "gniazdo": true,
    "sasiedzi": [
     {
@@ -419,11 +429,11 @@
    "y": 31748,
    "z": 8,
    "opis": "spawn 4x Troll 4, środek (33113,31744), punkt: na pętli",
-   "zabicia": 9,
-   "udzial_zabic": 0.075,
+   "zabicia": 17,
+   "udzial_zabic": 0.058,
    "mobow": 4,
    "zrodlo": "troll",
-   "waga": 0.095,
+   "waga": 0.086,
    "gniazdo": true,
    "sasiedzi": [
     {
@@ -472,12 +482,12 @@
    "y": 31757,
    "z": 8,
    "opis": "spawn 3x Troll 3, środek (33074,31753), punkt: na pętli",
-   "zabicia": 6,
-   "udzial_zabic": 0.05,
-   "mobow": 4,
+   "zabicia": 22,
+   "udzial_zabic": 0.076,
+   "mobow": 3,
    "zrodlo": "troll",
-   "waga": 0.068,
-   "gniazdo": true,
+   "waga": 0.081,
+   "gniazdo": false,
    "sasiedzi": [
     {
      "id": 1,
@@ -525,11 +535,11 @@
    "y": 31762,
    "z": 8,
    "opis": "spawn 4x Troll 4, środek (33083,31763), punkt: na pętli",
-   "zabicia": 17,
-   "udzial_zabic": 0.142,
-   "mobow": 4,
+   "zabicia": 48,
+   "udzial_zabic": 0.165,
+   "mobow": 6,
    "zrodlo": "troll",
-   "waga": 0.128,
+   "waga": 0.14,
    "gniazdo": true,
    "sasiedzi": [
     {
@@ -578,11 +588,11 @@
    "y": 31772,
    "z": 8,
    "opis": "spawn 5x Troll 5, środek (33082,31773), punkt: na pętli",
-   "zabicia": 27,
-   "udzial_zabic": 0.225,
-   "mobow": 6,
+   "zabicia": 52,
+   "udzial_zabic": 0.179,
+   "mobow": 7,
    "zrodlo": "troll",
-   "waga": 0.184,
+   "waga": 0.161,
    "gniazdo": true,
    "sasiedzi": [
     {
@@ -631,11 +641,11 @@
    "y": 31774,
    "z": 8,
    "opis": "spawn 5x Troll 5, środek (33115,31775), punkt: na pętli",
-   "zabicia": 12,
-   "udzial_zabic": 0.1,
-   "mobow": 4,
+   "zabicia": 32,
+   "udzial_zabic": 0.11,
+   "mobow": 5,
    "zrodlo": "troll",
-   "waga": 0.121,
+   "waga": 0.126,
    "gniazdo": true,
    "sasiedzi": [
     {

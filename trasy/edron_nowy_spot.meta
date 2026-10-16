@@ -1,0 +1,144 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "początek nagrania"
+  },
+  {
+   "idx": 3,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 9"
+  },
+  {
+   "idx": 4,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 8 -> 9 (w dół), z (33080,31742)"
+  },
+  {
+   "idx": 6,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 10"
+  },
+  {
+   "idx": 7,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 9 -> 10 (w dół), z (33083,31743)"
+  },
+  {
+   "idx": 8,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 10, potem piętro 9"
+  },
+  {
+   "idx": 9,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 10 -> 9 (w górę), z (33084,31742)"
+  },
+  {
+   "idx": 17,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 10"
+  },
+  {
+   "idx": 18,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 9 -> 10 (w dół), z (33099,31740)"
+  },
+  {
+   "idx": 20,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 10, potem piętro 9"
+  },
+  {
+   "idx": 21,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 10 -> 9 (w górę), z (33100,31740)"
+  },
+  {
+   "idx": 24,
+   "typ": "przed_teleportem",
+   "komentarz": "ostatnie pole przed skokiem o 3 pól"
+  },
+  {
+   "idx": 25,
+   "typ": "teleport",
+   "komentarz": "skok o 3 pól w 0.3 s z (33098,31742)"
+  },
+  {
+   "idx": 66,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 10"
+  },
+  {
+   "idx": 67,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 9 -> 10 (w dół), z (33094,31705)"
+  },
+  {
+   "idx": 68,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 10, potem piętro 9"
+  },
+  {
+   "idx": 69,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 10 -> 9 (w górę), z (33093,31704)"
+  },
+  {
+   "idx": 99,
+   "typ": "przed_teleportem",
+   "komentarz": "ostatnie pole przed skokiem o 3 pól"
+  },
+  {
+   "idx": 100,
+   "typ": "teleport",
+   "komentarz": "skok o 3 pól w 0.3 s z (33089,31729)"
+  },
+  {
+   "idx": 121,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 10"
+  },
+  {
+   "idx": 122,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 9 -> 10 (w dół), z (33067,31717)"
+  },
+  {
+   "idx": 124,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 10, potem piętro 9"
+  },
+  {
+   "idx": 125,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 10 -> 9 (w górę), z (33067,31717)"
+  },
+  {
+   "idx": 126,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 9 -> 10 (w dół), z (33067,31717)"
+  },
+  {
+   "idx": 127,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 10, potem piętro 9"
+  },
+  {
+   "idx": 128,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 10 -> 9 (w górę), z (33068,31716)"
+  },
+  {
+   "idx": 218,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 8 (lina, dopisane ręcznie 16.10 pod dziurą 33081,31742)"
+  },
+  {
+   "idx": 219,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 9 -> 8 (w górę), z (33081,31742), lina"
+  }
+ ]
+}

@@ -216,6 +216,7 @@ BLANKI_AUTO_BAG = 1                # N9: 1 = blanki z głównego plecaka do bagu
 BLANKI_AUTO_BAG_MIN = 10           # N9: min odstępu między próbami przeniesienia blanków do bagu
 WYPRAWA_PO_DOJSCIU_S = 300         # P7a: s: po dojściu z depo na spot pierwsza ocena wyprawy najwcześniej po tylu sekundach (0 = bez karencji)
 DOJSCIE_WALKA_PRZEJSCIE_S = 60     # P7d: s: w dojściu stwór obok przy zmianie piętra (dziura/schody) = walka do skutku, ale max tyle s (0 = dawne WYPAD_WALKA_S)
+DOJSCIE_BEZ_UNIKANIA_CALE = 1      # 16.10: 1 = w całym dojściu (depo -> spot) unikanie graczy wyłączone
 DOJSCIE_BEZ_UNIKANIA_POL = 0       # P7f: >0 = w dojściu, gdy postać jest w tylu polach od początku dojścia (depo), unikanie graczy wyłączone; 0 = bez zmiany (domyślnie wył.)
 DOJSCIE_PROBY = 5                  # P7e: tyle razy ponawiamy dojście od aktualnej pozycji, zanim uznamy porażkę (mozg.przejdz_dojscie; zakres 3-8)
 DOJSCIE_PAUZA_PROBY_S = 4.0        # P7e: s pauzy (losowo 0,75x-1,5x) przed kolejną próbą dojścia po porażce przejścia pięter
@@ -1127,8 +1128,8 @@ class Cavebot:
             return
         try:
             w_miescie = bool(UNIKANIE_TYLKO_SPOT and poz is not None and poz[2] <= 7)
-            przy_depo = False
-            if self.dojscie_aktywne and DOJSCIE_BEZ_UNIKANIA_POL > 0 and poz is not None:
+            przy_depo = bool(self.dojscie_aktywne and DOJSCIE_BEZ_UNIKANIA_CALE)   # 16.10 (Karol): w całym dojściu na spot bez unikania graczy
+            if not przy_depo and self.dojscie_aktywne and DOJSCIE_BEZ_UNIKANIA_POL > 0 and poz is not None:
                 d0 = getattr(self, "_dojscie_start", None)      # P7f: tłum przy depo nie jest zagrożeniem
                 przy_depo = bool(d0 and d0[2] == poz[2]
                                  and max(abs(d0[0] - poz[0]), abs(d0[1] - poz[1])) <= DOJSCIE_BEZ_UNIKANIA_POL)

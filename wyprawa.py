@@ -178,6 +178,7 @@ class Trasownik:
         import generuj_trase_miasta as g  # noqa: PLC0415
         self.g = g
         self.graf = g.Graf(mapa)
+        self._pusty = {}
 
     def odcinek(self, od, do):
         """Punkty [(x,y,z)] od `od` do `do` (rzadkie, z przejściami pięter) albo None."""
@@ -188,6 +189,55 @@ class Trasownik:
         if droga is None:
             return None
         return self.g.scal(self.g.rzadko(droga))
+
+    def zalew(self, start, cele, limit=12000, promien=100):
+        """Jeden Dijkstra po jednym piętrze od `start` do wielu celów naraz: {cel: punkty start..cel (rzadko)}. Cel liczy się,
+        gdy sięgniemy jego pola albo pola obok (pola nagrane w kanałach bywają nieznane mapie). Nic poza piętrem startu,
+        bez przejść pięter; limit węzłów i promień chronią przed zalewaniem całej mapy."""
+        start = tuple(start)
+        z = start[2]
+        cele = {tuple(c) for c in cele if c[2] == z}
+        klucz = (z, frozenset(cele))
+        pusty = self._pusty.setdefault(klucz, set())
+        if start in pusty:                  # wcześniejsze przeszukanie z pobliskiego pola nie dotarło do żadnego celu
+            return {}
+        wokol = {}
+        for c in cele:
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    wokol.setdefault((c[0] + dx, c[1] + dy, z), []).append(c)
+        znalezione, d, skad = {}, {start: 0.0}, {start: None}
+        pq = [(0.0, start)]
+        n = 0
+        while pq and len(znalezione) < len(cele):
+            c, p = heapq.heappop(pq)
+            if c > d.get(p, 1 << 60):
+                continue
+            for t in wokol.get(p, ()):
+                if t not in znalezione:
+                    sc, q = [], p
+                    while q is not None:
+                        sc.append(q)
+                        q = skad[q]
+                    sc.reverse()
+                    if sc[-1] != t:
+                        sc.append(t)
+                    znalezione[t] = sc
+            n += 1
+            if n > limit:
+                break
+            for dx, dy, _c in self.g.RUCHY:
+                q = (p[0] + dx, p[1] + dy, z)
+                if max(abs(q[0] - start[0]), abs(q[1] - start[1])) > promien or not self.graf.idzie(*q):
+                    continue
+                nc = c + (1.0 if dx == 0 or dy == 0 else 1.001)
+                if nc < d.get(q, 1 << 60):
+                    d[q] = nc
+                    skad[q] = p
+                    heapq.heappush(pq, (nc, q))
+        if not znalezione:
+            pusty.update(d)                 # (przy limicie węzłów to heurystyka: wynik tylko "bez drogi", nigdy zła droga)
+        return {t: self.g.scal(self.g.rzadko([(q, "idz") for q in sc])) for t, sc in znalezione.items()}
 
     def stoisko(self, od, npc, promien=2):
         """(pole stania, punkty drogi) najtańsze z pól w promieniu `promien` od NPC (nie samo pole NPC)."""
@@ -244,6 +294,198 @@ def wybierz_baze(baza, poz, zasieg=wypad.PLAN_ZASIEG):
             najl = (d, nazwa)
     return najl[1] if najl else None
 
+
+# --- optymalna droga do depo z dowolnego miejsca spotu (16.10) --------------------------------------------------
+# Plan z PLANY_PK (Edron) nie startuje już od początku nagrania "do" ani nie wymaga stania przy nim: z bieżącej pozycji
+# szukamy najkrótszej drogi do depo spośród: (1) marsz po piętrze (A* po mapie) do punktu wejścia w nagraną trasę "do"
+# i dalej jej końcówką, (2) dojście do pętli łowiska (cb.punkty), marsz po niej do przodu albo wstecz (przejścia pięter
+# wstecz tylko z pietra.kandydaci "pewne", czyli mapa potwierdza dziurę/linę/schody) i zejście z pętli A* do trasy "do".
+DEPO_DOJSCIE_ZASIEG = 200      # pola (Chebyshev): dalej od depo planu nie ruszamy tą drogą (inne miasto/serwer)
+DEPO_KOSZT_DOL = 4             # koszt (w "polach") zejścia o piętro (dziura/schody w dół)
+DEPO_KOSZT_GORA = 8            # wejścia o piętro (lina/drabina/schody w górę)
+DEPO_KOSZT_ODWROT = 10         # kara za przejście pięter w odwrotną stronę niż nagranie (nie było przećwiczone przez bota)
+DEPO_WEJSCIA = 6               # ile (x4) najtańszych wejść z pozycji na pętlę łowiska rozważamy
+DEPO_LIMIT_S = 8.0             # s: po tym czasie liczenia bierzemy najlepszą dotąd drogę (plan powstaje raz, na starcie wyprawy)
+DEPO_ZALEW_LIMIT = 12000       # węzłów jednego przeszukania piętra (Trasownik.zalew); poza tym "brak drogi"
+PLIK_PETLA_EDRON = "edron_nowy_spot.json"    # gdy cb.punkty jest puste
+
+
+def koszt_punktow(pts):
+    """Koszt marszu po liście punktów: Chebyshev na piętrze, stała za zmianę piętra (dół tańszy niż góra)."""
+    k = 0
+    for a, b in zip(pts, pts[1:]):
+        if a[2] == b[2]:
+            k += cheb(a, b)
+        else:
+            k += DEPO_KOSZT_DOL if b[2] > a[2] else DEPO_KOSZT_GORA
+    return k
+
+
+def _przejscie_odwrotne(mapa, a, b):
+    """Punkty [pole stania, lądowanie, ...] przejścia z `a` na `b` (inne piętro) w kierunku, w którym trasa nie była
+    nagrana, albo None. Tylko kandydat "pewny" z pietra.kandydaci (mapa potwierdza dziurę/schody/linę); w górę tylko
+    taki, który zbuduj_etapy odtworzy jako LINA (lądowanie = pole stania + (0, 1))."""
+    if mapa is None:
+        return None
+    try:
+        import pietra  # noqa: PLC0415
+        kand = pietra.kandydaci(mapa, a, b)
+    except Exception:
+        return None
+    for k in kand:
+        if not k.get("pewne"):
+            continue
+        pole, lad = tuple(k["pole"]), tuple(k["lad"])
+        if pole[2] != a[2] or lad[2] != b[2] or cheb(pole, a) > 3:
+            continue
+        if b[2] < a[2] and lad != (pole[0], pole[1] + 1, pole[2] - 1):
+            continue
+        if b[2] > a[2] and lad[:2] != pole[:2]:
+            continue
+        if lad[2] == b[2] and cheb(lad, b) > 3:
+            continue
+        pts = [pole] if pole != tuple(a) else []
+        pts.append(lad)
+        if lad != tuple(b):
+            pts.append(tuple(b))
+        return pts
+    return None
+
+
+def droga_do_depo(poz, petla, do, zalew, mapa=None, limit_s=None):
+    """Najkrótsza droga z `poz` do końca nagranej trasy `do` (depo). `petla` = zamknięta trasa łowiska (cb.punkty)
+    albo []. `zalew(a, cele)` -> {cel: punkty a..cel na jednym piętrze} dla osiągalnych celów (jedno przeszukanie na
+    wielu celów). -> (punkty, koszt, opis) albo None. Wynik jest ciągły: kolejne punkty to kroki nagranej trasy, marsz
+    po piętrze, nagrane przejście albo przejście z pietra.kandydaci."""
+    t_koniec = time.monotonic() + (DEPO_LIMIT_S if limit_s is None else limit_s)
+    poz = (int(poz[0]), int(poz[1]), int(poz[2]))
+    do = [tuple(q) for q in do]
+    petla = [tuple(q) for q in (petla or [])]
+    if not do or cheb(poz, do[-1]) > DEPO_DOJSCIE_ZASIEG:
+        return None
+    n, nd = len(petla), len(do)
+    rem = [0] * nd                       # koszt końcówki do[j:]
+    for j in range(nd - 2, -1, -1):
+        rem[j] = rem[j + 1] + koszt_punktow([do[j], do[j + 1]])
+    cache = {}
+    odwr = {}
+
+    def odwrotne(a, b):
+        if (a, b) not in odwr:
+            odwr[(a, b)] = _przejscie_odwrotne(mapa, a, b)
+        return odwr[(a, b)]
+
+    def marsze(a, cele):
+        """{cel: punkty} z `a` po jego piętrze (cache na pole startu)."""
+        if a not in cache:
+            try:
+                cache[a] = {t: p for t, p in (zalew(a, cele) or {}).items() if all(q[2] == a[2] for q in p)}
+            except bot.Zatrzymano:
+                raise
+            except Exception:
+                cache[a] = {}
+        return cache[a]
+
+    cele_z_poz = [q for q in do + petla if q[2] == poz[2]]
+    z_poz = marsze(poz, cele_z_poz)
+    wejscia = []                         # (koszt, punkty poz -> petla[i], i)
+    najl = None
+
+    def zglos(pts, opis):
+        nonlocal najl
+        k = koszt_punktow(pts)
+        if najl is None or k < najl[0]:
+            najl = (k, pts, opis)
+
+    for j, q in enumerate(do):
+        if q in z_poz:
+            zglos(z_poz[q] + do[j + 1:], f"marsz do trasy 'do' (punkt {j})")
+    for i, q in enumerate(petla):
+        if q in z_poz:
+            wejscia.append((koszt_punktow(z_poz[q]), z_poz[q], i))
+    wejscia.sort(key=lambda w: w[0])
+    def dolna(cur):
+        """Dolna granica kosztu reszty drogi z pola pętli `cur` (linia prosta do trasy 'do' + jej końcówka)."""
+        if cur not in dolna_cache:
+            dolna_cache[cur] = min((cheb(cur, do[j]) + rem[j] for j in range(nd) if do[j][2] == cur[2]), default=None)
+        return dolna_cache[cur]
+
+    dolna_cache = {}
+
+    def bieg(i, kier, kroki, m0):
+        """Punkty i koszt marszu po pętli od węzła i o `kroki` kroków w kierunku `kier` (None: odwrotne przejście niemożliwe)."""
+        pts, acc, m = list(m0), koszt_punktow(m0), i
+        for _ in range(kroki):
+            nm = (m + kier) % n
+            cur, nxt = petla[m], petla[nm]
+            ex = [nxt] if (cur[2] == nxt[2] or kier > 0) else odwrotne(cur, nxt)
+            if ex is None:
+                return None
+            for q in ex:
+                if pts[-1] != q:
+                    acc += koszt_punktow([pts[-1], q])
+                    pts.append(q)
+            if kier < 0 and cur[2] != nxt[2]:
+                acc += DEPO_KOSZT_ODWROT
+            m = nm
+        return pts, acc, m
+
+    kand = []                            # (dolna granica kosztu, kolejność, wejście i, kierunek, kroków, koszt dojścia)
+    uzyte = set()
+    for k0, m0, i in wejscia[:DEPO_WEJSCIA * 4]:
+        if petla[i] in uzyte:
+            continue
+        uzyte.add(petla[i])
+        for kier in (1, -1):
+            pts, acc, m = list(m0), k0, i
+            for kroki in range(n):
+                cur = petla[m]
+                lb = dolna(cur)
+                if lb is not None:
+                    kand.append((acc + lb, len(kand), i, kier, kroki, m0))
+                nm = (m + kier) % n
+                nxt = petla[nm]
+                if cur[2] == nxt[2] or kier > 0:
+                    ex = [nxt]
+                else:
+                    ex = odwrotne(cur, nxt)
+                    if ex is None:
+                        break
+                for q in ex:
+                    if pts[-1] != q:
+                        acc += koszt_punktow([pts[-1], q])
+                        pts.append(q)
+                if kier < 0 and cur[2] != nxt[2]:
+                    acc += DEPO_KOSZT_ODWROT
+                m = nm
+                if najl is not None and acc >= najl[0]:
+                    break
+    kand.sort(key=lambda c: (c[0], c[1]))
+    for lb, _, i, kier, kroki, m0 in kand:
+        if najl is not None and (lb >= najl[0] or time.monotonic() > t_koniec):
+            break
+        r = bieg(i, kier, kroki, m0)
+        if r is None:
+            continue
+        pts, acc, m = r
+        cur = petla[m]
+        osiag = marsze(cur, [q for q in do if q[2] == cur[2]])
+        for j in range(nd):
+            wy = osiag.get(do[j])
+            if wy is None and do[j][2] == cur[2] and cheb(cur, do[j]) <= 1:
+                wy = [cur, do[j]]
+            if wy:
+                zglos(pts + wy[1:] + do[j + 1:],
+                      f"pętla od {i} {'do przodu' if kier > 0 else 'wstecz'} do {m}, wyjście na punkt {j}")
+    if najl is None:
+        return None
+    k, pts, opis = najl
+    wyn = []
+    for q in pts:
+        q = (int(q[0]), int(q[1]), int(q[2]))
+        if not wyn or wyn[-1] != q:
+            wyn.append(q)
+    return wyn, k, opis
 
 # --- operacje na żywo ----------------------------------------------------------
 
@@ -838,7 +1080,7 @@ class Wyprawa(Wypad):
 
     def _zbuduj(self, baza_nazwa, potrzeby):
         """-> (wyprawa dict, None) albo (None, powód). Nic nie rusza w grze."""
-        baza = punkty_bazy(self.katalog, nazwy=BAZY_PK if potrzeby.get("pk") else BAZY)
+        baza = punkty_bazy(self.katalog, nazwy=BAZY_PK if (potrzeby.get("pk") or potrzeby.get("depo")) else BAZY)
         if baza_nazwa not in baza:
             return None, f"brak planu bazowego {baza_nazwa}"
         do, z, npc_gorn = baza[baza_nazwa]
@@ -953,7 +1195,11 @@ class Wyprawa(Wypad):
             return self._zbuduj_pk_powrot(baza_nazwa, z or [], potrzeby)
         cel = tuple(do[-1]) if self._plan_tylko_pk(baza_nazwa) else self._pole_depo()
         biez = tuple(do[-1])
-        pts = self._do_depo_odwrocona(do, cel)       # z jaskini prosto do depo (nie przez Gorna)
+        pts = None
+        if self._z_poz is not None and self._plan_tylko_pk(baza_nazwa):
+            pts = self._droga_z_pozycji(self._z_poz, do)       # 16.10: najkrótsza droga z bieżącego miejsca, nie od początku "do"
+        if pts is None:
+            pts = self._do_depo_odwrocona(do, cel)       # z jaskini prosto do depo (nie przez Gorna)
         if pts is None:
             if biez == cel:
                 seg = [biez]
@@ -968,7 +1214,11 @@ class Wyprawa(Wypad):
         etapy = zbuduj_etapy([_punkt(q) for q in pts], mapa)
         powrot = zbuduj_etapy([cel], mapa)           # bez WYPRAWA_DEPO_POWROT nieużywany: po dojściu STOP
         if int(self._kw("WYPRAWA_DEPO_POWROT")):
-            pw = self._powrot_z_depo(cel, mapa)
+            if self._plan_tylko_pk(baza_nazwa):          # depo spotu z PLANY_PK (Edron): powrót nagraną trasą depo -> łowisko
+                pz = [_punkt(q) for q in (z or [])]
+                pw = zbuduj_etapy(pz, mapa) if pz and None not in pz else []
+            else:
+                pw = self._powrot_z_depo(cel, mapa)
             if pw:
                 powrot = pw
             else:
@@ -978,6 +1228,55 @@ class Wyprawa(Wypad):
         st = {"id": "depo", "npc": "", "stoi": cel, "zakupy": [], "depo": True}
         return {"stops": [st], "legs": [etapy], "powrot": powrot, "k": 0, "baza": baza_nazwa,
                 "wyniki": {}, "kroki": 0, "sukces": False, "potrzeby": dict(potrzeby)}, None
+
+    _z_poz = None          # pozycja startu wyprawy do depo (plan PLANY_PK): z niej liczymy najkrótszą drogę
+
+    def _zalew_pietra(self, a, cele):
+        return self._trasownik_get().zalew(a, cele, limit=DEPO_ZALEW_LIMIT)
+
+    def _petla_lowiska(self):
+        """Zamknięta trasa łowiska bota (cb.punkty) albo, gdy pusta, nagranie PLIK_PETLA_EDRON; [] gdy brak."""
+        pts = [_punkt(q) for q in (getattr(self.cb, "punkty", None) or ())] if isinstance(
+            getattr(self.cb, "punkty", None), (list, tuple)) else []
+        if len(pts) < 3 or None in pts:
+            try:
+                pts = [_punkt(q) for q in json.loads((Path(self.katalog) / PLIK_PETLA_EDRON).read_text())]
+            except (OSError, ValueError, TypeError):
+                return []
+            if None in pts:
+                return []
+        return pts
+
+    def _droga_z_pozycji(self, poz, do):
+        """Punkty najkrótszej drogi z `poz` do depo (koniec `do`) albo None (wtedy stara droga: cała trasa "do")."""
+        mapa = getattr(self.cb, "mapa", None)
+        if mapa is None:
+            return None
+        try:
+            wyn = droga_do_depo(poz, self._petla_lowiska(), [_punkt(q) for q in do], self._zalew_pietra, mapa)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            self.log(f"Wyprawa: depo: nie wyznaczyłem drogi z {tuple(poz)} ({e!r}), idę starą trasą")
+            return None
+        if wyn is None:
+            self.log(f"Wyprawa: depo: brak drogi z {tuple(poz)}, idę starą trasą")
+            return None
+        pts, koszt, opis = wyn
+        self.log(f"Wyprawa: depo: droga z {tuple(poz)}: {len(pts)} punktów, koszt {koszt} ({opis})")
+        return pts
+
+    def _baza_dojscie(self, baza, poz):
+        """Plan z PLANY_PK, do którego depo da się dojść z `poz` z dowolnego piętra (nie dalej niż DEPO_DOJSCIE_ZASIEG
+        w linii prostej od jego depo). Najbliższe depo wygrywa; None, gdy żadne."""
+        najl = None
+        for p in PLANY_PK:
+            if p["nazwa"] not in baza:
+                continue
+            d = cheb(poz, baza[p["nazwa"]][0][-1])
+            if d <= DEPO_DOJSCIE_ZASIEG and (najl is None or d < najl[0]):
+                najl = (d, p["nazwa"])
+        return najl[1] if najl else None
 
     def _do_depo_odwrocona(self, do, cel):
         """Droga do depo: nagrana trasa wyjścia z jaskini (`do`, do pierwszego punktu na piętrze depo = pole po drabinie)
@@ -1026,9 +1325,13 @@ class Wyprawa(Wypad):
         cb = self.cb
         self.glod_potw_do = float("-inf")
         poz = tuple(cb.postac.pozycja())
-        baza = punkty_bazy(self.katalog, nazwy=BAZY_PK if pk else BAZY)
+        depo_spota = bool(dane.get("depo"))      # 16.10: depo każdego spotu ma swój plan (Edron: PLANY_PK), nie tylko ucieczka PK
+        baza = punkty_bazy(self.katalog, nazwy=BAZY_PK if (pk or depo_spota) else BAZY)
         nazwa = baza_nazwa if (pk and baza_nazwa in baza) else wybierz_baze(
-            baza, poz, PK_PLAN_ZASIEG if pk else wypad.PLAN_ZASIEG)
+            baza, poz, PK_PLAN_ZASIEG if (pk or depo_spota) else wypad.PLAN_ZASIEG)
+        if nazwa is None and (pk or depo_spota):       # 16.10: plan depo spotu z dowolnego miejsca (piętra), nie tylko przy trasie
+            nazwa = self._baza_dojscie(baza, poz)
+        self._z_poz = poz if (depo_spota and nazwa is not None and self._plan_tylko_pk(nazwa)) else None
         if nazwa is None:
             if pk:
                 self.log(f"Wyprawa: PK: pozycja {poz} poza planami {BAZY_PK}")
@@ -1077,6 +1380,8 @@ class Wyprawa(Wypad):
             return False
         self._ost_poz_w = poz
         self._stan_trasy()
+        if self._z_poz is not None:
+            self._stan_zapisz(z_poz=list(self._z_poz))     # wznowienie po restarcie buduje ten sam plan
         if dane.get("depo"):                 # P7c: z jakiego powodu i przy jakim plecaku idziemy do depo
             self._stan_zapisz(depo_start_powody=list(dane.get("powody") or []), depo_start_blanki=dane.get("blanki"))
         self.log(f"Wyprawa: start ({powod}), baza {nazwa}, przystanki {[st['id'] for st in w['stops']]}")
@@ -1195,6 +1500,7 @@ class Wyprawa(Wypad):
             return False
         poz = tuple(self.cb.postac.pozycja())
         potrzeby = st.get("potrzeby") or {"frodo": True}
+        self._z_poz = _punkt(st["z_poz"]) if potrzeby.get("depo") and st.get("z_poz") else None
         w, blad = self._zbuduj(st.get("baza", "troll"), potrzeby)
         if w is None:
             self.log(f"Wyprawa: nie wznowię ({blad})")

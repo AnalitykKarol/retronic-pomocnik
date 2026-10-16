@@ -144,6 +144,8 @@ def kandydaci(mapa, a, b, poz=None, promien=0):
                 gora = _flaga(mapa, x, y, z - 1)
                 if gora & 1 and gora & 2 and cheb((x, y + 1), (b[0], b[1])) <= 1:
                     dodaj(x, y, True, (x, y + 1, z - 1))
+                elif gora & 1 and gora & 2 and f & 2 and cheb((x, y - 1), (b[0], b[1])) <= 1:
+                    dodaj(x, y, True, (x, y - 1, z - 1))     # 16.10: schody Edron (flaga 2 na obu piętrach), lądowanie na północ; wystarczy wejść na pole
         wyn.sort(key=lambda k: (cheb(k["pole"], a), cheb(k["lad"], b)))
         if (b[0], b[1] - 1) not in widziane and _domysl_ok(mapa, (b[0], b[1] - 1, z), poz, promien, 1, 2):
             dodaj(b[0], b[1] - 1, False, (b[0], b[1], z - 1))   # konwencja wypad.py: R = (b.x, b.y-1) na piętrze a

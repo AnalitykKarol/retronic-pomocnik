@@ -477,9 +477,13 @@ if _mapa.PLIK_MAPY.is_file():
                    plik_sklepow=TMP / "wp_sklepy.json", plik_npc=TMP / "wp_npc.json", plik_stop=stop_plik,
                    czas=lambda: 5_000_000.0)
     d_zwykla = {"powody": ["glod"], "zapas": 0, "blanki": None, "zloto": 100, "cap": 100, "hp": 90, "pochodnie": None, "depo": True}
-    sprawdz("12f zwykła wyprawa do depo (głód) na Edron nadal odłożona: plan 'edron' tylko dla PK",
-            w2._start_wyprawa("depo:glod", d_zwykla, 0.0) is False and w2.w is None and w2.nast_wyprawa >= 900.0,
-            f"nast={w2.nast_wyprawa} {logi[-2:]}")
+    sprawdz("12f zwykła wyprawa do depo (głód) na Edron startuje z planu 'edron' (16.10: depo każdego spotu ma swój plan)",
+            w2._start_wyprawa("depo:glod", d_zwykla, 0.0) is True and w2.w is not None and w2.w["baza"] == "edron"
+            and w2.w["potrzeby"] == {"depo": True} and "pk" not in w2.w["potrzeby"],
+            f"nast={w2.nast_wyprawa} w={w2.w and w2.w['baza']} {logi[-2:]}")
+    sprawdz("12g depo Edron z WYPRAWA_DEPO_POWROT=1: powrót nagraną trasą depo -> łowisko (a nie depo Thais)",
+            bool(w2.w and w2.w["powrot"]) and w2.w["powrot"] != w2.w["legs"][0],
+            f"powrot={bool(w2.w and w2.w['powrot'])}")
 else:
     print("brak pliku mapy, pomijam część 12 (plan Edron)")
 
