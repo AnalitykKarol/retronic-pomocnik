@@ -2,6 +2,8 @@
 
 Ostatnia aktualizacja: 2026-10-15 ~23:00. Kod: `ruch-r1-1014` = `main` = `007ab9d` (GitHub AnalitykKarol/retronic-pomocnik).
 Specyfikacje i decyzje: `dane_tibia/SPEC_*.md`. Ten plik streszcza i linkuje.
+**Dokument nadrzędny (16.10, szkic do akceptu): `dane_tibia/SYSTEM_RETRONIC.md`** (warstwy, rejestr specyfikacji, sprzeczności, fazy F0-F6, decyzje).  Szczegóły w `SPEC_*.md`.
+**F0/F1 (16.10, wykonane, wszystko za pokrętłami 0):** testy 77/79 zielone (2 pomijane: brak zrzutów `testy/dane/zwloki.png`, `atrapa_zwloki.png`, `z6.png`). Nowe pokrętła `DRZWI_PONOW`, `D3_REAKCJA` (0/1 cień), `D3_ALARM_S` w `cavebot.py`/`d3_zawieszka.py`/`pokretla.py`/`na_zywo.przyklad.json`; `testy/test_drzwi_ponow.py` odtwarza zawieszkę drzwi (32505,32270,z8) i jest czerwony na kodzie sprzed zmiany (tylko na atrapach, w grze niepotwierdzone). Do włączenia po NASTĘPNYM restarcie bota (działający proces ma stary kod; nic nie restartowano): `D3_REAKCJA=1` w `na_zywo.json`. `test_zdrowie_czar` był niestabilny z powodu losowości czaru w teście (naprawione, 0/60 czerwonych).
 
 ## Gdzie jesteśmy
 
@@ -49,6 +51,10 @@ Detektor PK na 70 h telemetrii 3 botów: 15.10 20:35:08 (prawdziwy atak, Breznie
 3. Zakładki czatu Trade (mozg.py TRADE_*) przestawić po zrzucie 1175, zanim bot wystawi ogłoszenie.
 4. Odpalić bota (trolle_patrol); obserwować: wyjście z kieszeni, droga do depo po blanki, wpisy D3.
 5. Propozycja do decyzji: Haiku oznacza 54 historyczne zawieszki -> pierwszy model D3 offline (raport, bez zmiany bota).
+   16.10: plan testu gotowych modeli decyzyjnych (Mapika Decider, Strands Decider 2B, Laya; 3060 Ti 8 GB) -> `dane_tibia/SPEC_modele_decyzyjne_test_1016.md`
+   (szkic, nic nie wgrane; własnego modelu od zera nie trenujemy, za mało danych).
+   16.10 wynik: gotowe modele szybkie (33-129 ms na GPU), ale zero-shot NIE bije klasy większościowej (54 zawieszki, etykiety Haiku) -> kierunek i etapy: `dane_tibia/SPEC_model_steruje_gra_1016.md` (szkic do akceptu).
+   16.10 ~13:30 decyzja Karola: Haiku NIE jest nauczycielem; prawda = dane + zasady + symulator. Dane: 46/99 zawieszek w małych zamkniętych obszarach (65% czasu), wyjście schody/dziura mediana 2 kroki, a wyjście trwało mediana 173 s -> `SPEC_model_steruje_gra_1016.md` sekcja 7.
 
 ## Otwarte
 
