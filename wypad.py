@@ -123,7 +123,17 @@ def zbuduj_etapy(punkty, mapa=None, drzwi=()):
             a, b = biez[-1], p
             etapy.append({"typ": "IDZ", "punkty": biez})
             if b[2] < a[2]:
-                etapy.append({"typ": "LINA", "stoi": a, "cel": (b[0], b[1] - 1, a[2]), "ladunek": b})
+                cel = (b[0], b[1] - 1, a[2])
+                et = {"typ": "LINA", "stoi": a, "cel": cel, "ladunek": b}
+                if mapa is not None:
+                    try:
+                        # 17.10: pole liny w mapie klienta = żółte (kolor 210) bez flagi 2 (jak wszystkie sprawdzone liny
+                        # do_miasta i jaskinia goblinów Edron): lina od pierwszej próby, bez minuty zbędnych prób "drabiny"
+                        pole = mapa.pole(*cel)
+                        et["lina_pierwsza"] = bool(pole and pole[0] & 1 and not pole[0] & 2 and pole[1] == 210)
+                    except Exception:
+                        pass
+                etapy.append(et)
             else:
                 h = (b[0], b[1], a[2])
                 fl = None
@@ -1144,7 +1154,7 @@ class Wypad:
         return True
 
     @staticmethod
-    def _proby_drabiny(poz, cel):
+    def _proby_drabiny(poz, cel, lina_pierwsza=False):
         """Kolejność prób wejścia po drabinie (Ctrl+klik = Use): pole drabiny (2x), pole własne (0,0), potem sąsiednie
         E / W / N (bez dubla pola drabiny), na końcu lina z plecaka (tryb "lina", ścieżka awaryjna)."""
         pola = [("drabina", cel), ("drabina", cel), ("wlasne", (poz[0], poz[1], poz[2]))]
@@ -1152,6 +1162,9 @@ class Wypad:
             q = (poz[0] + dx, poz[1] + dy, poz[2])
             if (q[0], q[1]) != (cel[0], cel[1]):
                 pola.append((nazwa, q))
+        if lina_pierwsza:
+            # pole liny rozpoznane z mapy: dwie próby liną na początku, potem dawna kolejność jako zapas (bez dubla liny na końcu)
+            return [("lina", cel), ("lina", cel)] + pola
         pola.append(("lina", cel))
         return pola
 
@@ -1171,7 +1184,7 @@ class Wypad:
             cb.pauza(0.2, 0.5)
             return True
         n = e.get("proby", 0)
-        proby = self._proby_drabiny(poz, e["cel"])
+        proby = self._proby_drabiny(poz, e["cel"], bool(e.get("lina_pierwsza")))
         e["proby"] = n + 1
         tryb, pole = proby[min(n, len(proby) - 1)]
         rodzaj = "lina" if tryb == "lina" else "drabina"
