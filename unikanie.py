@@ -11,9 +11,13 @@ Czysta logika, bez wejścia/wyjścia: cavebot podaje listę stworów, pozycję, 
  - gracz zamyka drogę: cofamy się i czekamy w ruchu (krok w tył, krok w przód), nigdy nie stoimy;
    po UNIKANIE_BLOK_S s bez zmiany: inny punkt rotacji z całej trasy, a potem "luz" (trasa dalej, byle
    nie przez gracza i nie tuż obok) na kolejne UNIKANIE_BLOK_S s;
- - powiadomienie: gracz na spocie dłużej niż UNIKANIE_SPOT_S, najwyżej raz na UNIKANIE_POWIADOM_S.
+ - powiadomienie: gracz na spocie dłużej niż UNIKANIE_SPOT_S, najwyżej raz na UNIKANIE_POWIADOM_S;
+ - tor gracza (UNIKANIE_TOR, 17.10, dane_tibia/SPEC_unikanie_tor_gracza_1017.md): z historii pozycji liczymy kierunek ruchu gracza;
+   droga prowadząca tam, dokąd on idzie, i w jego stronę ("idziemy za nim") jest odrzucana; gracz, który zniknął z widoku,
+   zostaje "duchem" (ostatnia pozycja i kierunek) przez UNIKANIE_TOR_PAMIEC_S, a unikanie w tym czasie trwa.
 Stałe czyta z `konf` (moduł cavebot) przy każdym wywołaniu, więc pokrętła z na_zywo.json działają od razu."""
 import time
+from collections import deque
 
 PRZOD = 40            # ile punktów trasy do przodu sprawdzamy przy omijaniu
 TYL = 15              # ile punktów wstecz
@@ -69,6 +73,10 @@ class Unikanie:
         self.ost_wybor = (None, None, float("-inf"))
         self.mob_log = {}             # id moba -> czas ostatniego wpisu "pomijam"
         self.pominiete_moby = 0
+        self.hist = {}                # klucz gracza -> deque[(t, x, y)]: ostatnie UNIKANIE_TOR_OKNO_S s (tor gracza)
+        self.kier = {}                # klucz gracza -> {"h", "x", "y", "z", "nazwa", "id", "t"}: ostatni znany kierunek
+        self.duchy = []               # gracze, którzy zniknęli z widoku, ale ich tor jeszcze się liczy (UNIKANIE_TOR_PAMIEC_S)
+        self.tor_log_ost = float("-inf")
         self.czat_spot = None         # czat_spot.CzatSpot: wiadomość do gracza, który wraca/zabiera moby (mózg wysyła)
         try:
             import czat_spot  # noqa: PLC0415
@@ -84,6 +92,81 @@ class Unikanie:
     def wlaczone(self):
         return bool(self._k("UNIKANIE", 1))
 
+    # --- tor gracza (UNIKANIE_TOR) ---
+
+    def _tor_wlaczony(self):
+        return bool(self._k("UNIKANIE_TOR", 0)) and self.wlaczone()
+
+    def _tor_aktualizuj(self, gracze, poz, t):
+        """Historia pozycji -> kierunek ruchu każdego gracza (g["kier"] = (dx, dy) albo None, gdy stoi) i "duchy":
+        gracze, którzy zniknęli z widoku w ciągu UNIKANIE_TOR_PAMIEC_S, z ostatnią pozycją i kierunkiem."""
+        if not self._tor_wlaczony():
+            self.hist, self.kier, self.duchy = {}, {}, []
+            for g in gracze:
+                g["kier"] = None
+            return
+        okno = self._k("UNIKANIE_TOR_OKNO_S", 4.0)
+        ruch_min = self._k("UNIKANIE_TOR_RUCH_MIN", 2)
+        pamiec = self._k("UNIKANIE_TOR_PAMIEC_S", 25.0)
+        widoczne = set()
+        for g in gracze:
+            klucz = g["id"] if g.get("id") is not None else g["nazwa"]
+            widoczne.add(klucz)
+            h = self.hist.setdefault(klucz, deque())
+            h.append((t, g["x"], g["y"]))
+            while h and t - h[0][0] > okno:
+                h.popleft()
+            dx, dy = h[-1][1] - h[0][1], h[-1][2] - h[0][2]
+            kier = (dx, dy) if max(abs(dx), abs(dy)) >= ruch_min else None
+            g["kier"] = kier
+            self.kier[klucz] = {"h": kier, "x": g["x"], "y": g["y"], "z": g["z"], "nazwa": g["nazwa"],
+                                "id": g.get("id"), "t": t}
+        duchy = []
+        for klucz in list(self.kier):
+            if klucz in widoczne:
+                continue
+            rec = self.kier[klucz]
+            if t - rec["t"] > max(pamiec, okno):
+                del self.kier[klucz]
+                self.hist.pop(klucz, None)
+                continue
+            if rec["h"] and rec["z"] == poz[2] and t - rec["t"] <= pamiec:
+                duchy.append({"id": rec["id"], "nazwa": rec["nazwa"], "x": rec["x"], "y": rec["y"], "z": rec["z"],
+                              "odl": _cheb((rec["x"], rec["y"]), poz), "kier": rec["h"], "duch": True})
+        self.duchy = duchy
+
+    def _za_graczem(self, poz3, droga):
+        """True, gdy droga (pola bez startu) prowadzi tam, dokąd idzie gracz, i w jego stronę: v·h > 0 oraz v·r > 0
+        (v = kierunek pierwszych UNIKANIE_TOR_LOOK pól, h = ruch gracza, r = wektor do gracza). Gracz stojący się nie liczy."""
+        if not droga or not self._tor_wlaczony():
+            return False
+        zasieg = self._k("UNIKANIE_TOR_ZASIEG", 12)
+        k = droga[min(len(droga), self._k("UNIKANIE_TOR_LOOK", 8)) - 1]
+        vx, vy = k[0] - poz3[0], k[1] - poz3[1]
+        if vx == 0 and vy == 0:
+            return False
+        for e in list(self.gracze) + list(self.duchy):
+            h = e.get("kier")
+            if not h:
+                continue
+            rx, ry = e["x"] - poz3[0], e["y"] - poz3[1]
+            if max(abs(rx), abs(ry)) > zasieg:
+                continue
+            if vx * h[0] + vy * h[1] > 0 and vx * rx + vy * ry > 0:
+                t = self.zegar()
+                if t - self.tor_log_ost > 5.0:
+                    self.tor_log_ost = t
+                    self.log(f"Unikanie: nie idę za graczem {e['nazwa']}{' (zniknął z widoku)' if e.get('duch') else ''}: "
+                             f"idzie w kierunku {h}, droga prowadziłaby tam samo.")
+                    self.zdarzenie("unikanie_tor", gracz=e["nazwa"], gracz_id=e.get("id"), kier=list(h),
+                                   duch=bool(e.get("duch")), odl=_cheb((e["x"], e["y"]), poz3))
+                return True
+        return False
+
+    def _zrodlo(self):
+        """Gracze do logów i powodów: widoczni, a gdy ich brak - duchy."""
+        return self.gracze or self.duchy
+
     # --- detekcja ---
 
     def obserwuj(self, lista, poz, wlasna_nazwa, wylacz=False):
@@ -94,6 +177,7 @@ class Unikanie:
             if self.aktywne:
                 self._koniec("wylaczone", t)
             self.gracze = []
+            self.duchy = []
             return False
         r_max = self._k("UNIKANIE_PROMIEN_MAX", 14)
         r = self._k("UNIKANIE_PROMIEN", 9)
@@ -109,6 +193,7 @@ class Unikanie:
                                "z": s["z"], "odl": odl})
         gracze.sort(key=lambda g: g["odl"])
         self.gracze = gracze
+        self._tor_aktualizuj(gracze, poz, t)
         pr = self._k("UNIKANIE_MOB_PROMIEN", 4)
         self.moby = [(s["x"], s["y"]) for s in lista
                      if not s.get("gracz") and s.get("z") == poz[2] and s.get("hp", 100) > 0
@@ -141,7 +226,7 @@ class Unikanie:
             elif self.blisko_od is not None and t - (self.blisko_ost or t) > 1.0:
                 self.blisko_od = None
         else:
-            if gracze:
+            if gracze or self.duchy:
                 self.znikl_od = None
             else:
                 if self.znikl_od is None:
@@ -253,8 +338,9 @@ class Unikanie:
         """-> Ruch albo None (cavebot idzie normalnie). droga_fn(start(x,y,z), cel(x,y), blok(zbiór)) ->
         lista pól (bez startu, kończy się na cel) albo None."""
         t = self.zegar()
-        if not self.aktywne or not self.gracze or not punkty:
+        if not self.aktywne or not (self.gracze or self.duchy) or not punkty:
             return None
+        tor = self._tor_wlaczony()
         n, z = len(punkty), poz[2]
         poz3 = (poz[0], poz[1], z)
         d_now = self._min_odl(poz)
@@ -274,7 +360,7 @@ class Unikanie:
         blok.discard(poz3)
         licznik = [0]
 
-        def kandydat(k, budzet, limit):
+        def kandydat(k, budzet, limit, filtr=False):
             q = punkty[k % n]
             if q[2] != z or q[:2] == poz3[:2]:
                 return None
@@ -285,6 +371,8 @@ class Unikanie:
             licznik[0] += 1
             d = droga_fn(poz3, q[:2], blok)
             if d is None or len(d) > limit:
+                return None
+            if filtr and self._za_graczem(poz3, d):
                 return None
             return d
 
@@ -303,13 +391,11 @@ class Unikanie:
                 d = droga_fn(poz3, q[:2], blok)
                 if d is not None and len(d) > DROGA_MAX:
                     d = None
+        d_zap = d                                  # droga do bieżącego celu bez filtra toru (stare zachowanie, gdy nic lepszego)
+        if tor and d is not None and self._za_graczem(poz3, d):
+            d = None                               # bezpieczna z dystansu, ale idzie za graczem: szukamy innej
         if d is not None:
-            self.plan = {"k": k_cel, "droga": [tuple(p) for p in d]}
-            if self.ok_od is None:
-                self.ok_od = t
-            if self.tryb in ("tyl", "czekaj", "omin") and t - self.ok_od >= OK_RESET_S:
-                self.tryb, self.blok_od, self.wig = None, None, None
-            return Ruch(k_cel, d, self.tryb, "bezpieczny", zmiana=False)
+            return self._bezpieczny(t, k_cel, d)
         # 2. cel zbyt blisko gracza (albo droga do niego przechodzi przy graczu)
         self.ok_od = None
         self.plan = None
@@ -317,14 +403,14 @@ class Unikanie:
         if t < self.brak_do:
             return None
         if self.tryb in ("tyl", "czekaj") and t - self.przeplan_ost < PRZEPLAN_S and self.wig:
-            return self._wiggle(t, poz3, punkty, droga_fn, blok, powod, k_cel)
+            return self._wiggle(t, poz3, punkty, droga_fn, blok, powod, k_cel, tor=tor)
         self.przeplan_ost = t
         # eskalacja po UNIKANIE_BLOK_S bez zmiany
         if self.blok_od is not None and t - self.blok_od >= self._k("UNIKANIE_BLOK_S", 45.0) and not luz:
             for k in range(k_cel + 1, k_cel + n):
                 if licznik[0] >= ASTAR_GLOBALNY:
                     break
-                dd = kandydat(k, ASTAR_GLOBALNY, int(DROGA_MAX * 2.5))
+                dd = kandydat(k, ASTAR_GLOBALNY, int(DROGA_MAX * 2.5), tor)
                 if dd is not None:
                     return self._wybierz(t, k % n, dd, "omin", f"po {t - self.blok_od:.0f} s blokady inny punkt rotacji",
                                          k_cel, powod)
@@ -335,33 +421,54 @@ class Unikanie:
                      f"byle nie przez gracza (luz {LUZ_S:.0f} s).")
             self.zdarzenie("unikanie_luz", s=LUZ_S, punkt=k_cel)
             return None
-        # do przodu
-        for off in range(1, PRZOD + 1):
-            k = (k_cel + off) % n
-            dd = kandydat(k, ASTAR_MAX, DROGA_MAX)
-            if dd is not None:
-                self.blok_od = None
-                return self._wybierz(t, k, dd, "omin", f"{powod}, następny punkt rotacji", k_cel, powod)
-            if licznik[0] >= ASTAR_MAX:
-                break
-        # do tyłu (cofamy się do poprzedniego punktu)
-        licznik[0] = 0
-        for off in range(1, TYL + 1):
-            k = (k_cel - off) % n
-            dd = kandydat(k, ASTAR_MAX, DROGA_MAX)
-            if dd is not None:
-                if self.blok_od is None:
-                    self.blok_od = t
-                return self._wybierz(t, k, dd, "tyl", f"{powod}, cofam się do poprzedniego punktu", k_cel, powod)
-            if licznik[0] >= ASTAR_MAX:
-                break
+        # do przodu, potem do tyłu; z torem gracza najpierw bez dróg "za graczem" (przód, tył, czekanie w ruchu),
+        # na końcu (brak alternatywy) jak dawniej: nie zawieszamy bota
+        for filtr in ((True, False) if tor else (False,)):
+            if tor and not filtr:
+                if d_zap is not None:
+                    return self._bezpieczny(t, k_cel, d_zap)  # jedyna bezpieczna droga to ta za graczem
+                licznik[0] = 0                                # drugi przebieg (bez filtra) ma pełny budżet A*
+            for off in range(1, PRZOD + 1):
+                k = (k_cel + off) % n
+                dd = kandydat(k, ASTAR_MAX, DROGA_MAX, filtr)
+                if dd is not None:
+                    self.blok_od = None
+                    return self._wybierz(t, k, dd, "omin", f"{powod}, następny punkt rotacji", k_cel, powod)
+                if licznik[0] >= ASTAR_MAX:
+                    break
+            # do tyłu (cofamy się do poprzedniego punktu)
+            licznik[0] = 0
+            for off in range(1, TYL + 1):
+                k = (k_cel - off) % n
+                dd = kandydat(k, ASTAR_MAX, DROGA_MAX, filtr)
+                if dd is not None:
+                    if self.blok_od is None:
+                        self.blok_od = t
+                    return self._wybierz(t, k, dd, "tyl", f"{powod}, cofam się do poprzedniego punktu", k_cel, powod)
+                if licznik[0] >= ASTAR_MAX:
+                    break
+            if tor and filtr:
+                r_cz = self._wiggle(t, poz3, punkty, droga_fn, blok, powod, k_cel, nowy=self.tryb != "czekaj", tor="filtr")
+                if r_cz is not None:
+                    if self.blok_od is None:
+                        self.blok_od = t
+                    return r_cz
         # nic: czekamy w ruchu
         if self.blok_od is None:
             self.blok_od = t
-        return self._wiggle(t, poz3, punkty, droga_fn, blok, powod, k_cel, nowy=self.tryb != "czekaj")
+        return self._wiggle(t, poz3, punkty, droga_fn, blok, powod, k_cel, nowy=self.tryb != "czekaj", tor=tor)
+
+    def _bezpieczny(self, t, k_cel, d):
+        """Bieżący cel jest bezpieczny: zapamiętujemy drogę, cavebot idzie normalnie (zmiana=False)."""
+        self.plan = {"k": k_cel, "droga": [tuple(p) for p in d]}
+        if self.ok_od is None:
+            self.ok_od = t
+        if self.tryb in ("tyl", "czekaj", "omin") and t - self.ok_od >= OK_RESET_S:
+            self.tryb, self.blok_od, self.wig = None, None, None
+        return Ruch(k_cel, d, self.tryb, "bezpieczny", zmiana=False)
 
     def _powod(self, q):
-        g = min(self.gracze, key=lambda g: _cheb(q, (g["x"], g["y"])))
+        g = min(self._zrodlo(), key=lambda g: _cheb(q, (g["x"], g["y"])))
         return f"punkt {tuple(q[:2])} {_cheb(q, (g['x'], g['y']))} pól od gracza {g['nazwa']}"
 
     def _droga_z_planu(self, k, poz3, blok):
@@ -389,28 +496,36 @@ class Unikanie:
         self.wig = None
         if zmiana_punktu:
             self.zmian += 1
-            g = self.gracze[0]
+            g = self._zrodlo()[0]
             self.log(f"Unikanie: {powod}: punkt {k_stary} -> {k} (droga {len(droga)} pól, "
                      f"gracz {g['nazwa']} {g['odl']} pól).")
             self.zdarzenie("unikanie_punkt", tryb=tryb, powod=powod, punkt_stary=k_stary, punkt=k,
                            droga=len(droga), gracz=g["nazwa"], gracz_id=g["id"], odl=g["odl"])
         return Ruch(k, droga, tryb, powod, zmiana=True)
 
-    def _wiggle(self, t, poz3, punkty, droga_fn, blok, powod, k_cel, nowy=False):
+    def _wiggle(self, t, poz3, punkty, droga_fn, blok, powod, k_cel, nowy=False, tor=False):
         """Żadnego bezpiecznego punktu: dwa najdalsze od gracza sąsiednie punkty trasy w zasięgu
         (cofanie i powrót krok po kroku), dopóki droga się nie otworzy. Bez stania."""
         n, z = len(punkty), poz3[2]
         if self.wig is None:
             kand = []
-            for off in range(-TYL, TYL + 1):
-                k = (k_cel + off) % n
-                q = punkty[k]
-                if q[2] != z or q[:2] == poz3[:2]:
-                    continue
-                d = droga_fn(poz3, q[:2], blok)
-                if d is None or len(d) > 20:
-                    continue
-                kand.append((-self._min_odl(q), len(d), k))
+            # z torem gracza: punkty czekania nie "za graczem"; tor="filtr" = tylko takie (brak = None bez skutków ubocznych)
+            for filtr in ((True,) if tor == "filtr" else (True, False) if tor else (False,)):
+                for off in range(-TYL, TYL + 1):
+                    k = (k_cel + off) % n
+                    q = punkty[k]
+                    if q[2] != z or q[:2] == poz3[:2]:
+                        continue
+                    d = droga_fn(poz3, q[:2], blok)
+                    if d is None or len(d) > 20:
+                        continue
+                    if filtr and self._za_graczem(poz3, d):
+                        continue
+                    kand.append((-self._min_odl(q), len(d), k))
+                if kand:
+                    break
+            if not kand and tor == "filtr":
+                return None
             if not kand:
                 # brak jakiegokolwiek ruchu bez zbliżania się: pozostawiamy trasę cavebotowi
                 if nowy or self.tryb != "czekaj":
@@ -425,7 +540,7 @@ class Unikanie:
             b = min(sas)[2] if sas else a
             self.wig = {"a": a, "b": b, "cel": a}
             self.tryb = "czekaj"
-            g = self.gracze[0]
+            g = self._zrodlo()[0]
             self.log(f"Unikanie: gracz {g['nazwa']} blokuje drogę ({powod}), czekam w ruchu między "
                      f"punktami {a} i {b}.")
             self.zdarzenie("unikanie_blokada", gracz=g["nazwa"], gracz_id=g["id"], odl=g["odl"],

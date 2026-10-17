@@ -9,6 +9,8 @@ Specyfikacje i decyzje: `dane_tibia/SPEC_*.md`. Ten plik streszcza i linkuje.
 
 ## Gdzie jesteśmy
 
+- **17.10 unikanie: tor gracza (branch `feat/unikanie-tor-gracza`, niewdrożone, bez merge):** bot nie idzie za graczem (kierunek z historii pozycji, "duch" 25 s po zniknięciu z widoku) i `PRZERWA` kończy się, gdy gracz podejdzie. Pokrętła `UNIKANIE_TOR`, `UNIKANIE_PRZERWA` (domyślnie 0). Spec i wdrożenie: `dane_tibia/SPEC_unikanie_tor_gracza_1017.md`; testy `testy/test_unikanie_tor.py` 26/26, zestaw jak baza. Pauza na rozmowę z graczem (F3) czeka na decyzję Karola.
+
 - Bot i gra **wyłączone** (Karol: "dziś już nie"). Cały nowy kod czeka na pierwszy start; drugi komputer: Karol robi `git pull` + restart sam.
 - Exp/h 15.10 (Mastafian, trolle Thais): 08-15 2,1-2,8 tys.; 18-21 0-860 wyłącznie przez nawigację (szczegóły niżej). Walka i wybór celu działały.
 

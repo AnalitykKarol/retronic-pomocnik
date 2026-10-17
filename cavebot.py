@@ -694,6 +694,13 @@ UNIKANIE_DROGA_MIN = 4             # pola: droga do punktu nie schodzi bliżej g
 UNIKANIE_BLOK_S = 45.0             # s blokady bez zmiany: inny punkt rotacji z całej trasy, potem luz
 UNIKANIE_SPOT_S = 180.0            # s: gracz na spocie dłużej = powiadomienie
 UNIKANIE_POWIADOM_S = 300.0        # s: powiadomienie o graczu na spocie najwyżej raz na tyle
+UNIKANIE_TOR = 0                   # 1 = nie idziemy za graczem: droga w kierunku jego ruchu i w jego stronę jest odrzucana (17.10, SPEC_unikanie_tor_gracza_1017)
+UNIKANIE_TOR_OKNO_S = 4.0          # s historii pozycji gracza, z której liczymy kierunek jego ruchu
+UNIKANIE_TOR_RUCH_MIN = 2          # pola: przesunięcie gracza w oknie poniżej tego = stoi (bez toru)
+UNIKANIE_TOR_ZASIEG = 12           # pola: gracz (albo jego "duch") dalej niż tyle nie wyznacza toru
+UNIKANIE_TOR_LOOK = 8              # pola drogi, z których liczymy jej kierunek
+UNIKANIE_TOR_PAMIEC_S = 25.0       # s: gracz, który zniknął z widoku, nadal wyznacza tor (ostatnia pozycja i kierunek); unikanie w tym czasie trwa
+UNIKANIE_PRZERWA = 0               # 1 = gracz w UNIKANIE_PROMIEN kończy PRZERWĘ od razu (dawniej stała do końca)
 # 15.10 czat_spot.py (SPEC_czat_spot_1015): jedna wiadomość na Default do gracza, który wraca na spot albo zabiera moby
 CZAT_SPOT_AKTYWNY = 0              # pokrętło 0/1 (domyślnie wyłączone)
 CZAT_SPOT_SPOTKAN = 3              # S1: tyle osobnych spotkań (każde >= 20 s) z tym samym graczem...
@@ -1208,7 +1215,19 @@ class Cavebot:
         """True, gdy unikanie jest aktywne i gracz jest w zasięgu: idziemy krok po kroku po bezpiecznej drodze
         (klik prowadziłby klienta własną, krótszą trasą tuż przy graczu albo przy mobie)."""
         u = self.unikanie
-        return u is not None and u.aktywne and bool(u.gracze) and not self.wypad_aktywny
+        return u is not None and u.aktywne and bool(u.gracze or getattr(u, "duchy", None)) and not self.wypad_aktywny
+
+    def _przerwa_przerwij_gdy_gracz(self, teraz):
+        """UNIKANIE_PRZERWA (17.10): zwykły gracz w UNIKANIE_PROMIEN kończy PRZERWĘ od razu (dawniej stała do końca obok niego).
+        True = przerwa zakończona, następna wg PRZERWA_CO_MIX."""
+        u = self.unikanie
+        if not UNIKANIE_PRZERWA or u is None or not u.gracze or u.gracze[0]["odl"] > UNIKANIE_PROMIEN:
+            return False
+        g0 = u.gracze[0]
+        log(f"Przerwa przerwana: gracz {g0['nazwa']} {g0['odl']} pól od nas.")
+        self.przerwa_do = None
+        self.przerwa_od = teraz + losuj_z_mieszanki(PRZERWA_CO_MIX)
+        return True
 
     def _unikanie_trasa(self, poz):
         """Hak w _idz_trasa: unikanie.py może przestawić self.idx (inny punkt rotacji / cofnięcie) i podać
@@ -4172,17 +4191,20 @@ class Cavebot:
             if self.przerwa_do is None:
                 self.przerwa_do = teraz + losuj_z_mieszanki(PRZERWA_DLUGOSC_MIX)
                 log(f"Przerwa na {self.przerwa_do - teraz:.0f} s.")
-            if teraz < self.przerwa_do:
-                # wymiana pochodni w trakcie przerwy (krótka, bez ruchu; _pochodnia_tick ma własne warunki: nic żywego
-                # w pobliżu, brak celu, interwał 30 s). Licznik przerwy (przerwa_do) zostaje nietknięty.
-                if POCHODNIA_W_PRZERWIE and self._pochodnia_tick(lista, poz):
+            if teraz < self.przerwa_do and self._przerwa_przerwij_gdy_gracz(teraz):
+                pass                                   # gracz podszedł: przerwa skończona (log i losowanie następnej w metodzie)
+            else:
+                if teraz < self.przerwa_do:
+                    # wymiana pochodni w trakcie przerwy (krótka, bez ruchu; _pochodnia_tick ma własne warunki: nic żywego
+                    # w pobliżu, brak celu, interwał 30 s). Licznik przerwy (przerwa_do) zostaje nietknięty.
+                    if POCHODNIA_W_PRZERWIE and self._pochodnia_tick(lista, poz):
+                        return True
+                    self.ustaw_stan("PRZERWA", f"jeszcze {self.przerwa_do - teraz:.0f} s")
+                    self.pauza(1.5, 3.0)
                     return True
-                self.ustaw_stan("PRZERWA", f"jeszcze {self.przerwa_do - teraz:.0f} s")
-                self.pauza(1.5, 3.0)
-                return True
-            log("Koniec przerwy.")
-            self.przerwa_do = None
-            self.przerwa_od = teraz + losuj_z_mieszanki(PRZERWA_CO_MIX)
+                log("Koniec przerwy.")
+                self.przerwa_do = None
+                self.przerwa_od = teraz + losuj_z_mieszanki(PRZERWA_CO_MIX)
 
         self._watchdog_bezczynnosci(g, poz, lista, teraz)
 

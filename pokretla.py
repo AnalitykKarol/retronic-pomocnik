@@ -118,6 +118,13 @@ ZAKRESY = {
     "UNIKANIE_DROGA_MIN": (2, 6),       # pola: droga do punktu nie schodzi bliżej gracza
     "UNIKANIE_BLOK_S": (20.0, 120.0),   # s blokady bez zmiany, potem inny punkt rotacji / luz
     "UNIKANIE_ZNIKL_S": (5.0, 30.0),    # s bez gracza = koniec unikania
+    "UNIKANIE_TOR": (0, 1),             # 1 = nie idziemy za graczem (kierunek jego ruchu), pamięć gracza po zniknięciu (17.10)
+    "UNIKANIE_TOR_OKNO_S": (2.0, 10.0),  # s historii pozycji do kierunku ruchu gracza
+    "UNIKANIE_TOR_RUCH_MIN": (1, 5),    # pola: mniej = gracz stoi
+    "UNIKANIE_TOR_ZASIEG": (6, 20),     # pola: dalej gracz nie wyznacza toru
+    "UNIKANIE_TOR_LOOK": (4, 16),       # pola drogi branych do kierunku
+    "UNIKANIE_TOR_PAMIEC_S": (0.0, 120.0),  # s pamięci gracza po zniknięciu z widoku
+    "UNIKANIE_PRZERWA": (0, 1),         # 1 = gracz w promieniu kończy PRZERWĘ
     "TRASA_STOP_PRZY_POTWORZE_R": (0, 8),  # pola: potwór w tym promieniu wstrzymuje krok trasy/przejście pięter (0 = wył.)
     "JEDZENIE_W_WALCE": (0, 1),         # 1 = jedzenie także w walce, gdy HP nie rośnie z regeneracji (głód) i jest bezpiecznie
     "CZAS_JEDZENIA_WALKA": (10.0, 60.0),   # s bez wzrostu HP (nie od exura) w walce = głód
@@ -326,6 +333,7 @@ KIERUNEK = {
     "UNIKANIE": "nie_nizej", "UNIKANIE_PROMIEN": "nie_nizej", "UNIKANIE_PROMIEN_MAX": "nie_nizej",
     "UNIKANIE_MOB_PROMIEN": "nie_nizej", "UNIKANIE_PUNKT_D": "nie_nizej", "UNIKANIE_DROGA_MIN": "nie_nizej",
     "UNIKANIE_BLOK_S": "nie_wyzej", "UNIKANIE_ZNIKL_S": "nie_nizej",
+    "UNIKANIE_TOR": "nie_nizej", "UNIKANIE_PRZERWA": "nie_nizej",
     # czar ML: analityk nie może go włączyć ani rzucać w walce (tylko Karol w na_zywo.json)
     "ML_CZAR_AKTYWNY": "nie_wyzej", "ML_CZAR_W_WALCE": "nie_wyzej",
     # czary zdrowia/jedzenia: analityk nie może ich włączyć ani podnieść progów (tylko Karol w na_zywo.json)
