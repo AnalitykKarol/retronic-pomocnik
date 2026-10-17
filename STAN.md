@@ -63,3 +63,98 @@ Detektor PK na 70 h telemetrii 3 botów: 15.10 20:35:08 (prawdziwy atak, Breznie
 - test_wpadniecie "2 zasiany dziury_nauczone.json ma jedno pole" - test zakłada 1 dziurę, w danych są 3 prawdziwe (poprawić test).
 - test_rdzen_widmo 3 FAIL (stary, nieaktualny wobec logiki w bot.py), test_ruch_okno, test_grim, test_ogien 1a - czerwone sprzed zmian.
 - Brak jedzenia w plecaku Mastafiana (HP/mana bez regeneracji) - kupić przy wizycie w mieście.
+
+
+## 2026-10-17 — rozpoznanie nakładu UI i pełnego AI OFF (bez implementacji)
+
+Życzenie Karola: proste UI do ustawiania bota przez człowieka oraz przycisk
+odłączający wszystkie funkcje AI. To ocena zakresu, nie zatwierdzony brief/spec.
+Odczyt kodu HEAD 722a8c1: panel.py to TUI start/stop/status; pokretla.py ma
+254 klucze liczbowe i 3 tekstowe, walidację i hot-reload. tryb.py/mapy.json/tryby.json
+obsługują presety map i zachowań. uruchom.sh wymusza hybryda/haiku.
+mozg.py --tryb skrypt wyłącza główny model i analityków, ale CLI nadal tworzy
+CzytnikCzaszki(Claude(...)) niezależnie od trybu (okolice linii 3897), więc nie jest
+pełnym AI OFF. Główne kanały: decyzje/czat, analitycy, odczyt czaszek.
+Ważna weryfikacja przyszłej implementacji: AI OFF = zero uruchomień modelu,
+zero późnego zastosowania wyników i brak nadpisania ustawień użytkownika.
+Szacunek inżynierski z rozpoznania (nie zobowiązanie): użytkowe minimum 16–28 h;
+pełne obecne ustawienia w sekcjach UI łącznie 28–48 h; jeśli przełączenie AI ma
+być w locie bez restartu bota, dodatkowo 6–12 h na synchronizację, kolejki i anulowanie.
+Nie wybrano technologii UI. Nie wyceniono graficznego edytora tras/map.
+Otwarte: czy przełącznik AI działa po restarcie bota, czy ma działać w locie;
+czy pełna konfiguracja obejmuje edycję tras na mapie, czy istniejące trasy i parametry.
+Nie uruchamiano bota/modeli ani nie zmieniano konfiguracji w ramach rozpoznania.
+
+
+## 2026-10-17 — spec zakresu UI / AI OFF
+
+Na żądanie Karola powstał `dane_tibia/SPEC_ui_reczne_ai_1017.md` (draft, bez implementacji).
+Zakres: panel sterowania, ręczna konfiguracja i pełna polityka AI OFF; otwarte Q1 forma UI,
+Q2 przełączanie w locie vs restart samego bota, Q3 pełny rejestr parametrów vs minimum.
+Rekomendacje w specu są propozycjami, nie decyzjami użytkownika.
+
+2026-10-17 — Karol zatwierdził Q1/Q2/Q3 specu UI: okno desktopowe, przełączanie AI
+w locie, pełne parametry w zaawansowanych. Dopisał oczekiwanie nagrywania spotów,
+dojść do miasta i run: rozszerzono zakres w `dane_tibia/SPEC_ui_reczne_ai_1017.md`.
+Q4: produkcja obsługiwanych run czy również własne typy/receptury; technologia UI
+jeszcze niewybrana. Spec nadal draft, brak implementacji.
+
+2026-10-17 — Q4 UI rozstrzygnięte: Karol chce zmieniać koszt/próg many i hotkey
+(np. F8) przez UI bez kodowania. Spec uaktualniony; nie wymaga to katalogu własnych
+nazwanych receptur. Q1–Q4 zamknięte, technologia/kontrakty jeszcze do zatwierdzenia.
+
+## 2026-10-17 09:33 — Edron: dojście z depo na trolle (ręczna pomoc na 3 przejściach)
+
+Bot (`MAPA=trolle_edron`, WYMUS_DOJSCIE=1) dotarł do (33117,31775,z8) i zaczął pętlę. Dojście `edron_depo_trolle` samo
+NIE przechodzi trzech miejsc (pierwsze jego uruchomienie na żywo), Karol/agent pomagał ręcznie:
+- z8->z9: **kratka** na (33169,31823,z8), nie (33168,31823); stać na (33168,31823) i Ctrl+klik w prawo (`ekran.otworz(1,0)`).
+  Wpis `pietra_start.json` "33168,31823,8" jest błędny (domysł).
+- z11->z10 (33133,31805), z10->z9 (33130,31809), z9->z8 (33131,31806), z8->z7 (33128,31810): **lina** na polu obok;
+  trzeba stać na SĄSIEDNIM polu i `OperacjeZywe.uzyj_line(pole, poz)`; lina na własnym polu = "You cannot use this object".
+  `TRYBY_GORA_DRABINA` (pietra.py) nie zawiera "lina" -> 3 próby R/krok bez skutku.
+- Poprawka do zrobienia (po zgodzie): "lina" w trybach w górę z pola sąsiedniego + kratka jako tryb "use" sąsiedniego pola; test.
+Uwaga: mana 22/215, brak jedzenia (patrz wyżej).
+
+## 2026-10-17 09:40 — test strzału runą kliknięciami (tryb `agresywny`)
+3 strzały HMM trafiły (HP celu 100->44->0, 60->16), 3 kliki "bez efektu". Okno Battle niepotrzebne (cel z pamięci, klik w pole moba).
+Ocena Karola: bot klika PRAWYM na runie i wybiera "Use with" z menu - gracz tak nie robi, wolno; do przepięcia na Ctrl+klik
+(w kliencie działa, np. lina) - niezrobione, czeka na zgodę. Runy wyłączone (RUNA_AKTYWNA=0), bot wznowiony 09:41.
+
+## 2026-10-17 09:48 — strzał runą Ctrl+lewy (nowe pokrętło `RUNA_KLIK_CTRL`, domyślnie 0)
+Karol: bot klikał prawym na runie i wybierał z menu (trafiał w "Look") - nieludzkie. Zmiana: `runa_klik.strzel(..., ctrl_cel=True)`:
+Ctrl+lewy na runie, losowa pauza 60-180 ms, lewy na polu celu; bez menu i OCR. Pliki: runa_klik.py, cavebot.py (`_runa_klik`),
+pokretla.py, testy/test_runa_klik.py (sekcja 17, 52/52). Test na żywo (1 próba, trolle Edron): strzał 1 "ubyło runy" (OK),
+strzał 2 "bez efektu". Pokrętła przywrócone do RUNA_AKTYWNA=0, RUNA_KLIK_CTRL=0 (bot działa bez run). Niezacommitowane.
+
+2026-10-17 — Panel UI/AI powstał w oddzielnym worktree `../pomocnik-ui` na feat/ui-reczne-ai; głównego kodu nie podmieniono. Aktywny spec i wyniki39/39+review/QA są wyłącznie tam (README_UI.md, STAN.md). Brak commita/merge/pusha, próby na żywej grze otwarte.
+
+## 2026-10-17 15:45 — nie przeszkadzamy innym graczom (CUDZY_MOB + zmiana respa), nadzorca podglądu
+Powód: 15:30-15:31 bot zabił 2 trolle poranione przez gracza Thanos (HP 78% i 20% przy wyborze celu); gracz napisał "?".
+Zmiany (cavebot.py, pokretla.py, testy; niezacommitowane, brak niezależnego przeglądu):
+- `CUDZY_MOB`=1 (`CUDZY_MOB_S`=60): po zobaczeniu obcego gracza nie bierzemy poranionego moba, którego sami nie zaczęliśmy
+  (`moje_cele`); wyjątek: mob, który nas gryzie w odl <= 2. Test `testy/test_cudzy_mob.py` 10/10.
+- `PATROL_GRACZ_ZMIEN`=1 (R=12, BLOK_S=240, PAUZA_S=15): obcy gracz blisko nas albo celu patrolu = od razu (bez debounce
+  unikania) blokada miejsc w PATROL_GRACZ_PAM_R od niego i wybór innego respa. `testy/test_patrol_gracz_zmiana.py` 13/13.
+- `CZAT_SPOT_AKTYWNY`=0 (bot nie pisze do graczy). Tryb: MAPA=trolle_edron_patrol (patrol po respach), nie pętla trasy.
+- Nadzorca `podglad_stroz.sh` uruchomiony w tle (podnosi wayvnc i okno po awarii; zatrzymanie: pkill -f podglad_stroz.sh).
+- Regresja: test_cavebot 481/481, test_patrol* (80, 47, 17, 13, 11), test_unikanie 39/39, test_runa_klik 57/57.
+Otwarte: test na żywo przy obcym graczu; runy nadal wyłączone (RUNA_AKTYWNA=0, interwał 3,5-4,5 s, Ctrl+klik gotowe).
+
+## 2026-10-17 16:05 — niezależny przegląd (checker, Sonnet, tylko odczyt): NITS, poprawki naniesione
+Znaleziska i poprawki (cavebot.py, testy): (1) CUDZY_MOB przepuszcza moba tuż obok (odl <= 1) bez warunku gryzienia (jak unikanie.pomin_moba);
+(2) PATROL_GRACZ_ZMIEN: brak alternatywnego respa NIE kończy już wizyty (sprawdzenie _patrol_kandydaci przed zakończeniem), pauza także
+przy braku alternatywy, po nieudanym wyborze zwykły _patrol_wybierz zamiast kroku trasą; (3) log zmiany respa z id i współrzędnymi
+(miejsca nie mają "nazwa"); (4) blokady miejsc dopiero gdy cel faktycznie leży przy graczu; (5) luka=False po zmianie respa;
+(7) przycinanie moje_cele przy dopisywaniu; (8) patrol_zmiana_ost atrybutem; (9) komentarz RUNA_INTERWAL_S. Testy: patrol_gracz_zmiana 17/17,
+cudzy_mob 12/12, runa_klik 59/59 (18f _runa używa _runa_odstep, 18g pauza Ctrl->lewy), regresja cavebot 481/481, patrol 80/17/13/11/47, unikanie 39/39.
+Nie zrobione: test integracyjny tick() ("Nowy cel" -> moje_cele -> filtr). Nieoceniane bez gry: czy Ctrl+lewy na runie daje celownik w tym kliencie (jedna
+udana próba 09:48), dobór R=12/60 s do ruchu graczy, czy droga A* po zmianie respa omija gracza. Uwaga: PVP_HMM_CO_S=2.0 (walka PvP, wyłączona) też zakłada exhaust 2 s - do korekty przed PVP_WALKA=1.
+
+## 2026-10-17 wieczór — mapa spotów i trasy z mapy klienta (prototyp, bez zmian w kodzie bota)
+
+- Powstały `dane_tibia/serwer74/` (potwory z lootem i **wszystkie spawny**, 69 czarów graczy, 312 NPC z cenami; źródło OCircles/TibiantisHelper) i `dane_tibia/serwer76_jamera/` (osobno, serwer 7.6 z Port Hope; **loot zmodyfikowany**, nie ufać; spawny i lista potworów do użytku). Opis: `dane_tibia/README.md`.
+- `dane_tibia/mapy/`: obraz i trasa Port Hope -> swamp trolle (186 pól, z7) oraz pętla patrolowa po jaskini goblinów Edron z8 (12 przystanków, ok. 39 goblinów, 273 pola). Metoda i ograniczenia: `dane_tibia/mapy/README.md`.
+- Spec `dane_tibia/SPEC_mapa_trasy_1017.md` (F0-F4), kierunek zatwierdzony przez Karola ("będzie klasa"), kod F2/F3 jeszcze nie ruszony; F4 (wysłanie postaci) dopiero po przebiegu na żywo.
+- Otwarte: lina nie jest typem przejścia w formacie tras (czy `cavebot.py` umie ją użyć - nie sprawdzone); dojście do z10 goblinów nieznane (mapa ma 4 odcięte kawałki); mapa klienta zapisuje się przy zamknięciu klienta (stan z 10:00).
+- Pozycja postaci do planowania: `nagraj_trase.pozycja(nazwa_postaci())` (tylko odczyt). Zrzut tylko okna gry: `hyprctl clients -j` + `grim -g`.
+- Nie zacommitowane (inne zmiany w `cavebot.py`, `runa_klik.py`, `pokretla.py` są z innych sesji).

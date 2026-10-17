@@ -1,0 +1,129 @@
+{
+ "meta": "Spawny w obszarze x32500-32800 y32600-32900 (okolice Port Hope), wg jameraServer76",
+ "potwory": [
+  [
+   "Dworc Venomsniper",
+   49
+  ],
+  [
+   "Dworc Fleshhunter",
+   44
+  ],
+  [
+   "Centipede",
+   35
+  ],
+  [
+   "Spider",
+   30
+  ],
+  [
+   "Swamp Troll",
+   29
+  ],
+  [
+   "Poison Spider",
+   27
+  ],
+  [
+   "Snake",
+   24
+  ],
+  [
+   "Dworc Voodoomaster",
+   23
+  ],
+  [
+   "Bug",
+   21
+  ],
+  [
+   "Cave Rat",
+   19
+  ],
+  [
+   "Crocodile",
+   19
+  ],
+  [
+   "Cobra",
+   17
+  ],
+  [
+   "Wasp",
+   17
+  ],
+  [
+   "Tarantula",
+   15
+  ],
+  [
+   "Tiger",
+   9
+  ],
+  [
+   "Slime",
+   8
+  ],
+  [
+   "Smuggler",
+   8
+  ],
+  [
+   "Flamingo",
+   7
+  ],
+  [
+   "Larva",
+   7
+  ],
+  [
+   "Terror Bird",
+   6
+  ],
+  [
+   "Skunk",
+   5
+  ],
+  [
+   "Bat",
+   4
+  ],
+  [
+   "Skeleton",
+   4
+  ],
+  [
+   "Carniphila",
+   3
+  ],
+  [
+   "Crab",
+   3
+  ],
+  [
+   "Crypt Shambler",
+   3
+  ],
+  [
+   "Panda",
+   2
+  ],
+  [
+   "Parrot",
+   2
+  ],
+  [
+   "Spit Nettle",
+   2
+  ],
+  [
+   "Bandit",
+   1
+  ],
+  [
+   "Beholder",
+   1
+  ]
+ ]
+}
