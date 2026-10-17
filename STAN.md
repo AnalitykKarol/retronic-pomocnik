@@ -170,3 +170,19 @@ udana próba 09:48), dobór R=12/60 s do ruchu graczy, czy droga A* po zmianie r
 - **Restart bota czeka na "teraz" Karola** (`./zatrzymaj.sh`, potem `MAPA=gobliny_edron TRYB=ostrozny RETRONIC_POSTAC=Mastafian ./uruchom.sh`; pętla stoi ok. 20 s). Dopiero po nim plan działa. Gdy skończą się blanki (`WYPRAWA_DEPO_BLANKI=1`, `WYPRAWA_AKTYWNA=1`, `WYPRAWA_TYLKO_DEPO=1`), bot idzie do depo i tam STOP.
 - **Dane i metoda:** `dane_tibia/mapy/README.md`, `dane_tibia/SPEC_mapa_trasy_1017.md`. Lewa górna jaskinia z10 (-3): 5 spawnów, 18 goblinów, pętla 134 pola, wejście dziurą z9 (33063,31822), nieprzetestowana.
 - **Git:** commity 17.10 wypchnięte do `7f25739` (main i ruch-r1-1014). Zmiany po nim (ten wpis, `wyprawa.py`, nowe trasy) zacommitowane lokalnie, niewypchnięte.
+
+## 2026-10-17 23:45 — druga instancja testowa (`RETRONIC_ID=test`) obok głównej, bez bota
+
+- **Co jest:** `instancje/test/` (świeży prefiks wine, `MachineGuid` ec12d217… przy d479dc50… głównej, pusty klient, konto testowe
+  zalogowane ręcznie przez Karola). Sesja `RETRONIC_PODGLAD=0 ./sesja.sh`, podgląd `./podglad.sh` (z `dopasuj_okno`), nadzorca
+  `./podglad_stroz.sh &` (wszystko z `RETRONIC_ID=test`). Zamykanie: `SWAYSOCK=$(cat $XDG_RUNTIME_DIR/retronic-sesja-test/swaysock) swaymsg exit`;
+  NIE `zatrzymaj.sh` obok działającego bota (w razie błędu ustawia STOP domyślnej instancji).
+- **Poprawka (`dac6b86`):** drugi wayvnc odmawiał startu (wspólne gniazdo sterujące) → `wayvnc -S <sesja>/wayvnc.sock` per instancja w
+  `sesja.sh` i `podglad_stroz.sh`; sprawdzone na prawdziwym starcie (linia w `sway.conf`, nasłuch 5930, brak błędów). Bez ID bez zmian.
+- **Pomiar identyfikatora (zmierzone):** klient składa `OTCLIENT-HARDWARE-ID-V2` (DISK/VOLUME/MACHINE/LAST-RESORT-MAC), a przy starcie do ekranu
+  logowania czyta tylko `MachineGuid`. NIEZMIERZONE: odczyty przy logowaniu, to co trafia na serwer, czy serwer porównuje. Skrypty Lua klienta są
+  zaszyfrowane (nie odszyfrowywano). Pierwsze minuty z dwoma klientami (to samo IP): brak komunikatu serwera, główna sesja bez zmian — nie dowód.
+- **Otwarte:** obserwacja kilka godzin; czy porty 5501/5502 to ten sam świat (adresy gry testu częściowo inne niż głównego);
+  maskowanie IP/proxy NIE zrobione (wymaga dostawcy); bot na testowej postaci dopiero po wyniku obserwacji. Kopia prefiksu głównego niesie
+  `MachineGuid` i zapisane konto z `autoReconnect` (może wyrzucić główną postać) — robić świeży prefiks.
+- Procedura i pułapki: repo omarchy, `docs/cheatsheets/retronic-podglad.md`.
