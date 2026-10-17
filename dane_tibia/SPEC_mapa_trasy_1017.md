@@ -44,5 +44,5 @@ Zmiana celów nagranych tras, mapa Port Hope z 7.6 (jameraServer76) jako źród�
 ## Postęp 17.10 (21:10)
 
 - F4 wykonane w wąskim zakresie: pętla goblinów z8 uruchomiona na żywo z Karolem (1 h, 3793 exp/h, bez alarmów). Trasa wygenerowana z mapy, wszystko z tej specyfikacji (F1, F3 dla jednej mapy, F4 dla jednej trasy) sprawdzone.
-- Dopięte: plan powrotu do depo (`wyprawa.py` PLANY_PK `gobliny_edron`) + trasy `gobliny_edron_do_depo/z_depo`. Lina potwierdzona przez Karola bez współrzędnych; zakładamy (33107,31846,z8). Czeka restart bota.
+- Dopięte: plan powrotu do depo (`wyprawa.py` PLANY_PK `gobliny_edron`) + trasy `gobliny_edron_do_depo/z_depo`. Lina potwierdzona przez Karola bez współrzędnych; pierwsze założenie (33107,31846,z8) było błędne (siedem prób 17.10 23:09 bez zmiany piętra). Sprawdzone w grze 17.10 23:15: lina na (33107,31847,z8) ze stania (33107,31846,z8), lądowanie (33107,31848,z7); trasy poprawione, test `testy/test_trasa_lina_edron.py`. Czeka restart bota.
 - Nadal otwarte: kod F2 (interaktywna mapa HTML) i F3 jako jedno polecenie (dziś skrypty-prototypy w `dane_tibia/mapy/`); z9/z10 (spot -2 testuje Karol drugą postacią).
