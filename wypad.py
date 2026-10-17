@@ -1145,14 +1145,14 @@ class Wypad:
 
     @staticmethod
     def _proby_drabiny(poz, cel):
-        """Kolejność prób wejścia po drabinie (Ctrl+klik = Use): pole drabiny (2x), pole własne (0,0), potem sąsiednie
-        E / W / N (bez dubla pola drabiny), na końcu lina z plecaka (tryb "lina", ścieżka awaryjna)."""
-        pola = [("drabina", cel), ("drabina", cel), ("wlasne", (poz[0], poz[1], poz[2]))]
+        """Kolejność prób wejścia (Ctrl+klik = Use): drabina (1 próba), lina z plecaka (2x), drabina, pole własne (0,0), potem sąsiednie
+        E / W / N (bez dubla pola drabiny). 17.10: minimapa nie odróżnia liny od drabiny (oba pola żółte), a lina na tej trasie
+        zawsze była ostatnia (7. próba, ok. 40-60 s zmarnowane na każdej linie), więc po jednej próbie drabiny od razu lina."""
+        pola = [("drabina", cel), ("lina", cel), ("lina", cel), ("drabina", cel), ("wlasne", (poz[0], poz[1], poz[2]))]
         for nazwa, (dx, dy) in (("E", (1, 0)), ("W", (-1, 0)), ("N", (0, -1))):
             q = (poz[0] + dx, poz[1] + dy, poz[2])
             if (q[0], q[1]) != (cel[0], cel[1]):
                 pola.append((nazwa, q))
-        pola.append(("lina", cel))
         return pola
 
     def _lina(self, poz, e, teraz):
