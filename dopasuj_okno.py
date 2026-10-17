@@ -292,7 +292,7 @@ def main(argv=None):
     if port is None:
         import instancja  # noqa: PLC0415
         port = int((instancja.sesja() / "vnc_port").read_text().strip())
-    d = Dopasowywacz(lambda: wpisz_proporcje(rozmiar_okna(hyprctl_klienci(), a.pid, port, hyprctl_skale())),
+    d = Dopasowywacz(lambda: rozmiar_okna(hyprctl_klienci(), a.pid, port, hyprctl_skale()),
                      lambda: odczytaj_rozmiar(port), lambda w, h: ustaw_rozmiar(port, w, h))
     print(f"dopasuj_okno: start (port {port}, pid {a.pid})", flush=True)
     while a.pid is None or zyje(a.pid):
