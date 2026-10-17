@@ -11,6 +11,7 @@ import time
 from collections import deque, Counter
 from pathlib import Path
 
+import ekonomia
 import instancja
 
 LOGI = instancja.S.logi      # bez RETRONIC_ID: pomocnik/logi
@@ -100,6 +101,12 @@ class Telemetria:
         self.sesja_exp = []              # exp_zabicie od startu procesu
         self.puszczenia_sesja = {}       # 11.10: powód puszczenia klawisza w pościgu -> licznik od startu procesu
         self.pierwszy_krok_sesja = deque(maxlen=200)  # 11.10: t_pierwszy_krok z poscig_koniec (do mediany w analizie)
+        # dziennik ekonomii (SPEC_ekonomia_lootu_1017): osobny plik, bez rotacji i sprzątania
+        self.lup = ekonomia.Lup()
+        self.ost_zabicie = None          # (nazwa, czas) ostatniego zabicia: przypisanie lupu do potwora
+        self.ekon_tik_ost = float("-inf")
+        self.ekon_razem = {"gold": 0, "uh": 0, "zab": 0}
+        self.ekon_start = False
 
     # --- zapis ---
     def _zajmij_blokade(self):
@@ -138,6 +145,56 @@ class Telemetria:
     def _plik(self, t):
         return self.katalog / f"telemetria-{time.strftime('%Y%m%d', time.localtime(t))}.jsonl"
 
+    def _plik_ekon(self, t):
+        return self.katalog / f"ekonomia-{time.strftime('%Y%m%d', time.localtime(t))}.jsonl"
+
+    def _ekon(self, typ, t=None, **d):
+        """Rekord dziennika ekonomii: te same bezpieczniki co telemetria (zapis, blokada, atrapa), ale bez rotacji
+        i bez sprzątania starych plików. Błąd zapisu nigdy nie psuje bota."""
+        if not self.zapis or self._postac_testowa():
+            return
+        t = self.zegar() if t is None else t
+        try:
+            if not self.ekon_start:
+                self.ekon_start = True
+                self._ekon("start", t=t, v=ekonomia.WERSJA, postac=self.nazwa_postaci)
+            r = {"t": round(t, 1), "typ": typ, **d, "pid": self.pid, "sesja": self.sesja, "src": self.src}
+            self.katalog.mkdir(parents=True, exist_ok=True)
+            with self._plik_ekon(t).open("a") as f:
+                f.write(json.dumps(r, ensure_ascii=False, separators=(",", ":")) + "\n")
+        except OSError:
+            pass
+
+    def _ekon_zdarzenie(self, typ, d):
+        """Kopiuje wybrane zdarzenia telemetrii do dziennika ekonomii (patrz tabela rekordów w SPEC)."""
+        if typ == "zabicie":
+            self.ekon_razem["zab"] += 1
+            self._ekon("zabicie", n=d.get("n"), walka_s=d.get("walka_s"))
+        elif typ == "exp_zabicie":
+            self._ekon("exp", n=d.get("n"), exp=d.get("exp"), zab=d.get("zab"))
+        elif typ == "uh_run":
+            if d.get("wynik") == "ok":
+                self.ekon_razem["uh"] += d.get("rzuty") or 1
+            self._ekon("uh", wynik=d.get("wynik"), rzuty=d.get("rzuty"), czas_s=d.get("czas_s"), powod=d.get("powod"))
+        elif typ in ("jedzenie_walka", "jedzenie_mana"):
+            self._ekon("jedzenie", rodzaj="walka" if typ == "jedzenie_walka" else "mana")
+
+    def _ekon_lup(self, zrodlo, wynik):
+        """Zamyka rekord `lup` z linii zebranych od ostatniego zamknięcia i czyści akumulator."""
+        t = self.zegar()
+        r = self.lup.rekord(zrodlo, wynik, self.ost_zabicie, t)
+        self.lup.reset()
+        self.ekon_razem["gold"] += r["gold"] or 0
+        self._ekon("lup", **r)
+
+    def _ekon_tik(self, t, r):
+        if t - self.ekon_tik_ost < ekonomia.TIK_S:
+            return
+        self.ekon_tik_ost = t
+        self._ekon("tik", t=t, exp=r.get("exp"), mana=r.get("mana"), max_mana=r.get("max_mana"), hp=r.get("hp"),
+                   poz=r.get("poz"), stan=r.get("stan"), gold_razem=self.ekon_razem["gold"],
+                   uh_razem=self.ekon_razem["uh"], zab_razem=self.ekon_razem["zab"])
+
     def _postac_testowa(self):
         return self.nazwa_postaci in NAZWY_TESTOWE
 
@@ -145,6 +202,11 @@ class Telemetria:
         if self.zapis:
             r["pid"], r["sesja"], r["src"] = self.pid, self.sesja, self.src
         self.rek.append(r)
+        if r.get("typ") == "probka":
+            try:
+                self._ekon_tik(r["t"], r)
+            except Exception:
+                pass
         while self.rek and r["t"] - self.rek[0]["t"] > PAMIEC_S:
             self.rek.popleft()
         if not self.zapis or self._postac_testowa():     # R0a: atrapa "Ja" nie trafia do pliku
@@ -179,6 +241,10 @@ class Telemetria:
                 self.puszczenia_sesja[pow_] = self.puszczenia_sesja.get(pow_, 0) + int(n)
             if d.get("t_pierwszy_krok") is not None:
                 self.pierwszy_krok_sesja.append(d["t_pierwszy_krok"])
+        try:
+            self._ekon_zdarzenie(typ, d)
+        except Exception:
+            pass
         if typ in ("epizod_celu", "exp_zabicie"):
             lst = self.sesja_ep if typ == "epizod_celu" else self.sesja_exp
             lst.append(r)
@@ -469,6 +535,14 @@ class Telemetria:
                     self.zdarzenie("loot_przy_zywym", zywe=zywe)
             self.ostatni_stan = stan
             return
+        try:
+            if self.lup.linia(txt):                 # zebrano/cenne/zjedzono: składamy rekord `lup`
+                return
+            if ekonomia.RE_LUP_WALKA.match(txt):    # znacznik końca lootu w walce
+                self._ekon_lup("walka", "ok")
+                return
+        except Exception:                           # dziennik ekonomii nigdy nie psuje bota
+            pass
         m = RE_CEL.search(txt)
         if m:
             self.cel_start = t
@@ -501,6 +575,7 @@ class Telemetria:
             return
         m = RE_ZAB.search(txt)
         if m:
+            self.ost_zabicie = (m[1], t)
             self.zdarzenie("zabicie", n=m[1], walka_s=round(t - self.cel_start, 1) if self.cel_start else None)
             self.cel_start = None
             if self.ep and self.ep["n"] == m[1]:
@@ -514,6 +589,10 @@ class Telemetria:
         m = RE_LOOT.match(txt)
         if m:
             self.zdarzenie("loot", wynik=m[1], s=round(t - self.loot_start, 1) if self.loot_start else None)
+            try:
+                self._ekon_lup("zwloki", m[1])
+            except Exception:
+                pass
             self.loot_start = None
             return
         if txt.startswith(("Przerywam loot", "Loot odłożony", "Czekam na")):

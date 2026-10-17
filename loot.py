@@ -1163,6 +1163,18 @@ zjedz.ostatni_powod = None
 LACZNIE = {}      # zebrane od startu procesu: nazwa -> sztuk
 
 
+def _log_cenne(prefiks, zostalo, log):
+    """SPEC_ekonomia_lootu_1017: cenne (NPC >= 100 gp) przedmioty, które zostały w zwłokach (nie zbieramy ich),
+    jako jedna linia logu dla telemetrii/dziennika ekonomii. Tylko log, nigdy nie zmienia zbierania."""
+    try:
+        import ekonomia  # noqa: PLC0415
+        opis = ekonomia.cenne_opis(ekonomia.cenne(list(zostalo or [])))
+        if opis:
+            log(f"{prefiks}: cenne zostały {opis}")
+    except Exception:       # dziennik nigdy nie wywraca lootu
+        pass
+
+
 def _plan_teraz(mysz, lista, log):
     """Świeży zrzut i plan. Gdy pamięć nie zgadza się z ekranem (zrzut i odczyt z różnych chwil),
     jeszcze jedna próba po krótkiej pauzie. Powód przejścia na obrazek logujemy przy zmianie."""
@@ -1762,6 +1774,7 @@ def zbierz_szczegoly(pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA, log=print)
         wynik["zostalo"] = p["zostalo"]
         wynik["nieznane"] = p["nieznane"]
         wynik["ukryte"] = p["ukryte"]
+        _log_cenne("loot", p["zostalo"], log)
         if p["ukryte"]:
             log(f"loot: pod suwakiem okna zostało {', '.join(p['ukryte'])}")
         if wynik["ilosci"]:
@@ -1926,8 +1939,10 @@ def krok_w_walce(stan, pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA, log=prin
             _sprzatnij_okno_ilosci(mysz, log)
             stan["zamkniete"] = _zamknij_zwloki(mysz, stan.get("p"), stan.get("pole"), stan.get("klucz"), log)
             stan["faza"] = "koniec"
+            _log_cenne("loot w walce", (stan.get("p") or {}).get("zostalo") or [], log)
             if stan["ilosci"]:
                 log(f"loot w walce: łup {_opis_ilosci(stan['ilosci'])} (razem: {_opis_ilosci(LACZNIE)})")
+            log("loot w walce: koniec")        # znacznik dla dziennika ekonomii (zamyka rekord `lup`)
             return "gotowe", stan.get("koniec_powod") or "ok"
     return "przerwane", "stan"
 
