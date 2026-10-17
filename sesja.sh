@@ -41,7 +41,9 @@ OUTPUT_KONF=""
 VNC_KONF=""
 if [ "$BEZ_OKNA" = "1" ]; then
   OUTPUT_KONF="output * resolution $ROZ"
-  VNC_KONF="exec wayvnc 127.0.0.1 $PORT"
+  # instancja (RETRONIC_ID): własne gniazdo sterujące; domyślne jest jedno na użytkownika i drugi wayvnc odmawia startu
+  # ("Another wayvnc process is already running"). Bez ID linia jest taka jak dotąd.
+  VNC_KONF="exec wayvnc ${RETRONIC_ID:+-S $STAN/wayvnc.sock }127.0.0.1 $PORT"
 fi
 mkdir -p "$STAN"
 rm -f "$STAN/wayland" "$STAN/vnc_port"

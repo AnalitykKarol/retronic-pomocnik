@@ -9,7 +9,7 @@ DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 INST=$(python3 -I "$DIR/instancja.py" powloka) || exit 1; eval "$INST"
 PORT=$(cat "$INST_SESJA/vnc_port" 2>/dev/null); PORT=${PORT:-5901}
 log() { echo "$(date +%T) podglad_stroz: $*" >> "$DIR/logi/podglad_stroz.log"; }
-wayvnc_pid() { pgrep -f "^wayvnc 127\.0\.0\.1 $PORT\$" | head -1; }
+wayvnc_pid() { pgrep -f "^wayvnc (-S [^ ]+ )?127\.0\.0\.1 $PORT\$" | head -1; }
 viewer_pid() { pgrep -f "^vncviewer .*127\.0\.0\.1::$PORT\b" | head -1; }
 ostatni_pad=0; widzialem_viewer=0
 log "start (port $PORT)"
@@ -18,7 +18,7 @@ while true; do
   W=$(cat "$INST_SESJA/wayland" 2>/dev/null)
   if [ -z "$(wayvnc_pid)" ] && [ -n "$W" ]; then
     ostatni_pad=$(date +%s)
-    XDG_RUNTIME_DIR="/run/user/$(id -u)" WAYLAND_DISPLAY="$W" setsid nohup wayvnc 127.0.0.1 "$PORT" >> "$DIR/logi/podglad_stroz.log" 2>&1 < /dev/null &
+    XDG_RUNTIME_DIR="/run/user/$(id -u)" WAYLAND_DISPLAY="$W" setsid nohup wayvnc ${RETRONIC_ID:+-S "$INST_SESJA/wayvnc.sock"} 127.0.0.1 "$PORT" >> "$DIR/logi/podglad_stroz.log" 2>&1 < /dev/null &
     log "wayvnc padł albo go nie było: uruchomiony ponownie"
     sleep 3
   fi

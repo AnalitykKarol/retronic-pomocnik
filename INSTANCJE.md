@@ -66,6 +66,14 @@ Do tego czasu obie instancje wychodzą z tym samym IP.
 
 ## Znane ryzyka
 
+- **wayvnc drugiej instancji (naprawione 17.10)**: domyślne gniazdo sterujące wayvnc jest jedno na użytkownika, więc drugi
+  wayvnc odmawiał startu (`Another wayvnc process is already running`) i podgląd instancji się nie otwierał. `sesja.sh` i
+  `podglad_stroz.sh` dają teraz instancji (`RETRONIC_ID`) własne gniazdo `$XDG_RUNTIME_DIR/retronic-sesja-<id>/wayvnc.sock`
+  (`wayvnc -S …`); bez ID nic się nie zmienia. Kopie sprzed zmiany: `*.bak-20261017-wayvnc-S`; cofnięcie: przywróć kopie.
+  Działające już sesje czytają stary plik, poprawka obejmuje następny start. Nie testowano pełnego restartu `sesja.sh`.
+- **Podgląd instancji bez `dopasuj_okno`**: automatyczne dopasowanie rozmiaru ekranu sesji wywracało wayvnc (17.10, `End of
+  stream`). Dla drugiej instancji: `RETRONIC_DOPASUJ_OKNO=0 RETRONIC_ID=<id> ./podglad.sh`, okno ustaw jako pływające i dopasuj
+  do ekranu sesji (np. 1190x940 dla 1175x910), inaczej obraz jest zdeformowany.
 - **Retronic.log klienta**: nie wiadomo, czy klient pisze do katalogu roboczego, czy obok exe. Instancja startuje z
   `cwd = instancje/<id>/gra` z kopiami exe, więc powinna mieć własny log, ale nie sprawdzono tego. Stąd `RETRONIC_POSTAC`.
 - **Ten sam IP i konto serwera**: serwer może limitować klientów z jednego IP albo wykrywać multiklient (etap 2 to
