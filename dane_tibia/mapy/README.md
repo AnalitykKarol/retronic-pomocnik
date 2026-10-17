@@ -26,6 +26,7 @@ nie uruchomi się sam bez kroku 2 poniżej (przykładowy wynik jest obok: `sklad
 
 - **Przejścia między piętrami.** Schody, dziury i liny mają w mapie flagę 2 (`BEZ_DROGI`), ale nie mówi ona, dokąd prowadzą.
   Znamy tylko przejścia nauczone z nagranych tras (`trasy/*.meta`, `dziury_nauczone.json`).
+- **Żółta kropka (kolor 210) to każda zmiana piętra: schody, lina, dziura albo drabina.** Minimapa nie mówi, które to. Typ rozstrzyga nagranie przejścia (`nagraj.sh`) albo log wypadu. 17.10 w jaskini goblinów Edron cztery liny i jedna drabina (z8 -> z7 przy (33165,31827)) wyglądają w mapie tak samo.
 - **Lina.** Używasz jej na polu z8 (x, y), a lądujesz na z7 o jedno pole na południe, czyli (x, y+1).
   Przykład Edron (sprawdzone w grze 17.10 23:15, nagranie `dane_tibia/nagrania/gobliny_edron_lina_potw.json`): lina na (33107, 31847, z8), używana ze stania (33107, 31846, z8), lądowanie (33107, 31848, z7); otwór na z7 to (33107, 31847, z7), zejście ląduje w (33107, 31847, z8). Wskazówka z mapy: żółte pole (kolor 210) na z8 pod żółtym otworem na z7 = pole liny; pole lądowania nie ma flagi 2. Bot zna linę (`wypad.zbuduj_etapy`: stoi obok R = (lądowanie.x, lądowanie.y-1)).
 - **Mapa to tylko widziane pola.** Pola nigdy niewidziane są traktowane jak ściana. Plik klienta (`AppData/.../map74.otmm`) zapisuje się przy zamknięciu klienta
