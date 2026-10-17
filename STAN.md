@@ -158,3 +158,13 @@ udana próba 09:48), dobór R=12/60 s do ruchu graczy, czy droga A* po zmianie r
 - Otwarte: lina nie jest typem przejścia w formacie tras (czy `cavebot.py` umie ją użyć - nie sprawdzone); dojście do z10 goblinów nieznane (mapa ma 4 odcięte kawałki); mapa klienta zapisuje się przy zamknięciu klienta (stan z 10:00).
 - Pozycja postaci do planowania: `nagraj_trase.pozycja(nazwa_postaci())` (tylko odczyt). Zrzut tylko okna gry: `hyprctl clients -j` + `grim -g`.
 - Nie zacommitowane (inne zmiany w `cavebot.py`, `runa_klik.py`, `pokretla.py` są z innych sesji).
+
+## 2026-10-17 21:10 — gobliny Edron z8: wynik godziny, plan powrotu podpięty (restart bota czeka)
+
+- **Wynik 1 h** (19:49-20:49, telemetria, tryb `ostrozny`): +3800 exp = **3793 exp/h**, ok. 150 goblinów/h, HP min 85% / średnio 99%, bez alarmów i bez innych graczy w widoku. Trolle Edron: 2180-2600 exp/h. Spot zostaje (decyzja Karola 21:00: "warto zostać"). Karol testuje -2 (z9) osobno, drugą postacią (instancja `RETRONIC_ID=dwa`, `INSTANCJE.md`).
+- **Bot nadal działa** na starym kodzie (start 19:49, `ostatni_start.env` = `MAPA=gobliny_edron TRYB=ostrozny`). UH robi sam (`UH_AKTYWNY=1` w `na_zywo.json`, 6 run w 1. h). Postać **nie ma jedzenia**.
+- **Plan powrotu do depo** dopisany w `wyprawa.py` (`PLANY_PK`: `gobliny_edron`) + trasy `trasy/gobliny_edron_do_depo.json` (184 pkt, z8 kończy się o pole przed liną, lina z8 (33107,31846) -> z7 (33107,31847), dalej nagrane `edron_do_depo` od dziury (33127,31810)) i `trasy/gobliny_edron_z_depo.json` (178 pkt, powrót z depo; nieużywany, bo `WYPRAWA_DEPO_POWROT=0`). Testy: wyprawa 126/126, droga_depo 50/50, dojście 25/25; z jaskini goblinów `wybierz_baze` daje `gobliny_edron`, z jaskini trolli `edron`.
+- **Lina:** Karol 21:07 "potwierdziłem gdzie jest lina point", współrzędnych nie podał i nie chce ("musisz zaufać"). Plan zakłada (33107,31846,z8); nie pytać ponownie. Jeśli w grze lina zawiedzie, bot zatrzyma się z alarmem STOP w jaskini.
+- **Restart bota czeka na "teraz" Karola** (`./zatrzymaj.sh`, potem `MAPA=gobliny_edron TRYB=ostrozny RETRONIC_POSTAC=Mastafian ./uruchom.sh`; pętla stoi ok. 20 s). Dopiero po nim plan działa. Gdy skończą się blanki (`WYPRAWA_DEPO_BLANKI=1`, `WYPRAWA_AKTYWNA=1`, `WYPRAWA_TYLKO_DEPO=1`), bot idzie do depo i tam STOP.
+- **Dane i metoda:** `dane_tibia/mapy/README.md`, `dane_tibia/SPEC_mapa_trasy_1017.md`. Lewa górna jaskinia z10 (-3): 5 spawnów, 18 goblinów, pętla 134 pola, wejście dziurą z9 (33063,31822), nieprzetestowana.
+- **Git:** commity 17.10 wypchnięte do `7f25739` (main i ruch-r1-1014). Zmiany po nim (ten wpis, `wyprawa.py`, nowe trasy) zacommitowane lokalnie, niewypchnięte.

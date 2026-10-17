@@ -55,6 +55,8 @@ BAZY = ("troll", "thais_kanaly")       # plany wypadu (wypad.PLANY) kończące s
 # BAZY ich nie zawiera). "do" = z łowiska do depo, "z" = z depo na łowisko (oba nagrane, edron_*.json)
 PLANY_PK = (
     {"nazwa": "edron", "do": "edron_do_depo.json", "z": "edron_depo_trolle.json", "npc": None, "prefix": False},
+    # 17.10: jaskinia goblinów Edron z8 (trasy wygenerowane z mapy klienta; lina z8 (33107,31846) -> z7 nie sprawdzona w grze)
+    {"nazwa": "gobliny_edron", "do": "gobliny_edron_do_depo.json", "z": "gobliny_edron_z_depo.json", "npc": None, "prefix": False},
 )
 BAZY_PK = BAZY + tuple(p["nazwa"] for p in PLANY_PK)     # plany dostępne dla ucieczki PK (troll: istniejące depo Thais)
 PK_PLAN_ZASIEG = 80                    # pola: ucieczka PK startuje z dalszej okolicy trasy niż zwykły wypad (zasięg 40)
