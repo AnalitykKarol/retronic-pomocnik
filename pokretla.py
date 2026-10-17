@@ -78,6 +78,12 @@ ZAKRESY = {
     "LOOT_PONOW_LOKALNIE": (0, 2),      # ile razy ponowić loot od razu po brak_okna, gdy w widoku brak żywych mobów
     "LOOT_POMIN_CIEZKIE": (0, 1),       # 1 = przedmiot za ciężki (cap) pomijamy w lootcie 300 s; 0 = tylko klasyfikacja w logu
     "UNIKANIE": (0, 1),                 # 1 = omijanie zwykłych graczy (zmiana punktu rotacji, pomijanie celów przy graczu)
+    "CUDZY_MOB": (0, 1),                # 1 = nie bierz poranionego moba, którego nie zaczęliśmy, gdy niedawno był obcy gracz (17.10)
+    "CUDZY_MOB_S": (10.0, 600.0),       # s: tak długo po zobaczeniu obcego gracza obowiązuje CUDZY_MOB (domyślnie 60)
+    "PATROL_GRACZ_ZMIEN": (0, 1),       # 1 = obcy gracz blisko nas/celu patrolu = od razu zmiana respa na dalszy od niego (17.10)
+    "PATROL_GRACZ_ZMIEN_R": (4, 20),    # pola: tak blisko nas albo celu obcy gracz wywołuje zmianę respa (domyślnie 12)
+    "PATROL_GRACZ_ZMIEN_BLOK_S": (30.0, 1800.0),  # s: blokada miejsc przy graczu po zmianie respa (domyślnie 240)
+    "PATROL_GRACZ_ZMIEN_PAUZA_S": (3.0, 120.0),   # s: min. odstęp między zmianami respa z tego powodu (domyślnie 15)
     "PK_OBRONA": (0, 1),                # 1 = atak gracza z danych (spadek HP + obcy obok + brak potwora) = ucieczka do depo
     "PK_ODL": (1, 3),                   # pola: obcy gracz tak blisko przy spadku HP = atak PK
     "PK_ODL_CZAR": (0, 8),              # pola: >0 = atak także od gracza w zasięgu czaru (0 = wyłączone)
@@ -211,12 +217,14 @@ ZAKRESY = {
     "OGIEN_ODSWIEZ_WALKA_S": (0.8, 5.0),  # s: odstęp wykryć ognia w WALKA bez zmiennych pól (domyślnie 0.8 = bez zmiany)
     "RUNA_AKTYWNA": (0, 1),             # 1 = strzał runą (hotkey RUNA_KLAWISZ) w celu w walce (domyślnie 0)
     "RUNA_TRYB_KLIK": (0, 1),           # 1 = strzał runą kliknięciami (plecak -> Use with -> mob) zamiast hotkeya
+    "RUNA_KLIK_CTRL": (0, 1),           # 1 = przy RUNA_TRYB_KLIK: Ctrl+lewy na runie, lewy na celu (bez menu i OCR; domyślnie 0)
     "RUNA_ID": (1, 65535),              # ID runy w plecaku do strzału (HMM 3198)
     "RUNA_MENU_DX": (0, 150),           # px: awaryjny offset "Use with" od kliknięcia (gdy OCR menu zawiedzie)
     "RUNA_MENU_DY": (0, 150),
     "RUNA_KLIK_PORAZKI": (1, 10),       # porażki z rzędu przed chłodzeniem
     "RUNA_KLIK_CHLODZENIE_S": (10.0, 900.0),
-    "RUNA_INTERWAL_S": (1.0, 10.0),     # s: min. odstęp między strzałami runą (cooldown run ok. 2 s)
+    "RUNA_INTERWAL_S": (1.0, 10.0),     # s: min. odstęp między strzałami runą (exhaust run w kliencie: >3 s, <= ok. 5 s)
+    "RUNA_INTERWAL_MAX_S": (0.0, 10.0), # s: > RUNA_INTERWAL_S = odstęp losowy z [RUNA_INTERWAL_S, to] po każdym strzale (0 = stały)
     "UH_AKTYWNY": (0, 1),               # 1 = robienie run czarem runowym w spokoju (uh.py; domyślnie 0)
     "UH_KOSZT": (1, 500),               # koszt many czaru runowego
     "UH_MANA_MIN": (1, 500),            # mana wymagana do startu runy
@@ -313,6 +321,8 @@ KIERUNEK = {
     # SKOK_POL: nie wolno obniżać (fałszywa "śmierć" kończyłaby walkę przy teleporcie)
     "PVP_HMM_CO_S": "nie_wyzej", "PVP_ZASIEG": "nie_wyzej", "PVP_ZNIKL_S": "nie_wyzej", "PVP_ZABITY_HP": "nie_wyzej",
     "PVP_SKOK_POL": "nie_nizej",
+    "CUDZY_MOB": "nie_nizej", "CUDZY_MOB_S": "nie_nizej", "PATROL_GRACZ_ZMIEN": "nie_nizej", "PATROL_GRACZ_ZMIEN_R": "nie_nizej",
+    "PATROL_GRACZ_ZMIEN_BLOK_S": "nie_nizej", "PATROL_GRACZ_ZMIEN_PAUZA_S": "nie_wyzej",
     "UNIKANIE": "nie_nizej", "UNIKANIE_PROMIEN": "nie_nizej", "UNIKANIE_PROMIEN_MAX": "nie_nizej",
     "UNIKANIE_MOB_PROMIEN": "nie_nizej", "UNIKANIE_PUNKT_D": "nie_nizej", "UNIKANIE_DROGA_MIN": "nie_nizej",
     "UNIKANIE_BLOK_S": "nie_wyzej", "UNIKANIE_ZNIKL_S": "nie_nizej",

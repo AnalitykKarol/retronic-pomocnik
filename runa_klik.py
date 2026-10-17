@@ -18,6 +18,7 @@ Założenia (bez nich nie da się tego sprawdzić na sucho):
 
 Całość jest wstrzykiwana przez `env`, więc testy chodzą na atrapach bez X11.
 """
+import random
 import re
 import subprocess
 import sys
@@ -152,7 +153,7 @@ def _ilosc(kontenery, runa_id):
 
 
 def strzel(env, cel, runa_id=RUNA_ID, menu_dx=MENU_DX, menu_dy=MENU_DY, weryfikacja_s=WERYFIKACJA_S,
-           szybko=False, ctrl=False, rng=None, budzet_s=1.0):
+           szybko=False, ctrl=False, rng=None, budzet_s=1.0, ctrl_cel=False):
     """Jedna próba strzału. env: kontenery(), geometria(), prawy(x,y), lewy_pole(dx,dy), zrzut(),
     hp_celu(id) -> % albo None (znikł), klawisz(nazwa), zegar(), spij(s), log(t), pamiec (dict: ostatni offset).
     cel: {"id","dx","dy","hp"}. -> {"wynik": ..., "powod": ...}; wynik: ok | brak_runy | brak_geometrii |
@@ -160,7 +161,8 @@ def strzel(env, cel, runa_id=RUNA_ID, menu_dx=MENU_DX, menu_dy=MENU_DY, weryfika
     szybko=True (PK_UH_SZYBKIE): weryfikacja skrócona (spadek ilości run albo wzrost własnego HP z env.hp_wlasne()),
     menu niepotwierdzone = krótki powtórny odczyt, potem wynik "bez_menu" BEZ zgadywania offsetu (dopuszczony tylko
     offset zmierzony wcześniej z OCR, env.pamiec), klik "na siebie" losowo w polu postaci (env.lewy_siebie(rng)),
-    ctrl=True: Ctrl+klik runy (env.ctrl_lewy) zamiast menu; całość w budżecie budzet_s."""
+    ctrl=True: Ctrl+klik runy (env.ctrl_lewy) zamiast menu; całość w budżecie budzet_s.
+    ctrl_cel=True (RUNA_KLIK_CTRL, 17.10): strzał w cel bez menu i OCR: Ctrl+lewy na runie, potem lewy na polu celu."""
     kont = env.kontenery()
     if not kont:
         return {"wynik": "blad", "powod": "brak odczytu kontenerow"}
@@ -185,26 +187,31 @@ def strzel(env, cel, runa_id=RUNA_ID, menu_dx=MENU_DX, menu_dy=MENU_DY, weryfika
     hp0 = cel.get("hp")
     if szybko:
         return _strzel_szybko(env, cel, runa_id, sx, sy, ilosc0, weryfikacja_s, ctrl, rng, budzet_s)
-    env.prawy(sx, sy)
-    env.spij(0.25)                                   # menu musi się narysować
-    pozycja = None
-    try:
-        obraz = env.zrzut()
-        if obraz is not None:
-            pozycja = env.ocr(obraz, sx, sy)
-    except Exception as e:
-        if type(e).__name__ == "Zatrzymano":
-            raise
-        env.log(f"[RUNA-KLIK] OCR menu: {type(e).__name__}: {e}")
-    pam = env.pamiec
-    if pozycja is not None:
-        pam["offset"] = (pozycja[0] - sx, pozycja[1] - sy)
+    if ctrl_cel:
+        # jak człowiek: Ctrl + lewy na runie (celownik "Use with" bez menu), krótka losowa pauza, lewy na celu
+        env.ctrl_lewy(sx, sy)
+        env.spij(losowy_odstep_ctrl(rng or random))
     else:
-        off = pam.get("offset") or (menu_dx, menu_dy)
-        pozycja = (sx + off[0], sy + off[1])
-        env.log(f"[RUNA-KLIK] 'Use with' nie rozpoznane: klikam offset {off}")
-    env.lewy(pozycja[0], pozycja[1])
-    env.spij(0.15)
+        env.prawy(sx, sy)
+        env.spij(0.25)                               # menu musi się narysować
+        pozycja = None
+        try:
+            obraz = env.zrzut()
+            if obraz is not None:
+                pozycja = env.ocr(obraz, sx, sy)
+        except Exception as e:
+            if type(e).__name__ == "Zatrzymano":
+                raise
+            env.log(f"[RUNA-KLIK] OCR menu: {type(e).__name__}: {e}")
+        pam = env.pamiec
+        if pozycja is not None:
+            pam["offset"] = (pozycja[0] - sx, pozycja[1] - sy)
+        else:
+            off = pam.get("offset") or (menu_dx, menu_dy)
+            pozycja = (sx + off[0], sy + off[1])
+            env.log(f"[RUNA-KLIK] 'Use with' nie rozpoznane: klikam offset {off}")
+        env.lewy(pozycja[0], pozycja[1])
+        env.spij(0.15)
     env.lewy_pole(cel["dx"], cel["dy"])
     t_koniec = env.zegar() + weryfikacja_s
     while True:

@@ -241,5 +241,54 @@ sprawdz("16e brak runy w obu", w["wynik"] == "brak_runy" and not e.akcje, w)
 e = EnvRuny(w_plecaku=1, w_runach=1); w = runa_klik.strzel(e, dict(CEL))
 sprawdz("16f licznik łączny (ubyło z pojemnika)", w["wynik"] == "ok", w)
 
+# 17. RUNA_KLIK_CTRL (ctrl_cel): Ctrl+lewy na runie, lewy na celu; bez prawego kliku, menu i OCR
+class EnvCtrl(Env):
+    def ctrl_lewy(s, x, y): s.akcje.append(("ctrl_lewy", x, y))
+    def lewy_pole(s, dx, dy):
+        s.akcje.append(("pole", dx, dy))
+        if s.efekt and s.akcje[-2][0] == "ctrl_lewy":
+            s.runy -= 1
+    def ocr(s, *a): raise AssertionError("OCR nie powinien się wołać w trybie ctrl_cel")
+e = EnvCtrl(); w = runa_klik.strzel(e, dict(CEL), ctrl_cel=True)
+sprawdz("17a ok", w["wynik"] == "ok", w)
+sprawdz("17b kolejność ctrl_lewy(runa) -> pole(cel), bez prawego", [a[0] for a in e.akcje] == ["ctrl_lewy", "pole"], e.akcje)
+sprawdz("17c ctrl na slocie 1 (617,581), cel (1,0)", e.akcje == [("ctrl_lewy", 617, 581), ("pole", 1, 0)], e.akcje)
+e = EnvCtrl(efekt=False); w = runa_klik.strzel(e, dict(CEL), ctrl_cel=True)
+sprawdz("17d bez efektu: bez_efektu + Escape", w["wynik"] == "bez_efektu" and e.akcje[-1] == ("klawisz", "Escape"), (w, e.akcje))
+sprawdz("17e pokrętło zarejestrowane i domyślnie 0", "RUNA_KLIK_CTRL" in pokretla.ZAKRESY and cavebot.RUNA_KLIK_CTRL == 0)
+
+# 18. RUNA_INTERWAL_MAX_S: odstęp losowany z [S, MAX] raz po każdym strzale; 0 = stały
+S0 = types.SimpleNamespace(runa_los=(None, 0.0), runa_ostatni=100.0)
+od = cavebot.Cavebot._runa_odstep
+s_, m_ = cavebot.RUNA_INTERWAL_S, cavebot.RUNA_INTERWAL_MAX_S
+cavebot.RUNA_INTERWAL_S, cavebot.RUNA_INTERWAL_MAX_S = 3.5, 0.0
+sprawdz("18a MAX=0: stały odstęp 3.5", od(S0) == 3.5)
+cavebot.RUNA_INTERWAL_MAX_S = 4.5
+v = od(S0)
+sprawdz("18b losowy w [3.5, 4.5]", 3.5 <= v <= 4.5, v)
+sprawdz("18c ten sam odstęp do następnego strzału", all(od(S0) == v for _ in range(20)))
+wart = set()
+for i in range(60):
+    S0.runa_ostatni = 200.0 + i; wart.add(round(od(S0), 6))
+sprawdz("18d po każdym strzale nowy los, wszystko w zakresie", len(wart) > 30 and all(3.5 <= x <= 4.5 for x in wart), len(wart))
+cavebot.RUNA_INTERWAL_S, cavebot.RUNA_INTERWAL_MAX_S = s_, m_
+sprawdz("18e pokrętło zarejestrowane, domyślnie 0", "RUNA_INTERWAL_MAX_S" in pokretla.ZAKRESY and m_ == 0.0)
+# 18f: _runa naprawdę używa _runa_odstep (cofnięcie do stałej RUNA_INTERWAL_S wywaliłoby ten test)
+wolane = []
+S1 = types.SimpleNamespace(cel={"id": 1}, ucieczka=False, runa_ostatni=100.0, _runa_odstep=lambda: wolane.append(1) or 50.0)
+cavebot.RUNA_AKTYWNA = 1
+r1 = cavebot.Cavebot._runa(S1, None, (0, 0, 8), [], 120.0)       # 20 s po strzale < 50 s odstępu: nic, bez dalszych odczytów
+cavebot.RUNA_AKTYWNA = 0
+sprawdz("18f _runa pyta _runa_odstep i przy zbyt krótkim czasie nie strzela", wolane == [1] and r1 is False, (wolane, r1))
+# 18g: pauza między Ctrl+lewy a lewy w ctrl_cel (60-180 ms)
+class EnvPauza(EnvCtrl):
+    def spij(s, d):
+        s.t += d; s.akcje.append(("spij", round(d, 3)))
+e = EnvPauza(); runa_klik.strzel(e, dict(CEL), ctrl_cel=True)
+nazwy = [a[0] for a in e.akcje]
+i = nazwy.index("ctrl_lewy"); pauza = e.akcje[i + 1]
+sprawdz("18g po Ctrl+lewy krótka losowa pauza 60-180 ms, potem lewy na celu",
+        pauza[0] == "spij" and 0.06 <= pauza[1] <= 0.18 and nazwy[i + 2] == "pole", e.akcje[:4])
+
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

@@ -164,6 +164,11 @@ PATROL_GRACZ_PAM = 1               # 1 = pamiętamy, gdzie niedawno widziano obc
 PATROL_GRACZ_PAM_S = 600.0         # s: tak długo ostatnia pozycja gracza zniechęca do miejsc w pobliżu
 PATROL_GRACZ_PAM_R = 14            # pola: miejsce tak blisko ostatniej pozycji gracza dostaje karę
 PATROL_GRACZ_PAM_KARA = 0.1        # mnożnik wagi takiego miejsca (0 = blokada; inne piętro: pierwiastek)
+PATROL_GRACZ_ZMIEN = 0             # pokrętło 0/1 (17.10, na_zywo: 1): obcy gracz w PATROL_GRACZ_ZMIEN_R polach od nas albo od celu = od razu (bez debounce unikania) blokada
+                                   # miejsc w PATROL_GRACZ_PAM_R od niego na PATROL_GRACZ_ZMIEN_BLOK_S s i wybór innego respa (dalej od gracza)
+PATROL_GRACZ_ZMIEN_R = 12          # pola: tak blisko nas albo celu patrolu obcy gracz wywołuje zmianę respa
+PATROL_GRACZ_ZMIEN_BLOK_S = 240.0  # s: tak długo miejsca przy graczu są zablokowane
+PATROL_GRACZ_ZMIEN_PAUZA_S = 15.0  # s: min. odstęp między zmianami respa z tego powodu
 LOOT_DYNAMICZNY = 1                # 13.10: loot dynamiczny (pokrętło 0/1; 0 = dawne zachowanie, DOMYŚLNIE 1 od decyzji Karola 13.10; 0 = dawne zasady): zwłoki w odl <= 1 zaraz po zabiciu także przy
                                    # żywym mobie w odl >= 2; dalsze gdy mob >= 3 pola; okno lootu otwarte nie jest przerywane "cel_daleko";
                                    # po "brak_okna" zwłoki wstrzymane do końca walki (jedna próba po walce); zwłoki z innego piętra odłożone
@@ -279,11 +284,13 @@ ZDROWIE_CZAR_PRZERWA_PO_PORAZKACH_S = 600.0
 # --- jedzenie czarem exevo pan (F3): tworzy jedzenie, które zjadamy istniejącym mechanizmem. Domyślnie WYŁĄCZONE ---
 RUNA_AKTYWNA = 0                   # pokrętło 0/1 (na_zywo.json): 1 = strzał runą (hotkey) w cel w walce; nie kosztuje many
 RUNA_KLAWISZ = "F4"                # hotkey w kliencie: "użyj runy na celu" (HMM w zaznaczony cel); pokrętło tekstowe
-RUNA_INTERWAL_S = 2.0              # pokrętło: min. odstęp między strzałami (cooldown run ok. 2 s)
+RUNA_INTERWAL_S = 2.0              # pokrętło: min. odstęp między strzałami (17.10: exhaust run w kliencie >3 s i <= ok. 5 s, na_zywo: 3.5-4.5)
+RUNA_INTERWAL_MAX_S = 0.0          # pokrętło: > RUNA_INTERWAL_S = odstęp losowany z [RUNA_INTERWAL_S, RUNA_INTERWAL_MAX_S] po każdym strzale (0 = stały)
 RUNA_MIN_HP_CELU = 0               # pokrętło: cel poniżej tego HP% nie dostaje runy (0 = bez limitu)
 RUNA_ZASIEG = 3                    # pola: dalej nie strzelamy
 RUNA_LOG_CO = 20                   # log licznika strzałów co tyle
 RUNA_TRYB_KLIK = 0                 # pokrętło 0/1: 1 = strzał kliknięciami (prawy klik na runie -> "Use with" -> lewy na mobie) zamiast hotkeya
+RUNA_KLIK_CTRL = 0                 # pokrętło 0/1: 1 = (z RUNA_TRYB_KLIK) Ctrl+lewy na runie, lewy na celu, bez menu "Use with" i OCR
 RUNA_ID = 3198                     # pokrętło: ID runy w plecaku do strzału (HMM; blank 3147 to nie to)
 RUNA_MENU_DX = 28                  # pokrętło (px): awaryjny offset "Use with" od punktu prawego kliku, gdy OCR menu zawiedzie
 RUNA_MENU_DY = 22                  # pokrętło (px): j.w., w pionie (domyślnie drugi wiersz menu)
@@ -674,6 +681,8 @@ GM_NAZWA = re.compile(r"^(gm|cm|god|tutor)\s|\[gm\]|\[cm\]", re.IGNORECASE)
 GRACZ_INFO_PONOW = 120             # s: ten sam zwykły gracz w widoku jest w logu najwyżej raz na tyle
 # unikanie zwykłych graczy (unikanie.py): zmiana punktu rotacji i pominięcie celów przy graczu, bez zatrzymywania bota
 UNIKANIE = 1                       # 1 = bot omija zwykłych graczy; analityk nie może wyłączyć (tylko w górę)
+CUDZY_MOB = 0                      # pokrętło 0/1 (na_zywo: 1): nie bierzemy na cel poranionego moba, którego sami nie zaczęliśmy, gdy niedawno był obcy gracz
+CUDZY_MOB_S = 60.0                 # s: tak długo po zobaczeniu obcego gracza (w UNIKANIE_PROMIEN_MAX) obowiązuje CUDZY_MOB
 UNIKANIE_TYLKO_SPOT = 1            # 1 = unikanie graczy tylko na spocie (piętra 8+), nie w mieście ani na powierzchni (z7)
 UNIKANIE_PROMIEN = 9               # pola: gracz tak blisko (przez UNIKANIE_DEBOUNCE s) włącza unikanie
 UNIKANIE_PROMIEN_MAX = 14          # pola: unikanie trwa, dopóki ktoś jest w tym promieniu (dalej gracz się nie liczy)
@@ -1008,6 +1017,7 @@ class Cavebot:
         self.zd_wylaczony_do = float("-inf")
         self.zd_rzuty = 0
         self.runa_ostatni = float("-inf")  # czas ostatniego strzału runą
+        self.runa_los = (None, 0.0)        # (runa_ostatni, wylosowany odstęp do następnego strzału)
         self.klik_ramka_false = {}     # id celu -> liczba kliknięć "ramka_false" bez spadku HP (ATAK_LIMIT_KLIKOW)
         self.atak_inny_ost = {}        # id celu -> czas ostatniego kliku "inny_cel" (ATAK_INNY_CEL)
         self.runa_strzaly = 0
@@ -1047,6 +1057,9 @@ class Cavebot:
         self.uh_hold_od = None
         self.uh_przerwal_cavebot = None    # powód przerwania zgłoszony przez callback (to nie porażka mechanizmu)
         self.unikanie = None           # unikanie.Unikanie: omijanie zwykłych graczy (haki: tick, _unikanie_filtr, _idz_trasa)
+        self.moje_cele = {}            # CUDZY_MOB: id moba -> czas, kiedy wzięliśmy go na cel (nasze moby)
+        self.cudzy_log = {}            # id moba -> czas ostatniego wpisu "pomijam cudzego moba" (bez spamu)
+        self.patrol_zmiana_ost = float("-inf")   # czas ostatniej zmiany respa z powodu gracza (PATROL_GRACZ_ZMIEN)
         self.pk_stan = None            # obrona PK: None | "UCIECZKA" (do depo / awaryjna) | "DEPO" (czekamy) | "POWROT" (na spot) | "WALKA" (PvP, PVP_WALKA=1)
         self.pk_fallback = False       # True: brak planu do depo, ucieczka awaryjna (stary stan UCIECZKA po trasie)
         self.pk_od = float("-inf")     # kiedy ostatnio weszliśmy w ucieczkę PK
@@ -1142,9 +1155,36 @@ class Cavebot:
         except Exception as e:
             log(f"unikanie: błąd {e!r}")
 
+    def _cudzy_mob_filtr(self, kand, poz):
+        """CUDZY_MOB (Karol 17.10: nie przeszkadzamy innym graczom): gdy w ostatnich CUDZY_MOB_S s widzieliśmy obcego
+        gracza (UNIKANIE_PROMIEN_MAX), nie bierzemy na cel moba z HP < 100%, którego sami nie zaczęliśmy (to mob tego
+        gracza). Wyjątek: mob, który nas gryzie (spadek własnego HP w GRYZIE_OKNO) i stoi w odl <= 2."""
+        if not CUDZY_MOB or not kand:
+            return kand
+        t = self.zegar()
+        if not any(t - v[3] <= CUDZY_MOB_S for v in self.patrol_gracze_pam.values()):
+            return kand
+        gryzie = t - self.hp_gracza_spadek < GRYZIE_OKNO
+        wynik = []
+        for s in kand:
+            odl = max(abs(s["x"] - poz[0]), abs(s["y"] - poz[1]))
+            # mob tuż obok nas to nasz problem (bije nas, nawet słabo); czy stoi przy graczu, rozstrzyga unikanie.pomin_moba
+            cudzy = s.get("hp", 100) < 100 and s.get("id") not in self.moje_cele \
+                and odl > 1 and not (gryzie and odl <= 2)
+            if not cudzy:
+                wynik.append(s)
+            elif t - self.cudzy_log.get(s.get("id"), float("-inf")) > 30.0:
+                self.cudzy_log[s.get("id")] = t
+                if len(self.cudzy_log) > 200:
+                    self.cudzy_log = {k: v for k, v in self.cudzy_log.items() if t - v < 30.0}
+                log(f"Unikanie: pomijam cudzego moba {s.get('nazwa')} ({s['x']},{s['y']}) HP {s.get('hp')}%: "
+                    f"nie nasz, a niedawno był tu obcy gracz.")
+        return wynik
+
     def _unikanie_filtr(self, kand, poz):
         """Wybór celu w tick(): bez mobów stojących w UNIKANIE_MOB_PROMIEN od innego gracza (poza tym, co stoi
         obok nas albo nas gryzie). Inne użycia kandydaci() (loot, pościg) widzą wszystkie moby."""
+        kand = self._cudzy_mob_filtr(kand, poz)
         u = self.unikanie
         if u is None or not u.gracze or not kand:
             return kand
@@ -1782,11 +1822,22 @@ class Cavebot:
             log(f"RUNA: błąd {e!r}")
             return False
 
+    def _runa_odstep(self):
+        """Odstęp do następnego strzału runą: RUNA_INTERWAL_S, a przy RUNA_INTERWAL_MAX_S > RUNA_INTERWAL_S losowy z tego
+        zakresu, losowany raz po każdym strzale (exhaust run w tym kliencie 17.10: dłuższy niż 3 s, nie dłuższy niż ok. 5 s)."""
+        lo = max(float(RUNA_INTERWAL_S), 0.5)
+        hi = float(RUNA_INTERWAL_MAX_S)
+        if hi <= lo:
+            return lo
+        if self.runa_los[0] != self.runa_ostatni:
+            self.runa_los = (self.runa_ostatni, random.uniform(lo, hi))
+        return self.runa_los[1]
+
     def _runa(self, g, poz, lista, teraz):
         # walka = jest cel (stan bywa chwilowo "ZDROWIE"/"JEDZENIE" po czarze: nie głodzimy wtedy runy)
         if not RUNA_AKTYWNA or self.cel is None or self.ucieczka:
             return False
-        if teraz - self.runa_ostatni < max(float(RUNA_INTERWAL_S), 0.5):
+        if teraz - self.runa_ostatni < self._runa_odstep():
             return False
         cel = next((s for s in lista if s["id"] == self.cel["id"]), None)
         if cel is None or cel.get("z") != poz[2]:
@@ -1834,7 +1885,8 @@ class Cavebot:
         wynik = runa_klik.strzel(
             self.runa_klik_env,
             {"id": cel["id"], "dx": cel["x"] - poz[0], "dy": cel["y"] - poz[1], "hp": hp},
-            runa_id=int(RUNA_ID), menu_dx=int(RUNA_MENU_DX), menu_dy=int(RUNA_MENU_DY))
+            runa_id=int(RUNA_ID), menu_dx=int(RUNA_MENU_DX), menu_dy=int(RUNA_MENU_DY),
+            ctrl_cel=bool(RUNA_KLIK_CTRL))
         w, pw = wynik["wynik"], wynik["powod"]
         if w == "brak_runy":
             self.runa_brak_do = teraz + max(float(RUNA_BRAK_SPRAWDZ_S), 5.0)
@@ -4083,6 +4135,9 @@ class Cavebot:
                 except Exception:
                     pass
             log(f"Nowy cel: {cel['nazwa']} ({cel['x']},{cel['y']}) HP {cel['hp']}%")
+            self.moje_cele[cel["id"]] = self.zegar()       # CUDZY_MOB: ten mob jest nasz (od teraz wolno go bić poranionego)
+            if len(self.moje_cele) > 300:
+                self.moje_cele = {k: v for k, v in self.moje_cele.items() if self.zegar() - v < 1800.0}
         if cel is not None:
             self.zapamietaj_ruch_celu(cel)
             self.cel.update(poz=(cel["x"], cel["y"], cel["z"]), hp=cel["hp"], odl=self.dystans((cel["x"], cel["y"]), poz))
@@ -8687,6 +8742,48 @@ class Cavebot:
             self.punkty, self.idx, self.przebyte, self.okrazenie, self.otwarta, self.pominiete = zapas
             self.stan = "IDZ"
 
+    def _patrol_gracz_zmiana(self, p, poz, teraz):
+        """PATROL_GRACZ_ZMIEN (Karol 17.10): obcy gracz w PATROL_GRACZ_ZMIEN_R polach od nas albo od celu patrolu = od razu
+        zmiana respa, bez czekania na debounce unikania. Miejsca w PATROL_GRACZ_PAM_R od gracza (to samo piętro) dostają
+        blokadę na PATROL_GRACZ_ZMIEN_BLOK_S s, bieżąca wizyta się kończy, kolejny wybór idzie na respa dalej od gracza.
+        Nowa wizyta (dict) albo None (bez zmiany; gdy nie ma gdzie iść, blokady są cofane i zostajemy przy unikaniu)."""
+        if not PATROL_GRACZ_ZMIEN or p is None:
+            return None
+        u = self.unikanie
+        if u is None or not u.gracze or teraz - self.patrol_zmiana_ost < PATROL_GRACZ_ZMIEN_PAUZA_S:
+            return None
+        m = p["m"]
+        gr = [g for g in u.gracze if g.get("z") == poz[2]]
+        blisko = [g for g in gr if max(abs(g["x"] - poz[0]), abs(g["y"] - poz[1])) <= PATROL_GRACZ_ZMIEN_R
+                  or (m["z"] == g["z"] and max(abs(g["x"] - m["x"]), abs(g["y"] - m["y"])) <= PATROL_GRACZ_ZMIEN_R)]
+        if not blisko:
+            return None
+        ids = [mm["id"] for mm in self.miejsca or []
+               if mm["z"] == poz[2]
+               and any(max(abs(mm["x"] - g["x"]), abs(mm["y"] - g["y"])) <= PATROL_GRACZ_PAM_R for g in blisko)]
+        if m["id"] not in ids:
+            return None          # gracz jest blisko nas, ale nasz cel leży daleko od niego: idziemy dalej, bez blokad
+        stare = {i: self.patrol_blok.get(i, float("-inf")) for i in ids}
+        for i in ids:
+            self.patrol_blok[i] = max(stare[i], teraz + PATROL_GRACZ_ZMIEN_BLOK_S)
+        self.patrol_zmiana_ost = teraz       # także przy braku alternatywy: bez ponawiania co obieg
+        if not self._patrol_kandydaci(poz, m["id"]):
+            self.patrol_blok.update(stare)   # nie ma dokąd uciec: wizyta trwa dalej, zostaje zwykłe unikanie
+            return None
+        self._patrol_zakoncz(p, "gracz blisko: zmiana respa")
+        nowy = self._patrol_wybierz(poz, m["id"])
+        if nowy is None:
+            self.patrol_blok.update(stare)
+            self.patrol = None
+            return None
+        zablok = ids
+        log(f"Patrol: gracz {blisko[0].get('nazwa')} blisko ({max(abs(blisko[0]['x'] - poz[0]), abs(blisko[0]['y'] - poz[1]))} pól), "
+            f"zmieniam respa m{m['id']} ({m['x']},{m['y']}) -> m{nowy['m']['id']} ({nowy['m']['x']},{nowy['m']['y']}) "
+            f"(miejsc zablokowanych: {len(zablok)}).")
+        self._patrol_tele("patrol_gracz_zmiana", gracz=blisko[0].get("nazwa"), z_miejsca=m["id"], na_miejsce=nowy["m"]["id"],
+                          zablokowane=len(zablok))
+        return nowy
+
     def _idz_patrol(self):
         """Jeden obieg patrolu po miejscach. True/False jak _idz_trasa; None = brak miejsca, jedziemy trasą."""
         teraz = self.zegar()
@@ -8720,6 +8817,18 @@ class Cavebot:
         luka = p["tick"] is not None and teraz - p["tick"] > PATROL_LUKA_S
         dt = min(teraz - p["tick"], 2.0) if p["tick"] is not None else 0.0
         p["tick"] = teraz
+        nowy_p = self._patrol_gracz_zmiana(p, poz, teraz)
+        if nowy_p is not None:
+            p = self.patrol = nowy_p
+            p["tick"] = teraz
+            luka = False
+        elif self.patrol is None:
+            # wizyta zakończona, a nowego miejsca nie wybrano (blokady cofnięte): zwykły wybór, bez kroku trasą na boku
+            p = self.patrol = self._patrol_wybierz(poz)
+            if p is None:
+                return None
+            p["tick"] = teraz
+            luka = False
         for _ in range(5):
             m = p["m"]
             tgt = tuple(p["koniec"]) if p.get("sweep") else (m["x"], m["y"], m["z"])
