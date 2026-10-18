@@ -180,23 +180,53 @@ def nazwa_postaci():
     return nazwy[-1]
 
 
+_PROCES_GRY = re.compile(rb"retronic(gl|dx)-\d+\.exe$")
+
+
+def _gniazdo_sesji():
+    """Gniazdo Wayland sesji tej instancji (plik sesji/wayland); None, gdy go nie ma."""
+    try:
+        return (instancja.sesja() / "wayland").read_text().strip() or None
+    except OSError:
+        return None
+
+
+def ekran_z_procesu(cmdline, srodowisko, id_instancji, gniazdo=None):
+    """DISPLAY gry tej instancji z jednego procesu albo None, gdy to nie jest jej gra.
+    Gra = proces, którego plik wykonywalny (argv[0]) to RetronicGL-<n>.exe (18.10: dawniej wystarczał ten tekst
+    gdziekolwiek w wierszu poleceń, więc łapała się powłoka z `grep RetronicGL-` i bot dostawał DISPLAY pulpitu).
+    Gra innej instancji (RETRONIC_ID) i gra w innej sesji Wayland (WAYLAND_DISPLAY != gniazdo sesji) odpadają:
+    każdy bot widzi i steruje tylko swoim oknem."""
+    if not _PROCES_GRY.search(cmdline.split(b"\0")[0].lower()):
+        return None
+    if instancja.id_z_environ(srodowisko) != id_instancji:
+        return None
+    if gniazdo:
+        wl = next((z[16:].decode() for z in srodowisko if z.startswith(b"WAYLAND_DISPLAY=")), None)
+        if wl != gniazdo:
+            return None
+    for zmienna in srodowisko:
+        if zmienna.startswith(b"DISPLAY="):
+            return zmienna[8:].decode()
+    return None
+
+
 def ekran_gry():
-    """DISPLAY procesu gry, czyli ekran XWayland zagnieżdżonej sesji."""
+    """DISPLAY procesu gry, czyli ekran XWayland zagnieżdżonej sesji tej instancji."""
+    gniazdo = _gniazdo_sesji()
     for wpis in os.listdir("/proc"):
         if not wpis.isdigit():
             continue
         try:
-            cmd = Path(f"/proc/{wpis}/cmdline").read_bytes().lower()
-            if b"retronicgl-" not in cmd and b"retronicdx-" not in cmd:
+            cmd = Path(f"/proc/{wpis}/cmdline").read_bytes()
+            if b"etronic" not in cmd:
                 continue
             srodowisko = Path(f"/proc/{wpis}/environ").read_bytes().split(b"\0")
-            if instancja.id_z_environ(srodowisko) != instancja.ID:     # gra innej instancji
-                continue
-            for zmienna in srodowisko:
-                if zmienna.startswith(b"DISPLAY="):
-                    return zmienna[8:].decode()
         except OSError:
             continue
+        ekran = ekran_z_procesu(cmd, srodowisko, instancja.ID, gniazdo)
+        if ekran:
+            return ekran
     raise RuntimeError("gra nie działa")
 
 
