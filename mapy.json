@@ -62,9 +62,10 @@
   "prog_hp": 30
  },
  "gobliny_edron": {
-  "opis": "Edron jaskinia goblinów z8: pętla gobliny_edron_z8_petla wygenerowana z mapy klienta 17.10 (12 przystanków, ok. 39 goblinów), start przy linie (33107,31846). Bez dojścia: start na miejscu.",
+  "opis": "Edron jaskinia goblinów z8: pętla gobliny_edron_z8_petla wygenerowana z mapy klienta 17.10 (12 przystanków, ok. 39 goblinów), start przy linie (33107,31846). Dojście z depo/powierzchni (z7) trasą gobliny_edron_z_depo (18.10); na z8 start na miejscu.",
   "trasa": "gobliny_edron_z8_petla",
   "potwory": "Goblin",
-  "prog_hp": 30
+  "prog_hp": 30,
+  "dojscie": "gobliny_edron_z_depo"
  }
 }
