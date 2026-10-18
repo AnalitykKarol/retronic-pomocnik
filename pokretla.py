@@ -125,6 +125,19 @@ ZAKRESY = {
     "UNIKANIE_TOR_LOOK": (4, 16),       # pola drogi branych do kierunku
     "UNIKANIE_TOR_PAMIEC_S": (0.0, 120.0),  # s pamięci gracza po zniknięciu z widoku
     "UNIKANIE_PRZERWA": (0, 1),         # 1 = gracz w promieniu kończy PRZERWĘ
+    "MIJANIE": (0, 1),                  # 18.10: 1 = mijanie graczy po ludzku (kierunek gracza względem pętli, bez bańki i dreptania) zamiast unikanie.decyduj; 0 = dotychczasowe UNIKANIE_*
+    "MIJANIE_PRZOD": (6, 30),           # punkty trasy przed nami, na których gracz leży na naszej drodze
+    "MIJANIE_TRASA_R": (1, 4),          # pola: idący gracz tak blisko punktu trasy leży na naszej drodze
+    "MIJANIE_OBOZ_S": (1.0, 3.5),       # s bez ruchu, zanim gracz jest obozowiczem (obserwacja liczona w oknie UNIKANIE_TOR_OKNO_S = 4 s: wyżej obozowicz nie powstałby nigdy)
+    "MIJANIE_OBOZ_R": (2, 6),           # pola: komora obozowicza
+    "MIJANIE_OBOZ_PAMIEC_S": (10.0, 600.0),  # s: decyzja wobec obozowicza wygasa po tylu s
+    "MIJANIE_OBOZ_ODWROTY": (1, 5),     # odwróceń obiegu przez tego samego obozowicza w 120 s, potem przechodzimy obok niego
+    "MIJANIE_SKROT_MAX": (10, 80),      # pola: najdłuższy skrót omijający komorę obozowicza
+    "MIJANIE_ZNIKL_S": (2.0, 30.0),     # s poza widokiem = kolejne spotkanie z tym graczem
+    "MIJANIE_PRZEJSCIE_ODL": (2, 10),   # pola: dalej idącego na nas gracza nie ustępujemy
+    "MIJANIE_BOK_R": (2, 10),           # kroki: zasięg szukania wnęki do ustąpienia
+    "MIJANIE_POSTOJ_S": (3.0, 30.0),    # s: bezpiecznik postoju przy ustępowaniu
+    "MIJANIE_PONOW_S": (5.0, 120.0),    # s: odstęp między ustąpieniami temu samemu graczowi
     "TRASA_STOP_PRZY_POTWORZE_R": (0, 8),  # pola: potwór w tym promieniu wstrzymuje krok trasy/przejście pięter (0 = wył.)
     "JEDZENIE_W_WALCE": (0, 1),         # 1 = jedzenie także w walce, gdy HP nie rośnie z regeneracji (głód) i jest bezpiecznie
     "CZAS_JEDZENIA_WALKA": (10.0, 60.0),   # s bez wzrostu HP (nie od exura) w walce = głód
@@ -334,6 +347,8 @@ KIERUNEK = {
     "UNIKANIE_MOB_PROMIEN": "nie_nizej", "UNIKANIE_PUNKT_D": "nie_nizej", "UNIKANIE_DROGA_MIN": "nie_nizej",
     "UNIKANIE_BLOK_S": "nie_wyzej", "UNIKANIE_ZNIKL_S": "nie_nizej",
     "UNIKANIE_TOR": "nie_nizej", "UNIKANIE_PRZERWA": "nie_nizej",
+    # mijanie: analityk nie może go włączyć ani wydłużyć postoju / zasięgu ustępowania (tylko Karol w na_zywo.json)
+    "MIJANIE": "nie_wyzej", "MIJANIE_POSTOJ_S": "nie_wyzej", "MIJANIE_PRZEJSCIE_ODL": "nie_wyzej", "MIJANIE_BOK_R": "nie_wyzej",
     # czar ML: analityk nie może go włączyć ani rzucać w walce (tylko Karol w na_zywo.json)
     "ML_CZAR_AKTYWNY": "nie_wyzej", "ML_CZAR_W_WALCE": "nie_wyzej",
     # czary zdrowia/jedzenia: analityk nie może ich włączyć ani podnieść progów (tylko Karol w na_zywo.json)
