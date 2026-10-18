@@ -715,6 +715,20 @@ UNIKANIE_TOR_ZASIEG = 12           # pola: gracz (albo jego "duch") dalej niż t
 UNIKANIE_TOR_LOOK = 8              # pola drogi, z których liczymy jej kierunek
 UNIKANIE_TOR_PAMIEC_S = 25.0       # s: gracz, który zniknął z widoku, nadal wyznacza tor (ostatnia pozycja i kierunek); unikanie w tym czasie trwa
 UNIKANIE_PRZERWA = 0               # 1 = gracz w UNIKANIE_PROMIEN kończy PRZERWĘ od razu (dawniej stała do końca)
+# mijanie graczy (18.10, dane_tibia/SPEC_mijanie_graczy_1018.md; unikanie.Unikanie.mijanie): ocena kierunku gracza względem pętli
+MIJANIE = 0                        # 1 = zamiast bańki dystansu i dreptania (unikanie.decyduj): nie idziemy tą samą stroną co gracz, mijamy się bez zawracania, obozowicza omijamy, przejście udostępniamy tylko w wąskim miejscu; 0 = dotychczasowe UNIKANIE_*
+MIJANIE_PRZOD = 16                 # punkty trasy przed nami, na których gracz "jest na naszej drodze"
+MIJANIE_TRASA_R = 2                # pola: idący gracz tak blisko punktu trasy leży na naszej drodze
+MIJANIE_OBOZ_S = 3.0               # s obserwacji bez ruchu, zanim gracz jest "obozowiczem" (stoi); obserwacja liczona w oknie UNIKANIE_TOR_OKNO_S (4 s), więc zakres pokrętła do 3,5 s
+MIJANIE_OBOZ_R = 3                 # pola: komora obozowicza (punkty trasy tak blisko niego omijamy)
+MIJANIE_OBOZ_PAMIEC_S = 60.0       # s: decyzję wobec obozowicza podejmujemy ponownie po tylu s (stoi dalej, pętla znów do niego dochodzi)
+MIJANIE_OBOZ_ODWROTY = 2           # tyle odwróceń obiegu przez tego samego obozowicza w 120 s, potem przechodzimy obok niego
+MIJANIE_SKROT_MAX = 40             # pola: najdłuższy skrót omijający komorę obozowicza
+MIJANIE_ZNIKL_S = 6.0              # s: gracz poza widokiem tak długo = kolejne spotkanie (decyzja wobec niego wygasa)
+MIJANIE_PRZEJSCIE_ODL = 6          # pola: dalej idącego na nas gracza nie ustępujemy
+MIJANIE_BOK_R = 6                  # kroki: tak daleko szukamy wnęki, w której stajemy
+MIJANIE_POSTOJ_S = 15.0            # s: bezpiecznik postoju przy udostępnianiu przejścia
+MIJANIE_PONOW_S = 20.0             # s: po udostępnieniu przejścia temu samemu graczowi nie ustępujemy ponownie
 # 15.10 czat_spot.py (SPEC_czat_spot_1015): jedna wiadomość na Default do gracza, który wraca na spot albo zabiera moby
 CZAT_SPOT_AKTYWNY = 0              # pokrętło 0/1 (domyślnie wyłączone)
 CZAT_SPOT_SPOTKAN = 3              # S1: tyle osobnych spotkań (każde >= 20 s) z tym samym graczem...
@@ -1230,6 +1244,8 @@ class Cavebot:
     def _unikanie_krokami(self):
         """True, gdy unikanie jest aktywne i gracz jest w zasięgu: idziemy krok po kroku po bezpiecznej drodze
         (klik prowadziłby klienta własną, krótszą trasą tuż przy graczu albo przy mobie)."""
+        if MIJANIE:
+            return False                  # mijanie: marsz jak zwykle (klik), kroki tylko w skrócie i przy ustępowaniu (_mijanie_zastosuj)
         u = self.unikanie
         return u is not None and u.aktywne and bool(u.gracze or getattr(u, "duchy", None)) and not self.wypad_aktywny
 
@@ -1274,6 +1290,79 @@ class Cavebot:
             self.trasa_droga = (self.punkty[r.idx], [tuple(poz)] + [tuple(p) for p in r.droga], self.zegar())
         if r.pauza:
             self.pauza(*r.pauza)
+
+    def _mijanie_wolne(self, pole):
+        """Pole do stania/przejścia dla mijania: znane mapie (albo kiedyś odwiedzone), bez ściany, ognia i zmiany piętra."""
+        pole = tuple(pole)
+        if self._pole_zablokowane(pole, ()):
+            return False
+        if self.mapa is not None and self.mapa.flagi(*pole) & 1:
+            return True
+        return pole in self.znane
+
+    def _mijanie_trasa(self, poz):
+        """Hak w _idz_trasa przy MIJANIE=1 (zamiast _unikanie_trasa): unikanie.mijanie() ocenia kierunek graczy względem pętli
+        i może odwrócić obieg, poprowadzić skrótem, zejść z drogi albo kazać stać. True = obieg zużyty (krok / postój)."""
+        u = self.unikanie
+        if u is None or self.wypad_aktywny or not self.punkty:
+            return False
+        teraz = self.zegar()
+        w_walce = bool(self.cel) or teraz - self.hp_gracza_spadek < GRYZIE_OKNO
+        try:
+            r = u.mijanie(poz, self.punkty, self.idx, self._unikanie_droga, wolne_fn=self._mijanie_wolne,
+                          otwarta=self.otwarta, w_walce=w_walce)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"mijanie: błąd {e!r}")
+            return False
+        return self._mijanie_zastosuj(poz, r)
+
+    def _mijanie_trzyma(self):
+        """True, gdy mijanie trzyma obecny kierunek obiegu (Q3): trwa decyzja wobec któregoś gracza albo był w widoku w ostatnich
+        MIJANIE_ZNIKL_S. Wtedy losowe odwrócenie na końcu okrążenia jest pomijane (nie cofamy się w stronę gracza)."""
+        u = self.unikanie
+        return u is not None and u.mijanie_trzyma()
+
+    def _mijanie_zastosuj(self, poz, r):
+        """Wykonanie decyzji mijania. "odwroc": odwracamy listę punktów jak na końcu okrążenia (następny cel = punkt, który
+        właśnie minęliśmy), marsz idzie dalej w tym samym obiegu; "marsz": jeden krok `r.krok` (skrót / krok w bok), przy skrócie
+        z nowym `idx`; "stoj": stoimy i patrzymy. True = obieg zużyty."""
+        if r is None:
+            return False
+        n = len(self.punkty)
+        if r.akcja == "odwroc":
+            # stoimy na punkcie k (do 9 przed idx, kliknięcie mija kilka punktów między obiegami) albo między punktami (k = idx)
+            k = next((j % n for j in range(self.idx - 1, self.idx + 10) if tuple(self.punkty[j % n]) == tuple(poz)), self.idx)
+            self.punkty.reverse()
+            self.idx = (n - k) % n
+            self.przebyte = 0                    # nowe okrążenie liczymy od zera: "koniec okrążenia" nie przychodzi zaraz po odwróceniu
+            self.klik_j = None
+            self.klik_cel = None
+            self.__dict__["utk_zakaz"] = {}      # klucze = indeksy punktów: po odwróceniu znaczą co innego
+            self.trasa_droga = None
+            self.nieudane = 0
+            self.pominiete = 0
+            self.zablokowane.clear()
+            self.utk_okno = None
+            return False                         # krok w nowym kierunku robi dopiero następny _idz_trasa (obieg niezużyty)
+        if r.idx is not None and r.idx != self.idx:
+            self.idx = r.idx
+            self.klik_j = None
+            self.klik_cel = None
+            self.nieudane = 0
+            self.pominiete = 0
+            self.trasa_droga = None
+            self.zablokowane.clear()
+        self.utk_okno = None                      # stanie i krok w bok przy graczu to nie utknięcie na trasie
+        if r.akcja == "marsz":
+            self.klik_j = None
+            self.krok_do(r.krok)
+            return True
+        if r.akcja == "stoj":
+            self.pauza(0.2, 0.45)
+            return True
+        return False
 
     def _hak_wypadu(self):
         try:
@@ -9130,7 +9219,11 @@ class Cavebot:
             self.idx = 0
         self.ustaw_stan("IDZ", f"punkt {self.idx}/{len(self.punkty)}")
         x, y, z = self.postac.pozycja()
-        self._unikanie_trasa((x, y, z))      # gracz w pobliżu: inny punkt rotacji / cofnięcie (unikanie.py)
+        if MIJANIE:
+            if self._mijanie_trasa((x, y, z)):      # 18.10: kierunek gracza względem pętli (unikanie.mijanie), bez bańki i dreptania
+                return True
+        else:
+            self._unikanie_trasa((x, y, z))      # gracz w pobliżu: inny punkt rotacji / cofnięcie (unikanie.py)
         if self._pietra_wlaczone() and self._trasa_stop_potwor((x, y, z)):
             return True                      # potwór tuż obok: ani krok trasy, ani przejście pięter; walka w następnym obiegu
         # punkty już osiągnięte zaliczamy od razu, bez pustego obiegu pętli; przy chodzeniu
@@ -9156,7 +9249,9 @@ class Cavebot:
                     log(f"Dojście: koniec trasy w {(x, y, z)} bez osiągnięcia celu, kończę próbę (bez odwracania).")
                     return True
                 if koniec_okrazenia:
-                    if self.otwarta or random.random() < ODWROCENIE_TRASY:
+                    # 18.10 Q3: przy MIJANIE=1 losowe odwrócenie nie cofa kierunku trzymanego po mijaniu (decyzja wobec gracza trwa
+                    # albo gracz był niedawno w widoku); trasa otwarta odwraca się zawsze (inaczej bot stoi na końcu)
+                    if self.otwarta or (random.random() < ODWROCENIE_TRASY and not (MIJANIE and self._mijanie_trzyma())):
                         # postać stoi na punkcie k = idx-1; po odwróceniu ma indeks n-1-k, następny n-k
                         self.punkty.reverse()
                         self.idx = (n - (self.idx - 1) % n) % n

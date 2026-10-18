@@ -9,6 +9,10 @@ Specyfikacje i decyzje: `dane_tibia/SPEC_*.md`. Ten plik streszcza i linkuje.
 
 ## Gdzie jesteśmy
 
+- **Do zrobienia (zgłosił Karol 18.10, wymaga specyfikacji):** lina/drabina/dziura zajęte przez przedmioty (np. zwłoki szczura na polu liny) — nie da się skorzystać z przejścia. Bot ma nauczyć się zdejmować śmieci z pola przejścia (przesunąć/zabrać przedmiot) przed użyciem liny; dziś próba 18.10 11:30 na z9->z8 (33131,31806) skończyła się `Przejście pięter NIEUDANE` i dojście przerwane. Przyczyna zajętego pola niepotwierdzona zrzutem.
+
+- **18.10 izolacja okna (poprawka w `bot.py`, bez commita):** `ekran_gry()` łapał dowolny proces z tekstem `retronicgl-` w wierszu poleceń (też powłokę z grepem) -> DISPLAY pulpitu `:0` (4480x1440) zamiast gry `:1`; bot ślepy, stał w miejscu. Teraz tylko argv[0] `RetronicGL-<n>.exe` + `RETRONIC_ID` + `WAYLAND_DISPLAY` z `sesja/wayland` swojej instancji (każdy bot widzi tylko swoje okno; docelowo kilka klientów). Test `testy/test_ekran_gry.py` 7/7. Start z z9 / z8 wymaga ręcznego `--dojscie gobliny_edron_z_depo` (uruchom.sh dodaje dojście tylko z z7 i tylko z `RETRONIC_POSTAC=Mastafian`). Inne źródła wspólne dla instancji (gniazdo `retronic-pomocnik.sock`) nie sprawdzone.
+
 - **17.10 unikanie: tor gracza (branch `feat/unikanie-tor-gracza`, **wdrożone 17.10 23:21**: scalone ff do `ruch-r1-1014`, bez pusha, pokrętła `UNIKANIE_TOR`=1 i `UNIKANIE_PRZERWA`=1 w `na_zywo.json`, kopia `na_zywo.json.bak-20261017-unikanie-tor`; naturalna QA w grze otwarta):** bot nie idzie za graczem (kierunek z historii pozycji, "duch" 25 s po zniknięciu z widoku) i `PRZERWA` kończy się, gdy gracz podejdzie. Pokrętła `UNIKANIE_TOR`, `UNIKANIE_PRZERWA` (domyślnie 0). Spec i wdrożenie: `dane_tibia/SPEC_unikanie_tor_gracza_1017.md`; testy `testy/test_unikanie_tor.py` 26/26, zestaw jak baza. Pauza na rozmowę z graczem (F3) czeka na decyzję Karola.
 
 - Bot i gra **wyłączone** (Karol: "dziś już nie"). Cały nowy kod czeka na pierwszy start; drugi komputer: Karol robi `git pull` + restart sam.

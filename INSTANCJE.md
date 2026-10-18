@@ -64,6 +64,35 @@ socket Unix strażnika musi pozostać dostępny z hosta (ścieżka w `$XDG_RUNTI
 katalog jest wspólny, ale bez `unshare --mount`), XWayland i Wayland też są socketami plikowymi, więc powinno działać.
 Do tego czasu obie instancje wychodzą z tym samym IP.
 
+## Izolacja okna i procesów: stan wiedzy (18.10)
+
+Cel (Karol): docelowo kilka klientów naraz, każdy bot śledzi i steruje **tylko swoim oknem**.
+
+**Poprawione 18.10 (`bot.ekran_z_procesu`, `bot.ekran_gry`, test `testy/test_ekran_gry.py` 7/7):** `ekran_gry()` brał pierwszy proces
+z tekstem `retronicgl-` gdziekolwiek w wierszu poleceń, więc łapała się też powłoka z `ps | grep RetronicGL-` (`DISPLAY=:0` pulpitu).
+Skutek: rozmiar ekranu skakał 940x1030 <-> 4480x1440, mapa niewykrywalna, bot stał. Teraz gra = argv[0] `RetronicGL-<n>.exe`
+(lub `RetronicDX-`), `RETRONIC_ID` równe instancji i `WAYLAND_DISPLAY` równe `sesja/wayland` tej instancji.
+Sprawdzone na żywo tylko dla jednej instancji. Uwaga praktyczna: nie grepuj procesów po `RetronicGL-` w poleceniach przy
+działającym bocie (dla starej wersji kodu to wystarczało do awarii).
+
+**Izolowane z konstrukcji:** gniazdo strażnika, stan (STOP, na_zywo, logi), WINEPREFIX, sesja sway/wayland, `rdzen.py` (gra tylko
+wśród potomków własnego strażnika), `zatrzymaj.sh`/`status.sh`/panel (filtr po `RETRONIC_ID`).
+
+**Niesprawdzone (do testu przed dwoma botami naraz):**
+- dwa boty uruchomione jednocześnie (dotąd działała jedna sesja z botem; dwie sesje graficzne tak, bez drugiego bota);
+- zapis plików wspólnych (`znane_pola.json`, `pochodnia_ids.json`) przy dwóch botach naraz (blokada? nie sprawdzono);
+- `PATROL_KOORD` jest domyślnie wyłączone, więc dwa boty mogą wybrać ten sam spot;
+- `Retronic.log` klienta może być wspólny: zawsze ustaw `RETRONIC_POSTAC`;
+- drugi `sesja.sh` w pełnym restarcie (jak w "Znanych ryzykach");
+- wspólne IP i konto serwera (etap 2).
+Wcześniejsza hipoteza "winne są dwa otwarte klienty" **nie została potwierdzona**: miganie 18.10 zniknęło po poprawce `ekran_gry`,
+nie po zamknięciu klienta testowego.
+
+**Test kontrolny (do wykonania z Karolem, wymaga drugiej zalogowanej postaci):** dwie instancje z `RETRONIC_POSTAC`,
+`PATROL_KOORD=1`; oczekiwane: każdy bot loguje stały rozmiar własnego okna (bez `ekran: nowy rozmiar`), własną pozycję
+(`pozycja` na swoim gnieździe), `STOP` jednej instancji nie zatrzymuje drugiej, rezerwacje miejsc nie zbiegają się
+(`miejsca_koord.py lista`).
+
 ## Znane ryzyka
 
 - **wayvnc drugiej instancji (naprawione 17.10)**: domyślne gniazdo sterujące wayvnc jest jedno na użytkownika, więc drugi
