@@ -11,7 +11,10 @@ export WINEDEBUG=-all
 cd "$INST_GRA" || exit 1
 EXE="${1:-RetronicGL.exe}"
 [ -f "$EXE" ] || { echo "brak $INST_GRA/$EXE (nowa_instancja.sh kopiuje exe i dll)" >&2; exit 1; }
+# RETRONIC_PROXY=1: cały ruch gry idzie przez proxy SOCKS5 (siec_proxy.sh, etap 2 sieci); domyślnie wyłączone.
+SIEC=()
+[ "${RETRONIC_PROXY:-0}" = "1" ] && SIEC=("$DIR/siec_proxy.sh")
 if python3 -I -c 'import numpy' 2>/dev/null; then
-    exec python3 -I "$DIR/straznik.py" wine "$EXE"
+    exec "${SIEC[@]}" python3 -I "$DIR/straznik.py" wine "$EXE"
 fi
-exec wine "$EXE"
+exec "${SIEC[@]}" wine "$EXE"
