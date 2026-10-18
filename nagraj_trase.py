@@ -136,6 +136,11 @@ def pozycja(nazwa, gniazdo=GNIAZDO):
     if not o.get("ok"):
         raise RuntimeError(o.get("blad", "błąd odczytu pozycji"))
     p = o["pozycja"]
+    if gniazdo == GNIAZDO:
+        # widmo gracza po przelogowaniu (dwa wpisy o tej samej nazwie): rdzeń potrafi oddać stojący wpis,
+        # bot.zapytaj wybiera żywy (18.10: nagranie miało 1 punkt, bo stało na widmie)
+        import bot  # noqa: E402
+        p = bot._pozycja_wlasna(nazwa) or p
     return p["x"], p["y"], p["z"]
 
 

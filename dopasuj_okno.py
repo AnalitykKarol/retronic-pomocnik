@@ -48,7 +48,7 @@ MAKS_SZER_GRY = 1175               # sprawdzone zrzutem 15.10: 1175x910 daje pe�
 PROPORCJE_GRY = 1175 / 910         # proporcje ekranu, przy których klient pokazuje mapę 15x11 i prawy panel w całości
 
 
-def wpisz_proporcje(rozm, proporcje=PROPORCJE_GRY):
+def wpisz_proporcje(rozm, proporcje=PROPORCJE_GRY, maks_szer=MAKS_SZER_GRY):
     """Największy prostokąt o proporcjach gry mieszczący się w oknie (rozm), nie mniejszy niż 800x600 po ogranicz().
 
     Okno w kafelku bywa wąskie i wysokie (np. 1468x1820): ekran sesji w takim kształcie powiększa mapę i chowa panele
@@ -60,9 +60,66 @@ def wpisz_proporcje(rozm, proporcje=PROPORCJE_GRY):
         wys = int(szer / proporcje)
     else:
         szer = int(wys * proporcje)
-    if szer > MAKS_SZER_GRY:                                  # większy ekran: klient chowa panele i zoomuje mapę (15.10)
-        szer, wys = MAKS_SZER_GRY, int(MAKS_SZER_GRY / proporcje)
+    if maks_szer and szer > maks_szer:                        # większy ekran: klient chowa panele i zoomuje mapę (15.10)
+        szer, wys = maks_szer, int(maks_szer / proporcje)
     return szer, wys
+
+
+def skaluj_wlaczone(env=None):
+    """RETRONIC_SKALUJ (domyślnie włączone, "0" wyłącza): tryb do grania ręcznego, wyłączany sam, gdy chodzi bot. Ekran sesji ma piksele okna, a sway skaluje go tak, by klient dalej
+    widział logiczne 1175x910 (układ jak zawsze, obraz powiększony). Bot (ekran.py szuka mapy w pikselach) wymaga skali 1."""
+    return (env if env is not None else os.environ).get("RETRONIC_SKALUJ", "1").strip() != "0"
+
+
+def bot_dziala(proc="/proc"):
+    """True, gdy chodzi bot tej maszyny (mozg.py albo cavebot.py w argv jakiegokolwiek procesu python). Wtedy sesja musi
+    mieć piksele wzorcowe 1175x910 w skali 1 (ekran.py szuka mapy w pikselach), więc SKALUJ ustępuje."""
+    try:
+        wpisy = os.listdir(proc)
+    except OSError:
+        return False
+    for w in wpisy:
+        if not w.isdigit() or int(w) == os.getpid():
+            continue
+        try:
+            with open(f"{proc}/{w}/cmdline", "rb") as f:
+                argv = f.read().split(b"\0")
+        except OSError:
+            continue
+        if argv and os.path.basename(argv[0]).startswith(b"python") and any(
+                os.path.basename(a) in (b"mozg.py", b"cavebot.py") for a in argv[1:]):
+            return True
+    return False
+
+
+def skala_stala(env=None):
+    """Stała skala trybu SKALUJ (RETRONIC_SKALA, domyślnie 1.5): elementy mają tę samą wielkość w kafelku i na pełnym
+    ekranie, a klient dostaje logiczny ekran = okno / skala (zmierzone 18.10: 2048x1280 przy 3072x1920, panele całe,
+    mapa wypełnia ekran). 2.2 było za bardzo zbliżone i rozmyte."""
+    try:
+        return max(1.0, float((env if env is not None else os.environ).get("RETRONIC_SKALA", "1.5")))
+    except ValueError:
+        return 1.5
+
+
+def skala_dla(szer, bot=None, env=None):
+    """Skala sway dla ekranu sesji o szerokości `szer` px: 1 przy bocie (piksele wzorcowe), inaczej stała skala, ale tak,
+    by logiczna szerokość nie spadła poniżej minimum klienta (MIN_SZER)."""
+    if bot_dziala() if bot is None else bot:
+        return 1.0
+    return round(max(1.0, min(skala_stala(env), szer / MIN_SZER)), 3)
+
+
+def ustaw_skale_sway(szer, uruchom=subprocess.run):
+    """swaymsg output * scale = szer/1175 na gniazdie sway sesji (jedyny headless sway w XDG_RUNTIME_DIR)."""
+    import glob  # noqa: PLC0415
+    gniazda = sorted(glob.glob(os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/run/user/%d" % os.getuid()),
+                                            "sway-ipc.*.sock")), key=os.path.getmtime)
+    if not gniazda:
+        return False
+    skala = skala_dla(szer)
+    w = uruchom(["swaymsg", "-s", gniazda[-1], "output", "*", "scale", str(skala)], capture_output=True, timeout=3)
+    return w.returncode == 0
 
 
 def roznia_sie(a, b, prog=PROG_PX):
@@ -224,7 +281,8 @@ class Dopasowywacz:
     """Jeden tik = jeden odczyt okna. Wstrzykiwane: czytaj_okno() -> (w, h)|None, odczytaj() -> (w, h),
     ustaw(w, h) -> (kod|None, rozmiar po|None, rozmiar przed), zegar() -> s."""
 
-    def __init__(self, czytaj_okno, odczytaj, ustaw, zegar=time.monotonic, log=print):
+    def __init__(self, czytaj_okno, odczytaj, ustaw, zegar=time.monotonic, log=print, po_zmianie=None):
+        self.po_zmianie = po_zmianie
         self.czytaj_okno, self.odczytaj, self.ustaw, self.zegar, self.log = czytaj_okno, odczytaj, ustaw, zegar, log
         self.znany = None            # ostatni znany rozmiar wyjścia sesji
         self.znany_od = 0.0
@@ -266,6 +324,11 @@ class Dopasowywacz:
         # kod wyniku z wayvnc bywa niezerowy mimo udanej zmiany (zmierzone 15.10: 1 i 4), więc wierzymy rozmiarowi z odpowiedzi;
         # bez odpowiedzi (None) odczytamy rozmiar wyjścia od nowa w następnym tiku
         self.znany, self.znany_od = po, self.zegar()
+        if self.po_zmianie:
+            try:
+                self.po_zmianie(po or cel)
+            except Exception as e:  # noqa: BLE001 - skala nie może zabić helpera
+                self.log(f"dopasuj_okno: skala sway nieudana ({e})")
         self.log(f"dopasuj_okno: okno {okno[0]}x{okno[1]} -> wyjście sesji {przed[0]}x{przed[1]} => "
                  f"{cel[0]}x{cel[1]} (kod {kod if kod is not None else 'brak odpowiedzi'}, jest {'?' if po is None else f'{po[0]}x{po[1]}'})")
         return cel
@@ -292,8 +355,20 @@ def main(argv=None):
     if port is None:
         import instancja  # noqa: PLC0415
         port = int((instancja.sesja() / "vnc_port").read_text().strip())
-    d = Dopasowywacz(lambda: rozmiar_okna(hyprctl_klienci(), a.pid, port, hyprctl_skale()),
-                     lambda: odczytaj_rozmiar(port), lambda w, h: ustaw_rozmiar(port, w, h))
+    skaluj = skaluj_wlaczone()
+    def okno():
+        r = rozmiar_okna(hyprctl_klienci(), a.pid, port, hyprctl_skale())
+        if not skaluj or bot_dziala():
+            return wpisz_proporcje(r)
+        # tryb SKALUJ: ekran sesji = okno (bez wpisywania proporcji), skala stała (skala_stala); klient sam układa mapę
+        # i panele (sprawdzone 18.10 na 1498x1820 i 3072x1920)
+        return r
+
+    d = Dopasowywacz(okno,
+                     lambda: odczytaj_rozmiar(port), lambda w, h: ustaw_rozmiar(port, w, h),
+                     po_zmianie=(lambda rozm: ustaw_skale_sway(rozm[0])) if skaluj else None)
+    if skaluj:
+        print("dopasuj_okno: tryb SKALUJ (sway skaluje ekran do okna; gdy chodzi bot, wraca sam do 1175x910 w skali 1)", flush=True)
     print(f"dopasuj_okno: start (port {port}, pid {a.pid})", flush=True)
     while a.pid is None or zyje(a.pid):
         try:
