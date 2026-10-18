@@ -85,8 +85,10 @@ if poz[2] != 7:
 if os.environ.get("DO_XODETA"):      # stoimy już w drodze do Xodeta: od najbliższego punktu nagrania, potem blanki
     pts = list(reversed(P(xodet["powrot"]))) + [tuple(xodet["stoi"])]
     pz = tuple(postac.pozycja())
-    i0 = min(range(len(pts)), key=lambda i: abs(pts[i][0] - pz[0]) + abs(pts[i][1] - pz[1]))
-    if not idz(pts[i0:], "do Xodeta (od najbliższego punktu)"):
+    a = trasownik.odcinek(pz, pts[0])    # z dowolnego miejsca w mieście: A* do początku nagrania, potem nagranie
+    if not a:
+        print("brak drogi A* do początku trasy Xodeta"); sys.exit(7)
+    if not idz(a + pts[1:], "do Xodeta (A* + nagranie)"):
         sys.exit(7)
     ok = kup(BLANKI, "blank rune", 20 * BLANKI, wyprawa.ID_BLANK)
     print("KONIEC", "OK" if ok else "blanki nie kupione", postac.pozycja(), flush=True)

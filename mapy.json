@@ -66,5 +66,11 @@
   "trasa": "gobliny_edron_z8_petla",
   "potwory": "Goblin",
   "prog_hp": 30
+ },
+ "stoj_trade": {
+  "opis": "Stoi w miejscu i sprzedaje na Trade (jeden punkt, bez chodzenia)",
+  "trasa": "stoj_trade",
+  "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
+  "prog_hp": 30
  }
 }

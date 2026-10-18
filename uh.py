@@ -54,6 +54,8 @@ UH_MAKS_AKCJI = 14           # twardy limit obiegów maszyny stanów
 UH_TARCZE = (3426, 3431)     # znane ID tarcz (3426 tarcza, 3431 viking shield): kandydaci do "tarcza_naprawa"
 UH_WOLNY_START_S = 15.0      # start (odczyty + zrzut) dłuższy niż to: nie zaczynamy (wolny rdzeń), ponowna próba później
 UH_PONOW_BRAK_MIEJSCA_S = 60.0   # s do kolejnej próby, gdy nie ma gdzie odłożyć tarczy (zamiast serii porażek)
+UH_EKW_SERIA = 3                 # tyle przerwań "ekwipunek_nieaktualny" z rzędu = pauza (nie zdejmujemy tarczy co 25 s)
+UH_EKW_PAUZA_S = 300.0           # s pauzy po serii ekwipunek_nieaktualny (17.10: 8 prób z rzędu, tarcza zdejmowana za każdym razem)
 UH_SPADEK_MANY = 0.5         # spadek many >= UH_KOSZT * tyle uznajemy za rzut
 
 # Środki slotów ręki względem prostokąta panelu: wyznaczane z zrzutu (geometria_z_obrazu), nie stałe.
@@ -81,6 +83,8 @@ def ustaw(czar, klawisz=None, koszt=None):
 
 
 _brak_miejsca_od = None      # zegar środowiska z ostatniej odmowy "brak miejsca na tarczę" (mozna_robic: pauza)
+_ekw_z_rzedu = 0             # kolejne przerwania "ekwipunek_nieaktualny" bez udanego runa (_wynik)
+_ekw_pauza_od = None         # zegar środowiska od serii ekwipunek_nieaktualny (mozna_robic: pauza UH_EKW_PAUZA_S)
 
 
 # --- decyzja: czy wolno zacząć ----------------------------------------------------
@@ -128,6 +132,8 @@ def mozna_robic(g, stwory, *, aktywny=None, min_hp=None, mana_min=None, ja=None,
         return False, f"odstęp {teraz - ostatnia:.0f}s < {odstep:.0f}s"
     if teraz is not None and _brak_miejsca_od is not None and 0 <= teraz - _brak_miejsca_od < UH_PONOW_BRAK_MIEJSCA_S:
         return False, f"brak miejsca na tarczę, ponowię za {UH_PONOW_BRAK_MIEJSCA_S - (teraz - _brak_miejsca_od):.0f}s"
+    if teraz is not None and _ekw_pauza_od is not None and 0 <= teraz - _ekw_pauza_od < UH_EKW_PAUZA_S:
+        return False, f"tablica ekwipunku nieaktualna, pauza jeszcze {UH_EKW_PAUZA_S - (teraz - _ekw_pauza_od):.0f}s"
     return True, "ok"
 
 
@@ -380,6 +386,19 @@ def _rozbieznosc(p, co, **kw):
     p.krok("rozbieznosc_ekwipunku", ok=True, co=co, **kw)
 
 
+def _odswiez_ekw(env):
+    """Tablica ekwipunku od nowa (rdzeń szuka jej na nowo, kontenery.py odswiez). None, gdy się nie udało."""
+    f = getattr(env, "odswiez_ekwipunek", None)
+    if f is None:
+        return None
+    try:
+        return f()
+    except Exception as ex:
+        if type(ex).__name__ == "Zatrzymano":
+            raise
+        return None
+
+
 def _ekran_tarczy(p, kont):
     """True/False/None: czy zrzut slotu pokazuje tarczę (ikona zgodna z ikoną takiej tarczy w plecaku)."""
     f = getattr(p.env, "tarcza_na_ekranie", None)
@@ -530,6 +549,7 @@ class _Przebieg:
         self.naprawa = False          # start: slot pusty, tarcza w plecaku: tylko ją zakładamy
         self.geom = None
         self.rozb = set()
+        self.odswiezono = False       # tablica ekwipunku przeładowana w tym runie (raz, przy rozbieżności)
 
     def krok(self, nazwa, ok=True, **kw):
         self.kroki.append(dict(nazwa=nazwa, ok=ok, t=round(self.env.zegar() - self.t0, 2), **kw))
@@ -717,6 +737,16 @@ def _cast(p):
 
 
 def _wynik(p, wynik, powod=None):
+    global _ekw_z_rzedu, _ekw_pauza_od
+    if wynik == "ok":
+        _ekw_z_rzedu = 0
+    elif powod and powod.startswith("ekwipunek_nieaktualny"):
+        _ekw_z_rzedu += 1
+        if _ekw_z_rzedu >= UH_EKW_SERIA:
+            _ekw_pauza_od = p.env.zegar()
+            _ekw_z_rzedu = 0
+            p.env.log(f"[UH] {UH_EKW_SERIA} razy z rzędu ekwipunek_nieaktualny: pauza UH {UH_EKW_PAUZA_S:.0f} s, "
+                      "tarcza zostaje w slocie (sprawdź logi: rozbieznosc_ekwipunku)")
     return {"wynik": wynik, "powod": powod, "kroki": p.kroki, "alarm": p.alarm,
             "czas_s": round(p.czas(), 2), "rzuty": p.casty}
 
@@ -934,6 +964,16 @@ def _przebieg(p, tylko_naprawa=False):
             if powod:
                 p.przerwij(powod)
         wid = _wid(p, ekw, kont)
+        if p.powod is None and "ekwipunek_vs_kontenery" in p.rozb and not p.odswiezono:
+            # 17.10: po przeniesieniu tarczy kontenery już ją pokazują, a tablica ekwipunku jeszcze nie: raz wymuszamy
+            # świeże szukanie tablicy w rdzeniu i liczymy od nowa, zanim przerwiemy (inaczej tarcza co 25 s w tę i z powrotem)
+            p.odswiezono = True
+            ekw2 = _odswiez_ekw(env)
+            p.rozb.discard("ekwipunek_vs_kontenery")
+            if ekw2 is not None:
+                ekw = ekw2
+            wid = _wid(p, ekw, kont)
+            p.krok("odswiez_ekwipunek", ok="ekwipunek_vs_kontenery" not in p.rozb, nowa_tablica=ekw2 is not None)
         if p.powod is None and "ekwipunek_vs_kontenery" in p.rozb:
             # tablica ekwipunku kłóci się z kontenerami (nieaktualna albo brak po relogu): nie da się potwierdzić
             # rzutu ani ruchów blanka, więc nie idziemy dalej, tylko bezpiecznie oddajemy tarczę

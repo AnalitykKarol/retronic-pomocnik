@@ -23,8 +23,12 @@ if [ "${RETRONIC_DOPASUJ_OKNO:-1}" != "0" ]; then
   HPID=$!
 fi
 # podgląd (ten skrypt) zabity przez sesja.sh albo terminal: zabij też vncviewera i helpera (dawniej exec = jeden proces)
-koniec() { kill "$VPID" ${HPID:+"$HPID"} 2>/dev/null || true; }
+# RETRONIC_TRZYMAJ_OKNO=1: nadzorca trzyma okno pływające i w rozmiarze sesji (trzymaj_okno.sh, kończy się z vncviewerem); domyślnie wyłączony
+TPID=""
+if [ "${RETRONIC_TRZYMAJ_OKNO:-0}" = "1" ]; then "$DIR/trzymaj_okno.sh" "$VPID" & TPID=$!; fi
+koniec() { kill "$VPID" ${HPID:+"$HPID"} ${TPID:+"$TPID"} 2>/dev/null || true; }
 trap 'koniec; exit 143' TERM INT HUP
 wait "$VPID"; status=$?
 [ -n "$HPID" ] && kill "$HPID" 2>/dev/null || true
+[ -n "$TPID" ] && kill "$TPID" 2>/dev/null || true
 exit "$status"

@@ -1,10 +1,10 @@
 #!/bin/bash
 # Obserwator ręcznych przejęć Karola razem z botem (decyzja Karola 15.10, SPEC D3 Q4): uruchom.sh woła "start", zatrzymaj.sh "stop".
 #   obserwator_z_botem.sh start|stop
-# RETRONIC_OBSERWATOR=0 -> nic nie robi (domyślnie 1). RETRONIC_OBSERWATOR_SKRYPT=<ścieżka> podmienia obserwator_reczny.sh (testy).
+# RETRONIC_OBSERWATOR=0 -> nic nie robi (domyślnie 0 od 16.10 wieczór: Haiku tylko do czaszek; =1 włącza). RETRONIC_OBSERWATOR_SKRYPT=<ścieżka> podmienia obserwator_reczny.sh (testy).
 # Idempotentny (obserwator_reczny.sh sam sprawdza, czy już działa) i best effort: błąd obserwatora nigdy nie psuje startu ani stopu bota.
 DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-if [ "${RETRONIC_OBSERWATOR:-1}" = "0" ]; then
+if [ "${RETRONIC_OBSERWATOR:-0}" = "0" ]; then
   echo "obserwator: wyłączony (RETRONIC_OBSERWATOR=0)"
   exit 0
 fi

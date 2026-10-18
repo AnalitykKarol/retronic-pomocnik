@@ -217,7 +217,7 @@ odczyt = [{"id": 1, "nazwa": "Ja", "gracz": True, "x": 100, "y": 100, "z": 7},
           {"id": 3, "nazwa": "Near", "gracz": True, "x": 101, "y": 101, "z": 7}]
 m.cb = types.SimpleNamespace(odczyt_stworow=(1.0, odczyt),
                              inni_gracze=lambda l, poz: [s for s in l if s["nazwa"] != "Ja"])
-m.czas_na_pytanie()
+m.czaszki_ze_stworow()   # 16.10: zlecanie przeniesione z czas_na_pytanie (działa też w trybie skrypt)
 sprawdz("E1 nowi obcy w widoku -> zlecenie odczytu, najbliższy pierwszy, z dx,dy",
         fc.zlecenia == [[("Near", 1, 1), ("Far", 4, 0)]], fc.zlecenia)
 m.zdarzenia.gracze({"Near"})
