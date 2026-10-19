@@ -77,11 +77,20 @@ class Rozmowa:
     def _pobierz(self):
         self.bufor.extend(self.wiad() or [])
 
+    def _nadrob(self):
+        """Po długim marszu zaległe wiadomości (spam Trade) mogą wypełnić kilka porcji po 100: czytamy do opróżnienia,
+        żeby echo świeżej wiadomości nie utknęło za zaległością."""
+        for _ in range(30):
+            n = len(self.wiad() or [])
+            if n < 50:
+                return
+
     def powiedz(self, tekst, czekaj_echo_s=4.0):
         """Wysyła `tekst` i czeka, aż pojawi się własna linia na czacie (bez echa wysyła ponownie, do `powtorz_echo` razy).
         Zakładka inna niż Default = błąd (nie wysyłamy dalej)."""
         wlasne = lambda x: x["autor"] == self.nick and x["tekst"].strip().lower() == tekst.strip().lower()
         for proba in range(1, self.powtorz_echo + 1):
+            self._nadrob()
             self._pobierz()
             self.bufor = [x for x in self.bufor if not wlasne(x)]      # stare echo tej samej wiadomości nie potwierdzi nowej
             self.czat(tekst)
@@ -326,10 +335,15 @@ class AkcjeZywe:
         """[(okno, kontener)]: okna od góry w dół, kontenery po numerze rosnąco; liczby muszą się zgadzać, a widoczne sloty
         okna nie mogą przekraczać pojemności kontenera. Dodatkowo każda akcja sprawdza skutek na obu końcach."""
         import loot
-        okna = sorted(loot.znajdz_okna(obraz), key=lambda o: o.gora or 0)
+        okna = sorted(loot.znajdz_okna(obraz), key=lambda o: o.sloty[0].srodek[1])  # gora bywa None
         kon = sorted(self.kontenery(), key=lambda k: k.get("numer", 0))
         if len(okna) != len(kon):
             raise SerwisBlad("okna", f"okien na ekranie {len(okna)}, kontenerów w pamięci {len(kon)}")
+        # numer kontenera nie mówi o położeniu okna (świeżo otwarty locker dostaje numer 0, a leży pod plecakiem):
+        # przypisanie po zawartości slotów i tytułach (loot.dopasuj_okna), numer tylko jako rezerwa
+        przypisane, _ = loot.dopasuj_okna(obraz, okna, kon)
+        if przypisane is not None:
+            kon = list(przypisane)
         for o, k in zip(okna, kon):
             if len(o.sloty) > max(k.get("pojemnosc", 0), 1):
                 raise SerwisBlad("okna", f"okno ma {len(o.sloty)} slotów, kontener {k.get('nazwa')!r} pojemność {k.get('pojemnosc')}")
@@ -375,13 +389,13 @@ class AkcjeZywe:
                 raise SerwisBlad("okna", f"w plecaku {len(bagi)} bagi, nie wiem, który otworzyć jako bag na runy")
             for _ in range(4):                  # rozciągamy od góry; po każdym rozciągnięciu okna niżej się przesuwają
                 obraz = self._zrzut(m)
-                okna = sorted(loot.znajdz_okna(obraz), key=lambda o: o.gora or 0)
+                okna = sorted(loot.znajdz_okna(obraz), key=lambda o: o.sloty[0].srodek[1])  # gora bywa None
                 zrobione = False
                 for o in okna:
                     rzedy = len({s.y for s in o.sloty})
                     if o.sloty and rzedy < BAG_ILE_RZEDOW:
                         x = (o.lewo + o.prawo) // 2
-                        y = loot.dolna_krawedz(o)
+                        y = loot.dolna_krawedz(o, obraz)
                         m.przeciagnij(x, y, x, y + (BAG_ILE_RZEDOW - rzedy) * 37, drganie=0)
                         time.sleep(0.8)
                         zrobione = True

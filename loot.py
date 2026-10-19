@@ -220,7 +220,9 @@ class Okno:
     def przycisk_zamkniecia(self):
         """Środek przycisku X w nagłówku (nagłówek: 7 px pod górną ramką, X ~10 px od prawej)."""
         if self.gora is None:
-            return None
+            if not self.sloty:
+                return None
+            return self.prawo - 11, min(s.y for s in self.sloty) - 12   # bez górnej ramki: nagłówek ~12 px nad pierwszym rzędem slotów
         return self.prawo - 11, self.gora + 8
 
     def __repr__(self):
@@ -272,7 +274,7 @@ def znajdz_okna(obraz):
         # najdłuższy ciąg w równym kroku
         ciag, najlepszy = [w[0]], []
         for poprzedni, s in zip(w, w[1:]):
-            if 36 <= s.x - poprzedni.x <= 38:
+            if 36 <= s.x - poprzedni.x <= 38 or 73 <= s.x - poprzedni.x <= 75:   # luka = zaznaczony slot
                 ciag.append(s)
             else:
                 najlepszy = max(najlepszy, ciag, key=len)
@@ -310,8 +312,10 @@ def znajdz_okna(obraz):
             krok = 37
             k = round((gora - dol) / krok)
             kol_poprz = {s.x for s in poprz.sloty}
+            kol_o = {s.x for s in o.sloty}
+            # wiersz z zaznaczonym slotem może być niepełny po obu stronach (u góry okna albo niżej)
             if (k >= 1 and abs(gora - dol - k * krok) <= 1
-                    and {s.x for s in o.sloty} <= kol_poprz):
+                    and (kol_o <= kol_poprz or kol_poprz <= kol_o)):
                 poprz.sloty.extend(o.sloty)
                 for j in range(1, k):
                     for s0 in {s.x for s in poprz.sloty}:
@@ -1802,9 +1806,24 @@ def plecak_otwarty(obraz):
     return any((_nazwa_tytulu(obraz, o) or "").casefold() in PLECAKI for o in znajdz_okna(obraz))
 
 
-def dolna_krawedz(okno):
-    """Y dolnej ramki okna: dolny rząd slotów plus 10 px (kalibracja 18.10)."""
-    return max(s.y + s.bok for s in okno.sloty) + 10
+def dolna_krawedz(okno, obraz=None):
+    """Y dolnej ramki okna: dolny rząd slotów plus 10 px (kalibracja 18.10). Gdy okno jest ucięte w środku rzędu
+    (klient zwija okno do ułamka rzędu, 19.10: +31 px), z `obrazu` szukamy ramki po pikselach: dwie jasne linie
+    (ok. 50,52,48) w ciemnej obwódce (ok. 16,17,15), w szczelinie między slotami i przy lewym brzegu naraz."""
+    dol = max(s.y + s.bok for s in okno.sloty)
+    if obraz is not None:
+        try:
+            px = obraz.convert("RGB").load()
+            gx = max(s.x for s in okno.sloty if s.y == min(q.y for q in okno.sloty)) - 2     # szczelina przed ostatnią kolumną
+            lx = okno.lewo + 4
+            for y in range(dol + 4, min(dol + 60, obraz.size[1] - 3)):
+                jasne = all(sum(px[x, yy]) > 130 for x in (gx, lx) for yy in (y, y + 1))
+                ciemne = all(sum(px[x, yy]) < 60 for x in (gx, lx) for yy in (y - 1, y + 2))
+                if jasne and ciemne:
+                    return y
+        except Exception:
+            pass
+    return dol + 10
 
 
 def _okno_plecaka(obraz):
@@ -1825,7 +1844,7 @@ def rozciagnij_plecak(mysz, obraz, log=print):
     if brak <= 0:
         return False
     x = (okno.lewo + okno.prawo) // 2
-    y = dolna_krawedz(okno)
+    y = dolna_krawedz(okno, obraz)
     bot.sprawdz_stop()
     mysz.przeciagnij(x, y, x, y + brak * 37, drganie=0)
     _pauza(0.4, 0.6)

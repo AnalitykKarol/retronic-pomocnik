@@ -109,7 +109,7 @@ def bot_dziala(proc="/proc", instancja=None):
         except OSError:
             continue
         if argv and os.path.basename(argv[0]).startswith(b"python") and any(
-                os.path.basename(a) in (b"mozg.py", b"cavebot.py") for a in argv[1:]):
+                os.path.basename(a) in (b"mozg.py", b"cavebot.py", b"serwis.py") for a in argv[1:]):
             cudza = _id_instancji_procesu(proc, w)
             if cudza is not None and cudza != moje:
                 continue

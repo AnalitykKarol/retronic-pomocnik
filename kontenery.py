@@ -293,6 +293,8 @@ def kontenery(p):
 # licznik referencji > 0, zwolnione duchy 0), potem wskaźników na nie i tablicy zgodnej z numerami slotów.
 SLOTY_EKWIPUNKU = 11
 PONOWNE_SZUKANIE_EKW = 20.0
+# po nieudanym szukaniu (skan pamięci blokuje cały rdzeń na 10-100 s) nie szukamy szybciej, także na żądanie "odswiez"
+PONOWNE_SZUKANIE_EKW_PO_PORAZCE = 300.0
 WZORZEC_EKW = rb"\xff\xff\x00\x00[\x01-\x0a]\x00\x00\x00"
 
 
@@ -366,12 +368,15 @@ def ekwipunek(p):
         if t is not None:
             return {s: {"id": i, "ilosc": n} for s, (i, n) in t.items()}
         st["ekw"] = None
-    if time.monotonic() - st.get("ekw_proba", -1e9) < PONOWNE_SZUKANIE_EKW:
+    limit = PONOWNE_SZUKANIE_EKW_PO_PORAZCE if st.get("ekw_porazka") else PONOWNE_SZUKANIE_EKW
+    if time.monotonic() - st.get("ekw_proba", -1e9) < limit:
         return None
     st["ekw_proba"] = time.monotonic()
     baza, t = _szukaj_tablicy_ekw(p, st["obraz"])
     if baza is None:
+        st["ekw_porazka"] = True
         return None
+    st["ekw_porazka"] = False
     st["ekw"] = baza
     return {s: {"id": i, "ilosc": n} for s, (i, n) in t.items()}
 
@@ -384,7 +389,8 @@ def obsluz(p, z):
                 # wymuszone ponowne szukanie tablicy (bot po relogu/zmianie tarczy); działa po restarcie gry
                 st = _stan(p)
                 st["ekw"] = None
-                st["ekw_proba"] = -1e9
+                if not st.get("ekw_porazka"):       # po porażce nie omijamy limitu (skan blokował rdzeń ~2 min)
+                    st["ekw_proba"] = -1e9
             e = ekwipunek(p)
         except Exception as ex:
             return {"ekwipunek": None, "blad": f"{type(ex).__name__}: {ex}"}
