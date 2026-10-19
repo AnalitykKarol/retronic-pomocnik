@@ -503,8 +503,11 @@ def sygnaly_ratunku(sc, od):
         h = haiku.get(str(syg["dane"].get("id"))) if syg["dane"].get("id") is not None else None
         if h is not None:
             syg["dane"] = dict(syg["dane"], haiku_cien=h)
-            if isinstance(h.get("zrzut"), str) and h["zrzut"] and "/" in h["zrzut"] and ".." not in h["zrzut"]:
-                syg["haiku_zrzut"] = str(Path(sc.logi) / h["zrzut"])
+            z = h.get("zrzut")
+            if isinstance(z, str) and z and not os.path.isabs(z):              # tylko wewnątrz katalogu logów instancji
+                pelna = (Path(sc.logi) / z).resolve()
+                if pelna.is_relative_to(Path(sc.logi).resolve()):
+                    syg["haiku_zrzut"] = str(pelna)
     wynik.sort(key=lambda s: (s["epoch"] or 0, s["plik"], s["linia"]), reverse=True)
     return wynik, pominiete
 

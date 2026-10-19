@@ -508,7 +508,12 @@ with tempfile.TemporaryDirectory() as tmp:
     s_ = {x["kod"]: x for x in d["sygnaly"]}
     sprawdz("ratunek F2a: rekordy haiku_cien nie są sygnałami (2 sygnały)", kod == 0 and len(d["sygnaly"]) == 2 and d["liczniki"]["dzis"] == 2, d["sygnaly"])
     sprawdz("ratunek F2a: odpowiedź dołączona do sygnału o tym samym id", s_["S4"]["dane"].get("haiku_cien") == hc and "haiku_cien" not in s_["S3"]["dane"], s_)
-    sprawdz("ratunek F2a: ścieżka zrzutu w katalogu logów instancji", s_["S4"].get("haiku_zrzut") == str(logi / "ratunek-zrzuty/a1.jpg"), s_["S4"].get("haiku_zrzut"))
+    sprawdz("ratunek F2a: ścieżka zrzutu w katalogu logów instancji", s_["S4"].get("haiku_zrzut") == str((logi / "ratunek-zrzuty/a1.jpg").resolve()), s_["S4"].get("haiku_zrzut"))
+    for zly in ("/etc/passwd", "a/../../b.jpg", "../x.jpg"):
+        (logi / "ratunek-20261019.jsonl").write_text(wpis_sygnalu("S4", "kręci się", czas(11, 40), id="c3") + "\n"
+            + json.dumps({"rekord": "haiku_cien", "id": "c3", "haiku_cien": dict(hc, zrzut=zly)}) + "\n")
+        kod, d = uruchom(tmp, "ratunek", "--instancja", "dwa")
+        sprawdz(f"ratunek F2a: zrzut poza katalogiem logów odrzucony ({zly})", "haiku_zrzut" not in d["sygnaly"][0], d["sygnaly"][0].get("haiku_zrzut"))
 
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)
