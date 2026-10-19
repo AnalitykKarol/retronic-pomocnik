@@ -58,6 +58,7 @@ import cavebot  # noqa: E402
 import czaszka  # noqa: E402
 import instancja  # noqa: E402
 import powiadom  # noqa: E402
+import slepota  # noqa: E402
 
 KATALOG = Path(__file__).resolve().parent
 LOGI = instancja.S.logi                  # bez RETRONIC_ID: pomocnik/logi
@@ -3584,6 +3585,31 @@ class Mozg:
                 except OSError:
                     pass
         threading.Thread(target=_watchdog, daemon=True).start()
+
+        def _slepota_watchdog():
+            """19.10: bot polował, ale od SLEPOTA_DIAG_S s exp stoi i lista stworów jest pusta = diagnostyka (slepota.py);
+            po SLEPOTA_RESTART_S s restart procesu. Czyta tylko atrybuty cavebota (bez zapytań do strażnika w pętli)."""
+            det = slepota.Detektor(cavebot.SLEPOTA_DIAG_S, cavebot.SLEPOTA_RESTART_S)
+            while not self.koniec:
+                time.sleep(5.0)
+                try:
+                    det.ustaw(float(cavebot.SLEPOTA_DIAG_S), float(cavebot.SLEPOTA_RESTART_S))
+                    lista = getattr(cb, "stwory_surowe", None) or []
+                    n = sum(1 for s in lista if not s.get("gracz"))
+                    wynik = det.probka(time.time(), getattr(cb, "exp_teraz", None), getattr(cb, "stan", None), n)
+                    if wynik is None:
+                        continue
+                    ile = min(time.time() - det.t_exp, time.time() - det.t_potwor)
+                    slepota.zrzuc(LOGI / "slepota", wynik, cb, ile, log=self.log)
+                    if wynik == "restart":
+                        self.log(f"ŚLEPOTA: restart procesu mozg.py (pokrętło SLEPOTA_RESTART_S={cavebot.SLEPOTA_RESTART_S:g}).")
+                        powiadom.powiadom("Bot: ślepota, restart", f"Brak expa i potworów od {ile:.0f} s, restartuję mozg.py",
+                                          "critical", klucz="slepota")
+                        self.slepota_restart = True
+                        self.koniec = True
+                except Exception as e:      # noqa: BLE001
+                    self.log(f"debug: slepota watchdog błąd {e!r}")
+        threading.Thread(target=_slepota_watchdog, daemon=True).start()
         bledy = 0
         grim_od = grim_log = None        # od kiedy wisi zrzut ekranu (okno gry niewidoczne)
         try:
@@ -3644,7 +3670,8 @@ class Mozg:
                     cb.pauza(1.0, 2.0)
                 getattr(cb, "pauza_po_ticku", lambda: cb.pauza(0.05, 0.15))()   # Q5 11.10: WALKA i odl > 1 = prawie bez pauzy
             self.log("Koniec.")
-            powiadom.stop("Koniec (limit, koniec trasy albo polecenie modelu)")
+            if not getattr(self, "slepota_restart", False):
+                powiadom.stop("Koniec (limit, koniec trasy albo polecenie modelu)")
         except bot.Zatrzymano:
             self.log("Zatrzymano (plik STOP).")
             powiadom.stop("STOP ręczny (plik STOP)")
@@ -3973,6 +4000,18 @@ def main(argv):
     finally:
         cb._poscig_puszcz()               # wyjątek/STOP/Ctrl+C: żaden klawisz ruchu nie zostaje wciśnięty
         cb._d3_zamknij()                  # D3 krok A: trwająca zawieszka dostaje wynik (koniec "stop")
+    if getattr(mozg, "slepota_restart", False):
+        # 19.10: watchdog ślepoty (slepota.py): ten sam pid i argumenty; klawisze puszczone, wartownik klawiszy zamknięty
+        try:
+            import klawisz_x11  # noqa: PLC0415
+            klawisz_x11._zakoncz_atexit()
+            wart = klawisz_x11._watchdog_stan.get("straznik_proces")
+            if wart:
+                wart.terminate()
+        except Exception:               # noqa: BLE001
+            pass
+        log("Restart procesu po ślepocie (os.execv).")
+        os.execv(sys.executable, getattr(sys, "orig_argv", [sys.executable] + sys.argv))
 
 
 if __name__ == "__main__":
