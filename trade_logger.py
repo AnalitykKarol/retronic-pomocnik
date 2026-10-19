@@ -10,6 +10,12 @@ UH / HMM / blank rune do dane_tibia/alerty_trade.jsonl (+ notify-send).
 Uzycie:
   python3 -I trade_logger.py                 # demon (ctrl-c konczy czysto)
   python3 -I trade_logger.py --raz --sucho   # jedna iteracja, bez notify-send
+
+Tryb handlu instancji (19.10, SPEC_handel_johny_1019.md F1): RETRONIC_ID=<id> i plik instancje/<id>/handel.json.
+Wtedy: gniazdo i nick tej instancji, pliki w instancje/<id>/handel/, okienko przy kazdej wiadomosci priv,
+alerty: ktos sprzedaje przedmiot z listy "kupuje" (cena <= progu albo bez ceny) albo kupuje z listy "sprzedaje".
+W okienku gotowa linijka do wklejenia. Nadal tylko odczyt: zero klawiszy i klikniec w grze.
+Bez handel.json zachowanie bez zmian (instancja glowna).
 """
 import argparse
 import json
@@ -27,6 +33,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 BAZA = Path(__file__).resolve().parent
+sys.path.insert(0, str(BAZA))
+import instancja  # noqa: E402
+
 DANE = BAZA / "dane_tibia"
 PLIK_PRZEDMIOTY = DANE / "przedmioty.json"
 PLIK_OFERT = DANE / "ceny_trade.jsonl"
@@ -284,12 +293,14 @@ class Stan:
         self.kolejka.append(nr)
         self.zbior.add(nr)
 
-    def nowe(self, wiadomosci, epoka):
+    def nowe(self, wiadomosci, epoka, przepusc=None):
+        """przepusc(m) -> bool: ktore wiadomosci brac (domyslnie tylko kanal Trade)."""
         if epoka != self.epoka:
             self._reset(epoka)
+        przepusc = przepusc or (lambda m: m.get("kanal") == KANAL)
         wyn = []
         for m in wiadomosci:
-            if m.get("kanal") != KANAL:
+            if not przepusc(m):
                 continue
             nr = m.get("nr")
             if nr is None or nr in self.zbior:
@@ -337,6 +348,8 @@ def pobierz_wiadomosci(sciezka, timeout=3.0):
 
 
 def sciezka_gniazda():
+    if instancja.ID:
+        return instancja.gniazdo(f"/run/user/{os.getuid()}")
     baza = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
     return Path(baza) / "retronic-pomocnik.sock"
 
@@ -456,6 +469,159 @@ def jeden_cykl(stan, sucho, przedmioty_sciezka=None, plik_ofert=PLIK_OFERT, plik
     return {"nowe": len(nowe), "wlasne": wlasne, "oferty": oferty, "alerty": alerty}
 
 
+# --- tryb handlu instancji (handel.json) ---------------------------------------------
+# Kolory OTClienta z rdzenia (zmierzone 19.10 na instancji test): przychodzacy priv = 5ff7f7 (z nadawca),
+# wlasny wychodzacy priv = 9f9dfd (nadawca None, tekst "Nick [lvl]: ..."), Trade i mowa lokalna = ffff00.
+# Pole "kanal" bywa puste albo bledne (bufor Trade zmienia sie po relogu, nazwa jest tylko na linii powitalnej),
+# wiec Trade rozpoznajemy po kolorze; mowa lokalna bez sell/buy i tak nie daje ofert.
+KOLOR_PRIV = "5ff7f7"
+KOLOR_KANAL = "ffff00"
+CISZA_PRIV = 60.0            # s, okienko priv: max 1 na nick na minute
+CISZA_OKAZJI = 3600.0        # s, ta sama okazja (typ, nick, przedmiot): ogloszeniowcy powtarzaja co 2 min
+STARE_S = 120                # s: wiadomosci starsze niz start loggera nie daja okienek (tylko zapis)
+
+DOMYSLNE_SZABLONY = {
+    "sprzedawca_cena": "*{nick}* hi, ill take {przedmiot} for {cena}, where r u?",
+    "sprzedawca_bez_ceny": "*{nick}* hi, how much for {przedmiot}?",
+    "kupiec": "*{nick}* hi, {przedmiot} {cena_nasza} per bp, how many bps? im in {miasto}",
+}
+
+
+def wczytaj_konfig(sciezka):
+    """handel.json instancji albo None (brak pliku = stary tryb). Bledny JSON = SystemExit (nie zgadujemy)."""
+    if not sciezka or not Path(sciezka).exists():
+        return None
+    try:
+        k = json.loads(Path(sciezka).read_text(encoding="utf-8"))
+    except ValueError as e:
+        raise SystemExit(f"bledny {sciezka}: {e}")
+    k.setdefault("kupuje", {})
+    k.setdefault("sprzedaje", {})
+    k["szablony"] = {**DOMYSLNE_SZABLONY, **(k.get("szablony") or {})}
+    k["kupuje"] = {p.lower(): v for p, v in k["kupuje"].items()}
+    k["sprzedaje"] = {p.lower(): v for p, v in k["sprzedaje"].items()}
+    return k
+
+
+def rodzaj(m, wlasny):
+    """'priv' | 'kanal' | None dla wiadomosci z rdzenia."""
+    nadawca = m.get("nadawca")
+    if not nadawca or nadawca == wlasny:
+        return None
+    kolor = (m.get("kolor") or "").lower()
+    if kolor == KOLOR_PRIV:
+        return "priv"
+    if kolor == KOLOR_KANAL or m.get("kanal") == KANAL:
+        return "kanal"
+    return None
+
+
+def cena_sztuki(o):
+    """Cena za sztuke albo None (brak ceny / nie da sie policzyc)."""
+    c = o.get("cena")
+    if c is None:
+        return None
+    if o.get("jednostka") == "bp":
+        return None
+    if o.get("cena_typ") == "all":
+        return c / o["ilosc"] if o.get("ilosc") else None
+    return c
+
+
+def _k(wartosc):
+    return f"{wartosc / 1000:g}k" if wartosc >= 1000 else f"{wartosc:g}"
+
+
+def okazje(oferty, konfig):
+    """Oferty warte okienka: [(oferta, rodzaj, linijka do wklejenia)].
+    sprzedawca z listy 'kupuje': cena za sztuke <= progu albo brak ceny (pytamy). Cena powyzej progu: pomijamy.
+    kupiec z listy 'sprzedaje': zawsze (podajemy nasza cene)."""
+    sz = konfig["szablony"]
+    miasto = konfig.get("miasto", "")
+    wyn = []
+    for o in oferty:
+        p = o.get("przedmiot")
+        if not p or not o.get("nadawca"):
+            continue
+        if o["intencja"] == "sprzedaje" and p in konfig["kupuje"]:
+            prog = konfig["kupuje"][p]
+            c = cena_sztuki(o)
+            if c is None:
+                if o.get("cena") is not None:
+                    continue                    # cena za bp/lacznie bez ilosci: nie porownamy, nie zgadujemy
+                wyn.append((o, "bez_ceny", sz["sprzedawca_bez_ceny"].format(nick=o["nadawca"], przedmiot=p)))
+            elif c <= prog:
+                wyn.append((o, "w_progu", sz["sprzedawca_cena"].format(nick=o["nadawca"], przedmiot=p, cena=_k(c))))
+        elif o["intencja"] == "kupuje" and p in konfig["sprzedaje"]:
+            nasza = konfig["sprzedaje"][p]
+            krotka = ALIAS_KROTKI.get(p, p)
+            wyn.append((o, "kupiec", sz["kupiec"].format(nick=o["nadawca"], przedmiot=krotka, cena_nasza=_k(nasza),
+                                                          miasto=miasto)))
+    return wyn
+
+
+ALIAS_KROTKI = {v: k for k, v in ALIASY.items()}
+
+
+def okienko(stan, klucz, tytul, tresc, sucho, teraz, cisza, pilne=False):
+    """notify-send z cisza per klucz. Zwraca True, gdy pokazano."""
+    if sucho or shutil.which("notify-send") is None:
+        return False
+    ostatnio = stan.ostatnio_powiadomiono.get(klucz)
+    if ostatnio is not None and teraz - ostatnio < cisza:
+        return False
+    stan.ostatnio_powiadomiono[klucz] = teraz
+    try:
+        subprocess.run(["notify-send", "-a", "Retronic handel", "-u", "critical" if pilne else "normal", tytul, tresc], timeout=5,
+                       check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError) as e:
+        log(f"notify-send nieudany: {e}")
+        return False
+    return True
+
+
+def cykl_handlu(stan, konfig, pliki, sucho, start_ts, dane=None, teraz=None):
+    """Jeden odczyt w trybie handlu. dane = odpowiedz gniazda (testy), inaczej pobierane."""
+    teraz = time.monotonic() if teraz is None else teraz
+    if dane is None:
+        dane = pobierz_wiadomosci(sciezka_gniazda())
+    wlasny = konfig.get("nick", "")
+    epoka = dane.get("epoka")
+    nowe = stan.nowe(dane.get("wiadomosci", []), epoka, przepusc=lambda m: rodzaj(m, wlasny) is not None)
+    postac = konfig.get("nick") or "postac"
+    privy, oferty, alerty = [], [], []
+    for m in nowe:
+        swieza = (m.get("ts") or 0) >= start_ts - STARE_S
+        if rodzaj(m, wlasny) == "priv":
+            r = {"ts": m.get("ts"), "czas": m.get("czas"), "nadawca": m["nadawca"], "tekst": m.get("tekst"),
+                 "nr": m.get("nr"), "epoka": epoka}
+            r["powiadomiono"] = swieza and okienko(stan, ("priv", m["nadawca"]), f"{postac}: priv od {m['nadawca']}",
+                                                   m.get("tekst") or "", sucho, teraz, CISZA_PRIV, pilne=True)
+            privy.append(r)
+            continue
+        oferty.extend(rozpoznaj(m.get("tekst") or "", m["nadawca"], m.get("ts"), m.get("nr"), epoka))
+    for o, typ, linijka in okazje(oferty, konfig):
+        swieza = (o.get("ts") or 0) >= start_ts - STARE_S
+        opis = {"bez_ceny": "sprzedaje (bez ceny)", "w_progu": f"sprzedaje za {_cena_tekst(o)}",
+                "kupiec": f"kupuje {_cena_tekst(o)}"}[typ]
+        tytul = f"{postac}: {o['nadawca']} {opis} {o['przedmiot']}"
+        pow = swieza and okienko(stan, (typ, o["nadawca"], o["przedmiot"]), tytul, linijka, sucho, teraz,
+                                 CISZA_OKAZJI)
+        alerty.append({"ts": o["ts"], "czas": o["czas"], "nadawca": o["nadawca"], "typ": typ,
+                       "przedmiot": o["przedmiot"], "cena": o["cena"], "cena_typ": o["cena_typ"],
+                       "linijka": linijka, "tekst_oryg": o["tekst_oryg"], "nr": o["nr"], "powiadomiono": pow})
+    zapisz_jsonl(pliki["oferty"], oferty)
+    zapisz_jsonl(pliki["alerty"], alerty)
+    zapisz_jsonl(pliki["priv"], privy)
+    return {"nowe": len(nowe), "priv": privy, "oferty": oferty, "alerty": alerty}
+
+
+def pliki_handlu():
+    katalog = instancja.S.stan / "handel"
+    return {"katalog": katalog, "oferty": katalog / "ceny_trade.jsonl", "alerty": katalog / "alerty.jsonl",
+            "priv": katalog / "priv.jsonl", "podsumowanie": katalog / "ceny_trade_podsumowanie.json"}
+
+
 _STOP = False
 
 
@@ -500,21 +666,32 @@ def zwolnij_pid():
         pass
 
 
-def petla(stan, sucho):
+def petla(stan, sucho, konfig=None, pliki=None):
     ostatnie_podsumowanie = None
+    start_ts = time.time()
     while not _STOP:
         sen = INTERWAL
         try:
-            wynik = jeden_cykl(stan, sucho)
+            if konfig:
+                wynik = cykl_handlu(stan, konfig, pliki, sucho, start_ts)
+                for p in wynik["priv"]:
+                    log(f"priv od {p['nadawca']}: {p['tekst']!r} (okienko: {p['powiadomiono']})")
+                for a in wynik["alerty"]:
+                    log(f"alert {a['typ']} {a['nadawca']} {a['przedmiot']} (okienko: {a['powiadomiono']}): {a['linijka']}")
+            else:
+                wynik = jeden_cykl(stan, sucho)
             if wynik["nowe"]:
-                log(f"nowe wiadomosci Trade: {wynik['nowe']}, oferty: {len(wynik['oferty'])}, "
+                log(f"nowe wiadomosci: {wynik['nowe']}, oferty: {len(wynik['oferty'])}, "
                     f"alerty: {len(wynik['alerty'])}")
         except (OSError, ValueError, RuntimeError) as e:
             sen = PONOW
             log(f"blad gniazda: {e}; ponawiam za {PONOW:.0f} s")
         if ostatnie_podsumowanie is None or time.monotonic() - ostatnie_podsumowanie >= INTERWAL_PODSUMOWANIA:
             try:
-                przelicz_podsumowanie()
+                if konfig:
+                    przelicz_podsumowanie(pliki["oferty"], pliki["podsumowanie"])
+                else:
+                    przelicz_podsumowanie()
             except OSError as e:
                 log(f"podsumowanie nieudane: {e}")
             ostatnie_podsumowanie = time.monotonic()
@@ -547,16 +724,32 @@ def main(argv=None):
     ap.add_argument("--sucho", action="store_true", help="bez notify-send")
     args = ap.parse_args(argv)
 
-    stan = Stan(plik_seed=PLIK_OFERT)
+    global PLIK_PID
+    konfig = wczytaj_konfig(instancja.S.stan / "handel.json") if instancja.ID else None
+    pliki = None
+    if konfig:
+        pliki = pliki_handlu()
+        pliki["katalog"].mkdir(parents=True, exist_ok=True)
+        PLIK_PID = Path.home() / ".cache" / f"retronic-trade-logger-{instancja.ID}.pid"
+    stan = Stan(plik_seed=pliki["oferty"] if pliki else PLIK_OFERT)
     if args.raz:
+        if konfig:
+            w = cykl_handlu(stan, konfig, pliki, args.sucho, start_ts=0)
+            print(f"nowe: {w['nowe']}, priv: {len(w['priv'])}, oferty: {len(w['oferty'])}, alerty: {len(w['alerty'])}")
+            for p in w["priv"]:
+                print(f"  priv {p['czas']} {p['nadawca']}: {p['tekst']}")
+            for a in w["alerty"]:
+                print(f"  alert {a['czas']} {a['typ']:9s} {a['nadawca']}: {a['przedmiot']} -> {a['linijka']}")
+            return 0
         return tryb_raz(stan, args.sucho)
 
     zajmij_pid()
     signal.signal(signal.SIGINT, _sygnal)
     signal.signal(signal.SIGTERM, _sygnal)
-    log(f"start trade_logger (gniazdo: {sciezka_gniazda()}, sucho: {args.sucho})")
+    tryb = f"handel {instancja.ID} ({konfig.get('nick')})" if konfig else "glowna"
+    log(f"start trade_logger (tryb: {tryb}, gniazdo: {sciezka_gniazda()}, sucho: {args.sucho})")
     try:
-        petla(stan, args.sucho)
+        petla(stan, args.sucho, konfig, pliki)
     except KeyboardInterrupt:
         pass
     finally:
