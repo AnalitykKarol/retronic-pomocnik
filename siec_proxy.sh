@@ -9,18 +9,20 @@
 #    a tamtejszy socat przerzuca to gniazdem Unix na hosta (brak pętli routingu);
 #  - polecenie startuje w zagnieżdżonej przestrzeni użytkownika jako ten sam uid/gid co na hoście (wine wymaga właściciela prefiksu).
 # DNS: bez UDP, idzie przez nss-resolve (gniazdo systemd-resolved). Poza TCP nic nie wychodzi (UDP/ICMP odpadają).
-# Hasło: PROXY_PASSWORD z env albo wpis keyringu (service=retronic-proxy user=retronic); nigdy z repo.
+# Hasło: PROXY_PASSWORD z env, potem wpis keyringu instancji (service=retronic-proxy instance=$RETRONIC_ID),
+# potem wspólny (service=retronic-proxy user=retronic); nigdy z repo.
 # Konfiguracja: RETRONIC_PROXY_HOST, RETRONIC_PROXY_PORT, RETRONIC_PROXY_USER.
 # Cofnięcie: nie używaj tego skryptu (uruchom_gre.sh sięga po niego tylko przy RETRONIC_PROXY=1).
 set -u
 
 [ "$#" -ge 1 ] || { echo "użycie: $0 <polecenie> [args...]" >&2; exit 2; }
-HOST="${RETRONIC_PROXY_HOST:-acela.proxy.rlwy.net}"
-PORT="${RETRONIC_PROXY_PORT:-24394}"
+HOST="${RETRONIC_PROXY_HOST:-shortline.proxy.rlwy.net}"
+PORT="${RETRONIC_PROXY_PORT:-48152}"
 PUSER="${RETRONIC_PROXY_USER:-retronic}"
 T2S="${RETRONIC_TUN2SOCKS:-$HOME/.local/share/retronic-proxy/bin/tun2socks}"
 [ -x "$T2S" ] || { echo "brak $T2S" >&2; exit 1; }
 PW="${PROXY_PASSWORD:-}"
+[ -z "$PW" ] && [ -n "${RETRONIC_ID:-}" ] && PW="$(secret-tool lookup service retronic-proxy instance "$RETRONIC_ID" 2>/dev/null)"
 [ -n "$PW" ] || PW="$(secret-tool lookup service retronic-proxy user retronic 2>/dev/null)"
 [ -n "$PW" ] || { echo "brak hasła proxy (PROXY_PASSWORD albo keyring retronic-proxy)" >&2; exit 1; }
 unset PROXY_PASSWORD
