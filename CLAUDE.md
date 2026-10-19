@@ -19,3 +19,4 @@ Bota NIE uruchamiaj przy starcie sesji, chyba że Karol o to prosi.
 
 - Gdy gracz pyta „?” / „stop” przez zachowanie bota: `gotowe_odpowiedzi.md` (zatrzymaj bota, krótka odpowiedź ręcznie, odejdź na bok) i diagnoza Mijania obok.
 Powrót do miasta na żądanie: `RETRONIC_ID=<id> ./wroc.sh` (bot w spokojnej chwili idzie do depo i staje, bez zakupów; `--anuluj` cofa, w marszu `./zatrzymaj.sh`); wymaga działającego bota tej instancji, nie rusza gry.
+Refill po powrocie do miasta: `RETRONIC_ID=<id> ./refill.sh --tlo` (odłączony: `STARTUJ=1 ./serwis.sh --kroki jedzenie,backpack,blanki,wyjscie`, bez banku i depo, log `<stan>/refill.log`; `--przerwij`: STOP, serwis wychodzi sam (potem TERM), zwolnienie wejścia; bez nic do przerwania nie robi nic; bez argumentu w pierwszym planie); wymaga STOJĄCEGO bota. Guziki `⌂ Miasto`/`↻ Refill` w wtyczce paska wołają `wroc.sh` i `refill.sh`; `panel.py --json` ma pola `w_miescie`, `plan_depo_dostepny`, `wroc_*`, `serwis_*`.

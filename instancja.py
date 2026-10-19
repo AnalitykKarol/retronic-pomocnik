@@ -14,6 +14,7 @@ Niepusta (np. "dwa") = osobny świat:
 Moduł nie ma efektów ubocznych przy imporcie (nie tworzy katalogów). Dla powłoki:
   eval "$(python3 -I instancja.py powloka)"      # eksportuje INST_* i RETRONIC_ID
   python3 -I instancja.py pidy '(mozg|cavebot)\\.py'   # pidy procesów python tej instancji
+  python3 -I instancja.py pidy-skrypt '^(\\S*/)?bash (\\S*/)?refill\\.sh *$'   # j.w., ale dowolny proces (skrypty powłoki)
 """
 import os
 import re
@@ -111,9 +112,10 @@ def nalezy(pid, id_=None):
     return id_procesu(pid) == (ID if id_ is None else id_)
 
 
-def procesy(wzor, id_=None, proc="/proc"):
+def procesy(wzor, id_=None, proc="/proc", comm=("python", "python3")):
     """Pidy procesów python (comm python/python3), których cmdline (spacje zamiast NUL) pasuje do wzoru
-    (re.search), z RETRONIC_ID == id_. Odpowiednik pętli pgrep+grep -E ze skryptów, ale per instancja."""
+    (re.search), z RETRONIC_ID == id_. Odpowiednik pętli pgrep+grep -E ze skryptów, ale per instancja.
+    comm=None: bez filtra nazwy procesu (skrypty powłoki, np. refill.sh: comm to "bash" albo nazwa skryptu)."""
     cel = ID if id_ is None else sprawdz_id(id_)
     rx = re.compile(wzor)
     moj = os.getpid()
@@ -126,8 +128,8 @@ def procesy(wzor, id_=None, proc="/proc"):
         if not w.isdigit() or int(w) == moj:
             continue
         try:
-            comm = Path(f"{proc}/{w}/comm").read_text().strip()
-            if comm not in ("python", "python3"):
+            nazwa_procesu = Path(f"{proc}/{w}/comm").read_text().strip()
+            if comm is not None and nazwa_procesu not in comm:
                 continue
             cmd = Path(f"{proc}/{w}/cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")
             if not rx.search(cmd):
@@ -160,8 +162,8 @@ def main(argv=None):
             # w powłoce brak XDG_RUNTIME_DIR to /run/user/UID (jak w dotychczasowych skryptach)
             print(_powloka(sciezki(ID, runtime(f"/run/user/{os.getuid()}"))))
             return 0
-        if a[0] == "pidy" and len(a) == 2:
-            for p in procesy(a[1]):
+        if a[0] in ("pidy", "pidy-skrypt") and len(a) == 2:
+            for p in procesy(a[1], comm=None if a[0] == "pidy-skrypt" else ("python", "python3")):
                 print(p)
             return 0
         if a[0] == "sciezka" and len(a) == 2 and hasattr(S, a[1]):
@@ -170,7 +172,7 @@ def main(argv=None):
     except ValueError as e:
         print(e, file=sys.stderr)
         return 2
-    print("użycie: instancja.py powloka | pidy REGEX | sciezka KLUCZ", file=sys.stderr)
+    print("użycie: instancja.py powloka | pidy REGEX | pidy-skrypt REGEX | sciezka KLUCZ", file=sys.stderr)
     return 2
 
 

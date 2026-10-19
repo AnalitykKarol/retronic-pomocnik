@@ -3,7 +3,7 @@
 
   panel.py            panel TUI (curses): s start, x stop, l pełny log w less, q wyjście
   panel.py --raz      jednorazowo wypisuje ekran (bez curses) i kończy
-  panel.py --json     JSON dla paska (używa go status.sh)
+  panel.py --json     JSON dla paska (używa go status.sh); od 19.10 także pola guzików „Wróć do miasta” i „Refill” (niżej)
 """
 import json
 import os
@@ -196,7 +196,193 @@ def json_paska():
     except Exception:
         pass
     t.append("Lewy: start/stop, prawy: panel")
-    return {"text": f"{ikona} {tekst}".strip(), "tooltip": "\n".join(t), "class": k, "alt": k}
+    wynik = {"text": f"{ikona} {tekst}".strip(), "tooltip": "\n".join(t), "class": k, "alt": k}
+    try:
+        wynik.update(pola_guzikow(s))
+    except Exception as e:                  # pola guzików są dodatkiem: ich awaria nie psuje dotychczasowego kontraktu
+        print(f"panel: pola guzików pominięte: {e!r}", file=sys.stderr)
+    return wynik
+
+
+# ---------- guziki „Wróć do miasta” i „Refill” (19.10) ----------
+# Dodatkowe pola --json dla wtyczki paska charlie.retronic. Wszystkie OPCJONALNE i tylko dokładane: dotychczasowe
+# pola (text, tooltip, class, alt) bez zmian. Spec: omarchy .ai/specs/2026-10-19-retronic-guziki-miasto.md.
+TRASY = KAT / "trasy"
+MARGINES_MIASTA = 8                                 # pól poza skrajnymi punktami serwisu nadal „w mieście”
+SERWIS_WZOR = r"(^|[ /])serwis\.py "                 # python3 -I -u serwis.py edron ...
+REFILL_WZOR = r"^(\S*/)?bash (\S*/)?refill\.sh *$"   # sama praca refill.sh (bez --tlo i --przerwij)
+REFILL_LOG = "refill.log"
+WROC_POWOD = "depo:reczny"                          # powód wyprawy z wyprawa.py dla pliku WROC
+
+
+def dane_serwisu(katalog=TRASY):
+    """{miasto: dane} z trasy/serwis_<miasto>.json (te same pliki czyta serwis.py)."""
+    wynik = {}
+    for plik in sorted(Path(katalog).glob("serwis_*.json")):
+        try:
+            d = json.loads(plik.read_text())
+            if isinstance(d, dict) and d.get("miasto"):
+                wynik[d["miasto"]] = d
+        except (OSError, ValueError):
+            continue
+    return wynik
+
+
+def _punkty_serwisu(d):
+    pts = [tuple(p["stoi"]) for p in d["przystanki"].values()]
+    pts += [tuple(p) for p in d.get("depo_stoiska", [])] + [tuple(d["wyjscie"])]
+    for l in d.get("laczniki", []):
+        pts += [tuple(l["z"]), tuple(l["do"])]
+    return pts
+
+
+def miasto_pozycji(poz, dane=None, margines=MARGINES_MIASTA):
+    """(miasto, w_depo) dla pozycji (x, y, z): miasto, gdy pozycja leży w prostokącie punktów serwisu (z marginesem
+    na x/y, piętra od najniższego do najwyższego punktu), w_depo, gdy stoi przy polu depo (<= 2 pola). Inaczej (None, False)."""
+    if poz is None:
+        return None, False
+    x, y, z = poz
+    for nazwa, d in (dane_serwisu() if dane is None else dane).items():
+        try:
+            xs, ys, zs = zip(*_punkty_serwisu(d))
+            stoiska = [tuple(p) for p in d.get("depo_stoiska", [])] + [tuple(d["przystanki"]["depo"]["stoi"])]
+        except (KeyError, TypeError, ValueError):
+            continue
+        if min(xs) - margines <= x <= max(xs) + margines and min(ys) - margines <= y <= max(ys) + margines \
+                and min(zs) <= z <= max(zs):
+            return nazwa, any(s[2] == z and max(abs(s[0] - x), abs(s[1] - y)) <= 2 for s in stoiska)
+    return None, False
+
+
+def plan_depo(poz, katalog=TRASY):
+    """Nazwa planu dojścia do depo z `poz`, taka jak wybrałaby ją wyprawa.py dla ręcznego „Wróć do miasta”
+    (wybierz_baze w PK_PLAN_ZASIEG, potem plan z PLANY_PK w DEPO_DOJSCIE_ZASIEG), albo None, gdy planu brak
+    (np. Rookgaard). Ocenia tylko położenie i pliki tras; nie liczy drogi (to robi bot w chwili startu)."""
+    if poz is None:
+        return None
+    try:
+        import wyprawa  # noqa: PLC0415
+        from wypad import cheb  # noqa: PLC0415
+        baza = wyprawa.punkty_bazy(katalog, nazwy=wyprawa.BAZY_PK)
+        nazwa = wyprawa.wybierz_baze(baza, poz, wyprawa.PK_PLAN_ZASIEG)
+        if nazwa is not None:
+            return nazwa
+        najl = None
+        for p in wyprawa.PLANY_PK:           # jak Wyprawa._baza_dojscie: najbliższe depo planu z PLANY_PK
+            if p["nazwa"] in baza:
+                d = cheb(poz, baza[p["nazwa"]][0][-1])
+                if d <= wyprawa.DEPO_DOJSCIE_ZASIEG and (najl is None or d < najl[0]):
+                    najl = (d, p["nazwa"])
+        return najl[1] if najl else None
+    except Exception:
+        return None
+
+
+class PozycjaPrzekroczona(BaseException):
+    """Limit czasu odczytu pozycji. BaseException celowo: `except Exception` w bot.wlasny_wpis nie może go połknąć
+    (wtedy limit nie byłby twardy: alarm jednorazowy, a odczyt szedłby dalej kolejnymi zapytaniami)."""
+
+
+def pozycja_postaci(limit_s=2.0):
+    """(x, y, z) postaci z gniazda gry tej instancji albo None (brak gry, postaci albo odpowiedzi). Twardy limit czasu."""
+    import signal
+    import socket
+
+    def _czas(*_):
+        raise PozycjaPrzekroczona()
+    stary = signal.signal(signal.SIGALRM, _czas)
+    signal.setitimer(signal.ITIMER_REAL, limit_s)
+    try:
+        import bot  # noqa: PLC0415
+        socket.setdefaulttimeout(1.0)
+        p = bot.zapytaj({"cmd": "pozycja", "nazwa": bot.nazwa_postaci()})["pozycja"]
+        return (p["x"], p["y"], p["z"])
+    except (Exception, SystemExit, PozycjaPrzekroczona):   # nazwa_postaci() kończy się sys.exit bez logowania w logu klienta
+        return None
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, stary)
+
+
+def _json_pliku(sciezka):
+    try:
+        d = json.loads(Path(sciezka).read_text())
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def stan_wroc(stan_dir, bot_dziala):
+    """„Wróć do miasta”: czy zlecenie (plik WROC) czeka i czy bot jest w marszu do depo (wyprawa ręczna aktywna)."""
+    ws = _json_pliku(Path(stan_dir) / "wyprawa_stan.json")
+    reczna = ws.get("powod") == WROC_POWOD
+    return {"wroc_oczekuje": (Path(stan_dir) / "WROC").exists(),
+            "wroc_w_marszu": bool(bot_dziala and reczna and ws.get("aktywna"))}
+
+
+def _bot_startowal_po(logi, log):
+    """Czy któryś stdout bota (logi/mozg-stdout-*.log, tworzy go uruchom.sh przy KAŻDYM starcie) był pisany po ostatnim zapisie
+    refill.log. Bot nie biegnie w trakcie refillu (serwis odmawia), więc nowszy log = bot wystartował po nim (ręcznie, ▶ Start albo
+    STARTUJ=1) i wynik refillu przestaje obowiązywać także po jego późniejszym Stop."""
+    try:
+        t_log = Path(log).stat().st_mtime
+        return any(f.stat().st_mtime > t_log for f in Path(logi).glob("mozg-stdout-*.log"))
+    except OSError:
+        return False
+
+
+def stan_serwisu(stan_dir, teraz=None, dziala=None, kolejnosc=None):
+    """„Refill”: czy serwis tej instancji trwa (serwis.py albo praca refill.sh), na jakim kroku, jak skończył się
+    ostatni refill (refill.log: znaczniki `REFILL: START|OK|BLAD <powód>|PRZERWANO` pisze refill.sh)."""
+    stan_dir = Path(stan_dir)
+    teraz = time.time() if teraz is None else teraz
+    if dziala is None:
+        dziala = bool(instancja.procesy(SERWIS_WZOR) or instancja.procesy(REFILL_WZOR, comm=None))
+    log = stan_dir / REFILL_LOG
+    linie = ogon(log, 300)
+    start = koniec = -1
+    wynik, komunikat, krok = None, "", None
+    for i, l in enumerate(linie):
+        if l.startswith("REFILL: START"):
+            start = i
+        m = re.match(r"REFILL: (OK|BLAD|PRZERWANO)\b ?(.*)", l)
+        if m:
+            koniec, wynik, komunikat = i, m[1].lower(), m[2].strip()
+        m = re.match(r"serwis: krok (\w+)\s*$", l)
+        if m and i > start:
+            krok = m[1]
+    if wynik and koniec < start:                  # nowy START po starym wyniku: tamten już nieaktualny
+        wynik, komunikat = None, ""
+    if dziala:
+        wynik, komunikat = None, ""
+    elif wynik is None and start >= 0:            # proces zniknął bez znacznika (zabity siłą)
+        wynik = "przerwano"
+    if wynik and _bot_startowal_po(stan_dir / "logi", log):    # bot ruszył po refillu: stary wynik (np. błąd) jest nieaktualny
+        wynik, komunikat = None, ""
+    st = _json_pliku(stan_dir / "serwis_stan.json")
+    ukonczone = [] if st.get("koniec") else [k for k in st.get("ukonczone", []) if isinstance(k, str)]
+    # serwis puszczony z terminala (log nie jest w refill.log); przy własnym znaczniku START bez linii kroku brak kroku = nie zgadujemy
+    if dziala and krok is None and kolejnosc and start < 0:
+        krok = next((k for k in kolejnosc if k not in ukonczone), None)
+    try:
+        wiek = int(teraz - log.stat().st_mtime)
+    except OSError:
+        wiek = None
+    return {"serwis_dziala": bool(dziala), "serwis_krok": krok if dziala else None, "serwis_ukonczone": ukonczone,
+            "serwis_wynik": wynik, "serwis_komunikat": komunikat[:200], "serwis_wiek_s": wiek}
+
+
+def pola_guzikow(s):
+    """Dodatkowe pola --json dla guzików „Wróć do miasta” i „Refill”. s = wynik stan()."""
+    poz = pozycja_postaci() if s["gra"] else None
+    dane = dane_serwisu()
+    miasto, w_depo = miasto_pozycji(poz, dane)
+    kolejnosc = (dane.get(miasto) or next(iter(dane.values()), {})).get("kolejnosc")
+    pola = {"pozycja": list(poz) if poz else None, "w_miescie": miasto, "w_depo": w_depo,
+            "plan_depo_dostepny": None if poz is None else plan_depo(poz) is not None}
+    pola.update(stan_wroc(instancja.S.stan, s["dziala"]))
+    pola.update(stan_serwisu(instancja.S.stan, kolejnosc=kolejnosc))
+    return pola
 
 
 # ---------- widok ----------

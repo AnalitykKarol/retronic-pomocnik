@@ -72,6 +72,15 @@ sprawdz("4b domyślna widzi tylko swój bot", instancja.procesy(r"(mozg|cavebot)
 sprawdz("4c dwa widzi tylko swój bot (nie powłokę z tekstem)", instancja.procesy(r"(mozg|cavebot)\.py", "dwa", proc=str(tmp)) == [102])
 sprawdz("4d trzy", instancja.procesy(r"(mozg|cavebot)\.py", "trzy", proc=str(tmp)) == [103])
 sprawdz("4e brak instancji = pusto", instancja.procesy(r"(mozg|cavebot)\.py", "cztery", proc=str(tmp)) == [])
+# 4f. skrypty powłoki (refill.sh: comm to "bash" albo nazwa skryptu): comm=None, wzór kotwiczy interpreter
+proces(106, "refill.sh", ["/bin/bash", "./refill.sh"], ["RETRONIC_ID=dwa"])
+proces(107, "vim", ["vim", "refill.sh"], ["RETRONIC_ID=dwa"])
+proces(108, "bash", ["bash", "/x/refill.sh", "--przerwij"], ["RETRONIC_ID=dwa"])
+proces(109, "bash", ["bash", "/x/refill.sh"], ["RETRONIC_ID=trzy"])
+RF = r"^(\S*/)?bash (\S*/)?refill\.sh *$"
+sprawdz("4f praca refill.sh: tylko ta instancja, bez edytora i bez --przerwij",
+        instancja.procesy(RF, "dwa", proc=str(tmp), comm=None) == [106] and instancja.procesy(RF, "trzy", proc=str(tmp), comm=None) == [109])
+sprawdz("4g domyślny filtr comm bez zmian (powłoka dalej odpada)", instancja.procesy(r"refill\.sh", "dwa", proc=str(tmp)) == [])
 
 # 5. moduły z RETRONIC_ID w podprocesie: ścieżki; bez ID: stare
 KOD = r"""
