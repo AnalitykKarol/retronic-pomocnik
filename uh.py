@@ -25,6 +25,8 @@ jest idempotentny i weryfikowany, a przerwanie w dowolnym miejscu kończy się p
 
 import time
 
+_ODSWIEZ_EKW_PORAZKA = [-1e9]    # monotonic ostatniego odswiez_ekwipunek bez wyniku
+
 # --- stałe (pokrętła integrowane w cavebot.py) ---------------------------------
 UH_AKTYWNY = 0               # 0 = wyłączone domyślnie
 UH_CZAR = "adura vita"       # słowa czaru runowego (tylko log/telemetria; rzut idzie hotkeyem)
@@ -968,7 +970,11 @@ def _przebieg(p, tylko_naprawa=False):
             # 17.10: po przeniesieniu tarczy kontenery już ją pokazują, a tablica ekwipunku jeszcze nie: raz wymuszamy
             # świeże szukanie tablicy w rdzeniu i liczymy od nowa, zanim przerwiemy (inaczej tarcza co 25 s w tę i z powrotem)
             p.odswiezono = True
-            ekw2 = _odswiez_ekw(env)
+            ekw2 = None
+            if time.monotonic() - _ODSWIEZ_EKW_PORAZKA[0] >= 300.0:     # po porażce nie blokujemy rdzenia skanem co runę
+                ekw2 = _odswiez_ekw(env)
+                if ekw2 is None:
+                    _ODSWIEZ_EKW_PORAZKA[0] = time.monotonic()
             p.rozb.discard("ekwipunek_vs_kontenery")
             if ekw2 is not None:
                 ekw = ekw2

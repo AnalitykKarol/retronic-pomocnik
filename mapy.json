@@ -1,77 +1,84 @@
 {
- "_opis": "Mapa = tylko miejsce i moby (gdzie i kogo bijemy). Zachowanie bota to osobny moduł: tryby.json. Mieszanie: MAPA=raty TRYB=sredni,runy ./uruchom.sh",
- "raty": {
-  "opis": "Thais, kanały: szczury (trasa thais_szczury_opt), start z z7 przechodzi dojście thais_dojscie",
-  "trasa": "thais_szczury_opt",
-  "potwory": "Rat",
-  "prog_hp": 30,
-  "dojscie": "thais_dojscie"
- },
- "trolle": {
-  "opis": "Troll cave z8+z9: pętla troll_cave (jak uruchom_trolle.sh), dojście z depo przy starcie z z7",
-  "trasa": "troll_cave",
-  "potwory": "Troll",
-  "prog_hp": 30,
-  "dojscie": "depo_troll_cave"
- },
- "trolle_pelny": {
-  "opis": "Troll cave: trasa troll_pelny (z8); dojście z depo kończy przy wejściu, bot idzie do najbliższego punktu trasy",
-  "trasa": "troll_pelny",
-  "potwory": "Troll",
-  "prog_hp": 30,
-  "dojscie": "depo_troll_cave"
- },
- "trolle_nowe": {
-  "opis": "Troll cave: nowa część (troll_nowa_czesc, z8)",
-  "trasa": "troll_nowa_czesc",
-  "potwory": "Troll,Orc,Orc Spearman,Orc Warrior",
-  "prog_hp": 30,
-  "dojscie": "depo_troll_cave"
- },
- "trolle_patrol": {
-  "opis": "Troll cave: patrol po miejscach z trasy/miejsca_troll.json (z8+z9)",
-  "trasa": "patrol:troll",
-  "potwory": "Troll,Orc,Orc Spearman,Orc Warrior",
-  "prog_hp": 30,
-  "dojscie": "depo_troll_cave"
- },
- "trolle_edron": {
-  "opis": "Edron troll cave z8: pętla edron_trolle_petla (nagrana 15.10), dojście z depo edron_depo_trolle",
-  "trasa": "edron_trolle_petla",
-  "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
-  "prog_hp": 30,
-  "dojscie": "edron_depo_trolle"
- },
- "trolle_edron_patrol": {
-  "opis": "Edron troll cave z8: patrol po spawnach z trasy/miejsca_edron.json (wymaga TRYB_PATROL=1), trasa awaryjna pętla edron_trolle_petla, dojście z depo edron_depo_trolle",
-  "trasa": "patrol:edron",
-  "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
-  "prog_hp": 30,
-  "dojscie": "edron_depo_trolle"
- },
- "rook": {
-  "opis": "Rookgaard, kanały z11: patrol po miejscach z trasy/miejsca.json (trasa awaryjna kanaly2), szczury; bez dojścia: postać musi stać w kanałach",
-  "trasa": "patrol",
-  "potwory": "Rat",
-  "prog_hp": 30
- },
- "wilki": {
-  "opis": "Thais, wilki przy mieście (z7): pętla wilki_thais wokół (32480,32166), bez dojścia",
-  "trasa": "wilki_thais",
-  "potwory": "Wolf,Rat",
-  "prog_hp": 30
- },
- "gobliny_edron": {
-  "opis": "Edron jaskinia goblinów z8: pętla gobliny_edron_z8_petla wygenerowana z mapy klienta 17.10 (12 przystanków, ok. 39 goblinów), start przy linie (33107,31846). Dojście z depo/powierzchni (z7) trasą gobliny_edron_z_depo (18.10); na z8 start na miejscu.",
-  "trasa": "gobliny_edron_z8_petla",
-  "potwory": "Goblin",
-  "prog_hp": 30,
-  "dojscie": "gobliny_edron_z_depo"
- },
- "stoj_trade": {
-  "opis": "Stoi w miejscu i sprzedaje na Trade (jeden punkt, bez chodzenia)",
-  "trasa": "stoj_trade",
-  "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
-  "prog_hp": 30
- }
+  "_opis": "Mapa = tylko miejsce i moby (gdzie i kogo bijemy). Zachowanie bota to osobny moduł: tryby.json. Mieszanie: MAPA=raty TRYB=sredni,runy ./uruchom.sh",
+  "raty": {
+    "opis": "Thais, kanały: szczury (trasa thais_szczury_opt), start z z7 przechodzi dojście thais_dojscie",
+    "trasa": "thais_szczury_opt",
+    "potwory": "Rat",
+    "prog_hp": 30,
+    "dojscie": "thais_dojscie"
+  },
+  "trolle": {
+    "opis": "Troll cave z8+z9: pętla troll_cave (jak uruchom_trolle.sh), dojście z depo przy starcie z z7",
+    "trasa": "troll_cave",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "depo_troll_cave"
+  },
+  "trolle_pelny": {
+    "opis": "Troll cave: trasa troll_pelny (z8); dojście z depo kończy przy wejściu, bot idzie do najbliższego punktu trasy",
+    "trasa": "troll_pelny",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "depo_troll_cave"
+  },
+  "trolle_nowe": {
+    "opis": "Troll cave: nowa część (troll_nowa_czesc, z8)",
+    "trasa": "troll_nowa_czesc",
+    "potwory": "Troll,Orc,Orc Spearman,Orc Warrior",
+    "prog_hp": 30,
+    "dojscie": "depo_troll_cave"
+  },
+  "trolle_patrol": {
+    "opis": "Troll cave: patrol po miejscach z trasy/miejsca_troll.json (z8+z9)",
+    "trasa": "patrol:troll",
+    "potwory": "Troll,Orc,Orc Spearman,Orc Warrior",
+    "prog_hp": 30,
+    "dojscie": "depo_troll_cave"
+  },
+  "trolle_edron": {
+    "opis": "Edron troll cave z8: pętla edron_trolle_petla (nagrana 15.10), dojście z depo edron_depo_trolle",
+    "trasa": "edron_trolle_petla",
+    "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
+    "prog_hp": 30,
+    "dojscie": "edron_depo_trolle"
+  },
+  "trolle_edron_patrol": {
+    "opis": "Edron troll cave z8: patrol po spawnach z trasy/miejsca_edron.json (wymaga TRYB_PATROL=1), trasa awaryjna pętla edron_trolle_petla, dojście z depo edron_depo_trolle",
+    "trasa": "patrol:edron",
+    "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
+    "prog_hp": 30,
+    "dojscie": "edron_depo_trolle"
+  },
+  "rook": {
+    "opis": "Rookgaard, kanały z11: patrol po miejscach z trasy/miejsca.json (trasa awaryjna kanaly2), szczury; bez dojścia: postać musi stać w kanałach",
+    "trasa": "patrol",
+    "potwory": "Rat",
+    "prog_hp": 30
+  },
+  "wilki": {
+    "opis": "Thais, wilki przy mieście (z7): pętla wilki_thais wokół (32480,32166), bez dojścia",
+    "trasa": "wilki_thais",
+    "potwory": "Wolf,Rat",
+    "prog_hp": 30
+  },
+  "gobliny_edron": {
+    "opis": "Edron jaskinia goblinów z8: pętla gobliny_edron_z8_petla wygenerowana z mapy klienta 17.10 (12 przystanków, ok. 39 goblinów), start przy linie (33107,31846). Dojście z depo/powierzchni (z7) trasą gobliny_edron_z_depo (18.10); na z8 start na miejscu.",
+    "trasa": "gobliny_edron_z8_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "gobliny_edron_z_depo"
+  },
+  "stoj_trade": {
+    "opis": "Stoi w miejscu i sprzedaje na Trade (jeden punkt, bez chodzenia)",
+    "trasa": "stoj_trade",
+    "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
+    "prog_hp": 30
+  },
+  "gobliny_edron_z9": {
+    "opis": "Edron jaskinia goblinów z9 (-2): pętla gobliny_edron_z9_petla; dojście z depo/powierzchni trasą z_depo + z8 do dziury (33092,31837) i zejście na z9 (19.10)",
+    "trasa": "gobliny_edron_z9_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "gobliny_edron_z9_dojscie"
+  }
 }

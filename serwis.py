@@ -434,6 +434,9 @@ def idz_krokami(postac, tr, cel, tolerancja=0, maks_zlych=5, log=print):
     return poz[2] == cel[2] and _cheb(poz, cel) <= tolerancja
 
 
+KLIK_MAKS_POL = 5      # ile pól naprzód klikamy naraz (widok mapy ma ±7 x ±5 pól)
+
+
 def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, unik=()):
     """Marsz po kafelkach na jednym piętrze, bez chodzika mozg (ten ma ~20 s inicjalizacji na odcinek i kończy trasy
     jednopunktowe od razu): BFS po polach chodliwych mapy (bez schodów i dziur poza celem), omija pola zajęte przez innych
@@ -454,7 +457,15 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
         f = mp.flagi(x, y, z)
         if not (f & 1) or (f & 4) or (x, y) in unik:
             return None
-        return 6.0 if f & 2 else 1.0
+        if f & 2:
+            # schody/dziury mają odpowiednik z flagą 2 na piętrze nad lub pod; krzesła i meble go nie mają (wtedy chodzimy)
+            for zz in (z - 1, z + 1):
+                for ddx in (-1, 0, 1):
+                    for ddy in (-1, 0, 1):
+                        if mp.flagi(x + ddx, y + ddy, zz) & 2:
+                            return None
+            return 6.0
+        return 1.0
 
     while time.monotonic() - t0 < maks_s:
         poz = tuple(postac.pozycja())
@@ -505,6 +516,38 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
             sciezka.append(meta)
             meta = skad[meta]
         sciezka.reverse()
+        # klik w mapę (klient sam idzie ciągiem, kilka razy szybciej niż krok po kroku): najdalsze pole ścieżki w zasięgu
+        # widoku, do którego wszystkie pola są zwykłe (bez flagi 2) i wolne
+        dalej = 1
+        while (dalej < len(sciezka) - 1 and dalej < KLIK_MAKS_POL
+               and koszt(sciezka[dalej + 1][0], sciezka[dalej + 1][1], poz[2]) == 1.0):
+            dalej += 1
+        if dalej >= 2:
+            import ekran
+            cel_kl = sciezka[dalej]
+            try:
+                ekran.klik_pola(cel_kl[0] - poz[0], cel_kl[1] - poz[1])
+            except ValueError:
+                dalej = 1
+            else:
+                t1, ost, stoi = time.monotonic(), poz, 0
+                while time.monotonic() - t1 < 0.8 + 0.45 * dalej:
+                    time.sleep(0.12)
+                    teraz_poz = tuple(postac.pozycja())
+                    if teraz_poz[2] != poz[2]:
+                        log(f"serwis: klik na {cel_kl} zmienił piętro ({poz[2]} -> {teraz_poz[2]})")
+                        return False
+                    if teraz_poz[:2] == cel_kl[:2]:
+                        break
+                    stoi = stoi + 1 if teraz_poz == ost else 0
+                    ost = teraz_poz
+                    if stoi >= 4 and teraz_poz != poz:
+                        break
+                    if stoi >= 6:
+                        break
+                if tuple(postac.pozycja())[:2] != poz[:2]:
+                    continue
+                dalej = 1                        # klik nic nie ruszył: ten krok strzałką
         nast = sciezka[1]
         d = (nast[0] - poz[0], nast[1] - poz[1])
         nowa = postac.krok(klawisz[d])

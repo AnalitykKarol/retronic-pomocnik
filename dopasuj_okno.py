@@ -79,7 +79,7 @@ def skaluj_wlaczone(env=None):
 
 
 def bot_dziala(proc="/proc"):
-    """True, gdy chodzi bot tej maszyny (mozg.py albo cavebot.py w argv jakiegokolwiek procesu python). Wtedy sesja musi
+    """True, gdy chodzi bot tej maszyny (mozg.py, cavebot.py albo serwis.py w argv jakiegokolwiek procesu python). Wtedy sesja musi
     mieć piksele wzorcowe 1175x910 w skali 1 (ekran.py szuka mapy w pikselach), więc SKALUJ ustępuje."""
     try:
         wpisy = os.listdir(proc)
@@ -94,7 +94,7 @@ def bot_dziala(proc="/proc"):
         except OSError:
             continue
         if argv and os.path.basename(argv[0]).startswith(b"python") and any(
-                os.path.basename(a) in (b"mozg.py", b"cavebot.py") for a in argv[1:]):
+                os.path.basename(a) in (b"mozg.py", b"cavebot.py", b"serwis.py") for a in argv[1:]):
             return True
     return False
 

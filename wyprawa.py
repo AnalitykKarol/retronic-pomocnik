@@ -54,9 +54,13 @@ BAZY = ("troll", "thais_kanaly")       # plany wypadu (wypad.PLANY) kończące s
 # 15.10 obrona PK: plany WYŁĄCZNIE do ucieczki do depo i powrotu z niego (nie biorą udziału w zwykłej wyprawie po zapasy:
 # BAZY ich nie zawiera). "do" = z łowiska do depo, "z" = z depo na łowisko (oba nagrane, edron_*.json)
 PLANY_PK = (
-    {"nazwa": "edron", "do": "edron_do_depo.json", "z": "edron_depo_trolle.json", "npc": None, "prefix": False},
+    {"nazwa": "edron", "do": "edron_do_depo.json", "z": "edron_depo_trolle.json", "npc": None, "prefix": False,
+     "wyjscia": (((33092, 31837, 9), (33092, 31838, 8), "gobliny_edron_do_depo.json"),)},      # 19.10: _baza_dojscie wybiera "edron" także z goblinów z9
     # 17.10: jaskinia goblinów Edron z8 (trasy wygenerowane z mapy klienta; lina na (33107,31847,z8), stanie (33107,31846,z8), lądowanie (33107,31848,z7): sprawdzone w grze 17.10 23:15)
-    {"nazwa": "gobliny_edron", "do": "gobliny_edron_do_depo.json", "z": "gobliny_edron_z_depo.json", "npc": None, "prefix": False},
+    # 19.10: pętla goblinów jest cała na z9 (bez przejścia pięter), więc "wyjscia" = [pole liny na z9, lądowanie na z8]:
+    # lina w górę pod dziurą z8 (33092,31837) (mapa: "pewne"); z8 dalej A* do nagranej trasy "do" (start (33106,31849,z8))
+    {"nazwa": "gobliny_edron", "do": "gobliny_edron_do_depo.json", "z": "gobliny_edron_z_depo.json", "npc": None, "prefix": False,
+     "wyjscia": (((33092, 31837, 9), (33092, 31838, 8), "gobliny_edron_do_depo.json"),)},
 )
 BAZY_PK = BAZY + tuple(p["nazwa"] for p in PLANY_PK)     # plany dostępne dla ucieczki PK (troll: istniejące depo Thais)
 PK_PLAN_ZASIEG = 80                    # pola: ucieczka PK startuje z dalszej okolicy trasy niż zwykły wypad (zasięg 40)
@@ -355,11 +359,12 @@ def _przejscie_odwrotne(mapa, a, b):
     return None
 
 
-def droga_do_depo(poz, petla, do, zalew, mapa=None, limit_s=None):
+def _droga_do_depo(poz, petla, do, zalew, mapa=None, limit_s=None):
     """Najkrótsza droga z `poz` do końca nagranej trasy `do` (depo). `petla` = zamknięta trasa łowiska (cb.punkty)
     albo []. `zalew(a, cele)` -> {cel: punkty a..cel na jednym piętrze} dla osiągalnych celów (jedno przeszukanie na
     wielu celów). -> (punkty, koszt, opis) albo None. Wynik jest ciągły: kolejne punkty to kroki nagranej trasy, marsz
-    po piętrze, nagrane przejście albo przejście z pietra.kandydaci."""
+    po piętrze, nagrane przejście albo przejście z pietra.kandydaci.
+"""
     t_koniec = time.monotonic() + (DEPO_LIMIT_S if limit_s is None else limit_s)
     poz = (int(poz[0]), int(poz[1]), int(poz[2]))
     do = [tuple(q) for q in do]
@@ -489,6 +494,83 @@ def droga_do_depo(poz, petla, do, zalew, mapa=None, limit_s=None):
         if not wyn or wyn[-1] != q:
             wyn.append(q)
     return wyn, k, opis
+
+def _po_petli_do_liny(poz, petla, pole, ext):
+    """Gdy `poz` leży na pętli łowiska (jedno piętro, bez przejść), dojście do pola liny `pole` (<= 1 pole od punktu
+    pętli) krótszym kierunkiem po pętli, potem `ext` (lina i dalej). (punkty, koszt, opis) albo None."""
+    p = [tuple(q) for q in (petla or [])]
+    if len(p) < 3 or poz[2] != pole[2] or any(q[2] != pole[2] for q in p):
+        return None
+    blisko = min(cheb(q, poz) for q in p)
+    if blisko > 4:                         # za daleko od pętli: zwykłe szukanie po mapie
+        return None
+    n = len(p)
+    cele = [t for t, q in enumerate(p) if cheb(q, pole) <= 1]
+    if not cele:
+        return None
+    najl = None
+    for i in [i for i, q in enumerate(p) if cheb(q, poz) == blisko]:
+        for t in cele:
+            for kier in (1, -1):
+                d = ((t - i) * kier) % n
+                if najl is None or d < najl[0]:
+                    najl = (d, i, kier)
+    d, i, kier = najl
+    pts = ([poz] if p[i] != poz else []) + [p[(i + kier * m) % n] for m in range(d + 1)]
+    if pts[-1] != pole and cheb(pts[-1], pole) > 1:
+        return None
+    pts = pts + [q for q in ext if q != pts[-1]]
+    return pts, koszt_punktow(pts), f"po pętli {d} pól do liny {pole}"
+
+
+def droga_do_depo(poz, petla, do, zalew, mapa=None, limit_s=None, wyjscia=()):
+    """Jak _droga_do_depo, a gdy pętla łowiska nie ma przejścia pięter (Edron gobliny z9), `wyjscia` =
+    ((pole liny na piętrze poz, lądowanie piętro wyżej), ...) dodaje wariant: nagrana trasa "do" poprzedzona liną
+    pole -> lądowanie i marszem po górnym piętrze (zalew) do niej. Wygrywa tańszy wariant."""
+    wyn = None
+    do_t = [tuple(q) for q in do]
+    szybko = False
+    do_baza = do_t
+    for wyj in wyjscia:
+        pole, lad = wyj[0], wyj[1]
+        pole = (int(pole[0]), int(pole[1]), int(pole[2]))
+        lad = (int(lad[0]), int(lad[1]), int(lad[2]))
+        do_t = do_baza
+        if len(wyj) > 2:                    # wyjście ma własną trasę dalszą (plan "edron" startuje daleko od liny)
+            try:
+                do_t = [tuple(int(v) for v in q) for q in json.loads((TRASY / wyj[2]).read_text())]
+            except (OSError, ValueError, TypeError):
+                continue
+        if pole[2] != int(poz[2]) or lad[2] >= pole[2]:
+            continue
+        try:
+            gora = {t: p for t, p in (zalew(lad, [q for q in do_t if q[2] == lad[2]]) or {}).items()
+                    if all(q[2] == lad[2] for q in p)}
+        except bot.Zatrzymano:
+            raise
+        except Exception:
+            continue
+        for j, q in enumerate(do_t):
+            wy = gora.get(q)
+            if wy is None and q[2] == lad[2] and cheb(lad, q) <= 1:
+                wy = [lad, q]
+            if wy:
+                stoi = (pole[0], pole[1] - 1, pole[2])      # lina: stoimy pole na północ od pola liny (jak z8 -> z7 17.10)
+                ext = [stoi, lad] + [tuple(r) for r in wy[1:]] + do_t[j + 1:]
+                alt = _po_petli_do_liny(tuple(int(v) for v in poz), petla, stoi, ext)     # szybko: stoimy na pętli
+                if alt is not None:
+                    szybko = True
+                else:
+                    alt = _droga_do_depo(poz, petla, ext, zalew, mapa, limit_s)
+                if alt is not None and (wyn is None or alt[1] < wyn[1]):
+                    wyn = (alt[0], alt[1], alt[2] if szybko else f"wyjście liną {pole} -> {lad}; {alt[2]}")
+                break
+    if wyn is None or not szybko:          # stoimy poza pętlą albo brak wyjść: zwykłe szukanie (pętla/trasa "do"), tańszy wygrywa
+        baza = _droga_do_depo(poz, petla, do, zalew, mapa, limit_s)
+        if baza is not None and (wyn is None or baza[1] < wyn[1]):
+            wyn = baza
+    return wyn
+
 
 # --- operacje na żywo ----------------------------------------------------------
 
@@ -1286,7 +1368,7 @@ class Wyprawa(Wypad):
         biez = tuple(do[-1])
         pts = None
         if self._z_poz is not None and self._plan_tylko_pk(baza_nazwa):
-            pts = self._droga_z_pozycji(self._z_poz, do)       # 16.10: najkrótsza droga z bieżącego miejsca, nie od początku "do"
+            pts = self._droga_z_pozycji(self._z_poz, do, baza_nazwa)       # 16.10: najkrótsza droga z bieżącego miejsca, nie od początku "do"
         if pts is None:
             pts = self._do_depo_odwrocona(do, cel)       # z jaskini prosto do depo (nie przez Gorna)
         if pts is None:
@@ -1336,13 +1418,18 @@ class Wyprawa(Wypad):
                 return []
         return pts
 
-    def _droga_z_pozycji(self, poz, do):
+    @staticmethod
+    def _wyjscia_planu(baza_nazwa):
+        return next((p.get("wyjscia", ()) for p in PLANY_PK if p["nazwa"] == baza_nazwa), ())
+
+    def _droga_z_pozycji(self, poz, do, baza_nazwa=None):
         """Punkty najkrótszej drogi z `poz` do depo (koniec `do`) albo None (wtedy stara droga: cała trasa "do")."""
         mapa = getattr(self.cb, "mapa", None)
         if mapa is None:
             return None
         try:
-            wyn = droga_do_depo(poz, self._petla_lowiska(), [_punkt(q) for q in do], self._zalew_pietra, mapa)
+            wyn = droga_do_depo(poz, self._petla_lowiska(), [_punkt(q) for q in do], self._zalew_pietra, mapa,
+                                wyjscia=self._wyjscia_planu(baza_nazwa))
         except bot.Zatrzymano:
             raise
         except Exception as e:
