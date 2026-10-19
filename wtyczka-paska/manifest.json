@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "charlie.retronic",
+  "name": "Retronic",
+  "version": "1.0.0",
+  "author": "Charlie",
+  "license": "MIT",
+  "description": "Status i start/stop botów Retronic (każda instancja osobno) z paska Omarchy.",
+  "kinds": ["bar-widget"],
+  "activation": "on-demand",
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Retronic",
+    "description": "Ikona RT w kolorze najgorszego stanu botów; panel z wierszem na instancję i osobnym Stop/Start.",
+    "category": "Games",
+    "aliases": ["retronic", "bot"],
+    "allowMultiple": false,
+    "defaults": {
+      "helperDir": "~/Games/Retronic/pomocnik",
+      "refreshIntervalSec": 5
+    },
+    "schema": [
+      { "key": "helperDir", "type": "path", "label": "Katalog pomocnika Retronic", "defaultValue": "~/Games/Retronic/pomocnik", "description": "Katalog z panel.py, zatrzymaj.sh, uruchom.sh i instancje/." },
+      { "key": "refreshIntervalSec", "type": "integer", "label": "Odświeżanie statusu (sekundy)", "min": 2, "max": 60, "step": 1, "defaultValue": 5 }
+    ]
+  }
+}
