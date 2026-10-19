@@ -333,8 +333,13 @@ Dozwolone akcje (najwyżej 4):
 
 Czasem dostajesz ZDARZENIE: coś nietypowego, co skrypt zgłosił (z ostatnimi liniami jego logu).
 Wtedy zdecyduj, co z nim zrobić:
-- brak_okna_lootu / nie_doszedl_do_zwlok: jeśli obok nie ma potworów, sprobuj_loot raz na tych zwłokach;
-  gdy powtarza się często, notatka i ignoruj_zdarzenie.
+- brak_okna_lootu / nie_doszedl_do_zwlok: jeśli obok nie ma potworów, sprobuj_loot raz na tych zwłokach.
+  Polecenie właściciela (19.10): loot, który nie działa przez dłuższy czas (kilka zdarzeń z rzędu, dziesiątki w godzinie),
+  to AWARIA, nie zwykły szum: nie ignoruj go i nie wyciszaj (ignoruj_zdarzenie tylko na 60-120 s, i tylko po próbie).
+  Skrypt umie otwierać worki, więc sam doprowadź do otwarcia okna łupu i zdiagnozuj przyczynę: sprobuj_loot na kolejnych
+  zwłokach, sprawdź w kontenerach i na zrzucie, czy okno łupu w ogóle się rysuje (okno_niewidoczne = pamięć gry ma otwarty
+  kontener, ale na ekranie go nie widać) i czy plecaki/okna się mieszczą. Opisz w notatce, co zaobserwowałeś (nie
+  "ignorować"), a przy braku postępu zapisz to jako problem do rozwiązania przez właściciela i pauza_bota.
 - punkt_nieosiagalny / odpuszczone_poscigi: zwykle przeszkoda (gracz, potwór, drzwi); idz_do na wolne pole
   obok albo pauza_bota na chwilę; gdy to stały problem trasy, notatka.
 - obcy_gracz: patrz zasady wyżej; zwykły gracz bez zaczepki = kontynuuj (bot go już ignoruje). Czaszkę czytaj
@@ -488,7 +493,7 @@ class Zdarzenia:
     WZORY = [
         (re.compile(r"Cel (.+?) zabity na \((-?\d+), (-?\d+), (-?\d+)\)"), "zabity"),
         (re.compile(r"^\[LOOT\]\s*\((-?\d+), (-?\d+), (-?\d+)\)"), "loot_start"),
-        (re.compile(r"Loot: brak_okna"), "brak_okna_lootu"),
+        (re.compile(r"Loot: (brak_okna|okno_niewidoczne)"), "brak_okna_lootu"),   # 19.10: okno_niewidoczne też (8 h bez lootu, nikt nie pytał)
         (re.compile(r"Loot: (brak_plecaka|pelny_plecak)"), "problem_plecaka"),
         (re.compile(r"Loot: ok"), "loot_ok"),
         (re.compile(r"Nie doszedłem do zwłok \((-?\d+), (-?\d+), (-?\d+)\)"), "nie_doszedl_do_zwlok"),
