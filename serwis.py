@@ -12,6 +12,7 @@ import argparse
 import heapq
 import json
 import os
+import random
 import sys
 import time
 from pathlib import Path
@@ -384,6 +385,7 @@ def przejdz_schody(postac, mp, akcje, chodz1, a, zb, maks_s=90.0, log=print):
             nieudane[klucz] = nieudane.get(klucz, 0) + 1
             time.sleep(1.0)
             continue
+        _czekaj_koniec_kroku()            # ostatni krok dojścia mógł jeszcze trwać: strzałka w trakcie kroku bywa odrzucana
         postac.krok(kier)
         time.sleep(0.8)
         poz = tuple(postac.pozycja())
@@ -393,6 +395,43 @@ def przejdz_schody(postac, mp, akcje, chodz1, a, zb, maks_s=90.0, log=print):
         nieudane[klucz] = nieudane.get(klucz, 0) + 1
         log(f"schody: krok {kier} z {S[:2]} bez przejścia (stoję w {poz})")
     return False
+
+
+# --- tempo marszu (19.10: postać krążyła w 4 polach, bo kolejne strzałki szły w trakcie trwającego kroku) -------
+KROK_S_NA_PREDKOSC = 0.047      # czas kroku = bajt prędkości pola z mapy * 0,047 s (jak cavebot.POSCIG_KROK_S_NA_PREDKOSC)
+KROK_S_DOMYSLNY = 0.55          # gdy mapa nie zna prędkości pola
+KROK_S_MIN, KROK_S_MAX = 0.30, 1.20
+SKALA_KROKU_MAX = 1.6           # o tyle (najwyżej) wydłużamy oczekiwany czas kroku po nieudanych krokach
+MAKS_ZLYCH_Z_RZEDU = 6          # tyle kolejnych nieudanych kroków przerywa marsz (porażka + STOP zamiast krążenia)
+MAKS_WIZYT_POLA = 3             # czwarte wejście na to samo pole w jednym marszu = krążenie, przerywamy
+ZABLOK_POLA_S = 30.0            # pole, na którym krok zawiódł dwa razy, omijamy tak długo (nie 5 s: stąd pętla A-B-A-B)
+KARA_ZAKRETU, KARA_ZAWROTU = 0.05, 0.5   # remis dróg rozstrzyga prosta linia; zawrót prawie nigdy (nie wygrywa z dłuższą drogą)
+_RUCH = {"koniec": 0.0, "skala": 1.0}    # kiedy kończy się trwający krok (monotonic) i mnożnik czasu kroku
+
+
+def _czas_kroku(mp, pole):
+    """Szacunek czasu kroku (s) na `pole` (x, y, z) z prędkości pola na mapie, razy bieżąca skala (rośnie po nieudanych krokach)."""
+    v = 0
+    try:
+        p = mp.pole(pole[0], pole[1], pole[2])
+        if p and 0 < p[2] <= 60:
+            v = p[2]
+    except Exception:
+        pass
+    t = v * KROK_S_NA_PREDKOSC if v else KROK_S_DOMYSLNY
+    return min(KROK_S_MAX, max(KROK_S_MIN, t)) * _RUCH["skala"]
+
+
+def _po_kroku(czas_kroku=None):
+    """Zapamiętuje, kiedy skończy się krok, który właśnie się zaczął (Postac.krok wraca ok. 0,06 s po zmianie pozycji)."""
+    _RUCH["koniec"] = time.monotonic() - 0.06 + (czas_kroku if czas_kroku is not None else KROK_S_DOMYSLNY * _RUCH["skala"])
+
+
+def _czekaj_koniec_kroku():
+    """Następną strzałkę wysyłamy dopiero, gdy trwający krok się skończył: klawisz w trakcie kroku bywa odrzucany."""
+    dt = _RUCH["koniec"] - time.monotonic()
+    if dt > 0:
+        time.sleep(dt + random.uniform(0.0, 0.05))
 
 
 def idz_krokami(postac, tr, cel, tolerancja=0, maks_zlych=5, log=print):
@@ -421,9 +460,11 @@ def idz_krokami(postac, tr, cel, tolerancja=0, maks_zlych=5, log=print):
             if dx and dy:                       # skos numpadem bywa bez skutku: najpierw krok w poziomie, potem w pionie
                 dy = 0 if (zle % 2 == 0) else dy
                 dx = dx if dy == 0 else 0
+            _czekaj_koniec_kroku()
             nowa = postac.krok(klawisz[(dx, dy)])
             if nowa is not None and (nowa[0], nowa[1]) == (poz[0] + dx, poz[1] + dy):
                 zle = 0                         # liczymy tylko kolejne nieudane kroki
+                _po_kroku()
             else:
                 zle += 1
                 log(f"serwis: krok ({dx},{dy}) z {poz[:2]} bez skutku ({zle}/{maks_zlych})")
@@ -434,16 +475,24 @@ def idz_krokami(postac, tr, cel, tolerancja=0, maks_zlych=5, log=print):
     return poz[2] == cel[2] and _cheb(poz, cel) <= tolerancja
 
 
-def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, unik=()):
+def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, unik=(), stan=None):
     """Marsz po kafelkach na jednym piętrze, bez chodzika mozg (ten ma ~20 s inicjalizacji na odcinek i kończy trasy
-    jednopunktowe od razu): BFS po polach chodliwych mapy (bez schodów i dziur poza celem), omija pola zajęte przez innych
-    graczy/stwory i pola, na których krok się nie udał (zdejmowane po kilku sekundach), jeden krok strzałką, kontrola
-    pozycji. Gdy cały dojazd zablokowany przez ludzi, czeka i planuje od nowa. True = stoimy w `tolerancja` pól od celu,
-    False = brak planu (nieznane pola mapy) albo przekroczony czas."""
-    import heapq
+    jednopunktowe od razu): Dijkstra po polach chodliwych mapy (bez schodów i dziur poza celem; remis dróg rozstrzyga
+    prosta linia, zawrotu unikamy), omija pola zajęte przez innych graczy/stwory i pola, na których krok zawiódł dwa razy,
+    jeden krok strzałką, kontrola pozycji. Gdy cały dojazd zablokowany przez ludzi, czeka i planuje od nowa.
+
+    Tempo (19.10): kolejną strzałkę wysyłamy dopiero po końcu trwającego kroku (czas z prędkości pola, rośnie po
+    nieudanych krokach): klawisz w trakcie kroku bywa odrzucany, a stary kod wysyłał go zaraz po zmianie pozycji i krążył.
+    Nieudany krok jest logowany; pierwszy zawód na polu = ponowienie po dokończeniu kroku, drugi = pole zablokowane na
+    ZABLOK_POLA_S. Bezpieczniki: MAKS_ZLYCH_Z_RZEDU nieudanych kroków z rzędu albo czwarte wejście na to samo pole
+    przerywa marsz (False, `stan["utkniecie"]` = powód): lepiej porażka i STOP niż postać kręcąca się w kółko.
+    True = stoimy w `tolerancja` pól od celu, False = brak planu (nieznane pola mapy), utknięcie albo przekroczony czas."""
     cel = tuple(cel)
+    kierunki = [(0, -1), (0, 1), (-1, 0), (1, 0)]
     klawisz = {(0, -1): "Up", (0, 1): "Down", (-1, 0): "Left", (1, 0): "Right"}
-    zablok, t0, ost_log = {}, time.monotonic(), 0.0
+    zablok, zawiodlo, wizyty = {}, {}, {}
+    t0, ost_log = time.monotonic(), 0.0
+    zle_z_rzedu, ok_krokow, zle_razem, ost_kier = 0, 0, 0, None
 
     unik = {tuple(u)[:2] for u in unik if tuple(u)[2] == cel[2]}
 
@@ -456,12 +505,23 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
             return None
         return 6.0 if f & 2 else 1.0
 
+    def koniec(wynik, powod=None):
+        dt = time.monotonic() - t0
+        if powod and stan is not None:
+            stan["utkniecie"] = powod
+        if ok_krokow or zle_razem or powod:
+            log(f"serwis: marsz do {cel[:2]}: {ok_krokow} kroków w {dt:.1f} s"
+                f"{f' ({dt / ok_krokow:.2f} s/krok)' if ok_krokow else ''}, nieudanych {zle_razem}"
+                f"{f', PRZERWANY: {powod}' if powod else ''}")
+        return wynik
+
     while time.monotonic() - t0 < maks_s:
         poz = tuple(postac.pozycja())
         if poz[2] != cel[2]:
-            return False
+            return koniec(False)
         if _cheb(poz, cel) <= tolerancja:
-            return True
+            return koniec(True)
+        wizyty.setdefault((poz[0], poz[1]), 1)       # pole, z którego ruszamy, liczy się jako pierwsze wejście
         teraz = time.monotonic()
         try:
             zajete = {(q.get("x"), q.get("y")) for q in akcje._stwory() if q.get("z") == poz[2] and q.get("nazwa") != akcje.nick}
@@ -469,52 +529,95 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
             zajete = set()
         zajete |= {pole for pole, do in zablok.items() if do > teraz}
         zajete.discard((poz[0], poz[1]))
-        skad, d = {(poz[0], poz[1]): None}, {(poz[0], poz[1]): 0.0}
-        kol, meta = [(0.0, (poz[0], poz[1]))], None
+        start = (poz[0], poz[1])
+        skad, d = {(start, ost_kier): None}, {(start, ost_kier): 0.0}
+        kol, meta, n = [(0.0, 0, start, ost_kier)], None, 0
         marg = 8
         xmin, xmax = min(poz[0], cel[0]) - marg, max(poz[0], cel[0]) + marg
         ymin, ymax = min(poz[1], cel[1]) - marg, max(poz[1], cel[1]) + marg
         while kol:
-            cc, c = heapq.heappop(kol)
-            if cc > d.get(c, 1e18):
+            cc, _, c, kc = heapq.heappop(kol)
+            if cc > d.get((c, kc), 1e18):
                 continue
             if max(abs(c[0] - cel[0]), abs(c[1] - cel[1])) <= tolerancja:
-                meta = c
+                meta = (c, kc)
                 break
-            for dx, dy in klawisz:
+            for ki, (dx, dy) in enumerate(kierunki):
                 q = (c[0] + dx, c[1] + dy)
                 if not (xmin <= q[0] <= xmax and ymin <= q[1] <= ymax) or q in zajete:
                     continue
                 k = koszt(q[0], q[1], poz[2])
                 if k is None:
                     continue
-                if cc + k < d.get(q, 1e18):
-                    d[q] = cc + k
-                    skad[q] = c
-                    heapq.heappush(kol, (cc + k, q))
+                if kc is not None and ki != kc:
+                    k += KARA_ZAWROTU if (dx, dy) == (-kierunki[kc][0], -kierunki[kc][1]) else KARA_ZAKRETU
+                if cc + k < d.get((q, ki), 1e18):
+                    d[(q, ki)] = cc + k
+                    skad[(q, ki)] = (c, kc)
+                    n += 1
+                    heapq.heappush(kol, (cc + k, n, q, ki))
         if meta is None:
             if teraz - ost_log > 8:
                 log(f"serwis: brak drogi z {poz[:2]} do {cel[:2]} (ludzie na drodze albo nieznane pola), czekam")
                 ost_log = teraz
             if not zajete and not zablok:
-                return False                      # nic nie blokuje, a drogi nie ma: mapa nie zna pól
+                return koniec(False)              # nic nie blokuje, a drogi nie ma: mapa nie zna pól
             time.sleep(1.0)
             continue
         sciezka = []
         while meta is not None:
-            sciezka.append(meta)
+            sciezka.append(meta[0])
             meta = skad[meta]
         sciezka.reverse()
         nast = sciezka[1]
-        d = (nast[0] - poz[0], nast[1] - poz[1])
-        nowa = postac.krok(klawisz[d])
+        dd = (nast[0] - poz[0], nast[1] - poz[1])
+        czas_kroku = _czas_kroku(mp, (nast[0], nast[1], poz[2]))
+        _czekaj_koniec_kroku()
+        nowa = postac.krok(klawisz[dd])
         if nowa is not None and nowa[2] != poz[2]:
             log(f"serwis: krok na {nast} zmienił piętro ({poz[2]} -> {nowa[2]})")
-            return False
-        if nowa is None or (nowa[0], nowa[1]) != nast:
-            zablok[nast] = time.monotonic() + 5.0
-            time.sleep(0.3)
-    return False
+            return koniec(False)
+        if nowa is not None and (nowa[0], nowa[1]) == nast:
+            zle_z_rzedu, ok_krokow, ost_kier = 0, ok_krokow + 1, kierunki.index(dd)
+            wizyty[nast] = wizyty.get(nast, 0) + 1
+            _RUCH["skala"] = max(1.0, _RUCH["skala"] * 0.995)     # skala po zawodach wraca do normy powoli (połowa po ok. 140 udanych krokach)
+            _po_kroku(czas_kroku)
+            if wizyty[nast] > MAKS_WIZYT_POLA:
+                powod = f"krążę: {wizyty[nast]}. wejście na pole {nast}"
+                log(f"serwis: {powod}, przerywam marsz")
+                return koniec(False, powod)
+            continue
+        # krok bez skutku (albo postać trafiła gdzie indziej): log, ponowienie po dokończeniu kroku, potem blokada pola
+        zle_z_rzedu += 1
+        zle_razem += 1
+        zawiodlo[nast] = zawiodlo.get(nast, 0) + 1
+        jest = None if nowa is None else tuple(nowa[:2])
+        akcja = "ponowię po dokończeniu kroku" if zawiodlo[nast] < 2 else f"blokuję pole na {ZABLOK_POLA_S:.0f} s"
+        log(f"serwis: krok {klawisz[dd]} z {poz[:2]} -> {nast} bez skutku (po kroku: {jest}), "
+            f"nieudane z rzędu {zle_z_rzedu}/{MAKS_ZLYCH_Z_RZEDU}, na tym polu {zawiodlo[nast]}x, {akcja}")
+        if zle_z_rzedu >= MAKS_ZLYCH_Z_RZEDU:
+            now = tuple(postac.pozycja())[:2]
+            powod = f"{MAKS_ZLYCH_Z_RZEDU} nieudanych kroków z rzędu (stoję w {now}, cel {cel[:2]})"
+            log(f"serwis: {powod}, przerywam marsz")
+            return koniec(False, powod)
+        if zawiodlo[nast] >= 2:
+            zablok[nast] = time.monotonic() + ZABLOK_POLA_S
+        _RUCH["skala"] = min(SKALA_KROKU_MAX, _RUCH["skala"] * 1.25)      # krok trwa dłużej, niż zakładaliśmy
+        _RUCH["koniec"] = time.monotonic() + _czas_kroku(mp, (nast[0], nast[1], poz[2])) + 0.15
+    return koniec(False)
+
+
+def marsz(postac, mp, akcje, laczniki, punkty, tolerancja=0, log=print, zapasowy=None):
+    """Jeden odcinek na jednym piętrze: idz_pewnie, a gdy brak planu albo czas minął, `zapasowy(punkty, tolerancja)` (chodzik
+    mozg). Utknięcie (nieudane kroki z rzędu, krążenie) to SerwisBlad: serwis kończy się porażką i STOP-em, bez zapasowego."""
+    cel = tuple(punkty[-1])
+    stan = {}
+    if tuple(postac.pozycja())[2] == cel[2]:
+        if idz_pewnie(postac, mp, akcje, cel, tolerancja, log=log, unik=[p for l in laczniki for p in l], stan=stan):
+            return True
+        if stan.get("utkniecie"):
+            raise SerwisBlad("marsz", f"{stan['utkniecie']}; nie kręcę się dalej")
+    return zapasowy(punkty, tolerancja) if zapasowy else False
 
 
 def _czekaj_na_ekran_gry(maks_s=45.0, wzorzec=(1175, 910)):
@@ -563,12 +666,10 @@ def main(argv=None):
 
     def chodz_proste(punkty, tolerancja=0):
         import mozg
-        cel = tuple(punkty[-1])
-        if tuple(postac.pozycja())[2] == cel[2] and idz_pewnie(postac, mp, akcje, cel, tolerancja, log=print,
-                                                              unik=[p for l in planer.lacz for p in l]):
-            return True
-        return mozg.przejdz_dojscie(postac, punkty, prog_hp=40, jedzenie=None, potwory=None, graczy=True,
-                                    stop_przy_graczach=False, tolerancja=tolerancja, proby=4)
+        return marsz(postac, mp, akcje, planer.lacz, punkty, tolerancja, log=print,
+                     zapasowy=lambda pts, tol: mozg.przejdz_dojscie(postac, pts, prog_hp=40, jedzenie=None, potwory=None,
+                                                                    graczy=True, stop_przy_graczach=False, tolerancja=tol,
+                                                                    proby=4))
 
     def chodz(punkty, tolerancja=0):
         """Trasa z przejściami pięter: dojście do okolicy schodów, przejście własnym kodem (wiele pól i stron wejścia,
