@@ -1,0 +1,13 @@
+singleton Theme 1.0 Theme.qml
+Backend 1.0 Backend.qml
+Btn 1.0 Btn.qml
+Chip 1.0 Chip.qml
+CharCard 1.0 CharCard.qml
+Job 1.0 Job.qml
+MapaView 1.0 MapaView.qml
+NavItem 1.0 NavItem.qml
+RatunekView 1.0 RatunekView.qml
+Scenariusz 1.0 Scenariusz.qml
+SectionHeader 1.0 SectionHeader.qml
+Sidebar 1.0 Sidebar.qml
+StatBlock 1.0 StatBlock.qml

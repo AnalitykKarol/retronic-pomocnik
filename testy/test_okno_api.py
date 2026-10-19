@@ -329,6 +329,7 @@ with tempfile.TemporaryDirectory() as tmp:
     sprawdz("ratunek: zły format --od = błąd (kod 2)", uruchom(tmp, "ratunek", "--instancja", "dwa", "--od", "wczoraj")[0] == 2)
     sprawdz("ratunek: główna instancja nie widzi sygnałów instancji dwa", uruchom(tmp, "ratunek")[1]["sygnaly"] == [])
 
+
     # oznaczanie
     cel, inny = s[1]["id"], s[2]["id"]
     kod, o = uruchom(tmp, "ratunek-oznacz", "--instancja", "dwa", "--id", cel, "--falszywy")
@@ -491,6 +492,23 @@ with tempfile.TemporaryDirectory() as tmp:
     sprawdz("zła nazwa instancji (ścieżka) = błąd, nie traceback", kod != 0 and d["ok"] is False and "surowe" not in d, d)
     kod, d = uruchom(tmp, "pokretla", "--instancja", "główna")
     sprawdz("alias 'główna' = instancja główna", kod == 0 and d["instancja"] == "")
+
+
+# F2a: rekord haiku_cien (osobna linia, to samo `id`) dołączany do sygnału, nie liczony jako sygnał
+with tempfile.TemporaryDirectory() as tmp:
+    r = zrob_korzen(tmp)
+    logi = r / "instancje/dwa/logi"
+    hc = {"ruch": "krok N", "powod": None, "dlaczego": "drabina", "czas_wywolania_s": 2.0, "zrzut": "ratunek-zrzuty/a1.jpg", "wykonano": False}
+    (logi / "ratunek-20261019.jsonl").write_text("\n".join([
+        wpis_sygnalu("S4", "kręci się", czas(11, 40), id="a1"),
+        json.dumps({"rekord": "haiku_cien", "id": "a1", "kod": "S4", "poz": [1, 2, 8], "czas": czas(11, 40), "haiku_cien": hc}),
+        wpis_sygnalu("S3", "stoi", czas(11, 45), id="b2"),
+        json.dumps({"rekord": "haiku_cien", "id": "zz", "haiku_cien": {"ruch": "czekaj 3"}})]) + "\n")
+    kod, d = uruchom(tmp, "ratunek", "--instancja", "dwa")
+    s_ = {x["kod"]: x for x in d["sygnaly"]}
+    sprawdz("ratunek F2a: rekordy haiku_cien nie są sygnałami (2 sygnały)", kod == 0 and len(d["sygnaly"]) == 2 and d["liczniki"]["dzis"] == 2, d["sygnaly"])
+    sprawdz("ratunek F2a: odpowiedź dołączona do sygnału o tym samym id", s_["S4"]["dane"].get("haiku_cien") == hc and "haiku_cien" not in s_["S3"]["dane"], s_)
+    sprawdz("ratunek F2a: ścieżka zrzutu w katalogu logów instancji", s_["S4"].get("haiku_zrzut") == str(logi / "ratunek-zrzuty/a1.jpg"), s_["S4"].get("haiku_zrzut"))
 
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

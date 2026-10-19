@@ -462,6 +462,7 @@ def sygnaly_ratunku(sc, od):
     """-> (lista sygnałów od najnowszego, liczba pominiętych linii). `od` = 'RRRR-MM-DD'."""
     od_pliku = od.replace("-", "")
     wynik, pominiete, widziane = [], 0, collections.Counter()
+    haiku = {}
     logi = Path(sc.logi)
     pliki = sorted(p for p in logi.glob("ratunek-*.jsonl") if WZOR_RATUNKU.match(p.name)) if logi.is_dir() else []
     for plik in pliki:
@@ -484,6 +485,10 @@ def sygnaly_ratunku(sc, od):
             if not isinstance(rek, dict):
                 pominiete += 1
                 continue
+            if rek.get("rekord") == "haiku_cien":            # F2a: odpowiedź Haiku w cieniu, dołączana do sygnału po `id`
+                if rek.get("id") is not None and isinstance(rek.get("haiku_cien"), dict):
+                    haiku[str(rek["id"])] = rek["haiku_cien"]
+                continue
             czas = rek.get("czas") if isinstance(rek.get("czas"), str) else None
             if czas and czas[:10] < od:
                 continue
@@ -494,6 +499,12 @@ def sygnaly_ratunku(sc, od):
                           "opis": rek.get("opis"), "poz": rek.get("poz"), "stan": rek.get("stan"),
                           "tryb": rek.get("tryb"), "wolan_h": rek.get("wolan_h"), "ponad_limit": rek.get("ponad_limit"),
                           "plik": plik.name, "linia": nr, "dane": rek, "etykieta": None, "etykieta_czas": None})
+    for syg in wynik:
+        h = haiku.get(str(syg["dane"].get("id"))) if syg["dane"].get("id") is not None else None
+        if h is not None:
+            syg["dane"] = dict(syg["dane"], haiku_cien=h)
+            if isinstance(h.get("zrzut"), str) and h["zrzut"] and "/" in h["zrzut"] and ".." not in h["zrzut"]:
+                syg["haiku_zrzut"] = str(Path(sc.logi) / h["zrzut"])
     wynik.sort(key=lambda s: (s["epoch"] or 0, s["plik"], s["linia"]), reverse=True)
     return wynik, pominiete
 
