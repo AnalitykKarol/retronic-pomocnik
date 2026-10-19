@@ -2,6 +2,11 @@
  "_opis": "pola (x, y, pi\u0119tro), na kt\u00f3rych krok ko\u0144czy\u0142 si\u0119 niespodziewanym upadkiem; bot traktuje je jak \u015bcian\u0119",
  "dziury": [
   [
+   31979,
+   32153,
+   11
+  ],
+  [
    32338,
    32226,
    7
@@ -27,11 +32,6 @@
    8
   ],
   [
-   33063,
-   31822,
-   9
-  ],
-  [
    33081,
    31742,
    8
@@ -49,11 +49,6 @@
   [
    33099,
    31741,
-   9
-  ],
-  [
-   33102,
-   31822,
    9
   ],
   [
