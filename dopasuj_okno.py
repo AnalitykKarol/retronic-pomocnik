@@ -358,10 +358,9 @@ def main(argv=None):
     skaluj = skaluj_wlaczone()
     def okno():
         r = rozmiar_okna(hyprctl_klienci(), a.pid, port, hyprctl_skale())
-        if not skaluj or bot_dziala():
-            return wpisz_proporcje(r)
-        # tryb SKALUJ: ekran sesji = okno (bez wpisywania proporcji), skala stała (skala_stala); klient sam układa mapę
-        # i panele (sprawdzone 18.10 na 1498x1820 i 3072x1920)
+        # 19.10 (Karol): ekran sesji = okno podglądu zawsze, także przy bocie (bez wpisywania proporcji, bez szarych pasów).
+        # Bot chodził tak na głównej od 17.10 (940x1030, skala 1); wpisz_proporcje zostaje w pliku, ale nieużywane.
+        # Tryb SKALUJ: skala stała (skala_stala), gdy nie chodzi bot; klient sam układa mapę i panele (18.10).
         return r
 
     d = Dopasowywacz(okno,
