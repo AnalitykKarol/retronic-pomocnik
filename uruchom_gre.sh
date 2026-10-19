@@ -8,6 +8,8 @@ INST=$(python3 -I "$DIR/instancja.py" powloka) || exit 1; eval "$INST"
 [ -d "$INST_PREFIX" ] && [ -d "$INST_GRA" ] || { echo "brak $INST_PREFIX lub $INST_GRA: najpierw ./nowa_instancja.sh $RETRONIC_ID" >&2; exit 1; }
 export WINEPREFIX="$INST_PREFIX"
 export WINEDEBUG=-all
+# opcje klienta wymuszane przed startem (ustawienia_klienta.py: priv we własnych zakładkach)
+python3 -I "$DIR/ustawienia_klienta.py" "$WINEPREFIX" || true
 cd "$INST_GRA" || exit 1
 EXE="${1:-RetronicGL.exe}"
 [ -f "$EXE" ] || { echo "brak $INST_GRA/$EXE (nowa_instancja.sh kopiuje exe i dll)" >&2; exit 1; }
