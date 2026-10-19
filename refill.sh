@@ -3,6 +3,9 @@
 # Kroki bank i depo POMIJAMY (decyzja Karola 19.10): po „Wróć do miasta” (wroc.sh) bot stoi już w depo.
 #   ./refill.sh              praca w pierwszym planie: STARTUJ=1 ./serwis.sh --kroki jedzenie,backpack,blanki,wyjscie
 #   ./refill.sh --tlo        to samo odłączone (setsid), log w <stan>/refill.log; wraca od razu (używa go guzik paska)
+#   ./refill.sh --spot       jak --tlo, ale BEZ zakupów: tylko krok „wyjscie” (serwis prowadzi postać do wyjścia z miasta, potem
+#                            STARTUJ=1 rusza bota ostatnią mapą i trybem; uruchom.sh dodaje dojście na spot, gdy postać stoi na z7).
+#                            To samo odłączone zadanie, ten sam log, to samo --przerwij; znacznik logu `REFILL: START <czas> spot`
 #   ./refill.sh --przerwij   przerywa: ubija refill.sh i serwis.sh tej instancji, daje STOP (serwis.py sam wychodzi, jego `finally`
 #                            puszcza wejście), dopiero potem TERM/KILL, na końcu ./zatrzymaj.sh i zwolnij_wejscie.py. Gdy nic
 #                            nie biegło: "nic do przerwania", BEZ STOP (klik w nieodświeżone „Przerwij” nie ubije świeżego bota)
@@ -27,7 +30,8 @@ pidy_refill() { python3 -I "$DIR/instancja.py" pidy-skrypt '^(\S*/)?bash (\S*/)?
 
 case "${1:-}" in
   "") ;;
-  --tlo)
+  --tlo|--spot)
+    [ "$1" = --spot ] && { export REFILL_KROKI=wyjscie REFILL_TRYB=spot; }   # praca dziedziczy env (setsid)
     [ -n "$(pidy_refill; pidy_serwis)" ] && { notify-send "$TYTUL" "Serwis już trwa"; echo "serwis już działa" >&2; exit 1; }
     p=$(pidy | head -1)
     [ -n "$p" ] && { notify-send "$TYTUL" "Bot działa (pid $p): zatrzymaj go przed refillem"; echo "bot działa (pid $p), zatrzymaj: ./zatrzymaj.sh" >&2; exit 1; }
@@ -58,12 +62,12 @@ case "${1:-}" in
     python3 -I "$DIR/zwolnij_wejscie.py" > /dev/null 2>&1
     echo "refill przerwany (STOP ustawiony)"
     exit 0 ;;
-  *) echo "użycie: ./refill.sh [--tlo | --przerwij]" >&2; exit 2 ;;
+  *) echo "użycie: ./refill.sh [--tlo | --spot | --przerwij]" >&2; exit 2 ;;
 esac
 
 # --- praca ---
 cd "$DIR" || exit 1
-echo "REFILL: START $(date +%s)"
+echo "REFILL: START $(date +%s) ${REFILL_TRYB:-refill}"
 trap 'echo "REFILL: PRZERWANO"; exit 143' TERM INT HUP
 STARTUJ=1 "$DIR/serwis.sh" --kroki "$KROKI" &
 wait $!

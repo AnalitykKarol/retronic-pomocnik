@@ -51,6 +51,12 @@ S = lambda **k: panel.stan_serwisu(stan, teraz=time.time(), **k)
 sprawdz("2h bez logu: nic nie trwa, brak wyniku", S(dziala=False)["serwis_wynik"] is None and S(dziala=False)["serwis_dziala"] is False)
 LOG.write_text("REFILL: START 1\nserwis: krok jedzenie\nserwis[jedzenie]: idę\nserwis: krok backpack\n")
 r = S(dziala=True)
+sprawdz("2i0 stary znacznik bez trybu: serwis_tryb None", S(dziala=True)["serwis_tryb"] is None)
+LOG.write_text("REFILL: START 1 spot\nserwis: krok wyjscie\n")
+sprawdz("2i1 START z trybem spot, krok wyjscie", S(dziala=True)["serwis_tryb"] == "spot" and S(dziala=True)["serwis_krok"] == "wyjscie"
+        and S(dziala=False)["serwis_tryb"] is None)
+LOG.write_text("REFILL: START 1\nserwis: krok jedzenie\nserwis[jedzenie]: idę\nserwis: krok backpack\n")
+r = S(dziala=True)
 sprawdz("2i trwa: ostatni krok z logu, bez wyniku", r["serwis_dziala"] and r["serwis_krok"] == "backpack" and r["serwis_wynik"] is None)
 r = S(dziala=False)
 sprawdz("2j log bez znacznika końca i bez procesu = przerwano", r["serwis_wynik"] == "przerwano" and r["serwis_krok"] is None)
@@ -246,6 +252,27 @@ try:
         sprawdz(f"3za stan serwisu sprzed {wiek_min} min: {'zostaje (wznowienie)' if zostaje else 'kasowany (zakupy nie są po cichu pomijane)'}",
                 (INST / "serwis_stan.json").exists() == zostaje)
         czekaj(lambda: not pidy(r"^(\S*/)?bash (\S*/)?refill\.sh *$", skrypt=True))
+    # --spot: ta sama odłączona praca, tylko krok wyjscie (bez zakupów), znacznik START ze spot
+    (tmp / "wywolania.txt").unlink(missing_ok=True); (INST / "STOP").unlink(missing_ok=True)
+    r = refill("--spot", STUB_TRYB="ok")
+    sprawdz("3zc --spot: kod 0 i OK w logu", r.returncode == 0 and czekaj(lambda: "REFILL: OK" in log()), log())
+    wyw = (tmp / "wywolania.txt").read_text()
+    sprawdz("3zd --spot: serwis.sh dostaje STARTUJ=1 i wyłącznie krok wyjscie", "serwis.sh STARTUJ=1 --kroki wyjscie\n" in wyw
+            and "jedzenie" not in wyw and "bank" not in wyw, wyw)
+    sprawdz("3ze --spot: znacznik START z trybem spot", "REFILL: START" in log() and log().split("\n")[0].endswith(" spot"), log())
+    (INST / "STOP").unlink(missing_ok=True)
+    refill("--spot", STUB_TRYB="wisi")
+    czekaj(lambda: pidy(r"(^|[ /])serwis\.py "))
+    sprawdz("3zf panel w trakcie --spot: serwis_tryb spot, krok z logu", czekaj(lambda: panel.stan_serwisu(INST)["serwis_tryb"] == "spot"
+            and panel.stan_serwisu(INST)["serwis_krok"] == "jedzenie"))   # krok z atrapy serwis.py, nie z REFILL_KROKI
+    r = refill("--przerwij")
+    sprawdz("3zg --przerwij przerywa także --spot", r.returncode == 0 and czekaj(lambda: not pidy(r"(^|[ /])serwis\.py ")))
+    czekaj(lambda: not pidy(r"^(\S*/)?bash (\S*/)?refill\.sh *$", skrypt=True) and not pidy(r"(^|[ /])serwis\.py "))   # poprzednie przerwanie dogasa
+    (INST / "STOP").unlink(missing_ok=True)
+    refill("--tlo", STUB_TRYB="wisi")
+    sprawdz("3zh zwykły refill: serwis_tryb refill", czekaj(lambda: panel.stan_serwisu(INST)["serwis_tryb"] == "refill"))
+    refill("--przerwij")
+    czekaj(lambda: not pidy(r"(^|[ /])serwis\.py "))
     # zwolnij_wejscie.py bez gry: cicho, kod 0
     rz = subprocess.run([sys.executable, "-I", str(KAT / "zwolnij_wejscie.py")], env=ENV(), capture_output=True, text=True, timeout=30)
     sprawdz("3zb zwolnij_wejscie.py bez gry: kod 0, bez wyjątku", rz.returncode == 0 and "Traceback" not in rz.stderr, rz.stderr[-200:])

@@ -341,10 +341,12 @@ def stan_serwisu(stan_dir, teraz=None, dziala=None, kolejnosc=None):
     log = stan_dir / REFILL_LOG
     linie = ogon(log, 300)
     start = koniec = -1
-    wynik, komunikat, krok = None, "", None
+    wynik, komunikat, krok, tryb = None, "", None, None
     for i, l in enumerate(linie):
         if l.startswith("REFILL: START"):
             start = i
+            m = re.match(r"REFILL: START \d+ (\w+)", l)
+            tryb = m[1] if m else None          # refill | spot (refill.sh --spot: tylko wyjście z miasta + start bota)
         m = re.match(r"REFILL: (OK|BLAD|PRZERWANO)\b ?(.*)", l)
         if m:
             koniec, wynik, komunikat = i, m[1].lower(), m[2].strip()
@@ -369,7 +371,7 @@ def stan_serwisu(stan_dir, teraz=None, dziala=None, kolejnosc=None):
     except OSError:
         wiek = None
     return {"serwis_dziala": bool(dziala), "serwis_krok": krok if dziala else None, "serwis_ukonczone": ukonczone,
-            "serwis_wynik": wynik, "serwis_komunikat": komunikat[:200], "serwis_wiek_s": wiek}
+            "serwis_tryb": tryb if dziala else None, "serwis_wynik": wynik, "serwis_komunikat": komunikat[:200], "serwis_wiek_s": wiek}
 
 
 def pola_guzikow(s):

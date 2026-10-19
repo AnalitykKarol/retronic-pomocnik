@@ -78,9 +78,24 @@ def skaluj_wlaczone(env=None):
     return (env if env is not None else os.environ).get("RETRONIC_SKALUJ", "1").strip() != "0"
 
 
-def bot_dziala(proc="/proc"):
-    """True, gdy chodzi bot tej maszyny (mozg.py albo cavebot.py w argv jakiegokolwiek procesu python). Wtedy sesja musi
-    mieć piksele wzorcowe 1175x910 w skali 1 (ekran.py szuka mapy w pikselach), więc SKALUJ ustępuje."""
+def _id_instancji_procesu(proc, w):
+    """RETRONIC_ID z /proc/<pid>/environ ("" = główna instancja); None, gdy środowiska nie da się odczytać."""
+    try:
+        with open(f"{proc}/{w}/environ", "rb") as f:
+            for wpis in f.read().split(b"\0"):
+                if wpis.startswith(b"RETRONIC_ID="):
+                    return wpis[len(b"RETRONIC_ID="):].decode("utf-8", "replace")
+    except OSError:
+        return None
+    return ""
+
+
+def bot_dziala(proc="/proc", instancja=None):
+    """True, gdy chodzi bot TEJ instancji (mozg.py albo cavebot.py w argv procesu python z tym samym RETRONIC_ID co
+    wołający; `instancja` wymusza id, "" = główna). Wtedy sesja musi mieć piksele wzorcowe 1175x910 w skali 1 (ekran.py
+    szuka mapy w pikselach), więc SKALUJ ustępuje. 19.10: dawniej bot DOWOLNEJ instancji (bot `test` blokował serwis
+    Mastafiana i zatrzymywał helper); gdy środowiska procesu nie da się odczytać, liczymy go jak dawniej (ostrożnie)."""
+    moje = os.environ.get("RETRONIC_ID", "") if instancja is None else instancja
     try:
         wpisy = os.listdir(proc)
     except OSError:
@@ -95,6 +110,9 @@ def bot_dziala(proc="/proc"):
             continue
         if argv and os.path.basename(argv[0]).startswith(b"python") and any(
                 os.path.basename(a) in (b"mozg.py", b"cavebot.py") for a in argv[1:]):
+            cudza = _id_instancji_procesu(proc, w)
+            if cudza is not None and cudza != moje:
+                continue
             return True
     return False
 
