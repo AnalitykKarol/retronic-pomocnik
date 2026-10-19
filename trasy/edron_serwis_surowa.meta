@@ -1,0 +1,144 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "początek nagrania"
+  },
+  {
+   "idx": 11,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 7, potem piętro 8"
+  },
+  {
+   "idx": 12,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 7 -> 8 (w dół), z (33169,31811)"
+  },
+  {
+   "idx": 34,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 7"
+  },
+  {
+   "idx": 35,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 8 -> 7 (w górę), z (33169,31811)"
+  },
+  {
+   "idx": 40,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 7, potem piętro 6"
+  },
+  {
+   "idx": 41,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 7 -> 6 (w górę), z (33171,31818)"
+  },
+  {
+   "idx": 57,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 6, potem piętro 7"
+  },
+  {
+   "idx": 58,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 6 -> 7 (w dół), z (33173,31817)"
+  },
+  {
+   "idx": 72,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 7, potem piętro 6"
+  },
+  {
+   "idx": 73,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 7 -> 6 (w górę), z (33209,31819)"
+  },
+  {
+   "idx": 88,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 6, potem piętro 7"
+  },
+  {
+   "idx": 89,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 6 -> 7 (w dół), z (33209,31817)"
+  },
+  {
+   "idx": 132,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 7, potem piętro 6"
+  },
+  {
+   "idx": 133,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 7 -> 6 (w górę), z (33246,31841)"
+  },
+  {
+   "idx": 137,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 6, potem piętro 5"
+  },
+  {
+   "idx": 138,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 6 -> 5 (w górę), z (33257,31840)"
+  },
+  {
+   "idx": 140,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 5, potem piętro 4"
+  },
+  {
+   "idx": 141,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 5 -> 4 (w górę), z (33257,31841)"
+  },
+  {
+   "idx": 143,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 4, potem piętro 3"
+  },
+  {
+   "idx": 144,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 4 -> 3 (w górę), z (33256,31842)"
+  },
+  {
+   "idx": 145,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 3 -> 4 (w dół), z (33255,31841)"
+  },
+  {
+   "idx": 147,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 4, potem piętro 5"
+  },
+  {
+   "idx": 148,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 4 -> 5 (w dół), z (33256,31842)"
+  },
+  {
+   "idx": 151,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 5, potem piętro 6"
+  },
+  {
+   "idx": 152,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 5 -> 6 (w dół), z (33257,31840)"
+  },
+  {
+   "idx": 156,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 6, potem piętro 7"
+  },
+  {
+   "idx": 157,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 6 -> 7 (w dół), z (33248,31841)"
+  }
+ ]
+}

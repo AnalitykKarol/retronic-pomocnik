@@ -1,0 +1,510 @@
+"""Akcje serwisu (serwis_akcje.AkcjeZywe) na symulacji plecaka/depo/NPC i na zrzutach panelu z 19.10:
+arytmetyka platinum przy składaniu w depo, weryfikacja na obu końcach przeciągnięcia, zakupy z górną granicą ilości i ceny,
+wymiana gold, blanki do baga, kontrola startu (bot, HP, potwory), układ okien. Bez gry: myszka, zrzut, pamięć kontenerów
+i rozmowa są podmienione symulacją. Każda uwaga z przeglądu (19.10, checker) ma tu osobny test."""
+import os as _os
+_os.environ["RETRONIC_TESTY"] = "1"
+import sys
+import types
+from pathlib import Path
+
+sys.dont_write_bytecode = True
+KAT = Path(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+sys.path.insert(0, str(KAT))
+import serwis_akcje as A
+from serwis_blad import SerwisBlad
+from PIL import Image
+
+ok = []
+
+
+def sprawdz(nazwa, warunek, info=""):
+    warunek = bool(warunek)
+    ok.append(warunek)
+    print(("OK   " if warunek else "FAIL ") + nazwa + ("" if warunek else f"  [{info}]"))
+
+
+def zglasza(f):
+    try:
+        f()
+    except SerwisBlad as e:
+        return e
+    return None
+
+
+GOLD, PLAT, BLANK, HAM, BAG, UH = 3031, 3035, 3147, 3582, 2869, 3160
+
+
+class Slot:
+    def __init__(self, i):
+        self.srodek = (100 + 37 * (i % 4), 100 + 37 * (i // 4))
+
+
+class Okno:
+    def __init__(self, widoczne, gora):
+        self.sloty = [Slot(i) for i in range(widoczne)]
+        self.gora, self.lewo, self.prawo = gora, 760, 936
+
+
+class Symulacja:
+    """Pamięć kontenerów: {numer: {"nazwa", "poj", "widoczne", "p": [ {id, ilosc} ]}}; numer rosnący = okno od góry w dół.
+    `spada`: przeciągnięcie nie trafia w cel (przedmiot ląduje na podłodze); `ceny`: ile gp zabiera NPC przy zakupie."""
+
+    def __init__(self, glowny, depo=None, bag=None, widoczne_depo=16, nazwa_bagu="blue backpack"):
+        self.kon, n = {}, 0
+        if bag is not None:
+            self.kon[n] = {"nazwa": nazwa_bagu, "poj": 20, "widoczne": 20, "p": [dict(x) for x in bag]}
+            n += 1
+        self.kon[n] = {"nazwa": "backpack", "poj": 20, "widoczne": 20, "p": [dict(x) for x in glowny]}
+        n += 1
+        if depo is not None:
+            self.kon[n] = {"nazwa": "depot chest", "poj": 30, "widoczne": widoczne_depo, "p": [dict(x) for x in depo]}
+        self.oczekuje = None
+        self.spada = False
+        self.zamkniete = {}                     # numer -> kontener zamknięty przez akcje (do oglądania w asercjach)
+
+    def pamiec(self):
+        return [{"numer": n, "nazwa": k["nazwa"], "pojemnosc": k["poj"],
+                 "przedmioty": [dict(slot=i, id=q["id"], ilosc=q["ilosc"]) for i, q in enumerate(k["p"])]}
+                for n, k in sorted(self.kon.items())]
+
+    def ile(self, ids):
+        return sum(q["ilosc"] for k in self.kon.values() if k["nazwa"] not in ("locker", "depot chest")
+                   for q in k["p"] if q["id"] in ids)
+
+    def glowny(self):
+        return next(k for k in self.kon.values() if k["nazwa"] in ("backpack", "bag"))
+
+    def depo(self):
+        return next(k for k in list(self.kon.values()) + list(self.zamkniete.values()) if k["nazwa"] == "depot chest")
+
+
+class MyszAtrapa:
+    def __init__(self):
+        self.akcje = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def klik(self, x, y, przycisk=1, modyfikator=None, drganie=3):
+        self.akcje.append(("klik", x, y, modyfikator))
+
+    def przeciagnij(self, x1, y1, x2, y2, drganie=3):
+        self.akcje.append(("przeciagnij", x1, y1, x2, y2))
+
+
+class Testowe(A.AkcjeZywe):
+    """AkcjeZywe bez gry: wszystko, co dotyka ekranu i pamięci klienta, idzie przez symulację."""
+
+    def __init__(self, sym, rozmowa=None, gracz=None, stwory=None, poz=(33170, 31813, 7)):
+        self.sym, self.log, self.nick = sym, (lambda *_: None), "Mastafian"
+        self.rozmowa = rozmowa
+        self.sprawdz_bota = False
+        self.postac = types.SimpleNamespace(pozycja=lambda: poz)
+        self._gracz_dane = gracz or {"hp": 240, "max_hp": 240}
+        self._stwory_dane = stwory if stwory is not None else []
+        self._bot = types.SimpleNamespace(Zatrzymano=RuntimeError, _zapytaj_surowe=self._zapytaj)
+        self.zamkniete, self.depo_otwarte, self.mysz = [], True, MyszAtrapa()
+
+    def _zapytaj(self, z):
+        if self._stwory_dane == "BLAD":
+            raise OSError("brak gniazda")
+        return {"gracz": self._gracz_dane} if z["cmd"] == "gracz" else {"stwory": self._stwory_dane}
+
+    def kontenery(self):
+        return self.sym.pamiec()
+
+    def ilosc(self, ids, bez=("locker", "depot chest")):
+        return self.sym.ile(ids)
+
+    def _mysz(self):
+        return self.mysz
+
+    def _zrzut(self, mysz):
+        return None
+
+    def _zamknij(self, numer):
+        self.zamkniete.append(numer)
+        k = self.sym.kon.pop(numer, None)
+        if k is not None:
+            self.sym.zamkniete[numer] = k
+
+    def _otworz_depo(self, m):
+        return self.depo_otwarte
+
+    def _okna_numery(self, obraz):
+        return [(Okno(k["widoczne"], 100 * i), kon) for i, ((n, k), kon) in enumerate(zip(sorted(self.sym.kon.items()), self.kontenery()))]
+
+    def _przeciagnij(self, m, okno_z, i_z, okno_do, i_do):
+        numery = sorted(self.sym.kon)
+        kz = self.sym.kon[numery[okno_z.gora // 100]]
+        kd = self.sym.kon[numery[okno_do.gora // 100]]
+        przedmiot = kz["p"][i_z]
+        if przedmiot["ilosc"] > 1:
+            self.sym.oczekuje = (kz, kd, i_z, i_do)              # okno ilości zdecyduje, ile przejdzie
+            return
+        kz["p"].pop(i_z)
+        if self.sym.spada:
+            return
+        kd["p"].insert(min(i_do, len(kd["p"])), przedmiot)
+
+    def _okno_ilosci(self, m, zostaw_w_zrodle, razem):
+        kz, kd, i_z, i_do = self.sym.oczekuje
+        self.sym.oczekuje = None
+        przedmiot = kz["p"][i_z]
+        ile = przedmiot["ilosc"] - zostaw_w_zrodle
+        if ile <= 0:
+            return True
+        przedmiot["ilosc"] -= ile
+        if przedmiot["ilosc"] == 0:
+            kz["p"].pop(i_z)
+        if self.sym.spada:
+            return True
+        cel = kd["p"][i_do] if i_do < len(kd["p"]) else None
+        if cel is not None and cel["id"] == przedmiot["id"]:
+            cel["ilosc"] += ile                                    # scalenie ze stosem w skrzynce
+        else:
+            kd["p"].append({"id": przedmiot["id"], "ilosc": ile})
+        return True
+
+
+# --- depo: bag + platinum ponad 3 --------------------------------------------------------------------------------
+
+G = [{"id": BAG, "ilosc": 1}, {"id": PLAT, "ilosc": 13}, {"id": GOLD, "ilosc": 8}, {"id": 3198, "ilosc": 1}]
+sym = Symulacja(G, depo=[{"id": GOLD, "ilosc": 83}, {"id": PLAT, "ilosc": 36}])
+a = Testowe(sym)
+wynik = a.depo_zloz(3)
+sprawdz("1a depo: bag odłożony, 13 platinum -> w plecaku 3", wynik is True and sym.ile({PLAT}) == 3
+        and not any(q["id"] == BAG for q in sym.glowny()["p"]), (sym.glowny()["p"], sym.depo()))
+sprawdz("1b depo: 10 platinum zeszło na istniejący stos (36 -> 46), bez nowego stosu; bag w skrzynce",
+        [q["ilosc"] for q in sym.depo()["p"] if q["id"] == PLAT] == [46] and any(q["id"] == BAG for q in sym.depo()["p"]), sym.depo()["p"])
+sprawdz("1c depo: depot chest zamknięty po składaniu, w pamięci tylko plecak", 1 in a.zamkniete and len(sym.kon) == 1, (a.zamkniete, sym.kon.keys()))
+sprawdz("1d depo: gold nietknięty", sym.ile({GOLD}) == 8)
+
+sym = Symulacja([{"id": BAG, "ilosc": 1}, {"id": PLAT, "ilosc": 100}, {"id": PLAT, "ilosc": 100}, {"id": PLAT, "ilosc": 50}], depo=[])
+Testowe(sym).depo_zloz(3)
+sprawdz("1e depo: trzy stosy platinum (250) -> w plecaku 3", sym.ile({PLAT}) == 3, sym.glowny()["p"])
+
+sym = Symulacja([{"id": BAG, "ilosc": 1}, {"id": PLAT, "ilosc": 2}], depo=[])
+Testowe(sym).depo_zloz(3)
+sprawdz("1f depo: platinum 2 (mniej niż 3) zostaje w plecaku, bag odłożony", sym.ile({PLAT}) == 2 and not any(q["id"] == BAG for q in sym.glowny()["p"]))
+
+sym = Symulacja([{"id": PLAT, "ilosc": 3}], depo=[])
+Testowe(sym).depo_zloz(3)
+sprawdz("1g depo: dokładnie 3 platinum, brak baga: nic nie rusza", sym.ile({PLAT}) == 3 and sym.depo()["p"] == [])
+
+sym = Symulacja([{"id": BAG, "ilosc": 1}, {"id": 2868, "ilosc": 1}, {"id": PLAT, "ilosc": 9}], depo=[])
+e = zglasza(lambda: Testowe(sym).depo_zloz(3))
+sprawdz("1h depo: dwa bagi w plecaku = błąd (nie zgadujemy, który jest na runy)", e and "bagi" in e.powod and sym.depo()["p"] == [], e)
+
+sym = Symulacja([{"id": BAG, "ilosc": 1}, {"id": PLAT, "ilosc": 9}], depo=[{"id": GOLD, "ilosc": 1}] * 16, widoczne_depo=16)
+e = zglasza(lambda: Testowe(sym).depo_zloz(3))
+sprawdz("1i depo: skrzynka bez wolnego widocznego pola = błąd", e and "wolnego" in e.powod, e)
+
+sym = Symulacja([{"id": BAG, "ilosc": 1}, {"id": PLAT, "ilosc": 9}], depo=[])
+a = Testowe(sym)
+a.depo_otwarte = False
+sprawdz("1j depo: skrzynia się nie otworzyła -> False, nic nie ruszone", a.depo_zloz(3) is False and sym.ile({PLAT}) == 9)
+
+sym = Symulacja([{"id": PLAT, "ilosc": 1}], depo=[])
+Testowe(sym).depo_zloz(0)
+sprawdz("1k depo: pojedyncza sztuka nie wymaga okna ilości (zostaw 0)", sym.ile({PLAT}) == 0 and sym.depo()["p"] == [{"id": PLAT, "ilosc": 1}], sym.depo()["p"])
+
+# uwaga #1 przeglądu: przedmiot spada na podłogę (ubytek w plecaku się zgadza, w skrzynce nie przybywa)
+sym = Symulacja([{"id": BAG, "ilosc": 1}], depo=[])
+sym.spada = True
+e = zglasza(lambda: Testowe(sym).depo_zloz(3))
+sprawdz("1l depo (#1): bag spadł na podłogę -> błąd, bo skrzynka nie zyskała przedmiotu", e and "obu końcach" in e.powod, e)
+sym = Symulacja([{"id": PLAT, "ilosc": 13}], depo=[])
+sym.spada = True
+e = zglasza(lambda: Testowe(sym).depo_zloz(3))
+sprawdz("1m depo (#1): platinum spadło na podłogę -> błąd (oba końce)", e and "obu końcach" in e.powod, e)
+
+# uwaga #2: okno przeniesionego baga zostaje otwarte -> musi zostać zamknięte; nowy bag z blankami nie jest odkładany
+sym = Symulacja([{"id": BAG, "ilosc": 1}, {"id": PLAT, "ilosc": 13}], depo=[], bag=[{"id": UH, "ilosc": 1}] * 20)
+a = Testowe(sym)
+a.depo_zloz(3)
+sprawdz("1n depo (#2): okno baga z UH zostało otwarte po przeniesieniu -> zamknięte, w pamięci tylko plecak", len(sym.kon) == 1
+        and sym.glowny()["nazwa"] == "backpack", sym.kon.keys())
+sym = Symulacja([{"id": BAG, "ilosc": 1}, {"id": PLAT, "ilosc": 13}], depo=[], bag=[{"id": BLANK, "ilosc": 1}] * 20)
+e = zglasza(lambda: Testowe(sym).depo_zloz(3))
+sprawdz("1o depo (#2): otwarty bag z samymi blankami = nowy bag, nie odkładamy (idempotencja po awarii), nic nie ruszone",
+        e and "nowy bag" in e.powod and sym.depo()["p"] == [] and sym.ile({PLAT}) == 13, e)
+
+sym = Symulacja([{"id": BAG, "ilosc": 1}], depo=[], bag=[{"id": UH, "ilosc": 1}] * 3)
+sym.kon[0]["nazwa"] = "backpack"
+e = zglasza(lambda: Testowe(sym).depo_zloz(3))
+sprawdz("1p dwa kontenery o nazwie plecaka = błąd (nie odróżnimy plecaka od baga)", e and "dwa kontenery" in e.powod, e)
+
+
+# R5: nie scalamy ze stosem, gdy suma przekroczyłaby 100
+sym = Symulacja([{"id": BAG, "ilosc": 1}, {"id": PLAT, "ilosc": 13}], depo=[{"id": PLAT, "ilosc": 95}])
+Testowe(sym).depo_zloz(3)
+stosy = sorted(q["ilosc"] for q in sym.depo()["p"] if q["id"] == PLAT)
+sprawdz("1q depo (R5): stos 95 + 10 przekroczyłby 100 -> osobny stos (95 i 10), nic nie przepada", stosy == [10, 95], stosy)
+sym = Symulacja([{"id": BAG, "ilosc": 1}, {"id": PLAT, "ilosc": 13}], depo=[{"id": PLAT, "ilosc": 90}])
+Testowe(sym).depo_zloz(3)
+sprawdz("1r depo (R5): stos 90 + 10 = 100 mieści się -> scalone", [q["ilosc"] for q in sym.depo()["p"] if q["id"] == PLAT] == [100])
+
+# R7: zamknięcie okien się nie udaje
+sym = Symulacja([{"id": BAG, "ilosc": 1}, {"id": PLAT, "ilosc": 13}], depo=[])
+a = Testowe(sym)
+a._zamknij = lambda numer: False                       # klik w X nic nie zamyka
+e = zglasza(lambda: a.depo_zloz(3))
+sprawdz("1s depo (R7): okna nie dają się zamknąć = błąd po trzech próbach (STOP), nie ciche „ok”", e and "otwarte okna" in e.powod, e)
+
+# prawdziwe _okna_numery (dotąd nietestowane): okna z loot.znajdz_okna, kontenery z pamięci
+import loot as _loot
+
+
+class _Dla(Testowe):
+    def __init__(self, sym, okna):
+        super().__init__(sym)
+        self.okna = okna
+
+    def _okna_numery(self, obraz):
+        return A.AkcjeZywe._okna_numery(self, obraz)
+
+
+def okna_numery(okna, sym):
+    stare = _loot.znajdz_okna
+    _loot.znajdz_okna = lambda obraz: okna
+    try:
+        try:
+            return _Dla(sym, okna)._okna_numery(None), None
+        except SerwisBlad as e:
+            return None, e
+    finally:
+        _loot.znajdz_okna = stare
+
+
+sym = Symulacja([{"id": GOLD, "ilosc": 1}], depo=[], bag=[{"id": BLANK, "ilosc": 1}])
+wynik, blad = okna_numery([Okno(8, 300), Okno(20, 100), Okno(16, 200)], sym)
+sprawdz("1t _okna_numery: okna od góry w dół dopasowane do kontenerów po numerze (bag, plecak, depot)", blad is None
+        and [k["nazwa"] for _o, k in wynik] == ["blue backpack", "backpack", "depot chest"], (wynik, blad))
+wynik, blad = okna_numery([Okno(20, 100)], sym)
+sprawdz("1u _okna_numery: jedno okno na ekranie, trzy kontenery w pamięci = błąd", blad and "okien na ekranie" in blad.powod, blad)
+wynik, blad = okna_numery([Okno(20, 100), Okno(20, 200), Okno(40, 300)], sym)
+sprawdz("1v _okna_numery: okno z 40 slotami dla kontenera o pojemności 30 = błąd (zła zgodność okno/kontener)",
+        blad and "pojemność" in blad.powod, blad)
+
+# --- start: bot, HP, potwory, odczyt stworów --------------------------------------------------------------------------
+
+sym = Symulacja([{"id": GOLD, "ilosc": 5}])
+sprawdz("2a start: zdrowy, bez potworów = ok", zglasza(lambda: Testowe(sym).sprawdz_start()) is None)
+e = zglasza(lambda: Testowe(sym, gracz={"hp": 100, "max_hp": 240}).sprawdz_start())
+sprawdz("2b start: HP 42% = błąd", e and "HP" in e.powod, e)
+mob = {"nazwa": "Goblin", "gracz": False, "x": 33172, "y": 31813, "z": 7, "hp": 100}
+e = zglasza(lambda: Testowe(sym, stwory=[mob]).sprawdz_start())
+sprawdz("2c start: goblin 2 pola obok = błąd", e and "potwór" in e.powod, e)
+sprawdz("2d start: goblin 20 pól dalej nie przeszkadza", zglasza(lambda: Testowe(sym, stwory=[dict(mob, x=33190)]).sprawdz_start()) is None)
+sprawdz("2e start: gracz obok to nie potwór", zglasza(lambda: Testowe(sym, stwory=[dict(mob, gracz=True, nazwa="Zufik")]).sprawdz_start()) is None)
+for imie in ("Ebenizer", "Mirabell", "Beatrice", "Alexander"):
+    sprawdz(f"2e' start (R1): NPC {imie} 2 pola obok to nie potwór (wznawianie po porażce przy NPC)",
+            zglasza(lambda: Testowe(sym, stwory=[dict(mob, nazwa=imie)]).sprawdz_start()) is None)
+sprawdz("2e'' start (R1): martwy potwór (hp 0) obok nie blokuje", zglasza(lambda: Testowe(sym, stwory=[dict(mob, hp=0)]).sprawdz_start()) is None)
+e = zglasza(lambda: Testowe(sym, stwory="BLAD").sprawdz_start())
+sprawdz("2f start: brak odczytu = błąd (nie zakładamy, że czysto)", e and "nie odczytam" in e.powod, e)
+e = zglasza(lambda: Testowe(sym, stwory="BLAD").pole_zajete((1, 2, 3)))
+sprawdz("2g pole_zajete: brak odczytu stworów = błąd, nie „wolne” (fail-closed)", e is not None, e)
+sprawdz("2h pole_zajete: gracz na polu = zajęte, ja sam = wolne", Testowe(sym, stwory=[dict(mob, gracz=True, nazwa="Zufik", x=1, y=2, z=3)]).pole_zajete((1, 2, 3))
+        and not Testowe(sym, stwory=[dict(mob, gracz=True, nazwa="Mastafian", x=1, y=2, z=3)]).pole_zajete((1, 2, 3)))
+
+
+# --- zakupy i bank ---------------------------------------------------------------------------------------------------
+
+class RozmowaAtrapa:
+    """Podmienia Rozmowa: zakup zmienia plecak w symulacji tak jak NPC."""
+
+    def __init__(self, sym, efekt=None, blad=None):
+        self.sym, self.efekt, self.blad, self.log = sym, efekt, blad, []
+
+    def powitaj(self, npc):
+        self.log.append(("hi", npc))
+
+    def zamow(self, npc, tekst, limit, ile=None, slepy_yes=False):
+        self.log.append(("zamow", npc, tekst, limit, ile, slepy_yes))
+        if self.blad:
+            raise SerwisBlad("rozmowa", self.blad)
+        if self.efekt:
+            self.efekt(self.sym)
+        return (ile or 1), 10
+
+    def zmien_gold(self, npc, n):
+        self.log.append(("zmien_gold", npc, n))
+        if self.efekt:
+            self.efekt(self.sym)
+        return True
+
+
+def kupno(id_, n, koszt, zrodlo=0):
+    """Efekt zakupu: +n sztuk id_ w plecaku, -koszt gold z pierwszego stosu gold."""
+    def f(sym):
+        g = sym.glowny()["p"]
+        g.append({"id": id_, "ilosc": n})
+        st = next(q for q in g if q["id"] == GOLD)
+        st["ilosc"] -= koszt
+    return f
+
+
+sym = Symulacja([{"id": GOLD, "ilosc": 148}])
+r = RozmowaAtrapa(sym, efekt=kupno(HAM, 5, 40))
+a = Testowe(sym, r)
+sprawdz("3a ham: kupuje brakujące 5 (cel 5, mam 0), ślepe yes dozwolone, wydano 40", a.kup("Mirabell", "ham", 5) == 5
+        and r.log[-1] == ("zamow", "Mirabell", "5 ham", 12, 5, True), r.log)
+sym = Symulacja([{"id": HAM, "ilosc": 3}, {"id": GOLD, "ilosc": 100}])
+r = RozmowaAtrapa(sym, efekt=kupno(HAM, 2, 16))
+sprawdz("3b ham: mam 3, cel 5 -> zamawia 2", Testowe(sym, r).kup("Mirabell", "ham", 5) == 2 and r.log[-1][2] == "2 ham", r.log)
+sym = Symulacja([{"id": HAM, "ilosc": 5}])
+r = RozmowaAtrapa(sym)
+sprawdz("3c ham: już mam cel -> nie rozmawia (idempotentnie)", Testowe(sym, r).kup("Mirabell", "ham", 5) == 0 and r.log == [])
+sym = Symulacja([{"id": GOLD, "ilosc": 148}])
+e = zglasza(lambda: Testowe(sym, RozmowaAtrapa(sym)).kup("Mirabell", "ham", 5))
+sprawdz("3d zakup bez skutku w plecaku = błąd (nie wierzymy samemu tekstowi NPC)", e and "oczekiwano dokładnie +5" in e.powod, e)
+sym = Symulacja([{"id": GOLD, "ilosc": 148}])
+e = zglasza(lambda: Testowe(sym, RozmowaAtrapa(sym, blad="oferta za droga")).kup("Mirabell", "ham", 5))
+sprawdz("3e błąd rozmowy propaguje się jako SerwisBlad", e and "za droga" in e.powod, e)
+sym = Symulacja([{"id": GOLD, "ilosc": 1000}])
+e = zglasza(lambda: Testowe(sym, RozmowaAtrapa(sym, efekt=kupno(HAM, 6, 48))).kup("Mirabell", "ham", 5))
+sprawdz("3f ham (#4): kupiono 6 zamiast 5 = błąd (górna granica ilości)", e and "dokładnie +5" in e.powod, e)
+sym = Symulacja([{"id": GOLD, "ilosc": 1000}])
+e = zglasza(lambda: Testowe(sym, RozmowaAtrapa(sym, efekt=kupno(HAM, 5, 400))).kup("Mirabell", "ham", 5))
+sprawdz("3g ham (#4): 5 sztuk, ale zapłacono 400 gp (limit 12/szt.) = błąd po fakcie", e and "wydano 400" in e.powod, e)
+
+sym = Symulacja([{"id": GOLD, "ilosc": 148}])
+r = RozmowaAtrapa(sym, efekt=kupno(BAG, 1, 20))
+a = Testowe(sym, r)
+sprawdz("3h backpack: brak baga -> kupuje jeden", a.potrzeba_baga() and a.kup("Beatrice", "backpack", 1) == 1 and r.log[-1][2] == "backpack", r.log)
+sym = Symulacja([{"id": GOLD, "ilosc": 48}, {"id": BAG, "ilosc": 1}])
+r = RozmowaAtrapa(sym)
+a = Testowe(sym, r)
+sprawdz("3i backpack: bag leży w plecaku -> nie kupuje", not a.potrzeba_baga() and a.kup("Beatrice", "backpack", 1) == 0 and r.log == [])
+sym = Symulacja([{"id": GOLD, "ilosc": 48}], bag=[{"id": BLANK, "ilosc": 1}] * 3)
+sprawdz("3j backpack: otwarty bag na runy -> nie kupuje", not Testowe(sym, RozmowaAtrapa(sym)).potrzeba_baga())
+sym = Symulacja([{"id": GOLD, "ilosc": 48}], bag=[{"id": 1, "ilosc": 1}])
+sym.kon[0]["nazwa"] = "dead goblin"
+sprawdz("3k backpack (#2): otwarte zwłoki to nie bag na runy -> bag nadal potrzebny", Testowe(sym, RozmowaAtrapa(sym)).potrzeba_baga())
+
+sym = Symulacja([{"id": GOLD, "ilosc": 1350}, {"id": PLAT, "ilosc": 2}])
+
+
+def wymiana(sym):
+    g = sym.glowny()["p"]
+    g[0]["ilosc"] -= 1300
+    g[1]["ilosc"] += 13
+
+
+r = RozmowaAtrapa(sym, efekt=wymiana)
+a = Testowe(sym, r)
+sprawdz("4a bank: 1350 gold -> 13 platinum (reszta 50 gold zostaje)", a.bank_zmien("Ebenizer") == 13 and r.log == [("zmien_gold", "Ebenizer", 13)]
+        and sym.ile({PLAT}) == 15 and sym.ile({GOLD}) == 50, r.log)
+sym = Symulacja([{"id": GOLD, "ilosc": 60}])
+r = RozmowaAtrapa(sym)
+sprawdz("4b bank: poniżej 100 gold nie ma czego wymieniać", Testowe(sym, r).bank_zmien("Ebenizer") == 0 and r.log == [])
+sym = Symulacja([{"id": GOLD, "ilosc": 500}, {"id": PLAT, "ilosc": 0}])
+e = zglasza(lambda: Testowe(sym, RozmowaAtrapa(sym)).bank_zmien("Ebenizer"))
+sprawdz("4c bank: NPC „wymienił”, ale plecak się nie zmienił = błąd", e and e.krok == "bank", e)
+
+
+def tylko_platinum(sym):
+    sym.glowny()["p"][1]["ilosc"] += 5               # platinum przybyło, gold nie spadło
+
+
+sym = Symulacja([{"id": GOLD, "ilosc": 500}, {"id": PLAT, "ilosc": 0}])
+e = zglasza(lambda: Testowe(sym, RozmowaAtrapa(sym, efekt=tylko_platinum)).bank_zmien("Ebenizer"))
+sprawdz("4d bank (#7): platinum przybyło, ale gold nie spadł = błąd (sprawdzamy oba końce)", e and e.krok == "bank", e)
+
+# --- blanki do baga na runy -------------------------------------------------------------------------------------------
+
+sym = Symulacja([{"id": BLANK, "ilosc": 1}] * 15 + [{"id": GOLD, "ilosc": 48}], bag=[{"id": BLANK, "ilosc": 1}] * 5)
+Testowe(sym).przenies_blanki()
+bag = sym.kon[0]["p"]
+sprawdz("5a blanki: 15 z plecaka do baga (5 + 15 = 20), gold zostaje", len([q for q in bag if q["id"] == BLANK]) == 20
+        and not any(q["id"] == BLANK for q in sym.glowny()["p"]) and sym.ile({GOLD}) == 48, (len(bag), sym.glowny()["p"]))
+sym = Symulacja([{"id": BLANK, "ilosc": 1}] * 3, bag=[{"id": BLANK, "ilosc": 1}] * 20)
+e = zglasza(lambda: Testowe(sym).przenies_blanki())
+sprawdz("5b blanki: pełny bag = błąd", e and e.krok == "blanki", e)
+sym = Symulacja([{"id": BLANK, "ilosc": 1}] * 3)
+e = zglasza(lambda: Testowe(sym).przenies_blanki())
+sprawdz("5c blanki: brak okna baga = błąd", e and "jednego plecaka i jednego bagu" in e.powod, e)
+sym = Symulacja([{"id": BLANK, "ilosc": 1}] * 3, bag=[{"id": 1, "ilosc": 1}])
+sym.kon[0]["nazwa"] = "dead goblin"
+e = zglasza(lambda: Testowe(sym).przenies_blanki())
+sprawdz("5d blanki (#2): otwarte zwłoki nie są bagiem na runy = błąd, blanki nie lecą do cudzego kontenera",
+        e and "bagów" in e.powod and sum(1 for q in sym.glowny()["p"] if q["id"] == BLANK) == 3, e)
+sym = Symulacja([{"id": BLANK, "ilosc": 1}] * 3, bag=[])
+sym.spada = True
+e = zglasza(lambda: Testowe(sym).przenies_blanki())
+sprawdz("5e blanki (#1): blank spadł na podłogę = błąd (oba końce)", e and "obu końcach" in e.powod, e)
+
+# --- układ okien na prawdziwych zrzutach z 19.10 ------------------------------------------------------------------------
+
+D = KAT / "testy" / "dane"
+
+
+def plotno(nazwa):
+    c = Image.new("RGB", (940, 1030))
+    c.paste(Image.open(D / nazwa), (756, 0))
+    return c
+
+
+class Okna(Testowe):
+    def __init__(self, sym, obrazy):
+        super().__init__(sym)
+        self.obrazy = list(obrazy)
+        self.wywolania = []
+
+    def _zrzut(self, mysz):
+        return plotno(self.obrazy.pop(0) if len(self.obrazy) > 1 else self.obrazy[0])
+
+    def _okna_numery(self, obraz):
+        return Testowe._okna_numery(self, obraz)
+
+    def _otworz_plecak_z_ekwipunku(self, m, u):
+        self.wywolania.append(("plecak_z_ekwipunku", u["plecak_ekw"]))
+
+
+two = Symulacja([{"id": GOLD, "ilosc": 48}], bag=[{"id": BLANK, "ilosc": 1}] * 20)
+a = Okna(two, ["panel_zwinieta.png"])
+a.przygotuj_okna()
+sprawdz("6a okna: zwinięta minimapa i oba okna po 5 rzędów = zero kliknięć (idempotentnie)", a.mysz.akcje == [], a.mysz.akcje)
+
+a = Okna(two, ["panel_rozwinieta.png", "panel_zwinieta.png"])
+a.przygotuj_okna()
+sprawdz("6b okna: minimapa rozwinięta -> klika „–” w (909, 42), potem nic więcej", a.mysz.akcje[0] == ("klik", 909, 42, None)
+        and len(a.mysz.akcje) == 1, a.mysz.akcje)
+
+a = Okna(two, ["panel_zwinieta_krotki.png", "panel_zwinieta_krotki.png", "panel_zwinieta.png"])
+a.przygotuj_okna()
+dr = [x for x in a.mysz.akcje if x[0] == "przeciagnij"]
+sprawdz("6c okna: plecak 2 rzędy -> jedno przeciągnięcie dolnej krawędzi o 3 rzędy (111 px)", len(dr) == 1
+        and dr[0][4] - dr[0][2] == 3 * 37 and dr[0][1] == dr[0][3], a.mysz.akcje)
+
+a = Okna(two, ["panel_zwinieta.png"])
+a._zrzut = lambda m: Image.new("RGB", (940, 1030))
+e = zglasza(lambda: a.przygotuj_okna())
+sprawdz("6d okna: nierozpoznany układ panelu = błąd, żadnych kliknięć", e and "układu panelu" in e.powod and a.mysz.akcje == [], (e, a.mysz.akcje))
+
+# gałąź „bag leży w plecaku, brak drugiego okna”: Ctrl+klik na slocie baga, potem plecak z ekwipunku
+sym1 = Symulacja([{"id": BAG, "ilosc": 1}, {"id": GOLD, "ilosc": 48}])
+a = Okna(sym1, ["panel_zwinieta.png"])
+a.przygotuj_okna()
+kl = [x for x in a.mysz.akcje if x[0] == "klik"]
+sprawdz("6e okna (#5): bag w plecaku -> Ctrl+klik na jego slocie, potem otwarcie plecaka z ekwipunku", len(kl) == 1 and kl[0][3] == "Control_L"
+        and kl[0][1:3] == Slot(0).srodek and a.wywolania and a.wywolania[0][0] == "plecak_z_ekwipunku", (a.mysz.akcje, a.wywolania))
+sym2 = Symulacja([{"id": GOLD, "ilosc": 1}] * 9 + [{"id": BAG, "ilosc": 1}])
+sym2.kon[0]["widoczne"] = 8
+a = Okna(sym2, ["panel_zwinieta.png"])
+e = zglasza(lambda: a.przygotuj_okna())
+sprawdz("6f okna (#5): bag w slocie 9, a okno pokazuje 8 slotów = SerwisBlad (nie IndexError), zero kliknięć", e and "slotów" in e.powod
+        and a.mysz.akcje == [], (e, a.mysz.akcje))
+sym3 = Symulacja([{"id": BAG, "ilosc": 1}, {"id": 2868, "ilosc": 1}])
+a = Okna(sym3, ["panel_zwinieta.png"])
+e = zglasza(lambda: a.przygotuj_okna())
+sprawdz("6g okna: dwa bagi w plecaku = błąd (nie wiem, który otworzyć)", e and "bagi" in e.powod, e)
+
+print(f"\n{sum(ok)}/{len(ok)} OK")
+sys.exit(0 if all(ok) else 1)

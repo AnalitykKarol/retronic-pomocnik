@@ -190,3 +190,19 @@ udana próba 09:48), dobór R=12/60 s do ruchu graczy, czy droga A* po zmianie r
   maskowanie IP/proxy NIE zrobione (wymaga dostawcy); bot na testowej postaci dopiero po wyniku obserwacji. Kopia prefiksu głównego niesie
   `MachineGuid` i zapisane konto z `autoReconnect` (może wyrzucić główną postać) — robić świeży prefiks.
 - Procedura i pułapki: repo omarchy, `docs/cheatsheets/retronic-podglad.md`.
+
+## 2026-10-19 14:00 — serwis w Edronie (wymiana gold, depo, ham, backpack, blanki): skrypt gotowy, test na żywo czeka
+
+**Co:** `./serwis.sh` robi całą kolejkę jednym skryptem z listą kroków w danych (`trasy/serwis_edron.json`, kolejność edytowalna):
+bank (Ebenizer: `change gold` -> liczba platinum -> `yes`) -> depo (wolna wnęka z 8, locker -> depot chest, bag z UH i platinum ponad 3) ->
+jedzenie (Mirabell, `5 ham`, cel 5 szt.) -> backpack (Beatrice, `backpack`, 20 gp) -> blanki (Alexander, `20 blank rune`, przeniesienie do nowego baga)
+-> wyjście na z7 przy depo (stąd `uruchom.sh` dodaje dojście na gobliny). Opcje: `--na-sucho [--od x,y,z]`, `--kroki a,b`, `--od-nowa`, `STARTUJ=1`.
+**Dane:** z Twojego ręcznego nagrania (`trasy/edron_serwis_surowa.json`, 208 pkt, 14 łączników pięter) i znaczników; wnęki depo z mapy klienta.
+**Specyfikacja i pomiary na żywo (dialogi, współrzędne, układ panelu, Move Objects):** `dane_tibia/SPEC_edron_serwis_1019.md`.
+**Testy:** `testy/test_serwis.py` 69/69, `testy/test_serwis_akcje.py` 62/62 (atrapy + prawdziwa mapa + zrzuty panelu `testy/dane/panel_*.png`);
+kontrola mutacyjna (16 celowo wstrzykniętych błędów wykrytych). Niezależny przegląd (checker, 2 rundy), uwagi #1-#5 i R1-R7 naprawione; trzeciej rundy nie było.
+**Nie sprawdzone na żywo tym kodem** (Mastafian gra): rozmowa przez `Rozmowa`, `przygotuj_okna`, `depo_zloz`, `kup`, `przenies_blanki`, chodzenie po łącznikach.
+Do testu na drugiej postaci: postać w Edronie, >= 260 gp i >= 100 gold do wymiany, bot zatrzymany (`./zatrzymaj.sh`), potem `./serwis.sh`.
+**Otwarte:** automatyczne wywołanie serwisu z wyprawy do depo (dziś depo kończy się STOP i dymkiem, potem ręcznie `./serwis.sh`);
+`loot.czy_runy` bierze plecak z większością blanków za bag na runy (błąd „klasyfikacja bagów”, serwis go omija nazwami okien);
+`loot.przenies_miedzy` odmawia na `depot chest`; `SLOT_PLECAKA_EKWIPUNEK` w `loot.py` ma współrzędne starego układu (serwis liczy z układu panelu).
