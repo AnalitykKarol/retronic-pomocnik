@@ -52,7 +52,7 @@ Bot nigdy sam nie naciska Enter po swoim tekście.
   Typiara 16:52), ale NIE otwiera zakładki — pojawia się dopiero po odpowiedzi rozmówcy. Zakładkę otwiera
   Ctrl+O → okno „Channels” → pole „Open a private message channel” (ok. 470,595 przy ekranie 940x1030) → wpis
   nicka → „Open” (ok. 497,644): nowa zakładka od razu aktywna, w niej Enter-tekst-Enter (test do Jointoramix
-  17:09: „Message sent to Jointoramix.”). F2 używa tej drogi. Decyzje: cena UH 2,3k/BP (Termos: 2k/BP za 5 BP,
+  17:09: „Message sent to Jointoramix.”). F2 używa tej drogi. Po `showPrivateMessagesInConsole: false` (17:20): przychodzący priv od nowej osoby otwiera własną zakładkę (Gurukk 17:18), ale `*Nick*` nadal jej nie otwiera: wiadomość idzie, echo zostaje na Default (17:23 „hej co tam” do Jointoramix). Jednorazowo 17:22 echo pokazało się w zakładce Xezzs — wg Karola przez jego ręczną akcję w oknie, nie powtórzyło się. Zakładkę od początku daje tylko Ctrl+O. Decyzje: cena UH 2,3k/BP (Termos: 2k/BP za 5 BP,
   ustalone przez Karola), miasto Edron/Thais, F1 zatwierdzona i uruchomiona.
 - ~~Q1 — jak otwieramy rozmowę?~~ (a) wpis `*Nick* tekst` na Default: Enter wyśle priv, ale nie wiem, czy
   klient otworzy potem zakładkę (UNKNOWN, do zmierzenia jednym próbnym wpisem bez Enter);
