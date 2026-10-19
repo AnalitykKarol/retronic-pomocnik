@@ -16,6 +16,9 @@ Trasa: trasy/do_miasta.json (z piętra 11 do sklepu na z7), powrót = odwrócony
                      "no-pathing"); wchodzimy na nią strzałką, ląduje się na polu-linie piętro niżej. Jedyne
                      przejście bez flagi (z7 -> z8, (32060,32173,7), prawdopodobnie właz/kratka) próbujemy:
                      Use z sąsiedniego pola, wejście strzałką, Use na własnym polu; zawsze z odczytem z.
+                     Rampy/schody w dół leżą o pole wyżej niż lądowanie (19.10: Edron, rampa (33167,31812,7) ->
+                     (33167,31813,8)): po planowanym polu próbujemy sąsiednich pól z flagą mapy 2 w promieniu 1,
+                     wolnych od graczy. Etap przejścia bez postępu przez WYPAD_ETAP_MAX_S kończy się awarią (log + powiadomienie).
 Chodzenie po jednym piętrze to ta sama maszyneria co zwykła trasa (Cavebot._idz_odcinek: A*, klik, utknięcia).
 
 Bezpieczeństwo: STOP / STOP_RECZNY / ALARM_GM przerywają wypad natychmiast i nie wznawiają go samoczynnie;
@@ -74,6 +77,7 @@ DRZWI_ODSTEP = (1.5, 3.0, 4.0)   # s przerwy między kolejnymi próbami przy drz
 DRZWI_CZEKAJ_S = (0.6, 1.0)      # s oczekiwania po Use na drzwiach (zanim sprawdzimy otwarcie / zrobimy krok)
 DRZWI_DALEKO_MAX = 3        # tyle razy "stoi za daleko od drzwi" zanim awaria (nigdy pętla bez końca)
 AWARIA_PO_S = 120.0         # utknięcie w mieście na dziurze: ponawiamy co tyle
+WYPAD_ETAP_MAX_S = 60.0     # s w etapie przejścia (LINA/DZIURA) bez zmiany pozycji i bez nowej próby = awaria (19.10: 20 min ciszy)
 ODP_NPC_S = 6.0             # s czekania na odpowiedź NPC
 WERYF_S = 9.0               # s czekania na wzrost liczby sztuk po "yes"
 NPC_PROBY = 3               # tyle razy "hi" bez odpowiedzi, zanim sklep uznamy za nieosiągalny
@@ -457,6 +461,8 @@ class Wypad:
         self.awaria_log = float("-inf")
         self._przyst_ei = None
         self.drzwi_otwarte = set()  # kafelki drzwi, które w tym wypadzie już się otworzyły (powrót: najpierw krok)
+        self.pj = None              # [klucz, od kiedy]: czy etap przejścia (LINA/DZIURA) robi postęp (_pilnuj_przejscia)
+        self.pj_proby = 0           # liczba wykonanych prób przejścia w tym wypadzie (zmiana = postęp)
 
     # --- konfiguracja (stałe z modułu cavebot: pokrętła ustawiają je w locie) ---
 
@@ -668,6 +674,8 @@ class Wypad:
         self.sklep = None
         self.utk = 0
         self.postep = None
+        self.pj = None
+        self.ostrzezenia = {k for k in self.ostrzezenia if isinstance(k, str)}    # jednorazowe logi etapów (krotki) od nowa
         self.dojscie, self.dojscie_plany, self.dojscie_t0 = None, 0, None
         self.dojscie_sprawdz = True
         self.wyjatki = 0
@@ -691,6 +699,7 @@ class Wypad:
         poz = cb.postac.pozycja()
         if teraz - self.ost_obieg > 5.0:
             self.postep = None          # luka (walka, ucieczka, loot): nie liczymy jej do utknięcia
+            self.pj = None
         cb.ustaw_stan("WYPAD", f"{self.faza} {self.ei}/{len(self.etapy)}")
         try:
             if self.faza == "sklep":
@@ -1143,6 +1152,79 @@ class Wypad:
             return self._awaria(typ, f"{n} nieudanych prób przejścia {e['stoi']} -> {e['ladunek']}", e)
         return True
 
+    def _pilnuj_przejscia(self, poz, e, teraz):
+        """Bezpiecznik widoczny (19.10): etap przejścia (LINA/DZIURA), w którym pozycja się nie zmienia i nie ma nowej próby
+        przez WYPAD_ETAP_MAX_S, kończy się awarią z logiem i powiadomieniem, zamiast kręcić się w ciszy (stoi za daleko ->
+        cofnięcie do IDZ -> "na miejscu" -> znów przejście...). Czekanie między próbami (`nast`) nie liczy się do limitu.
+        None: w porządku; inaczej wynik obiegu (awaria)."""
+        if self._nie_czas(e, teraz):
+            self.pj = None
+            return None
+        klucz = (self.ei, tuple(poz), self.pj_proby)
+        if self.pj is None or self.pj[0] != klucz:
+            self.pj = [klucz, teraz]
+            return None
+        limit = float(self._k("WYPAD_ETAP_MAX_S", WYPAD_ETAP_MAX_S))
+        if teraz - self.pj[1] <= limit:
+            return None
+        self.pj = None
+        opis = f"przejście {e['typ']} {e['stoi']} -> {e['ladunek']}: brak próby i ruchu od {limit:.0f} s, poz {tuple(poz)}"
+        self.log(f"Wypad: {opis}; awaria")
+        self._powiadom("Wypad: przejście bez postępu", f"{opis}.", "critical", "wypad_przejscie")
+        e["proby"] = 0
+        return self._awaria("przejscie_bez_postepu", opis, e)
+
+    def _zajete_pola(self, poz):
+        """Pola (x, y) zajęte przez inne postacie/potwory na piętrze `poz` (bez nas)."""
+        cb = self.cb
+        try:
+            f = getattr(cb, "zajete_bez_nas", None)
+            if callable(f):
+                return {(int(p[0]), int(p[1])) for p in f(tuple(poz))}
+            return {(int(m["x"]), int(m["y"])) for m in (getattr(cb, "ostatnie_stwory", None) or ())
+                    if m.get("z") == poz[2] and m.get("hp", 100) > 0 and (m["x"], m["y"]) != tuple(poz[:2])}
+        except Exception:
+            return set()
+
+    def _dziura_sasiednie(self, poz, e):
+        """Pola z flagą mapy "zmiana piętra" (flaga 2) w promieniu 1 od pola stania, inne niż zaplanowana dziura:
+        plan zakłada dziurę na (x, y) lądowania, a rampa/schody w dół leżą o pole wyżej (19.10: lądowanie y=31813, rampa y=31812).
+        -> (wolne, zajete): wolne = posortowane (proste przed skosem, bliżej planowanej dziury), zajete = pola z flagą, na których
+        stoi ktoś (nie wchodzimy)."""
+        mapa = getattr(self.cb, "mapa", None)
+        if mapa is None or not self._k("WYPAD_DZIURA_SASIEDNIE", 1):
+            return [], []
+        h = e["dziura"]
+        zaj = self._zajete_pola(poz)
+        wolne, zajete = [], []
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                if (dx, dy) == (0, 0):
+                    continue
+                q = (poz[0] + dx, poz[1] + dy, poz[2])
+                if (q[0], q[1]) == (h[0], h[1]):
+                    continue
+                try:
+                    if not (mapa.flagi(*q) & 2) or mapa.przechodnie(*q) is False:
+                        continue
+                except Exception:
+                    continue
+                osiagalne = (q[0], q[1]) not in zaj
+                if osiagalne and dx and dy:         # po skosie dojdziemy tylko przez wolne pole pośrednie
+                    osiagalne = (poz[0] + dx, poz[1]) not in zaj or (poz[0], poz[1] + dy) not in zaj
+                (wolne if osiagalne else zajete).append(q)
+        wolne.sort(key=lambda q: (q[0] != poz[0] and q[1] != poz[1], cheb(q, h), q[1], q[0]))
+        return wolne, zajete
+
+    def _kier_do_pola(self, poz, q):
+        """Kierunek strzałki do sąsiedniego pola q; po skosie najpierw w poziomie, a gdy to pole zajęte, w pionie."""
+        dx, dy = q[0] - poz[0], q[1] - poz[1]
+        if dx and dy:
+            zaj = self._zajete_pola(poz)
+            if (poz[0] + dx, poz[1]) in zaj and (poz[0], poz[1] + dy) not in zaj:
+                return "Down" if dy > 0 else "Up"
+        return ("Right" if dx > 0 else "Left") if dx else ("Down" if dy > 0 else "Up")
+
     @staticmethod
     def _proby_drabiny(poz, cel):
         """Kolejność prób wejścia (Ctrl+klik = Use): drabina (1 próba), lina z plecaka (2x), drabina, pole własne (0,0), potem sąsiednie
@@ -1158,6 +1240,9 @@ class Wypad:
     def _lina(self, poz, e, teraz):
         """Przejście w górę: DRABINA (Ctrl+klik na polu drabiny obok pola stania), a po wyczerpaniu prób lina."""
         cb = self.cb
+        w = self._pilnuj_przejscia(poz, e, teraz)
+        if w is not None:
+            return w
         if cheb(poz, e["cel"]) > 1 or poz[2] != e["stoi"][2]:
             # za daleko od pola drabiny: wracamy do chodzenia po poprzednim etapie
             if self.ei > 0 and self.etapy[self.ei - 1]["typ"] == "IDZ":
@@ -1173,6 +1258,7 @@ class Wypad:
         n = e.get("proby", 0)
         proby = self._proby_drabiny(poz, e["cel"])
         e["proby"] = n + 1
+        self.pj_proby += 1
         tryb, pole = proby[min(n, len(proby) - 1)]
         rodzaj = "lina" if tryb == "lina" else "drabina"
         self.log(f"Wypad: {rodzaj} próba {n + 1}/{len(proby)} ({tryb}) z {tuple(poz)}, pole {pole[:2]}")
@@ -1196,30 +1282,60 @@ class Wypad:
         h = e["dziura"]
         if poz[2] != e["stoi"][2]:
             return True
+        w = self._pilnuj_przejscia(poz, e, teraz)
+        if w is not None:
+            return w
         na_dziurze = (poz[0], poz[1]) == (h[0], h[1])
+        # 19.10: plan zakłada dziurę na (x, y) lądowania, a rampa w dół leży o pole wyżej (flaga 2 na sąsiednim polu).
+        # Sąsiednie pola z flagą zmiany piętra (promień 1 od nas), wolne od graczy, próbujemy po planowanym polu.
+        sasiednie, zajete_flaga = ([], [])
+        if not na_dziurze:
+            sasiednie, zajete_flaga = self._dziura_sasiednie(poz, e)
         if cheb(poz, h) > 1:
-            if self.ei > 0 and self.etapy[self.ei - 1]["typ"] == "IDZ":
+            if sasiednie:
+                pass                    # planowana dziura za daleko, ale obok nas jest rampa: próbujemy ją
+            elif zajete_flaga:
+                klucz_ostrz = ("dziura_zajeta", self.ei, tuple(poz))
+                if klucz_ostrz not in self.ostrzezenia:
+                    self.ostrzezenia.add(klucz_ostrz)
+                    self.log(f"Wypad: dziura {tuple(h)[:2]}: pola ze zmianą piętra obok {tuple(poz)[:2]} zajęte "
+                             f"({[q[:2] for q in zajete_flaga]}), czekam")
+                cb.pauza(0.5, 1.0)       # bezpiecznik _pilnuj_przejscia kończy to awarią, gdy nikt nie zejdzie
+                return True
+            elif self.ei > 0 and self.etapy[self.ei - 1]["typ"] == "IDZ":
                 self.ei -= 1
                 # 14.10: ostatni punkt odcinka (przy przejściu), nie pierwszy: pi = 0 cofało postać do miasta
                 self.pi = max(0, len(self.etapy[self.ei].get("punkty") or ()) - 1)
                 return True
-            return self._awaria("dziura_daleko", f"poz {poz}, dziura {h}")
+            else:
+                return self._awaria("dziura_daleko", f"poz {poz}, dziura {h}")
         if self._nie_czas(e, teraz):
             cb.pauza(0.2, 0.5)
             return True
         n = e.get("proby", 0)
         e["proby"] = n + 1
+        self.pj_proby += 1
         # kolejność prób: pewna dziura = krok; niepewna (kratka/właz bez flagi) = Use, krok, Use na własnym polu
         tryby = ("krok", "lopata", "krok", "use", "lopata", "krok") if e["pewna"] else \
             ("use", "krok", "use_wlasne", "lopata", "krok", "use")
-        tryb = tryby[n % len(tryby)]
+        if cheb(poz, h) > 1:
+            lista = [("krok", q) for q in sasiednie]
+        elif e["pewna"] or not sasiednie:
+            lista = [(t, h) for t in tryby]
+        else:
+            # planowane pole (2 pierwsze próby), potem sąsiednie pola z flagą mapy, potem reszta prób na planowanym
+            lista = [(t, h) for t in tryby[:2]] + [("krok", q) for q in sasiednie] + [(t, h) for t in tryby[2:]]
+        limit = max(ETAP_PRZEJSCIE_PROB, len(lista)) if cheb(poz, h) <= 1 else ETAP_PRZEJSCIE_PROB
+        tryb, cel_p = lista[n % len(lista)]
         if tryb == "krok" and na_dziurze:
             tryb = "use_wlasne"
+        if cel_p != h or sasiednie:
+            self.log(f"Wypad: dziura próba {n + 1}/{limit} ({tryb}) z {tuple(poz)}, pole {tuple(cel_p)[:2]}"
+                     f"{' (sąsiednie z flagą mapy, plan: ' + str(tuple(h)[:2]) + ')' if cel_p != h else ''}")
         try:
             if tryb == "krok":
-                dx, dy = h[0] - poz[0], h[1] - poz[1]
                 # strzałki nie chodzą po skosie: z pola po skosie najpierw w poziomie (potem dziura jest obok)
-                kier = ("Right" if dx > 0 else "Left") if dx else ("Down" if dy > 0 else "Up")
+                kier = self._kier_do_pola(poz, cel_p)
                 cb.postac.krok(kier)
             elif tryb == "lopata":
                 uzyj = getattr(self.ops, "uzyj_lopate", None)
@@ -1241,12 +1357,12 @@ class Wypad:
         except bot.Zatrzymano:
             raise
         except BrakEkranu as ex:
-            return self._porazka_przejscia(e, teraz, "dziura_ekran", powod=str(ex), tryb=tryb)
+            return self._porazka_przejscia(e, teraz, "dziura_ekran", limit=limit, powod=str(ex), tryb=tryb)
         except Exception as ex:
-            return self._porazka_przejscia(e, teraz, "dziura_wyjatek", powod=repr(ex), tryb=tryb)
+            return self._porazka_przejscia(e, teraz, "dziura_wyjatek", limit=limit, powod=repr(ex), tryb=tryb)
         if self._po_przejsciu(e, poz, teraz, "dziura"):
             return True
-        return self._porazka_przejscia(e, teraz, "dziura_bez_zmiany_pietra", tryb=tryb)
+        return self._porazka_przejscia(e, teraz, "dziura_bez_zmiany_pietra", limit=limit, tryb=tryb)
 
     # --- drzwi ---
 
