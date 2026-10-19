@@ -309,4 +309,8 @@ exec wayvnc -S {kat}/ctl.sock 127.0.0.1 {port}
         shutil.rmtree(kat, ignore_errors=True)
 integracja()
 
+# 19.10: z botem ekran sesji się nie rusza (zmiana kształtu okna chowa panele klienta i bot traci odczyt)
+sprawdz("20a bot działa: rozmiar_docelowy = None (bez zmiany ekranu)", d.rozmiar_docelowy((1030, 1030), True) is None)
+sprawdz("20b brak bota: ekran = okno podglądu", d.rozmiar_docelowy((941, 1030), False) == (941, 1030))
+
 print("WYNIK", "OK" if all(ok) else "FAIL", f"{sum(ok)}/{len(ok)}"); sys.exit(0 if all(ok) else 1)

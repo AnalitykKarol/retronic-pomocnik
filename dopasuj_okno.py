@@ -65,6 +65,13 @@ def wpisz_proporcje(rozm, proporcje=PROPORCJE_GRY, maks_szer=MAKS_SZER_GRY):
     return szer, wys
 
 
+def rozmiar_docelowy(rozm, bot):
+    """Docelowy ekran sesji dla okna podglądu `rozm`. Bez bota = rozmiar okna (wypełnia podgląd, bez pasów; SKALUJ ustawia
+    skalę). Z botem None = nie ruszamy ekranu sesji: klient przy zmianie kształtu okna chowa panele i przestawia układ,
+    a bot (plecak, HP/mana, kliki) traci wtedy odczyt (19.10: Mastafian stanął po zmianie okna podglądu)."""
+    return None if bot else rozm
+
+
 def skaluj_wlaczone(env=None):
     """RETRONIC_SKALUJ (domyślnie włączone, "0" wyłącza): tryb do grania ręcznego, wyłączany sam, gdy chodzi bot. Ekran sesji ma piksele okna, a sway skaluje go tak, by klient dalej
     widział logiczne 1175x910 (układ jak zawsze, obraz powiększony). Bot (ekran.py szuka mapy w pikselach) wymaga skali 1."""
@@ -358,10 +365,7 @@ def main(argv=None):
     skaluj = skaluj_wlaczone()
     def okno():
         r = rozmiar_okna(hyprctl_klienci(), a.pid, port, hyprctl_skale())
-        # 19.10 (Karol): ekran sesji = okno podglądu zawsze, także przy bocie (bez wpisywania proporcji, bez szarych pasów).
-        # Bot chodził tak na głównej od 17.10 (940x1030, skala 1); wpisz_proporcje zostaje w pliku, ale nieużywane.
-        # Tryb SKALUJ: skala stała (skala_stala), gdy nie chodzi bot; klient sam układa mapę i panele (18.10).
-        return r
+        return rozmiar_docelowy(r, bot_dziala())
 
     d = Dopasowywacz(okno,
                      lambda: odczytaj_rozmiar(port), lambda w, h: ustaw_rozmiar(port, w, h),
