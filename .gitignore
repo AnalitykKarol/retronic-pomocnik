@@ -20,3 +20,8 @@ ostatni_start*.env
 testy/dane/podglad_mapy.png
 obecnosc_stan.json
 wrogowie.json
+
+# okno zarządzania (okno_api.py): dziennik cofania i blokada głównej instancji
+okno_cofnij.jsonl
+okno.lock
+na_zywo.json.tmp-okno-*
