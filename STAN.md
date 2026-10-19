@@ -206,3 +206,15 @@ Do testu na drugiej postaci: postać w Edronie, >= 260 gp i >= 100 gold do wymia
 **Otwarte:** automatyczne wywołanie serwisu z wyprawy do depo (dziś depo kończy się STOP i dymkiem, potem ręcznie `./serwis.sh`);
 `loot.czy_runy` bierze plecak z większością blanków za bag na runy (błąd „klasyfikacja bagów”, serwis go omija nazwami okien);
 `loot.przenies_miedzy` odmawia na `depot chest`; `SLOT_PLECAKA_EKWIPUNEK` w `loot.py` ma współrzędne starego układu (serwis liczy z układu panelu).
+
+## 2026-10-19 — „Wróć do miasta” na żądanie (WROC), F1 + test na żywo
+- Spec: `dane_tibia/SPEC_wroc_do_miasta_1019.md` (zatwierdzona). Kod: `wroc.sh` + hook w `wyprawa.py` (`_okazja_wroc`, `_wroc_czeka`),
+  flaga `potrzeby["reczny"]` (zawsze depo, bez powrotu), czyszczenie `WROC` w `uruchom.sh`/`serwis.sh`/`uruchom_trolle.sh`.
+  Testy: `test_wyprawa` 160/160, `_dojscie` 25/25, `_droga_depo` 50/50, `test_wypad_bieg` 6/6, `test_instancja` 33/33; checker: CHANGES-REQUIRED -> poprawione.
+- **Test na żywo (Mastafian, gobliny_edron z8, 16:28-16:33):** `./wroc.sh` 16:28:xx, bot dokończył walkę, ruszył 16:29:03 (`wyprawa:depo:reczny`),
+  4 przejścia pięter (lina z8->z7, z11->z10->z9, dziura z7->z8), `DEPO osiągnięte w (33173,31796,8)` 16:33:01, STOP zapisany, bot zatrzymany;
+  plik WROC usunięty po ruszeniu. Całość ok. 4 min. NIE sprawdzono: powiadomienie na pulpicie, powrót na spot (z założenia nie robi), serwis po dojściu.
+- Otwarte: F3 guzik w pasku (`plugins/charlie.retronic`, instalacja = poziom 2), `rook` nie ma planu depo, zmiany niezacommitowane (branch `feat/wroc-do-miasta`
+  w worktree `pomocnik-wroc` = ta sama zmiana; worktree do usunięcia), `bot_dziala()` w `dopasuj_okno.py` globalne zamiast per instancja,
+  przyczyna 2-godzinnej awarii lootu (`okno_niewidoczne` 13:00-14:57) nieustalona (pomógł restart sesji), `hybryda` z Haiku nie włączona.
+- Poprawka Mijania (`MIJANIE_OBOZ_BLISKO=3`, `unikanie.py`, testy M10a-d): gracz bez kierunku <= 3 pola nie jest obozowiczem; nieweryfikowana na żywo.

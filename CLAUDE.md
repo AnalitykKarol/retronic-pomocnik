@@ -16,3 +16,6 @@ SUPER+T (omarchy) przełącza okno float/kafel i je rozjeżdża: przełącz z po
 Weryfikacja po starcie: `python3 -I -c "import dopasuj_okno as d; print(d.odczytaj_rozmiar(5901))"` ma dać (1175, 910) albo mniej, nigdy 1498x1820. Zrzut okna: `grim -g "x,y WxH"`.
 Nie używaj `pkill -f`/`pgrep -f` z wzorcem we własnej komendzie (zabija własną powłokę): używaj ./zamknij_sesje.sh.
 Bota NIE uruchamiaj przy starcie sesji, chyba że Karol o to prosi.
+
+- Gdy gracz pyta „?” / „stop” przez zachowanie bota: `gotowe_odpowiedzi.md` (zatrzymaj bota, krótka odpowiedź ręcznie, odejdź na bok) i diagnoza Mijania obok.
+Powrót do miasta na żądanie: `RETRONIC_ID=<id> ./wroc.sh` (bot w spokojnej chwili idzie do depo i staje, bez zakupów; `--anuluj` cofa, w marszu `./zatrzymaj.sh`); wymaga działającego bota tej instancji, nie rusza gry.
