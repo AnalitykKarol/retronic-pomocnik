@@ -1,0 +1,1 @@
+../wtyczka-paska/RetronicModel.js
