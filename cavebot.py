@@ -721,6 +721,7 @@ MIJANIE_PRZOD = 16                 # punkty trasy przed nami, na których gracz 
 MIJANIE_TRASA_R = 2                # pola: idący gracz tak blisko punktu trasy leży na naszej drodze
 MIJANIE_OBOZ_S = 3.0               # s obserwacji bez ruchu, zanim gracz jest "obozowiczem" (stoi); obserwacja liczona w oknie UNIKANIE_TOR_OKNO_S (4 s), więc zakres pokrętła do 3,5 s
 MIJANIE_OBOZ_R = 3                 # pola: komora obozowicza (punkty trasy tak blisko niego omijamy)
+MIJANIE_OBOZ_BLISKO = 3            # pola: gracz bez kierunku tak blisko nas (walczy obok) to nie obozowicz: bez odwracania obiegu; 0 = wyłączone (19.10)
 MIJANIE_OBOZ_PAMIEC_S = 60.0       # s: decyzję wobec obozowicza podejmujemy ponownie po tylu s (stoi dalej, pętla znów do niego dochodzi)
 MIJANIE_OBOZ_ODWROTY = 2           # tyle odwróceń obiegu przez tego samego obozowicza w 120 s, potem przechodzimy obok niego
 MIJANIE_SKROT_MAX = 40             # pola: najdłuższy skrót omijający komorę obozowicza

@@ -395,6 +395,23 @@ sprawdz("M8a obozowicz stoi na pętli (komora szeroka): decyzja po ~3 s obserwac
 sprawdz("M8b ...nigdy bliżej niż 3 pola od niego, a bot dalej chodzi po pętli (>= 50 różnych pól)", s.min_odl >= 3 and len({p for _, p in s.trasa}) >= 50, (s.min_odl, len({p for _, p in s.trasa})))
 sprawdz("M8c ...nie stoi w miejscu (postój < 4 s) i nie dreptuje (najwyżej jedno zawrócenie na decyzję)", s.max_postoj() < 4 and dreptania(s.trasa) <= 1,
         (s.max_postoj(), dreptania(s.trasa)))
+
+# 19.10 (Mastafian + Raczek): gracz walczący z tymi samymi mobami tuż obok bota prawie się nie rusza (brak kierunku), więc wyglądał
+# jak obozowicz i bot odwracał obieg trasy prosto na jego dalszą drogę. Gracz <= MIJANIE_OBOZ_BLISKO pól bez kierunku to nie obozowicz.
+def decyzja_oboz(odl, konf=None):
+    """Bezpośrednio unikanie._mij_kierunek: gracz bez kierunku, obserwowany 3,5 s, `odl` pól od nas i jedno pole obok trasy (na wschód).
+    Zwraca None (bez decyzji) albo Mij (odwróć / skrót)."""
+    k = types.SimpleNamespace(**dict(KONF, **(konf or {})))
+    u = unikanie.Unikanie(k, zegar=lambda: 100.0, log=lambda *a, **kw: None, zdarzenie=lambda *a, **kw: None, powiadom=lambda *a, **kw: None)
+    ok_p = [(i, (96 + i, 95, 7)) for i in range(20)]
+    ok_t = [(i, (94 - i, 95, 7)) for i in range(20)]
+    g = {"nazwa": "O", "id": 7, "x": 95 + odl, "y": 96, "z": 7, "odl": odl, "kier": None, "obs_s": 3.5}
+    return u._mij_kierunek((95, 95, 7), lambda *a, **kw: None, [g], [g], 100.0, ok_p, ok_t)
+sprawdz("M10a obozowicz 6 pól od nas bez kierunku: odwrócenie obiegu jak dotąd", decyzja_oboz(6) is not None, decyzja_oboz(6))
+sprawdz("M10b gracz 3 pola od nas bez kierunku (walczy obok): NIE jest obozowiczem, brak odwrócenia obiegu", decyzja_oboz(3) is None, decyzja_oboz(3))
+sprawdz("M10c ...granica: 4 pola bez kierunku nadal jest obozowiczem", decyzja_oboz(4) is not None, decyzja_oboz(4))
+sprawdz("M10d MIJANIE_OBOZ_BLISKO=0 wyłącza wyjątek (stare zachowanie: 3 pola = obozowicz)", decyzja_oboz(3, {"MIJANIE_OBOZ_BLISKO": 0}) is not None,
+        decyzja_oboz(3, {"MIJANIE_OBOZ_BLISKO": 0}))
 # korytarz szer. 1 w kształcie pętli: skrótu nie ma, obozowicz zagradza - odwracamy, a po dwóch odwróceniach przechodzimy obok
 PETLA1 = [p[:2] for p in petla(90, 120, 95, 105)]
 s = Swiat(PETLA1, P, (95, 95), {"O": [110, 95]})
@@ -843,7 +860,7 @@ cavebot.MIJANIE = 0
 # pokrętła
 import pokretla as _pk
 MIJ = [k for k in _pk.ZAKRESY if k.startswith("MIJANIE")]
-sprawdz("K1 pokrętła MIJANIE* w pokretla.ZAKRESY i w cavebot.py z domyślną w zakresie; MIJANIE domyślnie 0", len(MIJ) == 13 and all(hasattr(cavebot, k) for k in MIJ)
+sprawdz("K1 pokrętła MIJANIE* w pokretla.ZAKRESY i w cavebot.py z domyślną w zakresie; MIJANIE domyślnie 0", len(MIJ) == 14 and all(hasattr(cavebot, k) for k in MIJ)
         and all(_pk.ZAKRESY[k][0] <= getattr(cavebot, k) <= _pk.ZAKRESY[k][1] for k in MIJ) and _los["MIJANIE"] == 0, MIJ)
 przyklad = json.loads((KAT / "na_zywo.przyklad.json").read_text())
 sprawdz("K2 na_zywo.przyklad.json: wszystkie pokrętła MIJANIE* z wartością domyślną (MIJANIE = 0)", all(k in przyklad and przyklad[k] == _los[k] if k == "MIJANIE" else przyklad.get(k) == getattr(cavebot, k) for k in MIJ), [k for k in MIJ if przyklad.get(k) != getattr(cavebot, k)])

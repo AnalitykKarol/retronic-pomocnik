@@ -895,6 +895,13 @@ class Unikanie:
             self._mij_log(f"brak_{klucz}", f"Mijanie: gracz {g['nazwa']} ({rodzaj}), ale żadnego bezpiecznego kierunku "
                           f"nie ma - idę dalej po trasie.", t)
             return None
+        if oboz and wybor == "odwroc" and g["odl"] <= self._k("MIJANIE_OBOZ_BLISKO", 3):
+            # 19.10 (Mastafian + Raczek): gracz bez kierunku tuż przy nas zwykle walczy obok (te same moby), to nie obozowicz;
+            # odwrócony obieg poprowadził bota tam, dokąd gracz zaraz ruszył. Bez odwracania: idziemy dalej, ocena po MIJ_BRAK_S.
+            self.mij_brak[klucz] = t
+            self._mij_log(f"blisko_{klucz}", f"Mijanie: gracz {g['nazwa']} stoi tuż obok ({g['odl']} pól, kier None), raczej walczy - "
+                          f"nie odwracam obiegu, idę dalej po trasie.", t)
+            return None
         self.mij_dec[klucz] = {"t": t, "rodzaj": rodzaj}
         self.mij_zmiana_ost = t
         self.mij_zmian += 1

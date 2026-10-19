@@ -140,6 +140,7 @@ ZAKRESY = {
     "MIJANIE_TRASA_R": (1, 4),          # pola: idący gracz tak blisko punktu trasy leży na naszej drodze
     "MIJANIE_OBOZ_S": (1.0, 3.5),       # s bez ruchu, zanim gracz jest obozowiczem (obserwacja liczona w oknie UNIKANIE_TOR_OKNO_S = 4 s: wyżej obozowicz nie powstałby nigdy)
     "MIJANIE_OBOZ_R": (2, 6),           # pola: komora obozowicza
+    "MIJANIE_OBOZ_BLISKO": (0, 6),      # pola: gracz bez kierunku tak blisko nas nie jest obozowiczem (0 = wyjątek wyłączony)
     "MIJANIE_OBOZ_PAMIEC_S": (10.0, 600.0),  # s: decyzja wobec obozowicza wygasa po tylu s
     "MIJANIE_OBOZ_ODWROTY": (1, 5),     # odwróceń obiegu przez tego samego obozowicza w 120 s, potem przechodzimy obok niego
     "MIJANIE_SKROT_MAX": (10, 80),      # pola: najdłuższy skrót omijający komorę obozowicza
