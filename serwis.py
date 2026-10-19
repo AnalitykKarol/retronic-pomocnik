@@ -314,6 +314,226 @@ def powiadom(tytul, tresc):
 
 # --- CLI ---------------------------------------------------------------------------------------
 
+def _cheb(a, b):
+    return max(abs(a[0] - b[0]), abs(a[1] - b[1]))
+
+
+def pola_schodow(mp, a, zb, promien=3):
+    """Pola schodów (flaga 2 na obu piętrach, chodliwe) w promieniu `promien` od wejścia `a`: krok na takie pole zmienia piętro."""
+    za, wyn = a[2], []
+    for dx in range(-promien, promien + 1):
+        for dy in range(-promien, promien + 1):
+            x, y = a[0] + dx, a[1] + dy
+            f, g = int(mp.flagi(x, y, za)), int(mp.flagi(x, y, zb))
+            if f & 1 and f & 2 and not f & 4 and g & 2 and not g & 4:
+                wyn.append((x, y, za))
+    return wyn
+
+
+def pola_startowe(mp, T):
+    """Chodliwe pola obok schodu T (ortogonalnie, nie będące schodem) z kierunkiem strzałki na T."""
+    wyn = []
+    for dx, dy, kier in ((0, -1, "Down"), (0, 1, "Up"), (-1, 0, "Right"), (1, 0, "Left")):
+        x, y = T[0] + dx, T[1] + dy
+        f = int(mp.flagi(x, y, T[2]))
+        if f & 1 and not f & 4 and not f & 2:
+            wyn.append(((x, y, T[2]), kier))
+    return wyn
+
+
+def przejdz_schody(postac, mp, akcje, chodz1, a, zb, maks_s=90.0, log=print):
+    """Przejście pięter schodami z wejścia `a` na piętro `zb`. Wybiera pole schodu i stronę wejścia, które są wolne
+    (gracze stoją przy schodach i na nich), a po nieudanej próbie bierze inne. True = jesteśmy na `zb`, False = nie
+    wyszło w limicie czasu, None = brak schodów na mapie przy `a` (wołający używa starego chodzika)."""
+    t0, nieudane = time.time(), {}
+    ostatni_log = None
+    while time.time() - t0 < maks_s:
+        poz = tuple(postac.pozycja())
+        if poz[2] == zb:
+            return True
+        if poz[2] != a[2]:
+            return False
+        schody = pola_schodow(mp, a, zb)
+        if not schody:
+            return None
+        zajete = {(s["x"], s["y"]) for s in akcje._stwory()
+                  if s.get("z") == poz[2] and s.get("x") is not None and s.get("nazwa") != akcje.nick}
+        opcje = []
+        for T in schody:
+            if (T[0], T[1]) in zajete:
+                continue
+            for S, kier in pola_startowe(mp, T):
+                if (S[0], S[1]) not in zajete or (S[0], S[1]) == (poz[0], poz[1]):
+                    opcje.append((nieudane.get((S, T), 0), _cheb(S, poz), S, T, kier))
+        if not opcje:
+            if ostatni_log != "zajete":
+                log(f"schody z{poz[2]} -> z{zb}: wszystkie pola przy schodach zajęte, czekam")
+                ostatni_log = "zajete"
+            time.sleep(1.5)
+            continue
+        _, _, S, T, kier = min(opcje, key=lambda o: o[:2])
+        klucz = (S, T)
+        log(f"schody z{poz[2]} -> z{zb}: pole {T[:2]}, wejście z {S[:2]} (strzałka {kier}), nieudane próby: {nieudane.get(klucz, 0)}")
+        if (poz[0], poz[1]) != (S[0], S[1]):
+            chodz1([S], 0)
+            poz = tuple(postac.pozycja())
+            if (poz[0], poz[1]) != (S[0], S[1]):
+                nieudane[klucz] = nieudane.get(klucz, 0) + 1
+                continue
+        if akcje.pole_zajete(T):
+            nieudane[klucz] = nieudane.get(klucz, 0) + 1
+            time.sleep(1.0)
+            continue
+        postac.krok(kier)
+        time.sleep(0.8)
+        poz = tuple(postac.pozycja())
+        if poz[2] == zb:
+            log(f"schody: przeszedłem na z{zb}, stoję w {poz}")
+            return True
+        nieudane[klucz] = nieudane.get(klucz, 0) + 1
+        log(f"schody: krok {kier} z {S[:2]} bez przejścia (stoję w {poz})")
+    return False
+
+
+def idz_krokami(postac, tr, cel, tolerancja=0, maks_zlych=5, log=print):
+    """Rezerwa, gdy chodzik (kliki w mapę) kończy trasę bez dojścia do celu: ścieżka A* po jednym piętrze i krok po kroku
+    strzałkami (po skosie numpadem), z kontrolą pozycji po każdym kroku. True = stoimy w `tolerancja` pól od celu."""
+    cel = tuple(cel)
+    poz = tuple(postac.pozycja())
+    if poz[2] != cel[2]:
+        return False
+    sciezka = tr.odcinek(poz, cel)
+    if not sciezka:
+        log(f"serwis: brak ścieżki A* z {poz} do {cel}")
+        return False
+    log(f"serwis: chodzik nie doszedł, idę krokami z {poz} do {cel}: {sciezka}")
+    klawisz = {(0, -1): "Up", (0, 1): "Down", (-1, 0): "Left", (1, 0): "Right"}
+    zle = 0
+    for p in sciezka[1:]:
+        while True:
+            poz = tuple(postac.pozycja())
+            if poz[2] != cel[2]:
+                return False
+            if (poz[0], poz[1]) == (p[0], p[1]):
+                break
+            dx = (p[0] > poz[0]) - (p[0] < poz[0])
+            dy = (p[1] > poz[1]) - (p[1] < poz[1])
+            if dx and dy:                       # skos numpadem bywa bez skutku: najpierw krok w poziomie, potem w pionie
+                dy = 0 if (zle % 2 == 0) else dy
+                dx = dx if dy == 0 else 0
+            nowa = postac.krok(klawisz[(dx, dy)])
+            if nowa is not None and (nowa[0], nowa[1]) == (poz[0] + dx, poz[1] + dy):
+                zle = 0                         # liczymy tylko kolejne nieudane kroki
+            else:
+                zle += 1
+                log(f"serwis: krok ({dx},{dy}) z {poz[:2]} bez skutku ({zle}/{maks_zlych})")
+                if zle >= maks_zlych:
+                    return False
+                time.sleep(0.6)
+    poz = tuple(postac.pozycja())
+    return poz[2] == cel[2] and _cheb(poz, cel) <= tolerancja
+
+
+def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, unik=()):
+    """Marsz po kafelkach na jednym piętrze, bez chodzika mozg (ten ma ~20 s inicjalizacji na odcinek i kończy trasy
+    jednopunktowe od razu): BFS po polach chodliwych mapy (bez schodów i dziur poza celem), omija pola zajęte przez innych
+    graczy/stwory i pola, na których krok się nie udał (zdejmowane po kilku sekundach), jeden krok strzałką, kontrola
+    pozycji. Gdy cały dojazd zablokowany przez ludzi, czeka i planuje od nowa. True = stoimy w `tolerancja` pól od celu,
+    False = brak planu (nieznane pola mapy) albo przekroczony czas."""
+    import heapq
+    cel = tuple(cel)
+    klawisz = {(0, -1): "Up", (0, 1): "Down", (-1, 0): "Left", (1, 0): "Right"}
+    zablok, t0, ost_log = {}, time.monotonic(), 0.0
+
+    unik = {tuple(u)[:2] for u in unik if tuple(u)[2] == cel[2]}
+
+    def koszt(x, y, z):
+        """None = nie wchodzimy; 1 = zwykłe pole; 6 = pole z flagą 2 (na mapie to bywa szum, ale może być przejście pięter)."""
+        if (x, y) == (cel[0], cel[1]):
+            return 1.0
+        f = mp.flagi(x, y, z)
+        if not (f & 1) or (f & 4) or (x, y) in unik:
+            return None
+        return 6.0 if f & 2 else 1.0
+
+    while time.monotonic() - t0 < maks_s:
+        poz = tuple(postac.pozycja())
+        if poz[2] != cel[2]:
+            return False
+        if _cheb(poz, cel) <= tolerancja:
+            return True
+        teraz = time.monotonic()
+        try:
+            zajete = {(q.get("x"), q.get("y")) for q in akcje._stwory() if q.get("z") == poz[2] and q.get("nazwa") != akcje.nick}
+        except Exception:
+            zajete = set()
+        zajete |= {pole for pole, do in zablok.items() if do > teraz}
+        zajete.discard((poz[0], poz[1]))
+        skad, d = {(poz[0], poz[1]): None}, {(poz[0], poz[1]): 0.0}
+        kol, meta = [(0.0, (poz[0], poz[1]))], None
+        marg = 8
+        xmin, xmax = min(poz[0], cel[0]) - marg, max(poz[0], cel[0]) + marg
+        ymin, ymax = min(poz[1], cel[1]) - marg, max(poz[1], cel[1]) + marg
+        while kol:
+            cc, c = heapq.heappop(kol)
+            if cc > d.get(c, 1e18):
+                continue
+            if max(abs(c[0] - cel[0]), abs(c[1] - cel[1])) <= tolerancja:
+                meta = c
+                break
+            for dx, dy in klawisz:
+                q = (c[0] + dx, c[1] + dy)
+                if not (xmin <= q[0] <= xmax and ymin <= q[1] <= ymax) or q in zajete:
+                    continue
+                k = koszt(q[0], q[1], poz[2])
+                if k is None:
+                    continue
+                if cc + k < d.get(q, 1e18):
+                    d[q] = cc + k
+                    skad[q] = c
+                    heapq.heappush(kol, (cc + k, q))
+        if meta is None:
+            if teraz - ost_log > 8:
+                log(f"serwis: brak drogi z {poz[:2]} do {cel[:2]} (ludzie na drodze albo nieznane pola), czekam")
+                ost_log = teraz
+            if not zajete and not zablok:
+                return False                      # nic nie blokuje, a drogi nie ma: mapa nie zna pól
+            time.sleep(1.0)
+            continue
+        sciezka = []
+        while meta is not None:
+            sciezka.append(meta)
+            meta = skad[meta]
+        sciezka.reverse()
+        nast = sciezka[1]
+        d = (nast[0] - poz[0], nast[1] - poz[1])
+        nowa = postac.krok(klawisz[d])
+        if nowa is not None and nowa[2] != poz[2]:
+            log(f"serwis: krok na {nast} zmienił piętro ({poz[2]} -> {nowa[2]})")
+            return False
+        if nowa is None or (nowa[0], nowa[1]) != nast:
+            zablok[nast] = time.monotonic() + 5.0
+            time.sleep(0.3)
+    return False
+
+
+def _czekaj_na_ekran_gry(maks_s=45.0, wzorzec=(1175, 910)):
+    """Po starcie sesji podgląd ma rozmiar okna (np. 1498x1820), a zrzut takiego ekranu trwa dłużej niż limit grim.
+    dopasuj_okno przestawia sesję na 1175x910 w skali 1 dopiero, gdy widzi działający serwis.py, więc czekamy tu."""
+    import ekran
+    t0 = time.time()
+    while time.time() - t0 < maks_s:
+        try:
+            szer, wys = ekran.zrzut().size                  # wychodzi 1174x910 (parzyste wymiary RFB), stąd tolerancja
+            if abs(szer - wzorzec[0]) <= 2 and abs(wys - wzorzec[1]) <= 2:
+                return True
+        except Exception:
+            pass
+        time.sleep(1.5)
+    print(f"serwis: ekran sesji nie ma rozmiaru {wzorzec} po {maks_s:.0f} s, idę dalej", flush=True)
+    return False
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("miasto", choices=["edron"])
@@ -328,7 +548,8 @@ def main(argv=None):
     import wyprawa
     dane = wczytaj(a.miasto)
     postac = bot.Postac()
-    planer = Planer(wyprawa.Trasownik(mapa_mod.mapa()), dane["laczniki"])
+    mp = mapa_mod.mapa()
+    planer = Planer(wyprawa.Trasownik(mp), dane["laczniki"])
     kroki = a.kroki.split(",") if a.kroki else None
     if a.na_sucho:
         s = Serwis(dane, None, planer, postac.pozycja, None)
@@ -337,12 +558,31 @@ def main(argv=None):
             print(f"{k:10s} -> {cel}  {'BRAK DROGI' if n is None else str(n) + ' pkt'}")
         return 0
     import serwis_akcje
+    _czekaj_na_ekran_gry()
     akcje = serwis_akcje.AkcjeZywe(postac, log=print)
 
-    def chodz(punkty, tolerancja=0):
+    def chodz_proste(punkty, tolerancja=0):
         import mozg
+        cel = tuple(punkty[-1])
+        if tuple(postac.pozycja())[2] == cel[2] and idz_pewnie(postac, mp, akcje, cel, tolerancja, log=print,
+                                                              unik=[p for l in planer.lacz for p in l]):
+            return True
         return mozg.przejdz_dojscie(postac, punkty, prog_hp=40, jedzenie=None, potwory=None, graczy=True,
                                     stop_przy_graczach=False, tolerancja=tolerancja, proby=4)
+
+    def chodz(punkty, tolerancja=0):
+        """Trasa z przejściami pięter: dojście do okolicy schodów, przejście własnym kodem (wiele pól i stron wejścia,
+        omija zajęte przez graczy), reszta trasy na nowym piętrze. Bez schodów na mapie: stary chodzik na całości."""
+        punkty = [tuple(p) for p in punkty]
+        j = next((i for i in range(1, len(punkty)) if punkty[i][2] != punkty[i - 1][2]), None)
+        if j is None:
+            return chodz_proste(punkty, tolerancja) or idz_krokami(postac, planer.tr, punkty[-1], tolerancja)
+        a, zb = punkty[j - 1], punkty[j][2]
+        chodz_proste(punkty[:j], 3)
+        r = przejdz_schody(postac, mp, akcje, lambda pts, tol: chodz_proste(pts, tol), a, zb)
+        if r is None:
+            return chodz_proste(punkty, tolerancja) or idz_krokami(postac, planer.tr, punkty[-1], tolerancja)
+        return bool(r) and chodz(punkty[j:], tolerancja)
 
     import instancja
     s = Serwis(dane, akcje, planer, postac.pozycja, chodz, log=print, stan_plik=instancja.S.stan / "serwis_stan.json")
