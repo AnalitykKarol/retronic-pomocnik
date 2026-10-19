@@ -7,11 +7,15 @@ ubocznych poza `ustaw`, `cofnij` i `ratunek-oznacz`. Nic nie wysyła do gry, nie
 
 Wynik: JSON na stdout; sukces `{"ok": true, ...}` i kod 0; błąd `{"ok": false, "blad": "..."}` i kod 1 (błędne użycie: 2).
 
-  stan                                         wszystkie instancje (główna "" + instancje/<id>), równolegle, każda z limitem czasu
+  stan [--instancja ID]                        wszystkie instancje (główna "" + instancje/<id>), równolegle, każda z limitem czasu;
+                                               z --instancja tylko ta jedna (i `panel.py --json` tylko dla niej): okno odświeża
+                                               wybraną postać co 2 s, pozostałe co 5 s
   pokretla [--instancja ID]                    meta pokręteł: grupa, typ, zakres, domyślna, bieżąca, opis
   ustaw --instancja ID KLUCZ=WART [...]        zapis do na_zywo.json przez pokretla.waliduj (błąd = zero zapisu)
   cofnij --instancja ID                        przywraca ostatnią zmianę z dziennika okno_cofnij.jsonl
-  ratunek [--instancja ID] [--od RRRR-MM-DD]   sygnały ratunku z logi/ratunek-RRRRMMDD.jsonl + etykiety + liczniki
+  ratunek [--instancja ID] [--od RRRR-MM-DD]   sygnały ratunku z logi/ratunek-RRRRMMDD.jsonl + etykiety + liczniki;
+                                               WSZYSTKIE liczniki (też `najczestszy_kod` i `kody`) liczą z okna --od
+                                               (domyślnie ostatnie 7 dni), nie z całej historii
   ratunek-oznacz --instancja ID --id X --falszywy|--prawdziwy   etykieta w logi/ratunek-etykiety.jsonl
   mapy-tryby [--instancja ID]                  mapy.json, tryby.json, ostatnia mapa/tryb instancji
 
@@ -230,12 +234,18 @@ def grupa_pokretla(klucz):
     return "Zaawansowane"
 
 
-def typ_pokretla(klucz):
+def calkowite_pokretlo(klucz, domyslne):
+    """JEDNA reguła „liczba całkowita czy ułamek” (typ_pokretla i walidacja w cmd_ustaw): zakres z liczb całkowitych
+    i domyślna cavebota, która NIE jest float. Domyślna float (np. OGIEN_IGNORUJ_S = 0.0) = pokrętło ułamkowe."""
+    a, b = pokretla.ZAKRESY[klucz]
+    return isinstance(a, int) and isinstance(b, int) and not isinstance(domyslne.get(klucz), float)
+
+
+def typ_pokretla(klucz, domyslne):
     if klucz in pokretla.TEKSTY:
         return "tekst"
-    a, b = pokretla.ZAKRESY[klucz]
-    if isinstance(a, int) and isinstance(b, int):
-        return "przelacznik" if (a, b) == (0, 1) else "calkowita"
+    if calkowite_pokretlo(klucz, domyslne):
+        return "przelacznik" if pokretla.ZAKRESY[klucz] == (0, 1) else "calkowita"
     return "ulamkowa"
 
 
@@ -267,7 +277,7 @@ def cmd_pokretla(id_):
     biezace, odrzucone, blad_pliku = wartosci_biezace(sc)
     lista = []
     for klucz in [*pokretla.ZAKRESY, *pokretla.TEKSTY]:
-        typ = typ_pokretla(klucz)
+        typ = typ_pokretla(klucz, domyslne)
         dom = _jsonowa(domyslne.get(klucz))
         bie = _jsonowa(biezace.get(klucz, dom))
         wpis = {"klucz": klucz, "grupa": grupa_pokretla(klucz), "typ": typ,
@@ -293,8 +303,18 @@ def _parsuj_wartosc(tekst):
         return tekst
 
 
+DZIENNIK_MAKS = 200        # tyle ostatnich wpisów trzyma okno_cofnij.jsonl
+
+
 def _dziennik(sc):
     return Path(sc.stan) / "okno_cofnij.jsonl"
+
+
+def _bot_uzywa(klucz, wartosc):
+    """Czy bot użyje tej wartości z na_zywo.json (przechodzi pokretla.waliduj)? Jeśli nie, bot ją ignoruje, więc dla
+    `cofnij` taka wartość „przed” jest równoważna brakowi klucza i nie wolno jej odtwarzać."""
+    ok, bledy = pokretla.waliduj({klucz: wartosc})
+    return klucz in ok and not bledy
 
 
 def _zapisz_zmiany_pliku(sc, surowe, nowe, kiedy):
@@ -345,9 +365,7 @@ def cmd_ustaw(id_, pary):
     domyslne, _ = stale_cavebota()
     for k in list(ok):
         if k in pokretla.ZAKRESY:
-            a, b = pokretla.ZAKRESY[k]
-            calkowita = isinstance(a, int) and isinstance(b, int) and not isinstance(domyslne.get(k), float)
-            if calkowita:
+            if calkowite_pokretlo(k, domyslne):
                 if isinstance(ok[k], float) and not ok[k].is_integer():
                     bledy.append(f"{k}={ok[k]}: to pokrętło jest całkowite")
                     del ok[k]
@@ -362,17 +380,16 @@ def cmd_ustaw(id_, pary):
             return {"instancja": id_, "zmienione": {}, "poprzednie": {}, "bez_zmian": sorted(ok)}
         kiedy = teraz()
         wpis = {"czas": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(kiedy)), "epoch": kiedy,
-                "przed": {k: dane[k] for k in zmienione if k in dane},
-                "brak": [k for k in zmienione if k not in dane], "po": zmienione}
+                "przed": {k: dane[k] for k in zmienione if k in dane and _bot_uzywa(k, dane[k])},
+                "brak": [k for k in zmienione if k not in dane or not _bot_uzywa(k, dane[k])], "po": zmienione}
         nowe = dict(dane)
         nowe.update(zmienione)
         dz = _dziennik(sc)
         stary_dziennik = dz.read_bytes() if dz.exists() else b""
+        stare_linie = [l for l in stary_dziennik.decode("utf-8", errors="replace").splitlines() if l.strip()]
+        nowe_linie = [*stare_linie[-(DZIENNIK_MAKS - 1):], json.dumps(wpis, ensure_ascii=False)]     # przycięcie pod blokadą
         try:
-            with open(dz, "ab") as f:
-                f.write((json.dumps(wpis, ensure_ascii=False) + "\n").encode("utf-8"))
-                f.flush()
-                os.fsync(f.fileno())
+            zapisz_atomowo(dz, "".join(l + "\n" for l in nowe_linie))
             _zapisz_zmiany_pliku(sc, surowe, nowe, kiedy)
         except Exception as e:
             with contextlib.suppress(OSError):
@@ -403,13 +420,18 @@ def cmd_cofnij(id_):
             przed, brak = dict(wpis["przed"]), list(wpis["brak"])
         except (ValueError, KeyError, TypeError) as e:
             raise Blad(f"dziennik cofania uszkodzony (ostatni wpis): {e}")
-        ok, bledy = pokretla.waliduj(przed)
-        if bledy or set(ok) != set(przed):
-            raise Blad("poprzednie wartości nie przechodzą walidacji, nic nie zapisano: " + "; ".join(bledy or ["klucz z _"]),
-                       bledy=bledy)
+        # klucz, którego „przed” nie przechodzi walidacji (stary lub ręcznie edytowany dziennik), jest POMIJANY i
+        # zgłoszony w wyniku; reszta wpisu jest cofana (jeden zły klucz nie blokuje cofania na zawsze)
+        przywroc, pominiete = {}, []
+        for k, v in przed.items():
+            ok, bledy = pokretla.waliduj({k: v})
+            if k in ok and not bledy:
+                przywroc[k] = ok[k]
+            else:
+                pominiete.append({"klucz": k, "powod": "; ".join(bledy) or "klucz z _ nie jest pokrętłem"})
         surowe, dane = _wczytaj_do_zmiany(sc)
         nowe = dict(dane)
-        nowe.update(przed)
+        nowe.update(przywroc)
         for k in brak:
             nowe.pop(k, None)
         kiedy = teraz()
@@ -419,7 +441,7 @@ def cmd_cofnij(id_):
             zapisz_atomowo(dz, reszta)
         except Exception as e:
             raise Blad(f"zapis nie powiódł się ({e})")
-    return {"instancja": id_, "przywrocone": przed, "usuniete": brak, "cofnieta_zmiana": wpis.get("czas"),
+    return {"instancja": id_, "przywrocone": przywroc, "pominiete": pominiete, "usuniete": brak, "cofnieta_zmiana": wpis.get("czas"),
             "pozostalo_w_dzienniku": len(linie) - 1}
 
 
@@ -680,12 +702,25 @@ def odczyt_panelu(id_):
     return d
 
 
+def pola_z_procesow(w, procesy):
+    """Pola `stan` znane już ze skanu procesów (bez żadnego I/O): sesja, klient, bot, nick z RETRONIC_POSTAC."""
+    w["sesja"] = bool(procesy["sway"])
+    w["klient_pids"] = list(procesy["straznik"])
+    w["bot"] = bool(procesy["bot"])
+    w["bot_procesy"] = [{"pid": b["pid"], "tryb": b["tryb"]} for b in procesy["bot"]]
+    w["nick"] = next((b["postac"] for b in procesy["bot"] if b["postac"]), None)
+
+
+def pusty_stan(id_):
+    return {"id": id_, "nazwa": id_ or NAZWA_GLOWNEJ, "blad": None, "panel": None, "klasa": None, "gracz": None,
+            "gra": None, "sesja": None, "bot": None, "bot_procesy": [], "klient_pids": [], "nick": None,
+            "mapa": None, "tryb": [], "ratunek_dzis": None}
+
+
 def stan_instancji(id_, procesy):
     sc = sciezki(id_)
     bledy = []
-    w = {"id": id_, "nazwa": id_ or NAZWA_GLOWNEJ, "blad": None, "panel": None, "klasa": None, "gracz": None,
-         "gra": None, "sesja": None, "bot": None, "bot_procesy": [], "klient_pids": [], "nick": None,
-         "mapa": None, "tryb": [], "ratunek_dzis": None}
+    w = pusty_stan(id_)
 
     def krok(opis, f):
         try:
@@ -702,11 +737,8 @@ def stan_instancji(id_, procesy):
 
     def procesy_i_pliki():
         w["gra"] = Path(sc.gniazdo).exists()
-        w["sesja"] = bool(procesy["sway"])
-        w["klient_pids"] = list(procesy["straznik"])
-        w["bot"] = bool(procesy["bot"])
-        w["bot_procesy"] = [{"pid": b["pid"], "tryb": b["tryb"]} for b in procesy["bot"]]
-        w["nick"] = next((b["postac"] for b in procesy["bot"] if b["postac"]), None) or nick_z_logu(sc.log_klienta)
+        pola_z_procesow(w, procesy)
+        w["nick"] = w["nick"] or nick_z_logu(sc.log_klienta)
 
     def ostatni():
         o = ostatni_start(id_)
@@ -726,9 +758,10 @@ def stan_instancji(id_, procesy):
     return w
 
 
-def cmd_stan():
+def cmd_stan(id_=None):
+    """id_ None = wszystkie instancje; inaczej tylko ta jedna (panel.py --json woła się tylko dla niej)."""
     t0 = time.monotonic()
-    ids = lista_instancji()
+    ids = lista_instancji() if id_ is None else [id_]
     procesy = skan_procesow()
     puste = {"bot": [], "straznik": [], "sway": []}
     ex = cf.ThreadPoolExecutor(max_workers=min(16, len(ids)))
@@ -741,9 +774,10 @@ def cmd_stan():
                 wynik.append(f.result())
             else:
                 powod = f"awaria odczytu: {f.exception()}" if f in gotowe else f"przekroczony limit {CALOSC_LIMIT_S} s"
-                wynik.append({"id": i, "nazwa": i or NAZWA_GLOWNEJ, "blad": powod, "panel": None, "klasa": None,
-                              "gracz": None, "gra": None, "sesja": None, "bot": None, "bot_procesy": [],
-                              "klient_pids": [], "nick": None, "mapa": None, "tryb": [], "ratunek_dzis": None})
+                w = pusty_stan(i)
+                w["blad"] = powod
+                pola_z_procesow(w, procesy.get(i, puste))          # bot/sesja/nick już zebrane skanem, bez dodatkowego I/O
+                wynik.append(w)
     finally:
         ex.shutdown(wait=False, cancel_futures=True)
     return {"czas": teraz(), "czas_odczytu_s": round(time.monotonic() - t0, 3), "instancje": wynik}
@@ -761,7 +795,7 @@ def zbuduj_parser():
 
     def inst(sp, wymagana):
         sp.add_argument("--instancja", default=None if wymagana else "", help='id instancji; "" albo "główna" = główna')
-    sub.add_parser("stan")
+    sp = sub.add_parser("stan"); inst(sp, True)         # tu --instancja opcjonalne (brak = wszystkie)
     sp = sub.add_parser("pokretla"); inst(sp, False)
     sp = sub.add_parser("ustaw"); inst(sp, True); sp.add_argument("pary", nargs="+", metavar="KLUCZ=WART")
     sp = sub.add_parser("cofnij"); inst(sp, True)
@@ -776,7 +810,7 @@ def zbuduj_parser():
 def wykonaj(a):
     c = a.polecenie
     if c == "stan":
-        return cmd_stan()
+        return cmd_stan(None if a.instancja is None else normalizuj_id(a.instancja))
     if getattr(a, "instancja", None) is None:
         raise Blad(f"{c}: wymagane --instancja ID (\"\" albo \"{NAZWA_GLOWNEJ}\" = główna)", kod=2)
     id_ = normalizuj_id(a.instancja)

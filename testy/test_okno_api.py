@@ -20,6 +20,7 @@ def czas(h, m, s=0, dzien=19):
 
 FAKE_PANEL = '''import json, os, sys, time
 i = os.environ.get("RETRONIC_ID", "")
+open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "panel_wywolania.log"), "a").write((i or "glowna") + "\\n")
 tryb = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "panel_tryb." + (i or "glowna"))).read().strip() \\
     if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "panel_tryb." + (i or "glowna"))) else "ok"
 if tryb == "crash":
@@ -30,7 +31,7 @@ if tryb.startswith("sleep:"):
     time.sleep(float(tryb[6:]))
 print(json.dumps({"text": "RT", "tooltip": "Retronic: działa\\nHP 100/200  mana 30/60", "class": "dziala", "alt": "dziala", "id": i}))
 '''
-FAKE_CAVEBOT = "POGON_ZASIEG = 10     # stała\nPOGON_LIMIT = 14.0\nPOSCIG_TRZYMAJ = True\nUH_KLAWISZ = 'F6'\nRATUNEK_LIMIT_H = 20\nRATUNEK_HAIKU = 0\nKROKI_DO_ZWLOK = 30\n"
+FAKE_CAVEBOT = "POGON_ZASIEG = 10     # stała\nPOGON_LIMIT = 14.0\nPOSCIG_TRZYMAJ = True\nUH_KLAWISZ = 'F6'\nRATUNEK_LIMIT_H = 20\nRATUNEK_HAIKU = 0\nKROKI_DO_ZWLOK = 30\nOGIEN_IGNORUJ_S = 0.0\nLIMIT_WALKI = 90\n"
 NA_ZYWO = {"POGON_ZASIEG": 12, "UH_KLAWISZ": "F7", "_opis": "ręczna notatka", "STARY_KLUCZ": 5, "POGON_LIMIT": 20.0}
 
 def tekst_na_zywo(d):
@@ -187,10 +188,36 @@ with tempfile.TemporaryDirectory() as tmp:
     kod, d = uruchom(tmp, "ustaw", "--instancja", "dwa", "POGON_ZASIEG=13.0")
     sprawdz("ustaw: 13.0 w pokrętle całkowitym zapisane jako 13", kod == 0 and plik.read_text().count('"POGON_ZASIEG": 13,') == 1, plik.read_text()[:60])
 
+    # atomowość: zapis podmienia plik (nowy inode), nie nadpisuje w miejscu
+    ino0 = plik.stat().st_ino
+    kod, d = uruchom(tmp, "ustaw", "--instancja", "dwa", "KROKI_DO_ZWLOK=41")
+    sprawdz("ustaw: zapis atomowy = zmienia się inode na_zywo.json (os.replace), nie kopiowanie w miejscu", kod == 0 and plik.stat().st_ino != ino0, (kod, d))
+    # jedna reguła całkowita/ułamek: domyślna float w cavebocie = pokrętło ułamkowe w meta i w ustaw
+    kod, d = uruchom(tmp, "pokretla", "--instancja", "dwa")
+    typ_ogien = {p["klucz"]: p["typ"] for p in d["pokretla"]}["OGIEN_IGNORUJ_S"]
+    kod, d = uruchom(tmp, "ustaw", "--instancja", "dwa", "OGIEN_IGNORUJ_S=2.5")
+    sprawdz("typ_pokretla i ustaw mają tę samą regułę: domyślna float (OGIEN_IGNORUJ_S=0.0) -> ułamkowa i ustaw przyjmuje 2.5",
+            typ_ogien == "ulamkowa" and kod == 0 and json.loads(plik.read_text())["OGIEN_IGNORUJ_S"] == 2.5, (typ_ogien, kod, d))
+    kod, d = uruchom(tmp, "pokretla", "--instancja", "dwa")
+    lst = {p["klucz"]: p["typ"] for p in d["pokretla"]}
+    sprawdz("typ: domyślna int w cavebocie nadal całkowita, bez domyślnej też całkowita", lst["POGON_ZASIEG"] == "calkowita" and lst["LIMIT_WALKI"] == "calkowita", lst["LIMIT_WALKI"])
+    kod, d = uruchom(tmp, "ustaw", "--instancja", "dwa", "LIMIT_WALKI=60.5")
+    sprawdz("ustaw: ułamek w pokrętle całkowitym (domyślna int) nadal odrzucony", kod != 0 and d["ok"] is False, d)
+
     # uszkodzony plik: odmowa, bez zapisu
     plik.write_text("{ zepsute"); b0 = plik.read_bytes(); n_dz = dziennik.read_text()
     kod, d = uruchom(tmp, "ustaw", "--instancja", "dwa", "POGON_ZASIEG=12")
     sprawdz("ustaw: uszkodzony na_zywo.json = odmowa, plik i dziennik bez zmian", kod != 0 and d["ok"] is False and plik.read_bytes() == b0 and dziennik.read_text() == n_dz, d)
+
+# dziennik cofania przycinany do ostatnich 200 wpisów (przy zapisie)
+with tempfile.TemporaryDirectory() as tmp:
+    r = zrob_korzen(tmp)
+    dziennik = r / "instancje/dwa/okno_cofnij.jsonl"
+    dziennik.write_text("".join(json.dumps({"czas": f"stary-{i}", "epoch": i, "przed": {}, "brak": [], "po": {}}) + "\n" for i in range(250)))
+    kod, d = uruchom(tmp, "ustaw", "--instancja", "dwa", "POGON_ZASIEG=13")
+    wp = [json.loads(l) for l in dziennik.read_text().splitlines()]
+    sprawdz("ustaw: dziennik przycięty do 200 wpisów (najstarsze odpadają, nowy na końcu)", kod == 0 and len(wp) == 200 and wp[0]["czas"] == "stary-51"
+            and wp[-1]["po"] == {"POGON_ZASIEG": 13}, (len(wp), wp[0]["czas"]))
 
 # brak pliku na_zywo.json: powstaje, bez kopii, cofnij usuwa klucz
 with tempfile.TemporaryDirectory() as tmp:
@@ -220,15 +247,37 @@ with tempfile.TemporaryDirectory() as tmp:
     kod, d = uruchom(tmp, "cofnij", "--instancja", "dwa")
     sprawdz("cofnij: dziennik wyczerpany = błąd", kod != 0 and d["ok"] is False and plik.read_bytes() == oryg and not dziennik.read_text().strip(), d)
     sprawdz("cofnij: nie ruszył głównej instancji", (r / "na_zywo.json").read_bytes() == tekst_na_zywo(NA_ZYWO).encode())
-    # dziennik z wartością, która nie przechodzi walidacji (np. ręcznie edytowany): odmowa, bez zapisu, wpis zostaje
-    uruchom(tmp, "ustaw", "--instancja", "dwa", "POGON_ZASIEG=13")
-    wpis = json.loads(dziennik.read_text().splitlines()[-1]); wpis["przed"] = {"POGON_ZASIEG": 999}
-    dziennik.write_text(json.dumps(wpis) + "\n"); b2 = plik.read_bytes(); dz2 = dziennik.read_bytes()
+    # dziennik z wartościami, które nie przechodzą walidacji (np. ręcznie edytowany): zły klucz POMINIĘTY i zgłoszony, reszta cofnięta
+    uruchom(tmp, "ustaw", "--instancja", "dwa", "POGON_ZASIEG=13", "KROKI_DO_ZWLOK=40")
+    b_przed_cofnij = plik.read_bytes()
+    wpis = json.loads(dziennik.read_text().splitlines()[-1]); wpis["przed"] = {"POGON_ZASIEG": 999, "POGON_LIMIT": 22.5}
+    dziennik.write_text(json.dumps(wpis) + "\n")
     kod, d = uruchom(tmp, "cofnij", "--instancja", "dwa")
-    sprawdz("cofnij: wartość z dziennika poza zakresem = odmowa (walidacja), plik i dziennik bez zmian", kod != 0 and d["ok"] is False
-            and plik.read_bytes() == b2 and dziennik.read_bytes() == dz2, d)
+    po = json.loads(plik.read_text())
+    sprawdz("cofnij: zły klucz ze starego dziennika pominięty i zgłoszony, reszta wpisu cofnięta, dziennik zmniejszony",
+            kod == 0 and d["ok"] and [x["klucz"] for x in d["pominiete"]] == ["POGON_ZASIEG"] and d["przywrocone"] == {"POGON_LIMIT": 22.5}
+            and po["POGON_ZASIEG"] == 13 and po["POGON_LIMIT"] == 22.5 and "KROKI_DO_ZWLOK" not in po and not dziennik.read_text().strip(), d)
+
     # kopia przy cofnięciu: nie nadpisuje istniejącej z tego dnia
     sprawdz("cofnij/ustaw: jedna kopia dzienna", len(list(plik.parent.glob("na_zywo.json.bak-*"))) == 1)
+
+# REGRESJA: wartość „przed” poza zakresem (bot ją ignoruje) nie może trwale blokować cofnij
+with tempfile.TemporaryDirectory() as tmp:
+    r = zrob_korzen(tmp)
+    plik, dziennik = r / "instancje/dwa/na_zywo.json", r / "instancje/dwa/okno_cofnij.jsonl"
+    plik.write_text(tekst_na_zywo(dict(NA_ZYWO, LIMIT_WALKI=999)))
+    kod, d = uruchom(tmp, "ustaw", "--instancja", "dwa", "LIMIT_WALKI=50")
+    wpis = json.loads(dziennik.read_text().splitlines()[-1])
+    sprawdz("ustaw: poprzednia wartość poza zakresem trafia do dziennika jako brak klucza, nie jako „przed”",
+            kod == 0 and wpis["przed"] == {} and wpis["brak"] == ["LIMIT_WALKI"], wpis)
+    kod, d = uruchom(tmp, "cofnij", "--instancja", "dwa")
+    po = json.loads(plik.read_text())
+    sprawdz("cofnij po ustaw z poprzednią wartością 999: działa i usuwa klucz (bot i tak ją ignorował)", kod == 0 and d["ok"] and "LIMIT_WALKI" not in po
+            and d["usuniete"] == ["LIMIT_WALKI"] and po["POGON_ZASIEG"] == 12, (kod, d))
+    kod, d = uruchom(tmp, "ustaw", "--instancja", "dwa", "LIMIT_WALKI=60")
+    kod2, d2 = uruchom(tmp, "cofnij", "--instancja", "dwa")
+    kod3, d3 = uruchom(tmp, "cofnij", "--instancja", "dwa")
+    sprawdz("cofnij nie blokuje się na stałe: kolejne cofnięcia dalej działają, potem czysty błąd „brak zmian”", kod2 == 0 and kod3 != 0 and "brak zmian" in d3["blad"], (d2, d3))
 
 # równoległe zapisy (blokada): żadna zmiana nie ginie
 with tempfile.TemporaryDirectory() as tmp:
@@ -390,6 +439,46 @@ with tempfile.TemporaryDirectory() as tmp:
     t0 = time.monotonic(); kod, d = uruchom(tmp, "stan"); dt = time.monotonic() - t0
     sprawdz("stan: 10 instancji + główna, wszystkie z danymi i bez błędów", kod == 0 and len(d["instancje"]) == 11 and all(x["blad"] is None and x["panel"] for x in d["instancje"]), [x["blad"] for x in d["instancje"]])
     sprawdz("stan: 10 instancji odczytanych równolegle w limicie (< 2 s przy panelu 0,4 s każdy; sekwencyjnie > 4 s)", dt < 2.0 and d["czas_odczytu_s"] < 2.0, (dt, d["czas_odczytu_s"]))
+
+# stan --instancja ID: tylko ta instancja i tylko jej panel.py --json
+with tempfile.TemporaryDirectory() as tmp:
+    r = zrob_korzen(tmp, instancje=("dwa", "trzy", "cztery"))
+    proces(tmp, 101, ["python3", "-I", "mozg.py"], {"RETRONIC_ID": "dwa", "RETRONIC_POSTAC": "Johny"})
+    log_panelu = r / "panel_wywolania.log"
+    kod, d = uruchom(tmp, "stan", "--instancja", "dwa")
+    sprawdz("stan --instancja: tylko ta instancja w wyniku, z danymi", kod == 0 and d["ok"] and [x["id"] for x in d["instancje"]] == ["dwa"]
+            and d["instancje"][0]["panel"]["id"] == "dwa" and d["instancje"][0]["nick"] == "Johny", d)
+    sprawdz("stan --instancja: panel.py --json wołany tylko dla niej (3 innych bez wywołania)", log_panelu.read_text().split() == ["dwa"], log_panelu.read_text() if log_panelu.exists() else None)
+    kod, d = uruchom(tmp, "stan", "--instancja", "główna")
+    sprawdz("stan --instancja główna: tylko główna", kod == 0 and [x["id"] for x in d["instancje"]] == [""] and log_panelu.read_text().split() == ["dwa", "glowna"])
+    kod, d = uruchom(tmp, "stan", "--instancja", "../../etc")
+    sprawdz("stan --instancja ze złym id = błąd, nie traceback", kod != 0 and d["ok"] is False and "surowe" not in d, d)
+    kod, d = uruchom(tmp, "stan", "--instancja", "nie_ma")
+    sprawdz("stan --instancja nieznana = błąd", kod != 0 and d["ok"] is False)
+    log_panelu.unlink()
+    kod, d = uruchom(tmp, "stan")
+    sprawdz("stan bez --instancja nadal wszystkie (4), panel dla każdej", kod == 0 and len(d["instancje"]) == 4 and sorted(log_panelu.read_text().split()) == ["cztery", "dwa", "glowna", "trzy"])
+
+# stan: przekroczony limit całości wypełnia bot/sesja/nick z już zebranego skanu procesów (nie same null)
+with tempfile.TemporaryDirectory() as tmp:
+    r = zrob_korzen(tmp, instancje=("wolna",))
+    (r / "panel_tryb.wolna").write_text("sleep:1")
+    proces(tmp, 201, ["python3", "-I", "mozg.py", "skrypt", "--tryb", "ml"], {"RETRONIC_ID": "wolna", "RETRONIC_POSTAC": "Wolny"})
+    proces(tmp, 202, ["sway", "-c", f"{tmp}/rt/retronic-sesja-wolna/sway.conf"], {})
+    zapas = {k: _os.environ.get(k) for k in ("RETRONIC_OKNO_KATALOG", "RETRONIC_OKNO_PROC", "RETRONIC_OKNO_TERAZ", "XDG_RUNTIME_DIR")}
+    limit0 = okno_api.CALOSC_LIMIT_S
+    try:
+        _os.environ.update(RETRONIC_OKNO_KATALOG=str(r), RETRONIC_OKNO_PROC=str(Path(tmp) / "proc"), RETRONIC_OKNO_TERAZ=str(TERAZ),
+                           XDG_RUNTIME_DIR=str(Path(tmp) / "rt"))
+        okno_api.CALOSC_LIMIT_S = 0.3
+        d = okno_api.cmd_stan("wolna")
+    finally:
+        okno_api.CALOSC_LIMIT_S = limit0
+        for k, v in zapas.items():
+            _os.environ.pop(k, None) if v is None else _os.environ.__setitem__(k, v)
+    w = d["instancje"][0]
+    sprawdz("stan: przekroczony limit całości = blad 'limit', ale bot/sesja/nick z skanu procesów (nie null)", w["blad"] and "limit" in w["blad"] and w["panel"] is None
+            and w["bot"] is True and w["sesja"] is True and w["nick"] == "Wolny" and w["bot_procesy"] == [{"pid": 201, "tryb": "mozg.py ml"}], w)
 
 # ================= błędy użycia i JSON zawsze =================
 with tempfile.TemporaryDirectory() as tmp:
