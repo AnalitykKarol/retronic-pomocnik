@@ -16,7 +16,7 @@ if [ "$SUCHO" = 0 ]; then
   p=$(pidy | head -1)
   [ -n "$p" ] && { notify-send "$TYTUL" "Bot działa (pid $p): zatrzymaj go przed serwisem"; echo "bot działa (pid $p), zatrzymaj: ./zatrzymaj.sh" >&2; exit 1; }
   [ -S "$INST_SOCK" ] || { notify-send "$TYTUL" "Gra nie działa (brak socketu)"; echo "brak socketu gry" >&2; exit 1; }
-  rm -f "$INST_STOP" "$INST_STOP_RECZNY"        # STOP blokuje każdy input do gry; po zatrzymanym bocie nic innego nie działa
+  rm -f "$INST_STOP" "$INST_STOP_RECZNY" "$INST_STAN/WROC"        # STOP blokuje każdy input do gry; po zatrzymanym bocie nic innego nie działa
 fi
 export RETRONIC_POSTAC="${RETRONIC_POSTAC:-$(python3 -I -c "import sys; sys.path.insert(0,'$DIR'); import bot; print(bot.Postac().nazwa)" 2>/dev/null)}"
 python3 -I -u serwis.py edron "$@"

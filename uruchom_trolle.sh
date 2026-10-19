@@ -11,7 +11,7 @@ SOCK="$INST_SOCK"
 p=$(pidy | head -1)
 [ -n "$p" ] && { notify-send "$TYTUL" "Bot już działa (pid $p)"; echo "bot już działa" >&2; exit 1; }
 [ -S "$SOCK" ] || { notify-send "$TYTUL" "Gra nie działa (brak socketu)"; echo "brak socketu gry" >&2; exit 1; }
-rm -f "$INST_STOP" "$INST_STOP_RECZNY"
+rm -f "$INST_STOP" "$INST_STOP_RECZNY" "$INST_STAN/WROC"   # stare zlecenie "Wróć do miasta" nie przeżywa restartu
 mkdir -p "$INST_LOGI"
 cd "$DIR" || exit 1
 # na powierzchni (z7, np. przy depo) bot najpierw przechodzi nagrane dojście do troll_cave (dziura 32493,32259), na z8 startuje od razu

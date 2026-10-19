@@ -106,6 +106,7 @@ DOMYSLNE = {                                             # gdy konf (cavebot) ni
 }
 
 POTWIERDZ = 2                  # kolejne odczyty z warunkiem = start
+WROC_BLOKADA_MAX_S = 180.0     # s: ręczne "Wróć do miasta" (plik WROC) czeka na spokojną chwilę najwyżej tyle, potem rezygnuje z komunikatem
 GLOD_WAZNY_S = 600.0           # s: jak długo pamiętamy potwierdzony głód (cb.jedzenie_nie_do trwa tylko JEDZENIE_PONOW = 240 s)
 WZNOW_MAX_S = 2400.0           # s (zegar ścienny): starszy zapis stanu = nie wznawiamy
 WZNOW_ODL = 15                 # pola od najbliższego punktu odcinka, by wznowić po restarcie
@@ -646,6 +647,8 @@ class Wyprawa(Wypad):
         self.sprawdzono_w = float("-inf")
         self._blanki_auto_t = None          # N9: czas ostatniej próby przeniesienia blanków do bagu (None = jeszcze nie)
         self.nast_wyprawa = float("-inf")
+        self._wroc_od = None                # kiedy zobaczyliśmy plik WROC (ręczne "Wróć do miasta"); None = brak zlecenia
+        self._wroc_powod = None             # ostatni powód, dla którego jeszcze nie ruszyliśmy (do logu i komunikatu)
         self._ost_poz_w = None
         self._npc_zapis = float("-inf")
         self._brak_pozycji_log = set()
@@ -928,8 +931,92 @@ class Wyprawa(Wypad):
             self._blad("wyprawa_w_walce", opis=repr(e))
             return False
 
+    # --- ręczne "Wróć do miasta" (19.10): plik WROC w katalogu stanu (wroc.sh, guzik paska) ---
+
+    def _plik_wroc(self):
+        return Path(self.plik_stop or bot.STOP).with_name("WROC")
+
+    def _wroc_zdejmij(self):
+        self._wroc_od = self._wroc_powod = None
+        try:
+            self._plik_wroc().unlink()
+        except OSError:
+            pass
+
+    def _wroc_porazka(self, powod):
+        """Zlecenie nie wyjdzie (brak planu, blokada trwa za długo): komunikat i plik WROC znika, bez cichych ponowień."""
+        self.log(f"Wróć do miasta: nie mogę ruszyć ({powod}), zlecenie anulowane")
+        self._powiadom("Wróć do miasta", f"Wróć do miasta: nie mogę ruszyć ({powod}).", "normal", "wroc_odmowa")
+        self._tele("wroc_odmowa", powod=powod)
+        self._wroc_zdejmij()
+
+    def _wroc_blok(self, teraz, poz):
+        """Dlaczego ręczna wyprawa jeszcze nie może ruszyć (None = może): te same bezpieczniki co automatyczna."""
+        cb = self.cb
+        if self.zablokowany:
+            return "wyprawa zablokowana po STOP, alarmie lub dojściu do depo"
+        if teraz < self.blokada_do:
+            return "blokada po nieudanym wypadzie"
+        if poz is None:
+            return "nieznana pozycja postaci"
+        blok = self._blokada_startu(teraz, poz, getattr(cb, "ostatnie_stwory", []))
+        if blok is not None:
+            return f"postać nie jest w spokoju ({blok})"
+        proc = cb.gracz().get("proc", 100.0)
+        if proc < float(self._kw("WYPRAWA_MIN_HP")) or proc <= getattr(cb, "prog_aktualny", 40) + 10:
+            return f"za niskie HP ({round(proc)}%)"
+        return None
+
+    def _okazja_wroc(self, teraz):
+        """Jest plik WROC: wyprawa do depo na jedną wyprawę (semantyka WYPRAWA_TYLKO_DEPO, bez zakupów i powrotu na spot),
+        bez POTWIERDZ, cooldownu i bez WYPRAWA_AKTYWNA. Rusza w najbliższej spokojnej chwili; plik znika PO ruszeniu.
+        -> True, gdy wyprawa właśnie wystartowała."""
+        cb = self.cb
+        poz = cb.ruch_poz if getattr(cb, "ruch_poz", None) else None
+        powod = self._wroc_blok(teraz, poz)
+        if powod is None:
+            dane = {"powody": ["reczny"], "zapas": None, "blanki": None, "zloto": None, "cap": None,
+                    "hp": round(cb.gracz().get("proc", 100.0)), "pochodnie": None, "depo": True, "reczny": True}
+            stare = (self.nast_wyprawa, self.potw_w, self.glod_potw_do)
+            try:
+                if self._start_wyprawa("depo:reczny", dane, teraz):
+                    self._wroc_zdejmij()              # dopiero po ruszeniu: nieudany start nie gubi zlecenia po cichu
+                    return True
+            except bot.Zatrzymano:
+                raise
+            except Exception as e:                    # wyjątek nie zostawia zlecenia do ponawiania w każdym obiegu
+                self.nast_wyprawa, self.potw_w, self.glod_potw_do = stare
+                self._wroc_porazka(repr(e))
+                return False
+            # nieudane ręczne wywołanie nie odkłada automatycznych wypraw ani nie kasuje potwierdzonego głodu
+            self.nast_wyprawa, self.potw_w, self.glod_potw_do = stare
+            self._wroc_porazka(f"brak planu albo trasy do depo dla pozycji {tuple(poz)}, szczegóły w logu")
+            return False
+        self._wroc_czeka(teraz, powod)
+        return False
+
+    def _wroc_czeka(self, teraz, powod):
+        """Zlecenie czeka z powodu `powod` (także w walce, bez startu): liczy limit WROC_BLOKADA_MAX_S, po nim rezygnuje."""
+        if self._wroc_od is None:
+            self._wroc_od = teraz
+            self.log("Wróć do miasta: zlecenie przyjęte (plik WROC), ruszam w najbliższej spokojnej chwili")
+        if powod != self._wroc_powod:
+            self._wroc_powod = powod
+            self.log(f"Wróć do miasta: czekam ({powod})")
+        if teraz - self._wroc_od > float(self._k("WROC_BLOKADA_MAX_S", WROC_BLOKADA_MAX_S)):
+            self._wroc_porazka(powod)
+
     def _okazja_wyprawa(self, teraz, w_walce=False):
         cb = self.cb
+        if self._plik_wroc().exists():
+            # ręczne wywołanie celowo ma pierwszeństwo przed automatycznymi wyzwalaczami (do WROC_BLOKADA_MAX_S, potem
+            # zlecenie znika z komunikatem); omija pokrętła, nie bezpieczniki. W walce nie ruszamy, ale limit płynie.
+            if w_walce:
+                self._wroc_czeka(teraz, "postać w walce")
+                return False
+            return self._okazja_wroc(teraz)
+        if self._wroc_od is not None:
+            self._wroc_od = self._wroc_powod = None        # plik zniknął (wroc.sh --anuluj) albo zlecenie obsłużone
         if not self._wyprawa_wlaczona():
             self.potw_w = 0
             return False
@@ -1215,7 +1302,7 @@ class Wyprawa(Wypad):
         mapa = getattr(self.cb, "mapa", None)
         etapy = zbuduj_etapy([_punkt(q) for q in pts], mapa)
         powrot = zbuduj_etapy([cel], mapa)           # bez WYPRAWA_DEPO_POWROT nieużywany: po dojściu STOP
-        if int(self._kw("WYPRAWA_DEPO_POWROT")):
+        if int(self._kw("WYPRAWA_DEPO_POWROT")) and not potrzeby.get("reczny"):
             if self._plan_tylko_pk(baza_nazwa):          # depo spotu z PLANY_PK (Edron): powrót nagraną trasą depo -> łowisko
                 pz = [_punkt(q) for q in (z or [])]
                 pw = zbuduj_etapy(pz, mapa) if pz and None not in pz else []
@@ -1344,6 +1431,8 @@ class Wyprawa(Wypad):
             potrzeby = {"depo": True}
             if pk:
                 potrzeby["pk"] = pk
+            if dane.get("reczny"):           # 19.10 "Wróć do miasta": tylko depo, nigdy powrót na spot (także przy WYPRAWA_DEPO_POWROT=1)
+                potrzeby["reczny"] = True
         else:
             potrzeby = {"frodo": True, "depo_zloz": bool(int(self._kw("WYPRAWA_DEPO_ZLOZ"))),
                     "gorn": bool(self._kw("WYPRAWA_POCHODNIE") and dane.get("pochodnie") is not None
@@ -1387,7 +1476,9 @@ class Wyprawa(Wypad):
         if dane.get("depo"):                 # P7c: z jakiego powodu i przy jakim plecaku idziemy do depo
             self._stan_zapisz(depo_start_powody=list(dane.get("powody") or []), depo_start_blanki=dane.get("blanki"))
         self.log(f"Wyprawa: start ({powod}), baza {nazwa}, przystanki {[st['id'] for st in w['stops']]}")
-        if dane.get("depo") and not pk:
+        if dane.get("reczny"):
+            self._powiadom("Wróć do miasta: ruszam", f"Ręczne wywołanie, idę do depo ({nazwa}).", "normal", "wyprawa_depo_start")
+        elif dane.get("depo") and not pk:
             self._powiadom("Wyprawa do depo: ruszam", f"Brak jedzenia i głód ({powod}), idę do depo Thais.",
                            "normal", "wyprawa_depo_start")
         return True
@@ -1514,7 +1605,7 @@ class Wyprawa(Wypad):
         kand = []
         for j in range(k0, len(w["legs"])):
             kand.append(("do", j, w["legs"][j]))
-        if not potrzeby.get("depo") or int(self._kw("WYPRAWA_DEPO_POWROT")):
+        if not potrzeby.get("depo") or (int(self._kw("WYPRAWA_DEPO_POWROT")) and not potrzeby.get("reczny")):
             kand.append(("z", len(w["legs"]), w["powrot"]))
         najl = None
         najl_z = None
@@ -1970,13 +2061,14 @@ class Wyprawa(Wypad):
         poz = tuple(cb.postac.pozycja())
         if w is not None and (w.get("potrzeby") or {}).get("pk"):
             return self._zakoncz_pk(wynik, opis)
-        if wynik == "depo" and int(self._kw("WYPRAWA_DEPO_POWROT")) and w is not None \
+        reczny = bool(w is not None and (w.get("potrzeby") or {}).get("reczny"))
+        if wynik == "depo" and int(self._kw("WYPRAWA_DEPO_POWROT")) and not reczny and w is not None \
                 and sum(len(e.get("punkty") or ()) for e in w["powrot"]) > 1:
             return self._depo_powrot(poz)
         if wynik == "depo":
             self.log(f"Wyprawa: DEPO osiągnięte w {poz}, koniec wyprawy, zatrzymuję bota")
-            self._powiadom("Wyprawa: jestem w depo", f"Bot stoi w depo {poz} (brak jedzenia). Bot zatrzymany, "
-                           "potrzebny człowiek.", "critical", "wyprawa_depo")
+            self._powiadom("Wyprawa: jestem w depo", f"Bot stoi w depo {poz}{'' if reczny else ' (brak jedzenia)'}. "
+                           "Bot zatrzymany, potrzebny człowiek.", "critical", "wyprawa_depo")
             self._zapisz_stop(f"dotarłem do depo {poz}")
         else:
             if opis != "teleport":          # teleport: alarm i STOP poszły już z _teleport

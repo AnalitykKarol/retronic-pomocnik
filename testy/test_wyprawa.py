@@ -1153,6 +1153,267 @@ sprawdz("18e brak oferty", r["powod"] == "brak_oferty", r)
 sprawdz("18f Xodet zweryfikowany w wyprawa_sklepy.json",
         json.loads((Path(W.__file__).parent / "trasy" / "wyprawa_sklepy.json").read_text())["przystanki"]["xodet"]["zweryfikowane"] is True)
 
+# --- 19. ręczne "Wróć do miasta" (plik WROC, 19.10): tylko depo na jedną wyprawę, bezpieczniki zostają ---
+import subprocess
+import time as _time
+_pw.powiadom = lambda *a, **kw: None
+GOB_DO, GOB_Z, _ = BAZA_PK = W.punkty_bazy(nazwy=W.BAZY_PK)["gobliny_edron"]
+GOB_DEPO = tuple(GOB_DO[-1])
+GOB_BLISKO = (33167, 31813, 8)                 # piętro depo Edron (po schodach), ~20 pól od pola depo; atrapa świata nie zna
+#   przejścia z7 -> z8 przy depo (nagranie omija pole dziury (33167,31812,7), plan ma tam znane ostrzeżenie), więc dojście sprawdzamy stąd
+ROOK_START = (32021, 32159, 11)                # początek trasy rooka (do_miasta.json): plan rooka nie ma depo tego rodzaju
+
+
+def konf_wroc(**kw):
+    kk = Konf(); kk.WYPRAWA_AKTYWNA = 0          # domyślnie jak na bocie bez trybu wyprawy: ręczne wywołanie ma działać
+    for a, b in kw.items():
+        setattr(kk, a, b)
+    return kk
+
+
+def wroc_swiat(poz=START, plan=None, **kw):
+    s, cb, w, k = nowy(poz=poz, konf=kw.pop("konf", None) or konf_wroc(), sklepy=sp_bez, jedzenie=kw.pop("jedzenie", 9), **kw)
+    krok_dokladny(cb)
+    if plan:
+        s.wej.update(przejscia(plan))
+    cb.ruch_poz = tuple(s.poz)
+    plik = w._plik_wroc()
+    plik.write_text("")
+    return s, cb, w, k, plik
+
+
+def tyk(s, cb, w, dt=1.0):
+    s.t += dt; s.wall += dt
+    cb.ruch_poz = tuple(s.poz); cb.ostatnie_stwory = list(s.stwory); cb.cel = s.cel
+    return w._okazja(s.t)
+
+
+pw19 = []
+_pw.powiadom = lambda *a, **kw: pw19.append(a)
+try:
+    # a. start w spokoju, także przy WYPRAWA_AKTYWNA=0; bez potwierdzeń, pierwszy odczyt wystarcza; plik znika po ruszeniu
+    s, cb, w, k, plik = wroc_swiat()
+    sprawdz("19a0 baza: WYPRAWA_AKTYWNA=0 (bez WROC wyprawa nie rusza)", not (plik.unlink() or tyk(s, cb, w)) and not cb.wypad_aktywny)
+    plik.write_text("")
+    start = tyk(s, cb, w)
+    sprawdz("19a WROC + AKTYWNA=0, spokój: jeden obieg startuje wyprawę 'depo:reczny' (tylko depo, flaga reczny)",
+            start and cb.wypad_aktywny and w.powod == "wyprawa:depo:reczny" and w.w["potrzeby"] == {"depo": True, "reczny": True}
+            and [st["id"] for st in w.w["stops"]] == ["depo"], (w.powod, w.w and w.w["potrzeby"]))
+    sprawdz("19b plik WROC znika po ruszeniu (nie przed), a pokrętło globalne nie zostaje ruszone",
+            not plik.exists() and k.WYPRAWA_TYLKO_DEPO == 0 and k.WYPRAWA_AKTYWNA == 0 and w._wroc_od is None)
+    sprawdz("19c powiadomienie o ruszeniu bez 'brak jedzenia'", any(a[0] == "Wróć do miasta: ruszam" for a in pw19)
+            and not any("głód" in a[1].lower() for a in pw19 if a[0].startswith("Wróć")), pw19)
+
+    # b. po dojściu STOP + powiadomienie, bez zakupów (trasa goblinów Edron, plan wybrany po położeniu)
+    pw19.clear()
+    s, cb, w, k, plik = wroc_swiat(poz=GOB_DO[0], plan=GOB_DO)
+    start = tyk(s, cb, w)
+    sprawdz("19d położenie w jaskini goblinów: plan gobliny_edron, cel = pole depo Edron",
+            start and w.w["baza"] == "gobliny_edron" and tuple(w.w["stops"][0]["stoi"]) == GOB_DEPO, (w.w and w.w["baza"]))
+    pw19.clear()
+    s, cb, w, k, plik = wroc_swiat(poz=GOB_BLISKO)
+    stop = w.plik_stop
+    plecak0 = dict(s.plecak)
+    start = tyk(s, cb, w)
+    n, wyst = bieg(s, cb, w, maks=12000)
+    kon = ev(s, "wyprawa_koniec")
+    sprawdz("19e dojście: koniec 'depo', STOP, stan wyczyszczony, wypad nieaktywny, żadnych zakupów ani powrotu",
+            wyst and tuple(s.poz) == GOB_DEPO and kon and kon[-1]["wynik"] == "depo" and stop.exists() and w.w is None
+            and not cb.wypad_aktywny and s.mowa == [] and s.plecak == plecak0 and cb.wroty == [] and not s.alarmy,
+            (s.poz, kon, stop.exists(), s.mowa, s.alarmy))
+    sprawdz("19f powiadomienie 'jestem w depo' (critical), bez 'brak jedzenia'; plik WROC nie wrócił",
+            any(a[0] == "Wyprawa: jestem w depo" and a[2] == "critical" and "brak jedzenia" not in a[1] for a in pw19)
+            and not plik.exists(), pw19)
+    stop.unlink()
+
+    # c. WYPRAWA_DEPO_POWROT=1 nie zawraca ręcznego wywołania na spot (bezpiecznik: STOP w depo)
+    s, cb, w, k, plik = wroc_swiat(poz=GOB_BLISKO, konf=konf_wroc(WYPRAWA_DEPO_POWROT=1))
+    stop = w.plik_stop
+    tyk(s, cb, w)
+    n, wyst = bieg(s, cb, w, maks=12000)
+    sprawdz("19g WYPRAWA_DEPO_POWROT=1: ręczne wywołanie i tak staje w depo (STOP), nie wraca na spot",
+            wyst and tuple(s.poz) == GOB_DEPO and stop.exists() and w.faza != "z", (s.poz, w.faza, stop.exists()))
+    stop.unlink()
+
+    # d. plan po położeniu: Thais (troll) działa, rook (inne miasto) to brak planu = komunikat + plik znika
+    s, cb, w, k, plik = wroc_swiat(poz=START)
+    sprawdz("19h położenie w jaskini trolli: plan troll (depo Thais)", tyk(s, cb, w) and w.w["baza"] == "troll", w.w and w.w["baza"])
+    pw19.clear()
+    s, cb, w, k, plik = wroc_swiat(poz=ROOK_START)
+    r = tyk(s, cb, w)
+    sprawdz("19i rook: brak planu depo -> bez startu, powiadomienie 'nie mogę ruszyć', plik WROC usunięty, bez ponawiania",
+            not r and not cb.wypad_aktywny and not plik.exists() and any("nie mogę ruszyć" in a[1] for a in pw19)
+            and not tyk(s, cb, w) and not tyk(s, cb, w, 400), (pw19, w.logi[-3:]))
+    sprawdz("19i2 nieudane ręczne wywołanie nie odkłada automatycznych wypraw (nast_wyprawa bez zmian)",
+            w.nast_wyprawa == float("-inf"), w.nast_wyprawa)
+
+    # e. bezpieczniki: walka, niskie HP, PK/gracz obok, zablokowany -> bez startu, plik zostaje; po limicie komunikat
+    def zablokowane(opis, przygotuj):
+        pw19.clear()
+        s, cb, w, k, plik = wroc_swiat()
+        przygotuj(s, cb, w)
+        wyn = [tyk(s, cb, w) for _ in range(5)]
+        trzyma = not any(wyn) and not cb.wypad_aktywny and plik.exists() and not pw19
+        for _ in range(2):
+            tyk(s, cb, w, 100.0)                # 200 s > WROC_BLOKADA_MAX_S (180 s)
+        sprawdz(f"19j {opis}: bez startu, plik czeka, po limicie powiadomienie 'nie mogę ruszyć' i plik usunięty",
+                trzyma and not cb.wypad_aktywny and not plik.exists() and any("nie mogę ruszyć" in a[1] for a in pw19),
+                (wyn, plik.exists(), pw19, w.logi[-2:]))
+        return s, cb, w, plik
+
+    def walka(s, cb, w):
+        s.stwory.append({"id": 77, "nazwa": "Troll", "gracz": False, "x": s.poz[0] + 1, "y": s.poz[1], "z": s.poz[2], "hp": 100})
+        s.cel = s.stwory[-1]
+    zablokowane("w walce (cel)", walka)
+    zablokowane("niskie HP (40%)", lambda s, cb, w: setattr(s, "hp", 40))
+    zablokowane("obcy gracz obok (PK)", lambda s, cb, w: s.stwory.append(
+        {"id": 5, "nazwa": "Zly", "gracz": True, "x": s.poz[0] + 3, "y": s.poz[1], "z": s.poz[2], "hp": 100}))
+    zablokowane("wyprawa zablokowana (STOP/alarm/PK)", lambda s, cb, w: setattr(w, "zablokowany", True))
+    zablokowane("blokada po porażce wypadu", lambda s, cb, w: setattr(w, "blokada_do", s.t + 100000))
+    zablokowane("ucieczka", lambda s, cb, w: setattr(s, "ucieczka", True) or setattr(cb, "ucieczka", True))
+
+    # f. blokada mija przed limitem: rusza w pierwszej spokojnej chwili, nie czeka na limit ani na cooldown
+    s, cb, w, k, plik = wroc_swiat()
+    s.hp = 40
+    w.nast_wyprawa = s.t + 100000                # cooldown automatycznych wypraw nie dotyczy ręcznego wywołania
+    pierwsze = [tyk(s, cb, w) for _ in range(3)]
+    s.hp = 100
+    sprawdz("19k HP wraca w limicie: wyprawa rusza mimo cooldownu nast_wyprawa, plik znika po ruszeniu",
+            not any(pierwsze) and plik.exists() and tyk(s, cb, w) and not plik.exists() and cb.wypad_aktywny)
+
+    # g. w walce (okazja_w_walce, WYPRAWA_DEPO_W_WALCE=1) ręczne wywołanie nie rusza nawet przy AKTYWNA=0 i AKTYWNA=1
+    for akt in (0, 1):
+        s, cb, w, k, plik = wroc_swiat(konf=konf_wroc(WYPRAWA_AKTYWNA=akt, WYPRAWA_DEPO_W_WALCE=1))
+        walka(s, cb, w)
+        cb.ruch_poz, cb.ostatnie_stwory, cb.cel = tuple(s.poz), list(s.stwory), s.cel
+        wyn = [w.okazja_w_walce(s.t + i) for i in range(4)]
+        sprawdz(f"19l okazja_w_walce przy AKTYWNA={akt}: ręczne wywołanie nie startuje w walce, plik zostaje",
+                not any(wyn) and not cb.wypad_aktywny and plik.exists(), wyn)
+
+    # g2. ciągła walka: limit WROC_BLOKADA_MAX_S płynie także w okazja_w_walce (przeplot z _okazja), potem komunikat i brak pliku
+    pw19.clear()
+    s, cb, w, k, plik = wroc_swiat(konf=konf_wroc(WYPRAWA_DEPO_W_WALCE=1))
+    walka(s, cb, w)
+    wyn = []
+    for i in range(12):
+        s.t += 20; s.wall += 20
+        cb.ruch_poz, cb.ostatnie_stwory, cb.cel = tuple(s.poz), list(s.stwory), s.cel
+        wyn.append(w.okazja_w_walce(s.t) if i % 2 else w._okazja(s.t))
+    sprawdz("19l2 ciągła walka (240 s, przeplot okazja_w_walce/_okazja): bez startu, powiadomienie 'nie mogę ruszyć', plik usunięty",
+            not any(wyn) and not cb.wypad_aktywny and not plik.exists() and any("nie mogę ruszyć" in a[1] for a in pw19),
+            (wyn, plik.exists(), pw19))
+
+    # g3. wyjątek przy starcie kończy zlecenie (nie ponawia co obieg); nieudany start nie kasuje potwierdzonego głodu
+    pw19.clear()
+    s, cb, w, k, plik = wroc_swiat()
+    def _wyjatek(*a, **kw):
+        raise RuntimeError("test")
+    w._start_wyprawa = _wyjatek
+    r = tyk(s, cb, w)
+    sprawdz("19l3 wyjątek w _start_wyprawa: zlecenie zakończone komunikatem, plik usunięty, bez ponawiania",
+            not r and not plik.exists() and any("nie mogę ruszyć" in a[1] and "test" in a[1] for a in pw19) and not tyk(s, cb, w), pw19)
+    s, cb, w, k, plik = wroc_swiat(poz=ROOK_START)
+    w.glod_potw_do = s.t + 5000
+    glod0 = w.glod_potw_do
+    tyk(s, cb, w)
+    sprawdz("19l4 nieudany ręczny start (rook) nie kasuje potwierdzonego głodu (CZEKAJ_NA_GLOD)", w.glod_potw_do == glod0, w.glod_potw_do)
+
+    # h. anulowanie: usunięcie pliku (wroc.sh --anuluj) przed ruszeniem; zlecenie nie wraca samo
+    pw19.clear()
+    s, cb, w, k, plik = wroc_swiat()
+    s.hp = 40
+    tyk(s, cb, w)
+    zlecenie = w._wroc_od is not None
+    plik.unlink()                                 # to robi ./wroc.sh --anuluj
+    s.hp = 100
+    sprawdz("19m --anuluj: po usunięciu pliku wyprawa nie rusza i nie ma śladu zlecenia",
+            zlecenie and not tyk(s, cb, w) and not cb.wypad_aktywny and w._wroc_od is None and not pw19)
+
+    # i. wznowienie po restarcie w marszu ręcznego wywołania (bez pliku WROC): dochodzi do depo i staje
+    s, cb, w, k, plik = wroc_swiat(poz=GOB_BLISKO, konf=konf_wroc(WYPRAWA_DEPO_POWROT=1))
+    tyk(s, cb, w)
+    for i in range(2):                            # kilka obiegów marszu, potem "restart bota"
+        s.t += 0.3; s.wall += 0.3
+        cb.ruch_poz = tuple(s.poz); cb.ostatnie_stwory = []
+        w.tick()
+    st_r = json.loads(w.plik_stanu.read_text())
+    w.przerwij("STOP")
+    cbr = krok_dokladny(CB(s))
+    logr = []
+    opsr = Ops(s); opsr.log = logr.append
+    stopr = TMP / "STOP_wroc_r"
+    wr = W.Wyprawa(cbr, opsr, konf=konf_wroc(WYPRAWA_DEPO_POWROT=1), log=logr.append, plik_stanu=w.plik_stanu, plik_sklepow=sp_bez,
+                   plik_npc=TMP / "npc_wroc_r.json", plik_stop=stopr, czas=lambda: s.wall)
+    startr = False
+    for i in range(12000):
+        s.t += 0.3; s.wall += 0.3
+        cbr.ruch_poz = tuple(s.poz); cbr.ostatnie_stwory = []
+        wr.tick()
+        if wr.aktywny:
+            startr = True
+        elif startr:
+            break
+    sprawdz("19n restart w marszu: stan 'reczny' przeżywa, wznowiona wyprawa staje w depo (STOP) mimo DEPO_POWROT=1",
+            st_r.get("aktywna") and (st_r.get("potrzeby") or {}).get("reczny") and startr and tuple(s.poz) == GOB_DEPO
+            and stopr.exists() and s.mowa == [], (st_r.get("potrzeby"), logr[-3:], s.poz))
+finally:
+    _pw.powiadom = _stare
+
+# --- 19o. wroc.sh: odmowa bez bota, z atrapą bota, --anuluj (bez gry i bez gniazd; notify-send podmieniony) ---
+_RID = "wroctest"
+_KAT = Path(__file__).resolve().parent.parent
+_INST = _KAT / "instancje" / _RID
+_BIN = TMP / "bin"
+_BIN.mkdir(exist_ok=True)
+_NOT = TMP / "notify.log"
+(_BIN / "notify-send").write_text(f'#!/bin/bash\necho "$*" >> {_NOT}\n')
+(_BIN / "notify-send").chmod(0o755)
+_env = dict(_os.environ, RETRONIC_ID=_RID, PATH=f"{_BIN}:{_os.environ['PATH']}")
+
+
+def wroc_sh(*arg):
+    return subprocess.run([str(_KAT / "wroc.sh"), *arg], env=_env, capture_output=True, text=True, timeout=20)
+
+
+try:
+    r = wroc_sh()
+    sprawdz("19o wroc.sh bez bota: odmowa (kod 1), komunikat jak uruchomić, plik WROC nie powstaje",
+            r.returncode == 1 and "uruchom" in r.stderr and not (_INST / "WROC").exists(), (r.returncode, r.stderr))
+    sprawdz("19o2 odmowa idzie też powiadomieniem", _NOT.exists() and "Bot nie działa" in _NOT.read_text())
+    _fake = subprocess.Popen(["python3", "-I", "-c", "import time; time.sleep(30)", "mozg.py"], env=_env,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        _time.sleep(0.5)
+        r = wroc_sh()
+        sprawdz("19p wroc.sh z (atrapą) bota tej instancji: zlecenie przyjęte, plik WROC w katalogu stanu instancji",
+                r.returncode == 0 and (_INST / "WROC").exists() and "przyjęte" in r.stdout, (r.returncode, r.stdout, r.stderr))
+        r = wroc_sh("--anuluj")
+        sprawdz("19q wroc.sh --anuluj usuwa WROC (bot nie jest potrzebny)", r.returncode == 0 and not (_INST / "WROC").exists(), r.stdout)
+    finally:
+        _fake.kill()
+        _fake.wait()
+    r = wroc_sh("--anuluj")
+    sprawdz("19r --anuluj bez zlecenia: kod 0 i informacja", r.returncode == 0 and "brak zlecenia" in r.stdout, r.stdout)
+    r = wroc_sh("--zle")
+    sprawdz("19s nieznany argument: kod 2 i użycie, bez pliku", r.returncode == 2 and "użycie" in r.stderr and not (_INST / "WROC").exists())
+
+    # --- 19t. stary WROC nie przeżywa restartu: skrypty startu czyszczą go razem z STOP (wiersz z rm wykonany w piaskownicy) ---
+    for _sk in ("uruchom.sh", "uruchom_trolle.sh", "serwis.sh"):
+        _wiersz = next((l.strip() for l in (_KAT / _sk).read_text().splitlines() if l.strip().startswith('rm -f "$INST_STOP"')), "")
+        _pia = Path(tempfile.mkdtemp())
+        for _f in ("STOP", "STOP_RECZNY", "WROC"):
+            (_pia / _f).write_text("")
+        subprocess.run(["bash", "-c", _wiersz], env=dict(_os.environ, INST_STOP=str(_pia / "STOP"),
+                       INST_STOP_RECZNY=str(_pia / "STOP_RECZNY"), INST_STAN=str(_pia)), check=False, timeout=10)
+        sprawdz(f"19t {_sk}: wiersz czyszczący STOP kasuje też stary WROC (po restarcie bot nie rusza do depo)",
+                "INST_STAN/WROC" in _wiersz and not any((_pia / f).exists() for f in ("STOP", "STOP_RECZNY", "WROC")), _wiersz)
+finally:
+    for _p in (_INST / "WROC", _INST):
+        try:
+            _p.unlink() if _p.is_file() else _p.rmdir()
+        except OSError:
+            pass
+
 if _os.environ.get("DBG"):
     print(DBGLOG)
 print()
