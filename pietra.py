@@ -163,8 +163,14 @@ TRYBY_GORA = ("R", "lina", "krok", "R", "wlasne", "E", "W", "N")   # 15.10: lina
 # piętrach) = krok w obie strony jako pierwsza próba; drabina w górę = R (ze skosu, bez ustawiania się); dziura w dół = krok.
 # "lopata" tylko dla zasypanej dziury (ZASYPANE) i z pola sąsiedniego; slot bez zastosowania nie zużywa numeru próby.
 TRYBY_DOL_DANE = ("krok", "lopata", "krok", "lopata", "krok")
+# 19.10: przejście w dół bez flagi w mapie (domysł, np. kratka kanału Edron) zaczyna od Ctrl+klik (Use): kratka się nie otwiera
+# krokiem. Dawniej dane (dziura w dół = krok) pomijały "use" i dojście z depo Edron stawało na (33168,31823,z8) po samych krokach.
+TRYBY_DOL_DANE_DOMYSL = ("use", "krok", "use", "lopata", "krok")
 TRYBY_GORA_SCHODY = ("krok", "krok", "R")
 TRYBY_GORA_DRABINA = ("R", "krok", "R")
+# 19.10: wspinaczka bez danych o trybie (pole nieznane) próbuje także liny z plecaka: Edron ma liny, a dojście z depo
+# (gobliny_edron_z_depo) stawało na pierwszej linie z11->z10, bo samo R/krok nie dawało przejścia (wyprawa w wypad.py linę zna).
+TRYBY_GORA_NIEZNANE = ("R", "lina", "krok", "R", "lina")
 ZASYPANE = {(32493, 32259, 7)}      # dziury zasypane (piętro z, na którym stoimy), jedyne, gdzie łopata ma sens
 
 
@@ -544,13 +550,13 @@ class Pietra:
     def _tryby(self, k, st):
         if self._dane():
             if k["lad"][2] > st["z0"]:
-                return list(TRYBY_DOL_DANE)
+                return list(TRYBY_DOL_DANE if k["pewne"] else TRYBY_DOL_DANE_DOMYSL)
             z_danych = tryb_z_danych(k["pole"])          # dane z 12 h przed flagami mapy (flagi bywają mylące)
             if z_danych == "R":
                 return list(TRYBY_GORA_DRABINA)
             if z_danych == "krok" or _schody(self.cb.mapa, k["pole"], k["lad"]):
                 return list(TRYBY_GORA_SCHODY)
-            return list(TRYBY_GORA_DRABINA)
+            return list(TRYBY_GORA_NIEZNANE)
         if k["lad"][2] > st["z0"]:
             return list(TRYBY_DOL[bool(k["pewne"])])
         return list(TRYBY_GORA)
