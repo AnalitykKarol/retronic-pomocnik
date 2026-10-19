@@ -9,7 +9,7 @@ Specyfikacje i decyzje: `dane_tibia/SPEC_*.md`. Ten plik streszcza i linkuje.
 
 ## Gdzie jesteśmy
 
-- **19.10 ratunek Haiku (DRAFT, czeka na Q1-Q6 Karola):** `dane_tibia/SPEC_ratunek_haiku_1019.md`. Przypadek R1: Mastafian po walce przy otworze do goblinów stanął na z6 (33106,31849), dojście 5x nieudane, bot zakończony 20:25:46; dowody w `dane_tibia/repro/ratunek_1019/`. Bez kodu.
+- **19.10 ratunek Haiku — F1 WDROŻONE w cieniu (merge `b089fc8`, bez push):** `RATUNEK_HAIKU=1` w `na_zywo.json` i `instancje/test/na_zywo.json` (kopie `.bak-20261019-ratunek`), boty zrestartowane 20:52 (Johny) i 20:54 (Mastafian). Sygnały: `logi/ratunek-<data>.jsonl` (+ instancje/test/logi). Pomiar offline 3,3/h, szczyt 14/h. Następnie: przegląd sygnałów na żywo z Karolem, potem F2 (Haiku wykonuje ruchy). Spec `dane_tibia/SPEC_ratunek_haiku_1019.md`. Czerwone sprzed merge: `test_serwis_akcje` (Slot.wnetrze), `test_serwis_marsz` 30/31.
 
 - **Do zrobienia (zgłosił Karol 18.10, wymaga specyfikacji):** lina/drabina/dziura zajęte przez przedmioty (np. zwłoki szczura na polu liny) — nie da się skorzystać z przejścia. Bot ma nauczyć się zdejmować śmieci z pola przejścia (przesunąć/zabrać przedmiot) przed użyciem liny; dziś próba 18.10 11:30 na z9->z8 (33131,31806) skończyła się `Przejście pięter NIEUDANE` i dojście przerwane. Przyczyna zajętego pola niepotwierdzona zrzutem.
 
