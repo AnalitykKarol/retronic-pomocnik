@@ -27,6 +27,7 @@ MAKS_WYMIAR = 4096                 # bezpiecznik na głupie odczyty
 PROG_PX = 8                        # różnica okna i wyjścia, od której dopasowujemy
 DEBOUNCE_S = 1.0                   # tyle rozmiar okna musi stać bez zmian
 CO_S = 1.0                         # okres odczytu okna
+SKALA_CO_S = 5.0                   # co tyle przy bocie sprawdzamy, czy skala sesji wróciła do 1
 ODSWIEZ_S = 15.0                   # co tyle odczytujemy rozmiar wyjścia ponownie (ktoś inny mógł go zmienić)
 TIMEOUT_RFB_S = 3.0
 ENC_EXTENDED_DESKTOP_SIZE = -308
@@ -135,15 +136,66 @@ def skala_dla(szer, bot=None, env=None):
     return round(max(1.0, min(skala_stala(env), szer / MIN_SZER)), 3)
 
 
-def ustaw_skale_sway(szer, uruchom=subprocess.run):
-    """swaymsg output * scale = szer/1175 na gniazdie sway sesji (jedyny headless sway w XDG_RUNTIME_DIR)."""
+def gniazdo_sway(sesja=None, runtime=None, proc="/proc"):
+    """Gniazdo IPC sway TEJ instancji albo None. Najpierw plik <sesja>/swaysock (sesja.sh), w zapasie sway-ipc.<uid>.<pid>.sock,
+    którego proces sway ma w argv `-c <sesja>/sway.conf`. 19.10: dawniej „najnowszy sway w XDG_RUNTIME_DIR”, więc przy dwóch
+    instancjach helper Mastafiana ustawił skalę 1.175 na sesji Johny'ego, a jego bot klikał obok („There is no way.”)."""
     import glob  # noqa: PLC0415
-    gniazda = sorted(glob.glob(os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/run/user/%d" % os.getuid()),
-                                            "sway-ipc.*.sock")), key=os.path.getmtime)
-    if not gniazda:
+    if sesja is None:
+        import instancja  # noqa: PLC0415
+        sesja = instancja.sesja()
+    sesja = os.path.abspath(str(sesja))
+    try:
+        zapis = open(os.path.join(sesja, "swaysock")).read().strip()
+        if zapis and os.path.exists(zapis):
+            return zapis
+    except OSError:
+        pass
+    runtime = runtime or os.environ.get("XDG_RUNTIME_DIR", "/run/user/%d" % os.getuid())
+    konf = os.path.join(sesja, "sway.conf").encode()
+    for g in glob.glob(os.path.join(runtime, "sway-ipc.*.sock")):
+        pid = os.path.basename(g).split(".")[-2]
+        try:
+            with open(f"{proc}/{pid}/cmdline", "rb") as f:
+                argv = f.read().split(b"\0")
+        except OSError:
+            continue
+        if konf in argv:
+            return g
+    return None
+
+
+def ustaw_skale_sway(szer, uruchom=subprocess.run, gniazdo=None, bot=None):
+    """swaymsg output * scale = skala_dla(szer) na gniezdzie sway TEJ instancji; bez gniazda nic nie robi (nigdy cudza sesja)."""
+    gniazdo = gniazdo or gniazdo_sway()
+    if not gniazdo:
         return False
-    skala = skala_dla(szer)
-    w = uruchom(["swaymsg", "-s", gniazda[-1], "output", "*", "scale", str(skala)], capture_output=True, timeout=3)
+    skala = skala_dla(szer, bot=bot)
+    w = uruchom(["swaymsg", "-s", gniazdo, "output", "*", "scale", str(skala)], capture_output=True, timeout=3)
+    return w.returncode == 0
+
+
+def skale_sway(gniazdo, uruchom=subprocess.run):
+    """Skale wyjść sway (lista float) albo None przy błędzie."""
+    w = uruchom(["swaymsg", "-s", gniazdo, "-t", "get_outputs", "-r"], capture_output=True, timeout=3)
+    if w.returncode != 0:
+        return None
+    try:
+        return [float(o.get("scale", 1.0)) for o in json.loads(w.stdout) if isinstance(o, dict) and o.get("active", True)]
+    except (ValueError, TypeError):
+        return None
+
+
+def skala_przy_bocie(gniazdo, bot, uruchom=subprocess.run, log=print):
+    """Gdy chodzi bot tej instancji, a sesja ma skalę != 1 (SKALUJ ustawił ją przed startem bota), wraca do skali 1.
+    Rozmiaru ekranu nie rusza (59e741e: zmiana kształtu chowa panele). Zwraca True, gdy przestawił."""
+    if not bot or not gniazdo:
+        return False
+    skale = skale_sway(gniazdo, uruchom)
+    if not skale or all(abs(x - 1.0) < 1e-3 for x in skale):
+        return False
+    w = uruchom(["swaymsg", "-s", gniazdo, "output", "*", "scale", "1"], capture_output=True, timeout=3)
+    log(f"dopasuj_okno: bot działa, skala sesji {skale} -> 1 ({'ok' if w.returncode == 0 else 'błąd'})")
     return w.returncode == 0
 
 
@@ -385,15 +437,22 @@ def main(argv=None):
         r = rozmiar_okna(hyprctl_klienci(), a.pid, port, hyprctl_skale())
         return rozmiar_docelowy(r, bot_dziala())
 
+    gniazdo = gniazdo_sway()                  # także bez SKALUJ: pilnuje skali 1 przy bocie
+    if skaluj and not gniazdo:
+        print("dopasuj_okno: brak gniazda sway tej instancji, SKALUJ bez skali (tylko rozmiar)", flush=True)
     d = Dopasowywacz(okno,
                      lambda: odczytaj_rozmiar(port), lambda w, h: ustaw_rozmiar(port, w, h),
-                     po_zmianie=(lambda rozm: ustaw_skale_sway(rozm[0])) if skaluj else None)
+                     po_zmianie=(lambda rozm: ustaw_skale_sway(rozm[0], gniazdo=gniazdo)) if skaluj and gniazdo else None)
     if skaluj:
-        print("dopasuj_okno: tryb SKALUJ (sway skaluje ekran do okna; gdy chodzi bot, wraca sam do 1175x910 w skali 1)", flush=True)
-    print(f"dopasuj_okno: start (port {port}, pid {a.pid})", flush=True)
+        print("dopasuj_okno: tryb SKALUJ (sway skaluje ekran do okna; gdy chodzi bot, rozmiar stoi, a skala wraca do 1)", flush=True)
+    print(f"dopasuj_okno: start (port {port}, pid {a.pid}, sway {gniazdo or '-'})", flush=True)
+    sprawdzona_skala = 0.0
     while a.pid is None or zyje(a.pid):
         try:
             d.tik()
+            if gniazdo and time.monotonic() - sprawdzona_skala >= SKALA_CO_S:
+                sprawdzona_skala = time.monotonic()
+                skala_przy_bocie(gniazdo, bot_dziala(), log=lambda m: print(m, flush=True))
         except Exception as e:  # noqa: BLE001 - helper pomocniczy nie może paść i zostawić śmieci
             print(f"dopasuj_okno: błąd tiku: {type(e).__name__}: {e}", flush=True)
         sys.stdout.flush()
