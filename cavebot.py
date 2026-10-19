@@ -28,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bot  # noqa: E402
 import czaszka  # noqa: E402
 import instancja  # noqa: E402
+import widma  # noqa: E402
 
 ZASIEG_X, ZASIEG_Y = 7, 5          # widok mapy: |dx|<=7, |dy|<=5
 CZAS_JEDZENIA = 30                 # s bez żadnego wzrostu HP (regeneracja działa też w walce) -> głód
@@ -715,6 +716,7 @@ UNIKANIE_TOR_ZASIEG = 12           # pola: gracz (albo jego "duch") dalej niż t
 UNIKANIE_TOR_LOOK = 8              # pola drogi, z których liczymy jej kierunek
 UNIKANIE_TOR_PAMIEC_S = 25.0       # s: gracz, który zniknął z widoku, nadal wyznacza tor (ostatnia pozycja i kierunek); unikanie w tym czasie trwa
 UNIKANIE_PRZERWA = 0               # 1 = gracz w UNIKANIE_PROMIEN kończy PRZERWĘ od razu (dawniej stała do końca)
+STWORY_WIDMA = 1                   # 19.10: 1 = wpisy-widma na liście stworów (obcy gracz na polu bota, kilku graczy na jednym polu) dostają `widmo` (widma.py) i NIE liczą się do zajętości pól ani do oceny graczy (unikanie/mijanie); PK, czaszki, GM i stan modelu widzą wszystko; 0 = stare zachowanie
 # mijanie graczy (18.10, dane_tibia/SPEC_mijanie_graczy_1018.md; unikanie.Unikanie.mijanie): ocena kierunku gracza względem pętli
 MIJANIE = 0                        # 1 = zamiast bańki dystansu i dreptania (unikanie.decyduj): nie idziemy tą samą stroną co gracz, mijamy się bez zawracania, obozowicza omijamy, przejście udostępniamy tylko w wąskim miejscu; 0 = dotychczasowe UNIKANIE_*
 MIJANIE_PRZOD = 16                 # punkty trasy przed nami, na których gracz "jest na naszej drodze"
@@ -1049,6 +1051,7 @@ class Cavebot:
         self.ml_wylaczony_do = float("-inf")
         self.pet = None                # pet_ster.PetSterowanie (leniwie, patrz _pet_ster)
         self.stwory_surowe = []        # ostatnia lista stworów z petem (stwory() zwraca bez niego)
+        self.widma_log = {}            # (nick, powód) -> czas ostatniego wpisu "Widmo: ..." (widma.loguj)
         self.czar_ostatni = float("-inf")  # czas ostatniego rzutu DOWOLNEGO czaru bota (wspólny exhaust)
         self.zd_oczekuje = None        # exura: (czas rzutu, mana przed, hp przed)
         self.zd_porazki = 0
@@ -1185,7 +1188,7 @@ class Cavebot:
                 d0 = getattr(self, "_dojscie_start", None)      # P7f: tłum przy depo nie jest zagrożeniem
                 przy_depo = bool(d0 and d0[2] == poz[2]
                                  and max(abs(d0[0] - poz[0]), abs(d0[1] - poz[1])) <= DOJSCIE_BEZ_UNIKANIA_POL)
-            u.obserwuj(lista, poz, self.postac.nazwa,
+            u.obserwuj(self.bez_widm(lista), poz, self.postac.nazwa,
                        wylacz=not self.zatrzymaj_przy_graczu or self.wypad_aktywny or w_miescie or przy_depo)
             self._patrol_pamietaj_graczy()
         except bot.Zatrzymano:
@@ -3327,7 +3330,7 @@ class Cavebot:
             # bez nas samych (w pętli zbierz_loot lista jest sprzed ruchu: nasza stara pozycja)
             zajete = [(s["x"], s["y"]) for s in self.ostatnie_stwory
                       if s["z"] == poz[2] and s.get("hp", 100) > 0 and (s["x"], s["y"]) != tuple(poz[:2])
-                      and not (s.get("gracz") and s.get("nazwa") == self.postac.nazwa)]
+                      and not (s.get("gracz") and s.get("nazwa") == self.postac.nazwa) and not s.get("widmo")]
         if self.sprawdz_krok(poz, zajete, cel) and natychmiast:
             if not poscig:
                 self.pauza(0.03, 0.06)        # poprzednia strzałka jeszcze nie przesunęła postaci
@@ -3525,7 +3528,20 @@ class Cavebot:
         surowa = self.zapytaj(z)["stwory"]
         self.stwory_surowe = surowa
         pet = self.pet
-        return pet.bez_peta(surowa) if pet is not None else surowa    # pet nie jest celem ani zagrożeniem
+        lista = pet.bez_peta(surowa) if pet is not None else surowa    # pet nie jest celem ani zagrożeniem
+        if STWORY_WIDMA:
+            # tylko ZNACZNIK (`widmo`), nic nie znika: PK/czaszki/GM czytają tę listę w całości (patrz widma.py)
+            try:
+                nick = getattr(self.postac, "nazwa", None)
+                widma.loguj(widma.oznacz(lista, nick, wazny=self.gracz_grozny), log, self.zegar(),
+                            self.__dict__.setdefault("widma_log", {}))
+            except Exception as e:
+                log(f"debug: widma: błąd {e!r}")
+        return lista
+
+    def bez_widm(self, lista):
+        """Lista bez wpisów-widm: do ocen ZAJĘTOŚCI pól i "blokujących" graczy (nie do PK/GM; patrz widma.py)."""
+        return widma.bez_widm(lista) if STWORY_WIDMA else lista
 
     def idz_do(self, cel, poz=None, pilne=False, krok=None):
         """Ruch w stronę cel=(x,y): kliknięciem w mapę (pełna prędkość), a gdy klik nie
@@ -3670,6 +3686,7 @@ class Cavebot:
             return None
         if BLOK_WYJSCIE and any((q["x"], q["y"], q["z"]) == pole and q.get("hp", 100) > 0
                                 and not (q.get("gracz") and q.get("nazwa") == self.postac.nazwa)
+                                and not q.get("widmo")
                                 for q in self.ostatnie_stwory):
             return None          # pole skosu zajęte przez żywego stwora
         if self.skos_zle.get(((x, y), pole[:2]), 0) > self.zegar():
@@ -3877,7 +3894,7 @@ class Cavebot:
             zajete = [(m["x"], m["y"]) for m in self.ostatnie_stwory
                       if m["z"] == poz[2] and m["id"] != s["id"] and m.get("hp", 100) > 0
                       and (m["x"], m["y"]) != tuple(poz[:2])
-                      and not (m.get("gracz") and m.get("nazwa") == self.postac.nazwa)]
+                      and not (m.get("gracz") and m.get("nazwa") == self.postac.nazwa) and not m.get("widmo")]
             c_xy = (s["x"], s["y"])
             dr = self.droga(tuple(poz[:3]), c_xy, zajete, 1, skosy=False)
             limit = 2 * d + (MAPA_OBJAZD if self.mapa_zna(poz, c_xy) else DROGA_OBJAZD)
@@ -5768,7 +5785,7 @@ class Cavebot:
                     if przelicz or poz != ost_poz or sxy != ost_cel:
                         zaj = {(m["x"], m["y"]) for m in (self.ostatnie_stwory or [])
                                if m["z"] == poz[2] and m.get("hp", 100) > 0 and m["id"] != cel["id"]
-                               and not (m.get("gracz") and m.get("nazwa") == self.postac.nazwa)}
+                               and not (m.get("gracz") and m.get("nazwa") == self.postac.nazwa) and not m.get("widmo")}
                         zaj.discard(tuple(poz[:2]))
                         zaj |= {pl for pl, do in blok.items() if do > self.zegar()}   # pola, z których serwer cofnął krok
                         if POSCIG_VKROK_SCIANA and v_krok is not None and self._pole_zablokowane(
@@ -6924,7 +6941,7 @@ class Cavebot:
     def zajete_bez_nas(self, poz):
         return [(s["x"], s["y"]) for s in self.ostatnie_stwory
                 if s["z"] == poz[2] and s.get("hp", 100) > 0 and (s["x"], s["y"]) != tuple(poz[:2])
-                and not (s.get("gracz") and s.get("nazwa") == self.postac.nazwa)]
+                and not (s.get("gracz") and s.get("nazwa") == self.postac.nazwa) and not s.get("widmo")]
 
     def zejdz_ze_zwlok(self, poz, zwloki):
         """Krok z pola zwłok na wolne sąsiednie pole (proste przed skosem, przechodnie wg mapy)."""

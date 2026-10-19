@@ -73,6 +73,7 @@ ZAKRESY = {
     "PATROL_GRACZ_PAM_S": (30.0, 3600.0),  # s: jak długo ostatnia pozycja gracza zniechęca do miejsc w pobliżu
     "PATROL_GRACZ_PAM_R": (4, 40),      # pola: miejsce tak blisko ostatniej pozycji gracza dostaje karę
     "PATROL_GRACZ_PAM_KARA": (0.0, 1.0),  # mnożnik wagi takiego miejsca (0 = blokada)
+    "STWORY_WIDMA": (0, 1),             # 19.10: 1 = wpisy-widma (obcy gracz na polu bota, kilku graczy na jednym polu) nie liczą się do zajętości pól i oceny graczy; PK/GM widzą wszystko; 0 = stare zachowanie
     "POSCIG_BEZ_ZMIANY_PIETRA": (0, 1), # 1 = pościg nigdy nie wchodzi na schody/dziury (poza wypadem do miasta)
     "PET_WLACZONY": (0, 1),             # 17.10: 1 = przywołuj peta (utevo res) poza walką; domyślnie 0, tylko Karol
     "PET_MANA_MIN": (200, 1000),        # mana wymagana do przywołania (Elf Scout ok. 360)
@@ -324,6 +325,7 @@ KIERUNEK = {
     "POSCIG_OKNO": "nie_nizej", "POSCIG_OKNO_DOBRY": "nie_nizej",
     "POSCIG_VKROK_SCIANA": "nie_nizej", "POSCIG_OSTATNI_DOCISKAJ": "nie_nizej",
     "POSCIG_SKOS_AWARYJNY": "nie_nizej", "JEDZENIE_ZAPAS_W_WALCE": "nie_nizej",
+    "STWORY_WIDMA": "nie_nizej",        # analityk nie wyłącza filtra widm (wyłącza go tylko Karol w na_zywo.json)
     "POSCIG_PAMIEC": "nie_nizej", "POSCIG_PAMIEC_S": "nie_nizej", "POSCIG_PAMIEC_POL": "nie_nizej",
     "POSCIG_PAMIEC_MAKS_ODL": "nie_nizej",
     "CZEKAJ_BLISKO": "nie_wyzej", "CZEKAJ_DROGA": "nie_wyzej",

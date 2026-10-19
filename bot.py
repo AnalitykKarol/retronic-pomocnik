@@ -94,15 +94,32 @@ def _po_ruchu(kandydaci, ruch, teraz):
     return ruszone[0][1]
 
 
-def wybierz_wlasny(kandydaci, gracz, ruch=None, teraz=None):
-    """Z wpisów gracza o naszej nazwie wybiera żywy (dict z 'adres', 'id') albo None, gdy nie da się rozstrzygnąć.
-    Najpierw ruch (ruch: wynik sledz_ruch, teraz: zegar), potem HP i adres bloku statystyk."""
-    if len(kandydaci) < 2:
+def _id_liczba(k):
+    try:
+        return int(k.get("id"))
+    except (TypeError, ValueError):
         return None
+
+
+def _wybierz_wlasny(kandydaci, gracz, ruch=None, teraz=None):
+    """(wpis, powód) albo (None, None). Kolejność dowodów:
+    1. ruch wpisu (widmo nie rusza się nigdy),
+    2. HP zgodne z blokiem statystyk (zawęża pulę),
+    3. NAJWYŻSZE id (19.10, logi 14:57 i 20:14: trzy kolejne sesje Mastafiana miały id 268479676 < 268555116 < 268653019 i za
+       każdym razem ruch wskazał żywym wpis o wyższym id, a "hp/adres bloku" - starszy, bo blok statystyk też bywa widmem; id
+       gracza rośnie przy każdym logowaniu, więc widmo po relogu ma zwykle niższe id niż żywa sesja).
+       UWAGA: to HEURYSTYKA z jednego dnia (19.10, 3 sesje Mastafiana), mechanizmu nie sprawdzono w kodzie serwera. Kontrprzykład
+       z 13.10 (Jointoramix: żywy 268478551, widmo 268852462) pokazuje, że po restarcie serwera licznik id może się odwrócić.
+       Dlatego RUCH ZAWSZE wygrywa pierwszy, a wybór po id loguje się z ostrzeżeniem, gdy wpisy są na różnych piętrach.
+       Zgodności z pozycją z `gracz`/`pozycja` jako tie-breaku NIE ma: `gracz` nie zawiera pozycji, a `pozycja` czyta ten sam
+       wpis, który tu wybieramy (koło); ciągłość z ostatnią pozycją wskazałaby w relogu wpis STARY,
+    4. najbliższy adres bloku statystyk (tylko gdy brak id)."""
+    if len(kandydaci) < 2:
+        return None, None
     zywy = _po_ruchu(kandydaci, ruch, teraz)
     if zywy is not None:
-        return zywy
-    pula = kandydaci
+        return zywy, "ruch"
+    pula, powod = kandydaci, "hp/adres bloku"
     try:
         proc = 100.0 * gracz["hp"] / gracz["max_hp"]
         zgodne = [k for k in kandydaci if abs(k.get("hp", 100) - proc) <= 1.5]
@@ -110,12 +127,21 @@ def wybierz_wlasny(kandydaci, gracz, ruch=None, teraz=None):
     except (KeyError, TypeError, ZeroDivisionError):
         pass
     if len(pula) == 1:
-        return pula[0]
+        return pula[0], "hp"
+    ident = [_id_liczba(k) for k in pula]
+    if all(i is not None for i in ident) and len(set(ident)) == len(ident):
+        return pula[ident.index(max(ident))], "najwyzsze id"
     try:
         baza = int(gracz["adres"], 16)
-        return min(pula, key=lambda k: abs(int(k["adres"], 16) - baza))
+        return min(pula, key=lambda k: abs(int(k["adres"], 16) - baza)), powod
     except (KeyError, TypeError, ValueError):
-        return None
+        return None, None
+
+
+def wybierz_wlasny(kandydaci, gracz, ruch=None, teraz=None):
+    """Z wpisów gracza o naszej nazwie wybiera żywy (dict z 'adres', 'id') albo None, gdy nie da się rozstrzygnąć
+    (reguły: patrz _wybierz_wlasny)."""
+    return _wybierz_wlasny(kandydaci, gracz, ruch, teraz)[0]
 
 
 def wlasny_wpis(nazwa):
@@ -124,13 +150,13 @@ def wlasny_wpis(nazwa):
     w = _wlasny
     if w["nazwa"] == nazwa and teraz - w["t"] < WLASNY_ODSWIEZ:
         return w["wpis"]
-    wpis = None
+    wpis, powod, kand = None, None, []
     try:
         lista = _zapytaj_surowe({"cmd": "stwory"})["stwory"]
         kand = [s for s in lista if s.get("gracz") and s.get("nazwa") == nazwa]
         if len(kand) > 1:
             sledz_ruch(_ruch, kand, teraz)
-            wpis = wybierz_wlasny(kand, _zapytaj_surowe({"cmd": "gracz"})["gracz"], _ruch, teraz)
+            wpis, powod = _wybierz_wlasny(kand, _zapytaj_surowe({"cmd": "gracz"})["gracz"], _ruch, teraz)
         else:
             _ruch.clear()
     except Exception:
@@ -140,9 +166,14 @@ def wlasny_wpis(nazwa):
     if klucz != w["duplikat"]:
         w["duplikat"] = klucz
         if wpis:
-            powod = "ruch" if _po_ruchu(kand, _ruch, teraz) is wpis else "hp/adres bloku"
             print(f"[bot] widmo gracza {nazwa}: używam wpisu id{wpis['id']} {wpis['adres']} "
                   f"({wpis['x']},{wpis['y']},{wpis['z']}; wybór: {powod})", file=sys.stderr, flush=True)
+            inne = [k for k in kand if k is not wpis]
+            if powod != "ruch" and any(k.get("z") != wpis.get("z") for k in inne):
+                # ostrzeżenie: wpisy na RÓŻNYCH piętrach i wybór bez dowodu ruchu - serwis/trasa mogą planować z fałszywego piętra
+                print(f"[bot] UWAGA widmo gracza {nazwa}: wpisy na różnych piętrach "
+                      f"({', '.join(f'id{k['id']} z{k.get('z')}' for k in kand)}); wybrano id{wpis['id']} (z{wpis.get('z')}) "
+                      f"bez dowodu ruchu, sprawdź pozycję", file=sys.stderr, flush=True)
     return wpis
 
 

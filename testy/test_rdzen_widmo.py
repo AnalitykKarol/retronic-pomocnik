@@ -32,7 +32,9 @@ def wpis(adres, ident, hp=100):
 import bot
 k1, k2 = wpis(0x132719f8, 268478551), wpis(0x1169ca88, 268852462)
 w = bot.wybierz_wlasny([k2, k1], {"hp": 200, "max_hp": 200, "adres": "0x13271e68"})
-sprawdz("duplikat: wybrany wpis żywej sesji (adres bloku)", w and w["adres"] == hex(0x132719f8), w)
+sprawdz("duplikat: najwyższe id (19.10: żywa sesja ma wyższe id; adres bloku tylko bez id)", w and w["adres"] == hex(0x1169ca88), w)
+w = bot.wybierz_wlasny([dict(k2, id=None), dict(k1, id=None)], {"hp": 200, "max_hp": 200, "adres": "0x13271e68"})
+sprawdz("duplikat bez id: wybrany wpis najbliżej bloku (adres bloku)", w and w["adres"] == hex(0x132719f8), w)
 k1, k2 = wpis(0x132719f8, 268478551, hp=75), wpis(0x1169ca88, 268852462, hp=100)
 w = bot.wybierz_wlasny([k1, k2], {"hp": 150, "max_hp": 200})   # brak adresu: rozstrzyga HP
 sprawdz("duplikat: rozstrzyga HP", w and w["adres"] == hex(0x132719f8), w)

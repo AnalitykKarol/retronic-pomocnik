@@ -285,6 +285,8 @@ class Telemetria:
                  "hp": s.get("hp"), "gracz": bool(s.get("gracz"))}
             if cb.cel and cb.cel.get("id") == s["id"]:
                 w["cel"] = 1
+            if s.get("widmo"):
+                w["widmo"] = 1                  # widma.py: wpis zostaje w próbce (diagnostyka), ale nie liczy się do zajętości
             if cb.ignorowane.get(s["id"], 0) > cb.zegar():
                 w["ign"] = 1
             if not s.get("gracz") and odl <= 8 and s["id"] in do_drogi:
@@ -674,6 +676,7 @@ def linia_stworow(r):
     return "debug: stwory: " + "; ".join(
         f"{w['n']} {w['dx']},{w['dy']} hp{w['hp']}" + (" cel" if w.get("cel") else "")
         + (" ign" if w.get("ign") else "") + (" !droga" if w.get("osiagalny") is False else "")
+        + (" widmo" if w.get("widmo") else "")
         for w in r["stwory"]) if r["stwory"] else "debug: stwory: brak"
 
 

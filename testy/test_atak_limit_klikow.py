@@ -76,7 +76,11 @@ sprawdz("flaga True: bez Escape", "Escape" not in s.klawisze)
 G = {"hp": 200, "max_hp": 200, "adres": "0x13271e68"}
 stary = {"id": 268852462, "adres": "0x1169ca88", "hp": 100, "x": 32488, "y": 32294, "z": 8}
 zywy = {"id": 268478551, "adres": "0x132719f8", "hp": 100, "x": 32490, "y": 32294, "z": 8}
-sprawdz("wybierz_wlasny: adres bloku", bot.wybierz_wlasny([stary, zywy], G)["id"] == 268478551)
+# 19.10 (logi Mastafiana): przy równym HP rozstrzyga NAJWYŻSZE id; wpis `stary` ma tu WYŻSZE id, więc jest teraz wybierany.
+# Oczekiwanie odwrócono ŚWIADOMIE względem fixtury z incydentu 13.10 (Jointoramix: żywy 268478551, widmo 268852462) - to
+# kontrprzykład heurystyki id (patrz bot._wybierz_wlasny); ruch wpisu i tak wygrywa pierwszy. Adres bloku tylko bez id.
+sprawdz("wybierz_wlasny: najwyższe id", bot.wybierz_wlasny([stary, zywy], G)["id"] == 268852462)
+sprawdz("wybierz_wlasny: adres bloku (bez id)", bot.wybierz_wlasny([dict(stary, id=None), dict(zywy, id=None)], G)["adres"] == zywy["adres"])
 G2 = {"hp": 150, "max_hp": 200, "adres": "0x13271e68"}
 zywy2 = dict(zywy, hp=75); stary2 = dict(stary, hp=100)
 sprawdz("wybierz_wlasny: zgodne HP", bot.wybierz_wlasny([stary2, zywy2], G2)["id"] == 268478551)
@@ -92,5 +96,5 @@ def falszywy(z):
 bot._zapytaj_surowe = falszywy
 bot._wlasny.update(nazwa=None, t=float("-inf"), wpis=None)
 o = bot.zapytaj({"cmd": "pozycja", "nazwa": "Ja"})
-sprawdz("zapytaj pozycja z wpisu żywego", o["pozycja"] == {"x": 32491, "y": 32292, "z": 8}, str(o))
+sprawdz("zapytaj pozycja z wpisu o najwyższym id (żywego)", o["pozycja"] == {"x": 32491, "y": 32292, "z": 8}, str(o))
 print("WYNIK", "OK" if all(ok) else "FAIL"); sys.exit(0 if all(ok) else 1)

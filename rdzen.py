@@ -382,7 +382,7 @@ class Pamiec:
         """Jeden skan pamięci; aktualizuje sumę regionów i pamięć podręczną."""
         t0 = time.monotonic()
         regiony = self.regiony() if pelny else (self.regiony_stworow or [])
-        znalezione, uzyte = {}, set()
+        znalezione, uzyte, kopie = {}, set(), {}
         for start, koniec in regiony:
             bufor = self.czytaj(start, koniec - start)
             for n in self._kandydaci_stworow(bufor):
@@ -401,6 +401,11 @@ class Pamiec:
                     continue
                 ident = struct.unpack_from("<I", bufor, n - 4)[0]
                 uzyte.add((start, koniec))
+                if ident in znalezione:
+                    # to samo ID w dwóch miejscach pamięci (zwolniony, nieprzepisany obiekt obok żywego): wygrywa ostatni
+                    # skan jak dotąd, ale ślad zostaje w polu `kopie` (diagnostyka widm, 19.10; pole opcjonalne, BEZ konsumentów w kodzie)
+                    st = znalezione[ident]
+                    kopie.setdefault(ident, []).append([st["x"], st["y"], st["z"], st["adres"]])
                 znalezione[ident] = {
                     "id": ident,
                     "nazwa": nazwa.decode("latin-1"),
@@ -411,6 +416,8 @@ class Pamiec:
                     **self._ramka(bufor, n),
                     "adres": hex(start + n),
                 }
+        for ident, k in kopie.items():
+            znalezione[ident]["kopie"] = k
         lista = sorted(znalezione.values(), key=lambda s: s["id"])
         # suma regionów: nie zastępujemy, tylko dokładamy; najstarsze wypychane
         wiek = dict(self._regiony_wiek or {})

@@ -24,16 +24,19 @@ def tick(ruch, widmo_x, zywy_x, t):
 
 ruch = {}
 kand = tick(ruch, 32506, 32500, 0.0)
-sprawdz("start: bez ruchu stara logika (widmo przy bloku)", bot.wybierz_wlasny(kand, G_WIDMO, ruch, 0.0)["id"] == 1)
+# 19.10: bez dowodu ruchu rozstrzyga NAJWYŻSZE id (żywa sesja ma wyższe id niż widmo po relogu), nie adres bloku-widma
+sprawdz("start: bez ruchu, blok-widmo: najwyższe id (żywy), nie adres bloku", bot.wybierz_wlasny(kand, G_WIDMO, ruch, 0.0)["id"] == 2)
 for t, x in ((2.0, 32501), (4.0, 32502)):
     kand = tick(ruch, 32506, x, t)
 sprawdz("widmo stoi, żywy chodzi: wybrany żywy mimo bloku-widma", bot.wybierz_wlasny(kand, G_WIDMO, ruch, 4.0)["id"] == 2)
-sprawdz("bez ruchu (ruch=None) zachowanie bez zmian", bot.wybierz_wlasny(kand, G_WIDMO)["id"] == 1)
+sprawdz("bez ruchu (ruch=None): najwyższe id", bot.wybierz_wlasny(kand, G_WIDMO)["id"] == 2)
+bez_id = [dict(k, id=None) for k in kand]
+sprawdz("bez id (ruch=None): jak dawniej adres bloku-widma", bot.wybierz_wlasny(bez_id, G_WIDMO)["adres"] == hex(WIDMO))
 sprawdz("po WLASNY_RUCH postoju zostaje jedyny wpis, który się kiedyś ruszał", bot.wybierz_wlasny(kand, G_WIDMO, ruch, 4.0 + bot.WLASNY_RUCH + 1)["id"] == 2)
 
 ruch = {}
 kand = tick(ruch, 32506, 32500, 0.0); kand = tick(ruch, 32506, 32500, 2.0)
-sprawdz("oba stoją: stara logika (adres bloku)", bot.wybierz_wlasny(kand, G_WIDMO, ruch, 2.0)["id"] == 1)
+sprawdz("oba stoją: najwyższe id", bot.wybierz_wlasny(kand, G_WIDMO, ruch, 2.0)["id"] == 2)
 G_ZYWY = {"hp": 196, "max_hp": 210, "adres": hex(0x16cfaa60)}
 sprawdz("oba stoją, blok żywy: żywy wpis", bot.wybierz_wlasny(kand, G_ZYWY, ruch, 2.0)["id"] == 2)
 

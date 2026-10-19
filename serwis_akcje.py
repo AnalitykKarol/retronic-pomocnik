@@ -13,6 +13,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from serwis_blad import SerwisBlad  # noqa: E402
+import widma  # noqa: E402
 
 ID_GOLD, ID_PLATINUM, ID_BLANK, ID_HAM = 3031, 3035, 3147, 3582
 ID_BAGOW = {2868, 2869, 2854}               # purple / blue / zwykły plecak jako przedmiot w plecaku
@@ -272,9 +273,17 @@ class AkcjeZywe:
 
     def _stwory(self):
         try:
-            return self._bot._zapytaj_surowe({"cmd": "stwory"})["stwory"]
+            lista = self._bot._zapytaj_surowe({"cmd": "stwory"})["stwory"]
         except Exception as e:
             raise SerwisBlad("start", f"nie odczytam stworów ({e!r})")
+        if widma.domyslnie_wlaczone():
+            # tylko znacznik `widmo` (nic nie znika); zajętość pól pomija oznaczone (pole_zajete, serwis.py), RPC bez zmian
+            try:
+                widma.loguj(widma.oznacz(lista, self.nick), self.log, time.monotonic(),
+                            self.__dict__.setdefault("_widma_log", {}))
+            except Exception as e:
+                self.log(f"widma: błąd {e!r}")
+        return lista
 
     def sprawdz_start(self):
         """Bot stoi, HP >= MIN_HP_PROC, w pobliżu brak potworów, pamięć kontenerów odpowiada."""
@@ -296,7 +305,8 @@ class AkcjeZywe:
 
     def pole_zajete(self, pole):
         """True, gdy na `pole` stoi inny gracz/stwór. Brak odczytu = błąd (nie zakładamy, że wolne)."""
-        return any((s.get("x"), s.get("y"), s.get("z")) == tuple(pole) and s.get("nazwa") != self.nick for s in self._stwory())
+        return any((s.get("x"), s.get("y"), s.get("z")) == tuple(pole) and s.get("nazwa") != self.nick
+                   and not s.get("widmo") for s in self._stwory())
 
     # --- ekran ---
 

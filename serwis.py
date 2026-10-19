@@ -358,7 +358,8 @@ def przejdz_schody(postac, mp, akcje, chodz1, a, zb, maks_s=90.0, log=print):
         if not schody:
             return None
         zajete = {(s["x"], s["y"]) for s in akcje._stwory()
-                  if s.get("z") == poz[2] and s.get("x") is not None and s.get("nazwa") != akcje.nick}
+                  if s.get("z") == poz[2] and s.get("x") is not None and s.get("nazwa") != akcje.nick
+                  and not s.get("widmo")}
         opcje = []
         for T in schody:
             if (T[0], T[1]) in zajete:
@@ -524,7 +525,8 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
         wizyty.setdefault((poz[0], poz[1]), 1)       # pole, z którego ruszamy, liczy się jako pierwsze wejście
         teraz = time.monotonic()
         try:
-            zajete = {(q.get("x"), q.get("y")) for q in akcje._stwory() if q.get("z") == poz[2] and q.get("nazwa") != akcje.nick}
+            zajete = {(q.get("x"), q.get("y")) for q in akcje._stwory()
+                      if q.get("z") == poz[2] and q.get("nazwa") != akcje.nick and not q.get("widmo")}
         except Exception:
             zajete = set()
         zajete |= {pole for pole, do in zablok.items() if do > teraz}
