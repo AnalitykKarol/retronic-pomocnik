@@ -297,6 +297,19 @@ ZAKRESY = {
     "D3_LOG": (0, 1),                   # 16.10: 1 = telemetria D3 (zawieszka poza walką: "decyzja" D3 z opcjami wyjścia + "d3_wynik"); tylko log, bez wpływu na ruch
     "D3_PROG_S": (10.0, 300.0),         # s: pozycja w promieniu 2 pól poza walką tak długo = zawieszka (domyślnie 30)
     "D3_REAKCJA": (0, 1),               # 17.10 (F1): 1 = cień: rekord "d3_reakcja" z opcją, którą wybrałaby reguła; nic nie wykonuje (domyślnie 0)
+    "RATUNEK_HAIKU": (0, 1),            # 19.10 (SPEC_ratunek_haiku_1019, F1): 1 = cień: detektor zachowań „jak bot” S1-S7 tylko loguje „wołałbym Haiku” (logi/ratunek-<data>.jsonl); 2 jeszcze nie istnieje
+    "RATUNEK_PIETRO_S": (3.0, 120.0),   # S2: s poza walką na piętrze spoza trasy (domyślnie 10)
+    "RATUNEK_STOI_S": (10.0, 300.0),    # S3: s w miejscu poza walką, exp bez zmian (domyślnie 30)
+    "RATUNEK_STOI_PROMIEN": (1, 4),     # S3: promień „w miejscu” [pola] (domyślnie 2)
+    "RATUNEK_KRAG_WIZYT": (3, 10),      # S4: wejść na to samo pole w oknie (domyślnie 4)
+    "RATUNEK_KRAG_S": (20.0, 300.0),    # S4: okno [s] (domyślnie 60)
+    "RATUNEK_OSC_N": (2, 10),           # S4: powrotów A-B-A w oknie (domyślnie 3)
+    "RATUNEK_KROKI_N": (3, 20),         # S5: nieudanych kroków z rzędu (domyślnie 6)
+    "RATUNEK_KLIK_N": (3, 20),          # S6: klików bez efektu (domyślnie 5)
+    "RATUNEK_OKRAZENIA_N": (2, 10),     # S7: okrążeń w oknie bez ruchu (domyślnie 3)
+    "RATUNEK_OKRAZENIA_S": (20.0, 300.0),  # S7: okno [s] (domyślnie 60)
+    "RATUNEK_PRZERWA_S": (30.0, 1800.0),   # debounce sygnału w tym samym miejscu [s] (domyślnie 120)
+    "RATUNEK_LIMIT_H": (1, 120),        # limit wywołań Haiku na godzinę (Q3, domyślnie 20); w cieniu tylko flaga
     "D3_ALARM_S": (0.0, 1800.0),        # 17.10 (F1): >0 = zawieszka D3 trwająca tyle s => jedno powiadomienie krytyczne, bez STOP (domyślnie 0 = wyłączone)
     "DRZWI_PONOW": (0, 1),              # 17.10 (F1): 1 = flaga "drzwi otwarte" starsza niż DRZWI_STARA_S s jest przeterminowana: podejście i Use przy zamkniętych drzwiach (domyślnie 0)
     "OBSERWATOR_PK_KONTEKST": (0, 1),   # 16.10 (P10): 1 = obserwator dostaje karencję PK i wie, że PAUZA_PK z karencją jest zamierzona (domyślnie 0)
@@ -394,7 +407,7 @@ KIERUNEK = {
     "UH_W_WALCE": "nie_wyzej", "UH_W_WALCE_MANA_MARGINES": "nie_wyzej", "UH_W_WALCE_MIN_HP": "nie_nizej",
     "UH_W_WALCE_DYSTANS": "nie_nizej", "UH_W_WALCE_SPADEK_HP": "nie_wyzej",
     # pola ognia: analityk nie może wyłączyć omijania (tylko Karol w na_zywo.json)
-    "OGIEN_UNIKAJ": "nie_nizej", "OGIEN_STALY": "nie_nizej", "OGIEN_MASKA_TYLKO_SCIANY": "nie_nizej", "OGIEN_WYJDZ_POTWIERDZ": "nie_nizej", "OGIEN_MASKA_DANE": "nie_nizej", "OGIEN_POMIJAJ_PRZY_STWORZE": "nie_nizej", "POSCIG_SKOSY_ZAPAS": "nie_nizej", "PATROL_DRZWI": "nie_nizej", "D3_REAKCJA": "nie_wyzej", "D3_ALARM_S": "nie_wyzej", "DRZWI_PONOW": "nie_wyzej", "SMIERC_STOP": "nie_wyzej", "PK_SZYBKIE": "nie_wyzej", "OBSERWATOR_PK_KONTEKST": "nie_wyzej", "RUCH_OKNO": "nie_nizej", "RUCH_PROBKA_WCZESNA": "nie_nizej", "OGIEN_ODSWIEZ_WALKA_S": "nie_wyzej",
+    "OGIEN_UNIKAJ": "nie_nizej", "OGIEN_STALY": "nie_nizej", "OGIEN_MASKA_TYLKO_SCIANY": "nie_nizej", "OGIEN_WYJDZ_POTWIERDZ": "nie_nizej", "OGIEN_MASKA_DANE": "nie_nizej", "OGIEN_POMIJAJ_PRZY_STWORZE": "nie_nizej", "POSCIG_SKOSY_ZAPAS": "nie_nizej", "PATROL_DRZWI": "nie_nizej", "D3_REAKCJA": "nie_wyzej", "RATUNEK_HAIKU": "nie_wyzej", "D3_ALARM_S": "nie_wyzej", "DRZWI_PONOW": "nie_wyzej", "SMIERC_STOP": "nie_wyzej", "PK_SZYBKIE": "nie_wyzej", "OBSERWATOR_PK_KONTEKST": "nie_wyzej", "RUCH_OKNO": "nie_nizej", "RUCH_PROBKA_WCZESNA": "nie_nizej", "OGIEN_ODSWIEZ_WALKA_S": "nie_wyzej",
     # ignorowanie/strażnicy/blokujący: analityk nie może wyłączyć strażników ani włączyć bicia blokującego (tylko Karol)
     # dojście z depo: analityk nie może włączyć wypraw po blanki w depo ani wyłączyć karencji/walki przy przejściu (tylko Karol)
     "WYPRAWA_DEPO_BLANKI": "nie_wyzej", "WYPRAWA_PO_DEPO_S": "nie_nizej", "WYPRAWA_PO_DOJSCIU_S": "nie_nizej", "BLANKI_AUTO_BAG": "nie_wyzej", "BLANKI_AUTO_BAG_MIN": "nie_nizej",

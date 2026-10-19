@@ -582,6 +582,19 @@ D3_LOG = 1                         # 16.10 (SPEC_model_D3_utkniecia_1015, krok A
 D3_PROG_S = 30.0                   # s: pozycja w promieniu 2 pól poza walką (< 30% czasu walki), exp bez zmian, tak długo = zawieszka (d3_zawieszka.py)
 D3_REAKCJA = 0                     # F1 (17.10): 0 = D3 tylko loguje (jak dotąd); 1 = cień: rekord "d3_reakcja" z opcją, którą wybrałaby reguła (bez wykonania)
 D3_ALARM_S = 0.0                   # F1 (17.10): >0 = zawieszka D3 trwająca tyle s daje jedno powiadomienie krytyczne (bez STOP); 0 = wyłączone
+RATUNEK_HAIKU = 0                  # 19.10 (SPEC_ratunek_haiku_1019, F1): 0 = wyłączone; 1 = cień: detektor zachowań „jak bot” (S1-S7, ratunek.py) tylko loguje „wołałbym Haiku”; 2 (wykonanie) NIE istnieje
+RATUNEK_PIETRO_S = 10.0            # S2: s poza walką na piętrze, którego bieżąca trasa nie ma
+RATUNEK_STOI_S = 30.0              # S3: s w promieniu RATUNEK_STOI_PROMIEN pól poza walką, exp bez zmian
+RATUNEK_STOI_PROMIEN = 2           # S3: pola (Czebyszew)
+RATUNEK_KRAG_WIZYT = 4             # S4: tyle wejść na to samo pole w RATUNEK_KRAG_S s poza walką = kręci się
+RATUNEK_KRAG_S = 60.0              # S4: okno [s]
+RATUNEK_OSC_N = 3                  # S4: tyle powrotów A-B-A w oknie = oscylacja
+RATUNEK_KROKI_N = 6                # S5: nieudane kroki z rzędu bez zmiany pozycji
+RATUNEK_KLIK_N = 5                 # S6: kliknięcia bez efektu w ten sam cel
+RATUNEK_OKRAZENIA_N = 3            # S7: tyle końców okrążenia trasy w RATUNEK_OKRAZENIA_S s bez ruchu > 2 pola
+RATUNEK_OKRAZENIA_S = 60.0         # S7: okno [s]
+RATUNEK_PRZERWA_S = 120.0          # debounce: ten sam sygnał w tym samym miejscu najwcześniej po tylu s
+RATUNEK_LIMIT_H = 20               # limit wywołań Haiku na godzinę (Q3); w cieniu tylko flaga „ponad limit”
 D3_ASTAR_MAX = 6                   # najwyżej tyle wywołań A* na jedną zawieszkę przy liczeniu opcji D3 (koszt ograniczony)
 PATROL_RESPAWN_CIEN = 1            # 15.10: tryb cienia (SPEC_patrol_respawn_1015 krok 2): mapa obecności mobów liczona na żywo (obecnosc.py), a przy wyborze
                                    # celu patrolu w telemetrii patrol_cel (cel_respawn, wartosci, zgodny) i "decyzja" D4 wybór nowej metody; bot idzie jak dziś; pokrętło 0/1
@@ -3656,6 +3669,7 @@ class Cavebot:
                     f"zablok {bool(self.zablokowane.get(((x, y, z), k)))}).")
             except Exception:
                 pass
+            self._ratunek_zdarzenie("krok_nieudany", (x, y, z))
             self.zablokowane[((x, y, z), k)] = True
         if sk is not None and self._krok_do_skos(x, y, z, sk, teraz, wstecz):
             return True                       # strzałki w osiach nie ruszyły, skos tak
@@ -4002,6 +4016,7 @@ class Cavebot:
         self.zapamietaj_pole(poz)
         self.exp_przed, self.exp_teraz = self.exp_teraz, g.get("exp")
         self._d3_tick(g, poz, teraz)       # 16.10: detektor zawieszki (D3 krok A), tylko log
+        self._ratunek_tick(poz, teraz)     # 19.10: detektor zachowań „jak bot” (ratunek F1, cień), tylko log
         if self.ruch_poz != tuple(poz):
             self.ruch_poz, self.ruch_czas = tuple(poz), teraz
             self.aktywnosc_ts = teraz
@@ -5227,6 +5242,55 @@ class Cavebot:
         except Exception as e:
             log(f"debug: D3 błąd {e!r}")
 
+    def _ratunek_det(self):
+        """Detektor ratunku (jeden na proces, ratunek.detektor) z trasą tej instancji; None, gdy RATUNEK_HAIKU=0."""
+        if not RATUNEK_HAIKU:
+            return None
+        import ratunek  # noqa: PLC0415
+        det = ratunek.detektor(sys.modules[__name__])
+        if getattr(self, "_ratunek_trasa_id", None) != id(self.punkty):
+            det.ustaw_trase(self.punkty)
+            self._ratunek_trasa_id = id(self.punkty)
+        return det
+
+    def _ratunek_zglos(self, sygnaly):
+        if sygnaly:
+            import ratunek  # noqa: PLC0415
+            plik = None if os.environ.get("RETRONIC_TESTY") else ratunek.plik_logu(instancja.S.logi)
+            ratunek.zglos(sygnaly, log=log, tele=self.tele, plik_logu=plik, stan=str(self.stan))
+
+    def _ratunek_tick(self, poz, teraz):
+        """Ratunek F1 (SPEC_ratunek_haiku_1019): sygnały S2-S4 co obieg; tylko log. W wypadzie (wyprawa) trasa łowiska nie
+        obowiązuje, więc piętro nie jest sprawdzane. Błąd tylko w logu."""
+        try:
+            det = self._ratunek_det()
+            if det is None:
+                return
+            if self.wypad_aktywny:
+                det.pietro_t = 0.0
+                trasa, det.trasa_pietra = det.trasa_pietra, None
+                try:
+                    self._ratunek_zglos(det.tick(teraz, poz, self.stan, self.exp_teraz))
+                finally:
+                    det.trasa_pietra = trasa
+                return
+            self._ratunek_zglos(det.tick(teraz, poz, self.stan, self.exp_teraz))
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"debug: ratunek błąd {e!r}")
+
+    def _ratunek_zdarzenie(self, rodzaj, poz=None, **d):
+        """Zdarzenie porażki (krok, klik, okrążenie) do detektora ratunku; tylko log."""
+        try:
+            det = self._ratunek_det()
+            if det is not None:
+                self._ratunek_zglos(det.zdarzenie(rodzaj, self.zegar(), poz, **d))
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"debug: ratunek błąd {e!r}")
+
     def _d3_nota(self, nazwa):
         """Akcja istniejącej reguły wyjścia z utknięcia -> d3_wynik.regula (tylko zapis)."""
         d3 = getattr(self, "_d3", None)
@@ -6097,6 +6161,7 @@ class Cavebot:
                     # klik nie działa (zła pozycja gracza, stary cel w grze, "Sorry, not possible."): nie klikamy w nieskończoność
                     log(f"[ATAK] {n - 1} klików bez efektu w {cel['nazwa']} id{self._koncowka_id(cel['id'])}, "
                         f"Escape i ignoruję cel na {ATAK_LIMIT_IGNOROWANIE} s.")
+                    self._ratunek_zdarzenie("klik_bez_efektu", None, n=n - 1, cel=cel.get("nazwa"))
                     self.klik_ramka_false.pop(cel["id"], None)
                     klawisz = getattr(self.postac, "klawisz", None)
                     if klawisz is not None:
@@ -9260,6 +9325,7 @@ class Cavebot:
                         self.przebyte = 0
                         self.okrazenie += 1
                         log(f"Okrążenie {self.okrazenie} gotowe.")
+                        self._ratunek_zdarzenie("okrazenie", None)
                         koniec_okrazenia = True
                 if koniec_okrazenia and self.dojscie_aktywne:
                     # P7e: trasa dojścia jest jednokierunkowa: koniec bez osiągnięcia celu = porażka próby, bez odwracania

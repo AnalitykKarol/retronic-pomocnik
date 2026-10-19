@@ -682,6 +682,30 @@ def _czekaj_na_ekran_gry(maks_s=45.0, wzorzec=(1175, 910)):
     return False
 
 
+def _ratunek_porazka(postac, krok, powod, e, bot):
+    """Ratunek F1 (SPEC_ratunek_haiku_1019, S1, cień): porażka serwisu -> log „wołałbym Haiku”. Pokrętło RATUNEK_HAIKU
+    czytane z na_zywo.json instancji (serwis nie ładuje pokrętł cavebota). STOP ręczny (Zatrzymano) to nie sygnał."""
+    try:
+        if isinstance(e, bot.Zatrzymano):
+            return
+        import instancja  # noqa: PLC0415
+        import ratunek  # noqa: PLC0415
+        try:
+            wl = int(json.loads(instancja.S.na_zywo.read_text()).get("RATUNEK_HAIKU", 0))
+        except (OSError, ValueError, TypeError):
+            wl = 0
+        if not wl:
+            return
+        try:
+            poz = tuple(postac.pozycja())
+        except Exception:
+            poz = None
+        s = ratunek.detektor().zdarzenie("porazka_trasy", time.monotonic(), poz, co="serwis", krok=krok, powod=str(powod)[:200])
+        ratunek.zglos(s, log=lambda m: print(m, flush=True), plik_logu=ratunek.plik_logu(instancja.S.logi))
+    except Exception as ex:
+        print(f"debug: ratunek błąd {ex!r}", flush=True)
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("miasto", choices=["edron"])
@@ -740,6 +764,7 @@ def main(argv=None):
         powod = getattr(e, "powod", repr(e))
         print(f"SERWIS: PORAŻKA w kroku {krok}: {powod}", flush=True)
         powiadom("Serwis: porażka", f"Krok {krok}: {powod}")
+        _ratunek_porazka(postac, krok, powod, e, bot)
         if not a.bez_stop:
             try:
                 instancja.S.stop.write_text(f"serwis: {krok}: {powod}\n")
