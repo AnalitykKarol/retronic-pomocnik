@@ -3821,7 +3821,8 @@ def ratunek_porazka(postac, co, log=print, **d):
             poz = None
         s = ratunek.detektor(cavebot).zdarzenie("porazka_trasy", time.monotonic(), poz, co=co, **d)   # zegar jak Cavebot
         plik = None if os.environ.get("RETRONIC_TESTY") else ratunek.plik_logu(instancja.S.logi)
-        ratunek.zglos(s, log=log, plik_logu=plik)
+        ratunek.zglos(s, log=log, plik_logu=plik, pytaj=bool(getattr(cavebot, "RATUNEK_HAIKU_PYTAJ", 0)) and cavebot.RATUNEK_HAIKU == 1,
+                      limit_h=getattr(cavebot, "RATUNEK_LIMIT_H", None))   # F2a: Haiku w cieniu (wątek, bez ruchu)
     except bot.Zatrzymano:
         raise
     except Exception as e:

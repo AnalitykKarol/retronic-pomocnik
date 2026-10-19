@@ -169,7 +169,7 @@ import cavebot
 def atrapa(**k):
     ns = types.SimpleNamespace(punkty=[R1_CEL], wypad_aktywny=False, stan="IDZ", exp_teraz=1, tele=None,
                                zegar=lambda: ns.t, t=0.0, **k)
-    for m in ("_ratunek_det", "_ratunek_zglos", "_ratunek_tick", "_ratunek_zdarzenie"):
+    for m in ("_ratunek_det", "_ratunek_zglos", "_ratunek_tick", "_ratunek_zdarzenie", "_ratunek_kontekst"):
         setattr(ns, m, types.MethodType(getattr(cavebot.Cavebot, m), ns))
     return ns
 stare = cavebot.RATUNEK_HAIKU, cavebot.log

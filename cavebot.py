@@ -583,6 +583,7 @@ D3_PROG_S = 30.0                   # s: pozycja w promieniu 2 pól poza walką (
 D3_REAKCJA = 0                     # F1 (17.10): 0 = D3 tylko loguje (jak dotąd); 1 = cień: rekord "d3_reakcja" z opcją, którą wybrałaby reguła (bez wykonania)
 D3_ALARM_S = 0.0                   # F1 (17.10): >0 = zawieszka D3 trwająca tyle s daje jedno powiadomienie krytyczne (bez STOP); 0 = wyłączone
 RATUNEK_HAIKU = 0                  # 19.10 (SPEC_ratunek_haiku_1019, F1): 0 = wyłączone; 1 = cień: detektor zachowań „jak bot” (S1-S7, ratunek.py) tylko loguje „wołałbym Haiku”; 2 (wykonanie) NIE istnieje
+RATUNEK_HAIKU_PYTAJ = 0            # 19.10 (F2a): 1 (przy RATUNEK_HAIKU=1) = przy każdym sygnale Haiku W CIENIU (osobny wątek, bez ruchu i bez czekania; ratunek_cien.py): rekord haiku_cien w logi/ratunek-<data>.jsonl
 RATUNEK_PIETRO_S = 10.0            # S2: s poza walką na piętrze, którego bieżąca trasa nie ma
 RATUNEK_STOI_S = 30.0              # S3: s w promieniu RATUNEK_STOI_PROMIEN pól poza walką, exp bez zmian
 RATUNEK_STOI_PROMIEN = 2           # S3: pola (Czebyszew)
@@ -4015,6 +4016,7 @@ class Cavebot:
         self._ruch_tick(poz, teraz)
         self.zapamietaj_pole(poz)
         self.exp_przed, self.exp_teraz = self.exp_teraz, g.get("exp")
+        self.ratunek_g = g                 # 19.10 (F2a): HP/mana do migawki dla Haiku w cieniu (bez nowego RPC)
         self._d3_tick(g, poz, teraz)       # 16.10: detektor zawieszki (D3 krok A), tylko log
         self._ratunek_tick(poz, teraz)     # 19.10: detektor zachowań „jak bot” (ratunek F1, cień), tylko log
         if self.ruch_poz != tuple(poz):
@@ -5257,7 +5259,30 @@ class Cavebot:
         if sygnaly:
             import ratunek  # noqa: PLC0415
             plik = None if os.environ.get("RETRONIC_TESTY") else ratunek.plik_logu(instancja.S.logi)
-            ratunek.zglos(sygnaly, log=log, tele=self.tele, plik_logu=plik, stan=str(self.stan))
+            ratunek.zglos(sygnaly, log=log, tele=self.tele, plik_logu=plik, stan=str(self.stan),
+                          pytaj=bool(RATUNEK_HAIKU_PYTAJ) and RATUNEK_HAIKU == 1, kontekst=self._ratunek_kontekst,
+                          limit_h=RATUNEK_LIMIT_H)
+
+    def _ratunek_kontekst(self, rek):
+        """Migawka dla Haiku w cieniu (F2a), wołana w pętli bota TYLKO gdy pytamy: same kopie z pamięci, zero RPC i zero I/O.
+        Ciężkie rzeczy (przejścia z mapy, pliki, zrzut) robi wątek (ratunek_cien). Bez czatu i nicków graczy."""
+        poz = tuple(rek.get("poz") or ())
+        g = getattr(self, "ratunek_g", None) or {}
+        stwory = []
+        for s in list(getattr(self, "ostatnie_stwory", None) or ())[:30]:
+            try:
+                if poz and s.get("z", poz[2]) != poz[2]:
+                    continue
+                if s.get("gracz") and s.get("nazwa") == getattr(self.postac, "nazwa", None):
+                    continue                                   # to my
+                stwory.append({"gracz": bool(s.get("gracz")), "nazwa": None if s.get("gracz") else s.get("nazwa"),
+                               "dx": s["x"] - poz[0] if poz else None, "dy": s["y"] - poz[1] if poz else None,
+                               "hp": s.get("hp")})
+            except Exception:
+                continue
+        return {"poz": poz, "stan": str(self.stan), "wypad": bool(self.wypad_aktywny), "punkty": list(self.punkty),
+                "idx": getattr(self, "idx", None), "hp": g.get("hp"), "max_hp": g.get("max_hp"), "mana": g.get("mana"),
+                "max_mana": g.get("max_mana"), "stwory": stwory, "mapa": getattr(self, "mapa", None)}
 
     def _ratunek_tick(self, poz, teraz):
         """Ratunek F1 (SPEC_ratunek_haiku_1019): sygnały S2-S4 co obieg; tylko log. W wypadzie (wyprawa) trasa łowiska nie

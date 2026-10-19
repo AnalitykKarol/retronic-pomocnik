@@ -4,6 +4,7 @@ Sygnały (spec, sekcja „Sygnały”): S1 porażka trasy (dojście/wyprawa/serw
 S5 kroki bez skutku, S6 klik bez skutku, S7 pusta pętla trasy. Walka, stany zamierzone (PRZERWA, PAUZA, PAUZA_PK, GRACZ)
 i ucieczka nie są sygnałem. RATUNEK_HAIKU: 0 = wyłączone, 1 = cień (log + telemetria + logi/ratunek-<data>.jsonl:
 „wołałbym Haiku”); 2 (wykonanie, F2) jeszcze NIE istnieje.
+F2a (RATUNEK_HAIKU_PYTAJ=1 przy RATUNEK_HAIKU=1): do tego Haiku W CIENIU w osobnym wątku, bez ruchu — ratunek_cien.py.
 
 Detektor żyje w procesie, nie w obiekcie cavebota (`detektor()`): mozg.py tworzy nowy CavebotDojscie na każdą próbę dojścia
 (R1 19.10: 5 prób po ~5 s), więc licznik złego piętra i okrążeń musi przetrwać kolejne instancje.
@@ -14,13 +15,13 @@ import time
 
 STANY_WALKI = ("WALKA", "WALKA_PVP", "LOOT", "POGON", "UCIECZKA", "UH", "ZDROWIE")
 STANY_ZAMIERZONE = ("PRZERWA", "PAUZA", "PAUZA_PK", "GRACZ", "JEDZENIE", "ML")   # + krótkie własne czynności bota (przegląd 19.10)
-ZASTRZEZONE = ("kod", "opis", "t", "poz", "wolan_h", "ponad_limit", "tryb", "stan", "czas")
+ZASTRZEZONE = ("kod", "opis", "t", "poz", "wolan_h", "ponad_limit", "tryb", "stan", "czas", "id")
 MAX_PRZERWA_S = 30.0          # luka między obiegami dłuższa niż to = bot nie był obserwowany: liczniki od nowa
 OPISY = {"S1": "porażka trasy", "S2": "złe piętro", "S3": "stoi", "S4": "kręci się", "S5": "kroki bez skutku",
          "S6": "klik bez skutku", "S7": "pusta pętla trasy"}
 
 # wartości domyślne (cavebot.py ma te same stałe; pokretla.py nadpisuje je na żywo)
-DOMYSLNE = dict(RATUNEK_HAIKU=0, RATUNEK_PIETRO_S=10.0, RATUNEK_STOI_S=30.0, RATUNEK_STOI_PROMIEN=2,
+DOMYSLNE = dict(RATUNEK_HAIKU=0, RATUNEK_HAIKU_PYTAJ=0, RATUNEK_PIETRO_S=10.0, RATUNEK_STOI_S=30.0, RATUNEK_STOI_PROMIEN=2,
                 RATUNEK_KRAG_WIZYT=4, RATUNEK_KRAG_S=60.0, RATUNEK_OSC_N=3, RATUNEK_KROKI_N=6, RATUNEK_KLIK_N=5,
                 RATUNEK_OKRAZENIA_N=3, RATUNEK_OKRAZENIA_S=60.0, RATUNEK_PRZERWA_S=120.0, RATUNEK_LIMIT_H=20)
 
@@ -52,6 +53,7 @@ class Detektor:
         self.ost_sygnal = {}                 # kod -> (t, poz): debounce
         self.wolania = collections.deque()   # czasy sygnałów (licznik „wywołań na godzinę”)
         self.trasa_pietra = None             # zbiór pięter bieżącej trasy (S2); None = nie wiadomo
+        self.ruchy = collections.deque(maxlen=30)   # F2a: ostatnie zmiany pozycji i porażki (kontekst dla Haiku w cieniu)
 
     def k(self, nazwa):
         return getattr(self.konf, nazwa, DOMYSLNE[nazwa]) if self.konf is not None else DOMYSLNE[nazwa]
@@ -73,6 +75,7 @@ class Detektor:
         ruszyl = self.ost_poz is not None and poz != self.ost_poz
         if ruszyl:
             self.kroki_zle = 0
+            self.ruchy.append({"t": teraz, "rodzaj": "pozycja", "poz": list(poz), "stan": str(stan)})
         self.ost_poz = poz
         walka = _pasuje(stan, STANY_WALKI)
         zamierzony = _pasuje(stan, STANY_ZAMIERZONE)
@@ -123,6 +126,7 @@ class Detektor:
     def zdarzenie(self, rodzaj, teraz, poz=None, /, **d):
         """rodzaj: krok_nieudany | klik_bez_efektu (n=liczba klików) | okrazenie | porazka_trasy (co=dojscie|wyprawa|serwis)."""
         poz = tuple(poz[:3]) if poz else self.ost_poz
+        self.ruchy.append({"t": teraz, "rodzaj": rodzaj, "poz": list(poz) if poz else None})
         if rodzaj == "krok_nieudany":
             if poz is not None and self.ost_poz is not None and poz != self.ost_poz:
                 self.kroki_zle = 0
@@ -145,6 +149,11 @@ class Detektor:
         elif rodzaj == "porazka_trasy":
             return self._sygnal("S1", teraz, poz, **d)
         return []
+
+    def ostatnie_ruchy(self, teraz, n=10):
+        """Ostatnie n wpisów (zmiana pozycji / porażka kroku, kliku, okrążenie) z wiekiem w s względem `teraz`."""
+        return [{"temu_s": round(teraz - r["t"], 1), **{k: v for k, v in r.items() if k != "t"}}
+                for r in list(self.ruchy)[-n:]]
 
     # --- wewnętrzne ---
     def _reset(self, teraz):
@@ -184,8 +193,19 @@ def detektor(konf=None):
     return _DET
 
 
-def zglos(sygnaly, log=print, tele=None, plik_logu=None, stan=None):
-    """Cień: log + telemetria + jsonl. Błąd zapisu nigdy nie wywraca bota."""
+_SEQ = 0
+
+
+def _id_sygnalu(kod):
+    global _SEQ
+    _SEQ += 1
+    return f"{time.strftime('%Y%m%d-%H%M%S')}-{kod}-{_SEQ}"
+
+
+def zglos(sygnaly, log=print, tele=None, plik_logu=None, stan=None, pytaj=False, kontekst=None, limit_h=None):
+    """Cień: log + telemetria + jsonl. Błąd zapisu nigdy nie wywraca bota.
+    F2a: `pytaj` (RATUNEK_HAIKU=1 i RATUNEK_HAIKU_PYTAJ=1, liczy wołający) -> Haiku w cieniu w osobnym wątku
+    (ratunek_cien.py): bez ruchu, bez czekania. `kontekst(rek)` = migawka z miejsca zgłoszenia, wołana tylko gdy pytamy."""
     for s in sygnaly or ():
         szczeg = ", ".join(f"{k}={v}" for k, v in s.items() if k not in ZASTRZEZONE)
         try:
@@ -194,7 +214,7 @@ def zglos(sygnaly, log=print, tele=None, plik_logu=None, stan=None):
                 f"{', PONAD LIMIT' if s['ponad_limit'] else ''}).")
         except Exception:
             pass
-        rek = dict(s, tryb="cien", stan=stan)
+        rek = dict(s, tryb="cien", stan=stan, id=_id_sygnalu(s["kod"]))
         if tele is not None:
             try:
                 tele.zdarzenie("ratunek", **{k: v for k, v in rek.items() if k != "t"})
@@ -207,6 +227,27 @@ def zglos(sygnaly, log=print, tele=None, plik_logu=None, stan=None):
                                        ensure_ascii=False) + "\n")
             except Exception:
                 pass
+        if pytaj:
+            try:
+                import ratunek_cien  # noqa: PLC0415
+                if kontekst is not None:
+                    migawka = kontekst
+                else:
+                    migawka = lambda r: {}   # noqa: E731
+                ratunek_cien.cien().zglos(rek, _z_ruchami(migawka), plik_logu,
+                                          limit_h if limit_h is not None else DOMYSLNE["RATUNEK_LIMIT_H"], log)
+            except Exception:
+                pass
+
+
+def _z_ruchami(migawka):
+    """Migawka + ostatnie 10 ruchów z detektora procesu (jeśli migawka ich nie ma)."""
+    def f(rek):
+        snap = dict(migawka(rek) or {})
+        if "ruchy" not in snap:
+            snap["ruchy"] = detektor().ostatnie_ruchy(rek.get("t", 0.0))
+        return snap
+    return f
 
 
 def plik_logu(katalog_logow):

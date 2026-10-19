@@ -691,9 +691,12 @@ def _ratunek_porazka(postac, krok, powod, e, bot):
         import instancja  # noqa: PLC0415
         import ratunek  # noqa: PLC0415
         try:
-            wl = int(json.loads(instancja.S.na_zywo.read_text()).get("RATUNEK_HAIKU", 0))
-        except (OSError, ValueError, TypeError):
-            wl = 0
+            nz = json.loads(instancja.S.na_zywo.read_text())
+            wl = int(nz.get("RATUNEK_HAIKU", 0))
+            pytaj = wl == 1 and int(nz.get("RATUNEK_HAIKU_PYTAJ", 0)) == 1      # F2a: Haiku w cieniu (wątek, bez ruchu)
+            limit_h = int(nz.get("RATUNEK_LIMIT_H", 20))
+        except (OSError, ValueError, TypeError, AttributeError):
+            wl, pytaj, limit_h = 0, False, 20
         if not wl:
             return
         try:
@@ -701,7 +704,8 @@ def _ratunek_porazka(postac, krok, powod, e, bot):
         except Exception:
             poz = None
         s = ratunek.detektor().zdarzenie("porazka_trasy", time.monotonic(), poz, co="serwis", krok=krok, powod=str(powod)[:200])
-        ratunek.zglos(s, log=lambda m: print(m, flush=True), plik_logu=ratunek.plik_logu(instancja.S.logi))
+        ratunek.zglos(s, log=lambda m: print(m, flush=True), plik_logu=ratunek.plik_logu(instancja.S.logi),
+                      pytaj=pytaj, limit_h=limit_h)
     except Exception as ex:
         print(f"debug: ratunek błąd {ex!r}", flush=True)
 

@@ -1,4 +1,4 @@
-# SPEC: Haiku ratuje bota, gdy ten zachowuje się „jak bot” (kręci się, stoi, zgubił trasę) - 19.10 — F1 ZAIMPLEMENTOWANE (cień, branch feat/ratunek-haiku), czeka na bramkę F1 -> F2
+# SPEC: Haiku ratuje bota, gdy ten zachowuje się „jak bot” (kręci się, stoi, zgubił trasę) - 19.10 — F1 WDROŻONE (cień, obie postacie); F2a Haiku w cieniu na Johnym zatwierdzone 19.10 ~21:55
 
 Cel: w każdej sytuacji, w której bot zaczyna robić coś, po czym od razu widać, że to bot (chodzi w kółko, stoi bez sensu,
 klika bez skutku, zgubił trasę lub piętro), zanim się podda albo będzie to powtarzał, pyta Haiku o jeden ruch z zamkniętej
@@ -84,6 +84,18 @@ Stany zamierzone (PRZERWA, PAUZA, PAUZA_PK, GRACZ — jak w D3), walka, ucieczka
 - **F2 ratunek** (`RATUNEK_HAIKU=2`): prompt, walidacja odpowiedzi, wykonanie ruchu, kontrola postępu, limity, AI OFF, zapis przejść.
   Testy: odpowiedź spoza listy -> `czlowiek`; limit ruchów i wywołań; walka/STOP przerywa; udane przejście trafia do danych.
 - **QA na żywo:** jedno wywołanie (zasada testów na żywo), sytuacja jak R1; ustawienia przywrócone po próbie.
+- **F2a Haiku w cieniu** (Karol 19.10 ~21:55: „tak” na pytanie „czy przy każdym sygnale wołać Haiku i pokazywać, co by
+  zrobił, bez wykonywania ruchu”, „dobrze by było jednemu” = najpierw jedna postać, Johny / instancja `test`). Nowe pokrętło
+  `RATUNEK_HAIKU_PYTAJ` 0/1 (domyślnie 0, analityk nie podnosi), działa tylko przy `RATUNEK_HAIKU=1`. Przy każdym zgłoszonym
+  sygnale (po debounce i w limicie 20/h) bot w osobnym wątku, **bez zatrzymywania się i bez żadnego ruchu**, buduje kontekst z
+  pkt 2 Zachowania (zrzut, pozycja, sygnał, cel, punkty trasy, przejścia, ostatnie ruchy, HP/mana, stwory; bez czatu i nicków),
+  woła `claude -p --model haiku` (klasa `Claude` z `mozg.py`, limit czasu) i waliduje odpowiedź jak w pkt 3. Do
+  `logi/ratunek-<data>.jsonl` dopisuje rekord `haiku_cien` powiązany z sygnałem: odpowiedź surowa (ucięta), ruch po walidacji
+  (albo `czlowiek` + powód), czas wywołania w s, błąd. Zrzut zapisany obok (`logi/ratunek-zrzuty/`, ostatnie 200) do przeglądu
+  w oknie. Jedno wywołanie naraz; sygnał w trakcie trwającego pytania = pominięty z wpisem. Włączone tylko w
+  `instancje/test/na_zywo.json`. Testy: atrapa `Claude` (odpowiedź z listy, spoza listy, timeout, wyjątek) -> rekord; wątek
+  nie blokuje ticku; pokrętło 0 = zero wywołań; limit 20/h liczy też te wywołania. Wynik do Karola: ile wywołań, czas, ile
+  odpowiedzi sensownych na przejrzanych zrzutach — to bramka przed F2 (wykonywanie ruchów).
 
 ## Stan F1 (19.10, branch `feat/ratunek-haiku`, worktree `pomocnik-ratunek`, baza 9ea7d9b)
 
@@ -101,6 +113,16 @@ Stany zamierzone (PRZERWA, PAUZA, PAUZA_PK, GRACZ — jak w D3), walka, ucieczka
   Pierwsza wersja S4 liczyła oscylacje w całym oknie (36 x S4 w jednej sesji) — poprawione na lokalny ogon ruchu.
 - Niezależny przegląd: CHANGES-REQUIRED (S1 z wyprawy/serwisu wywracał się na `opis=`, mieszane zegary monotonic/epoch,
   testy hooków przez grep) — wszystko poprawione, testy na zachowanie dodane.
+
+## Stan F2a (19.10, branch `feat/ratunek-haiku`, niezacommitowane do przeglądu)
+
+- Kod: `ratunek_cien.py` (Cien: jedno pytanie naraz, limit godzinny, wątek-demon, walidacja, zapis), haki: `ratunek.zglos(pytaj=, kontekst=, limit_h=)`,
+  `cavebot._ratunek_kontekst` (migawka z pamięci, zero RPC), `mozg.ratunek_porazka`, `serwis._ratunek_porazka`. Pokrętło `RATUNEK_HAIKU_PYTAJ`
+  (0/1, domyślnie 0, analityk `nie_wyzej`). Model i zrzut wołane TYLKO w wątku; pętla bota nie czeka i nie dzieli blokad.
+- Zapis: linie sygnałów w `logi/ratunek-<data>.jsonl` zyskały pole `id`; obok linia `{"rekord":"haiku_cien","id":<id sygnału>,"kod","poz","czas",
+  "haiku_cien":{ruch,powod,dlaczego,odpowiedz(<=2000),czas_wywolania_s,czas_zrzutu_s,blad,zrzut,blad_zrzutu,pominiety,wykonano:false,model,prompt}}`
+  (pełny opis w nagłówku `ratunek_cien.py`). Zrzuty: `logi/ratunek-zrzuty/<id>.jpg`, ostatnie 200.
+- Testy: `testy/test_ratunek_haiku.py` (atrapa Claude, prawdziwy claude zabroniony w testach).
 
 ## Poza zakresem
 
