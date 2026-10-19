@@ -731,6 +731,8 @@ UNIKANIE_TOR_LOOK = 8              # pola drogi, z których liczymy jej kierunek
 UNIKANIE_TOR_PAMIEC_S = 25.0       # s: gracz, który zniknął z widoku, nadal wyznacza tor (ostatnia pozycja i kierunek); unikanie w tym czasie trwa
 UNIKANIE_PRZERWA = 0               # 1 = gracz w UNIKANIE_PROMIEN kończy PRZERWĘ od razu (dawniej stała do końca)
 STWORY_WIDMA = 1                   # 19.10: 1 = wpisy-widma na liście stworów (obcy gracz na polu bota, kilku graczy na jednym polu) dostają `widmo` (widma.py) i NIE liczą się do zajętości pól ani do oceny graczy (unikanie/mijanie); PK, czaszki, GM i stan modelu widzą wszystko; 0 = stare zachowanie
+SLEPOTA_DIAG_S = 120               # 19.10: s bez expa i bez potworów (stan IDZ/WALKA/LOOT/POGON, bot już polował) = zrzut diagnostyki do logi/slepota/ (slepota.py); 0 = wyłączone
+SLEPOTA_RESTART_S = 0              # 19.10: s takiej ślepoty = restart procesu mozg.py (os.execv, ten sam pid; najwyżej raz na 15 min); 0 = bez restartu
 # mijanie graczy (18.10, dane_tibia/SPEC_mijanie_graczy_1018.md; unikanie.Unikanie.mijanie): ocena kierunku gracza względem pętli
 MIJANIE = 0                        # 1 = zamiast bańki dystansu i dreptania (unikanie.decyduj): nie idziemy tą samą stroną co gracz, mijamy się bez zawracania, obozowicza omijamy, przejście udostępniamy tylko w wąskim miejscu; 0 = dotychczasowe UNIKANIE_*
 MIJANIE_PRZOD = 16                 # punkty trasy przed nami, na których gracz "jest na naszej drodze"

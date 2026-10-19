@@ -312,6 +312,8 @@ ZAKRESY = {
     "RATUNEK_PRZERWA_S": (30.0, 1800.0),   # debounce sygnału w tym samym miejscu [s] (domyślnie 120)
     "RATUNEK_LIMIT_H": (1, 120),        # limit wywołań Haiku na godzinę (Q3, domyślnie 20); w cieniu tylko flaga
     "D3_ALARM_S": (0.0, 1800.0),        # 17.10 (F1): >0 = zawieszka D3 trwająca tyle s => jedno powiadomienie krytyczne, bez STOP (domyślnie 0 = wyłączone)
+    "SLEPOTA_DIAG_S": (0.0, 900.0),     # 19.10: s bez expa i potworów (bot polował) => zrzut diagnostyki do logi/slepota/ (0 = wyłączone)
+    "SLEPOTA_RESTART_S": (0.0, 1800.0), # 19.10: s takiej ślepoty => restart mozg.py (0 = bez restartu; min. rozsądnie 240)
     "DRZWI_PONOW": (0, 1),              # 17.10 (F1): 1 = flaga "drzwi otwarte" starsza niż DRZWI_STARA_S s jest przeterminowana: podejście i Use przy zamkniętych drzwiach (domyślnie 0)
     "OBSERWATOR_PK_KONTEKST": (0, 1),   # 16.10 (P10): 1 = obserwator dostaje karencję PK i wie, że PAUZA_PK z karencją jest zamierzona (domyślnie 0)
     "SMIERC_STOP": (0, 1),              # 16.10 (R5/P5): 1 = po zgonie stan MARTWY: jeden STOP + powiadomienie, zero kliknięć i modelu (domyślnie 0)
