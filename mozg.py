@@ -36,6 +36,7 @@ Zatrzymanie: plik STOP, Ctrl+C albo SIGTERM (systemd).
 
 import argparse
 import json
+import faulthandler
 import os
 import random
 import re
@@ -776,6 +777,7 @@ class Czat:
 
     def __init__(self, zapytaj, nazwa, zegar=time.monotonic, zegar_scienny=time.time, log=None):
         self.zapytaj = zapytaj
+        self.pet_tap = None            # funkcja(w): hak cavebota (pet_wiadomosc), ustawia main()
         self.zegar_scienny = zegar_scienny
         self.log = log or (lambda *a: None)
         self.nazwa = nazwa
@@ -948,6 +950,11 @@ class Czat:
         for w in lista:
             if not poczatek and atak_pk(w.get("tekst", "")) and self._swiezy(w):
                 self.atak_ts = teraz       # dowolny kanał (Server Log też): tylko znacznik, nie zdarzenie
+            if not poczatek and self.pet_tap is not None:
+                try:
+                    self.pet_tap(w)        # 17.10 pet: surowe linie o przywołaniu/zabiciu do logi/pet-*.jsonl (każdy kanał)
+                except Exception:
+                    pass
         for w in lista:
             if not kanal_rozmowy(w["kanal"], w["autor"]) and not (
                     w["autor"] == self.nazwa and w["kanal"] in self.prywatne):
@@ -3550,6 +3557,28 @@ class Mozg:
         self.start_analityka()
         self.start_analityka_poscigu()
         powiadom.start(cb.nazwa_trasy, sorted(cb.potwory) if cb.potwory else None)
+        zawieszka_t = [None]
+        zawieszka_plik = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logi', 'zawieszka-ticka.log')
+
+        def _watchdog(glowny=threading.get_ident()):
+            import traceback  # noqa: PLC0415
+            ost = 0.0
+            while not self.koniec:
+                time.sleep(0.5)
+                t0 = zawieszka_t[0]
+                if t0 is None or time.time() - t0 < 2.0 or time.time() - ost < 1.5:
+                    continue
+                ost = time.time()
+                fr = sys._current_frames().get(glowny)
+                if fr is None:
+                    continue
+                st = ' <- '.join(f"{os.path.basename(f.filename)}:{f.lineno} {f.name}" for f in reversed(traceback.extract_stack(fr)[-9:]))
+                try:
+                    with open(zawieszka_plik, 'a') as f:
+                        f.write(f"{time.strftime('%H:%M:%S')} tick {ost - t0:.1f}s | {st}\n")
+                except OSError:
+                    pass
+        threading.Thread(target=_watchdog, daemon=True).start()
         bledy = 0
         grim_od = grim_log = None        # od kiedy wisi zrzut ekranu (okno gry niewidoczne)
         try:
@@ -3565,8 +3594,13 @@ class Mozg:
                             cb.pokretla_ost = self.zegar()
                             cb.pokretla.odswiez()
                         time.sleep(0.3)
-                    elif not cb.tick():
-                        break
+                    else:
+                        zawieszka_t[0] = time.time()     # 18.10: watchdog ticka (znaczniki czasu, stos wątku głównego)
+                        try:
+                            if not cb.tick():
+                                break
+                        finally:
+                            zawieszka_t[0] = None
                     bledy = 0
                     if grim_od is not None:
                         self.log(f"Okno gry znów widoczne po {time.time() - grim_od:.0f} s, wznawiam.")
@@ -3905,6 +3939,7 @@ def main(argv):
     # a Al Dee nie jest "obcym graczem" (inaczej mózg odpowiadałby sprzedawcy)
     cb.wypad_wyslij = czat
     cb.wypad_czat = mozg.czat
+    mozg.czat.pet_tap = cb.pet_wiadomosc
     try:
         mozg.uruchom_hybryde()
     finally:

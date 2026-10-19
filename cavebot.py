@@ -281,6 +281,20 @@ ZDROWIE_CZAR_OPOZNIENIE = (0.2, 0.8)   # s: losowe opóźnienie tuż przed rzute
 ZDROWIE_CZAR_WERYFIKACJA_S = 1.2   # s po rzucie: tyle czekamy, zanim sprawdzimy, czy HP/mana się zmieniły
 ZDROWIE_CZAR_PORAZKI = 3           # tyle nieudanych rzutów z rzędu wyłącza leczenie
 ZDROWIE_CZAR_PRZERWA_PO_PORAZKACH_S = 600.0
+# --- pet (utevo res "nazwa", pet.py + pet_ster.py). Domyślnie WYŁĄCZONE; pet nie idzie po schodach/dziurach ---
+PET_WLACZONY = 0                   # pokrętło 0/1 (na_zywo.json): 1 = przywołuj peta poza walką, gdy mana >= PET_MANA_MIN
+PET_MANA_MIN = 360                 # pokrętło (nie_nizej): mana wymagana do rzutu (Elf Scout ok. 360; nie zjadamy rezerwy UH/leczenia)
+PET_NAZWA = "Elf Scout"            # pokrętło tekstowe: nazwa stworzenia w czarze i w liście stworów (utevo res "Elf Scout")
+PET_CZAR = "utevo res"             # słowa czaru (wpisywane na Default przez mozg.wpisz_na_czacie)
+PET_STABILNE_S = 45.0              # pokrętło: s na tym samym piętrze, zanim uznamy je za piętro spota i wolno przywołać
+PET_PIETRO = 0                     # pokrętło: 0 = piętro spota z PET_STABILNE_S; 1-15 = przywołuj tylko na tym piętrze (z)
+PET_ZMIANY_MAX = 2                 # pokrętło: tyle zmian pięter w oknie PET_ZMIANY_OKNO_S = spot wielopiętrowy, bez przywoływania
+PET_ZMIANY_OKNO_S = 600.0          # pokrętło: s okna liczenia zmian pięter
+PET_PRZERWA_S = 30.0               # pokrętło: min. odstęp między rzutami czaru (exhaust i ochrona przed pętlą)
+PET_PORAZKI = 2                    # pokrętło: tyle czarów z rzędu bez nowego stworzenia obok = przerwa
+PET_PRZERWA_PO_PORAZKACH_S = 900.0 # pokrętło: s przerwy po porażkach
+PET_ZGONY_MAX = 5                  # pokrętło: po tylu zgonach peta w sesji bez przywoływania (0 = bez limitu; zgon kosztuje cała manę)
+PET_PRZYWOLAJ_PLIK = Path(__file__).resolve().parent / "PRZYWOLAJ_PETA"   # 17.10 "przyzwij teraz": plik jednorazowy, ignoruje walkę, znika po rzucie
 # --- jedzenie czarem exevo pan (F3): tworzy jedzenie, które zjadamy istniejącym mechanizmem. Domyślnie WYŁĄCZONE ---
 RUNA_AKTYWNA = 0                   # pokrętło 0/1 (na_zywo.json): 1 = strzał runą (hotkey) w cel w walce; nie kosztuje many
 RUNA_KLAWISZ = "F4"                # hotkey w kliencie: "użyj runy na celu" (HMM w zaznaczony cel); pokrętło tekstowe
@@ -1032,6 +1046,8 @@ class Cavebot:
         self.ml_oczekuje = None        # (czas rzutu, mana przed): weryfikacja spadku many
         self.ml_porazki = 0            # kolejne rzuty bez spadku many
         self.ml_wylaczony_do = float("-inf")
+        self.pet = None                # pet_ster.PetSterowanie (leniwie, patrz _pet_ster)
+        self.stwory_surowe = []        # ostatnia lista stworów z petem (stwory() zwraca bez niego)
         self.czar_ostatni = float("-inf")  # czas ostatniego rzutu DOWOLNEGO czaru bota (wspólny exhaust)
         self.zd_oczekuje = None        # exura: (czas rzutu, mana przed, hp przed)
         self.zd_porazki = 0
@@ -1537,6 +1553,85 @@ class Cavebot:
                 return "mob_blisko"
         return None
 
+    # --- pet (pet_ster.py) ---
+    def _pet_ster(self):
+        if self.pet is None:
+            import pet_ster  # noqa: PLC0415
+            self.pet = pet_ster.PetSterowanie(instancja.S.logi, log=lambda t: log(t))
+        return self.pet
+
+    def pet_wiadomosc(self, w):
+        """Hak mózgu: surowa linia czatu/Server Log (dict autor/tekst/kanal/czas/nr). Błąd nie wywraca bota."""
+        if not PET_WLACZONY or self.pet is None:
+            return
+        try:
+            self.pet.wiadomosc(w, nazwa=PET_NAZWA)
+        except Exception as e:
+            log(f"debug: pet wiadomość błąd {e!r}")
+
+    def _pet_obserwuj(self, g, poz, lista, teraz):
+        """Raz na tick, zaraz po odczycie stworów: statystyki i śledzenie peta. -> lista bez peta."""
+        if not PET_WLACZONY and self.pet is None:
+            return lista
+        try:
+            pet = self._pet_ster()
+            surowa = self.stwory_surowe or lista
+            pet.obserwuj(surowa, g, poz, teraz, cel_id=self.cel["id"] if self.cel else None, nazwa=PET_NAZWA,
+                         stabilne_s=PET_STABILNE_S, porazki_max=PET_PORAZKI,
+                         przerwa_po_porazkach_s=PET_PRZERWA_PO_PORAZKACH_S)
+            return pet.bez_peta(surowa)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"[PET] błąd obserwacji {e!r}")
+            return lista
+
+    def _pet_tick(self, g, poz, lista, teraz):
+        """True = obieg zużyty (rzucono czar). Wyłączone pokrętłem = brak śladu; błąd nigdy nie wywraca bota."""
+        if not PET_WLACZONY:
+            return False
+        try:
+            return self._pet(g, poz, lista, teraz)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"[PET] błąd {e!r}")
+            return False
+
+    def _pet(self, g, poz, lista, teraz):
+        pet = self._pet_ster()
+        surowa = self.stwory_surowe or lista
+        mana = g.get("mana")
+        blokada = self._ml_blokada(lista, poz)      # czat/pauza/ucieczka/loot/wypad (walka niżej, niezależnie od ML_CZAR_W_WALCE)
+        walka = blokada is not None or self.cel is not None or self.w_poscigu or self.pamiec is not None \
+            or str(self.stan) == "WALKA" or self.zywy_w_poblizu(lista, poz) is not None
+        # 17.10 "przyzwij teraz": plik PRZYWOLAJ_PETA omija blokadę walki (bot stale poluje, więc spokoju nie ma)
+        reczne = PET_PRZYWOLAJ_PLIK.exists()
+        if reczne:
+            walka = False
+        powod = pet.powod_blokady(bool(PET_WLACZONY), mana, PET_MANA_MIN, walka, teraz, poz,
+                                  pietro_spotu=PET_PIETRO, stabilne_s=PET_STABILNE_S, zmiany_max=PET_ZMIANY_MAX,
+                                  zmiany_okno_s=PET_ZMIANY_OKNO_S, zgony_max=PET_ZGONY_MAX)
+        if powod is not None or teraz - self.czar_ostatni < CZAR_MIN_PRZERWA_S:
+            return False
+        if self.wypad_wyslij is None:
+            return False
+        if self.zd_oczekuje is not None or self.jc_oczekuje is not None:
+            return False                            # trwa weryfikacja exura/exevo pan
+        tekst = f'{PET_CZAR} "{PET_NAZWA}"'
+        self._poscig_puszcz()                       # pole czatu pochłonęłoby trzymane strzałki
+        self.czar_ostatni = teraz
+        self.aktywnosc_ts = teraz
+        self.ustaw_stan("PET", f"{tekst} (mana {mana})")
+        pet.rzucono(surowa, mana, teraz, PET_PRZERWA_S, tekst)
+        self._wypad_zarejestruj_tekst(tekst)
+        self._wypad_wyslij_tekst(tekst)
+        self.pauza(0.3, 0.8)
+        if reczne:
+            PET_PRZYWOLAJ_PLIK.unlink(missing_ok=True)
+            log("[PET] przywołanie ręczne (PRZYWOLAJ_PETA): rzucono, plik usunięty")
+        return True
+
     def _ml_tele(self, typ, **d):
         self._tele_poscig(typ, **d)
 
@@ -1831,6 +1926,9 @@ class Cavebot:
         widoczne = [s for s in lista if s.get("z") == poz[2] and self._uh_widoczny(s, poz, walka)]
         if walka:
             mana_min = max(int(UH_KOSZT), int(mx) - int(UH_W_WALCE_MANA_MARGINES))
+        # 17.10 pet: bez żywego peta UH nie zjada many na kolejne przywołanie (PET_MANA_MIN); z petem UH działa jak dotąd
+        if PET_WLACZONY and not restore and (self.pet is None or self.pet.pet_id is None):
+            mana_min = max(int(mana_min), int(PET_MANA_MIN) + int(UH_KOSZT))
         if restore:
             ok, powod = uh.mozna_robic(g, widoczne, aktywny=1, min_hp=UH_MIN_HP - 10, mana_min=0,
                                        ja=self.postac.nazwa, teraz=teraz, ostatnia=self.uh_ostatni,
@@ -3423,7 +3521,10 @@ class Cavebot:
         z = {"cmd": "stwory"}
         if maks_wiek is not None:
             z["maks_wiek"] = maks_wiek     # cache skanera rdzenia zamiast świeżego skanu
-        return self.zapytaj(z)["stwory"]
+        surowa = self.zapytaj(z)["stwory"]
+        self.stwory_surowe = surowa
+        pet = self.pet
+        return pet.bez_peta(surowa) if pet is not None else surowa    # pet nie jest celem ani zagrożeniem
 
     def idz_do(self, cel, poz=None, pilne=False, krok=None):
         """Ruch w stronę cel=(x,y): kliknięciem w mapę (pełna prędkość), a gdy klik nie
@@ -3528,6 +3629,16 @@ class Cavebot:
                     self.nieudane = 0
                 self.krok_z = ((x, y, z), teraz)
                 return True
+            try:   # 18.10 diagnostyka: nieudana strzałka kosztuje CZAS_KROKU (1,5 s)
+                d_ = bot.KIERUNKI[k]
+                n_ = (x + d_[0], y + d_[1], z)
+                inni_ = [(q.get("nazwa"), q["x"] - x, q["y"] - y) for q in (self.ostatnie_stwory or ())
+                         if (q["x"], q["y"]) == n_[:2]]
+                log(f"debug: krok {k} z {(x, y, z)} nie ruszył (cel kroku {tuple(cel[:2])}, mapa przechodnie "
+                    f"{self.mapa.przechodnie(*n_) if self.mapa else '?'}, na polu {inni_ or '-'}, "
+                    f"zablok {bool(self.zablokowane.get(((x, y, z), k)))}).")
+            except Exception:
+                pass
             self.zablokowane[((x, y, z), k)] = True
         if sk is not None and self._krok_do_skos(x, y, z, sk, teraz, wstecz):
             return True                       # strzałki w osiach nie ruszyły, skos tak
@@ -3827,6 +3938,8 @@ class Cavebot:
         for s in lista:
             if s["gracz"] or s["z"] != poz[2] or s.get("hp", 100) <= 0:
                 continue
+            if self.pet is not None and self.pet.pet_id == s.get("id"):
+                continue                # pet nie jest celem (lista z stwory() jest już bez niego; tu dla wywołań z gotową listą)
             if abs(s["x"] - poz[0]) > ZASIEG_X or abs(s["y"] - poz[1]) > ZASIEG_Y:
                 continue
             if self.potwory is not None and s["nazwa"].casefold() not in self.potwory:
@@ -3986,6 +4099,7 @@ class Cavebot:
             lista = self.stwory(0.0)
         else:
             lista = self.stwory(PAMIEC_SKAN_WIEK if self.pamiec else None)
+        lista = self._pet_obserwuj(g, poz, lista, teraz)     # pet: obserwacja i lista bez niego (przed wyborem celów)
         self.ostatnie_stwory = lista
         self.odnotuj_stwory(lista, poz)
         t1 = self.zegar()
@@ -4032,6 +4146,10 @@ class Cavebot:
 
         # 2a UH (uh.py): robienie run w spokoju; po leczeniu/jedzeniu, przed ML (ma pierwszeństwo przy mana >= UH_MANA_MIN)
         if self._uh_tick(g, poz, lista, teraz):
+            return True
+
+        # 2a-pet. pet (utevo res): obserwacja i przywołanie w spokoju; rzut pochłania obieg
+        if self._pet_tick(g, poz, lista, teraz):
             return True
 
         # 2a'. ML: czar na magic level (tylko w spokoju; rzut pochłania obieg)

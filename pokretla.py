@@ -74,6 +74,16 @@ ZAKRESY = {
     "PATROL_GRACZ_PAM_R": (4, 40),      # pola: miejsce tak blisko ostatniej pozycji gracza dostaje karę
     "PATROL_GRACZ_PAM_KARA": (0.0, 1.0),  # mnożnik wagi takiego miejsca (0 = blokada)
     "POSCIG_BEZ_ZMIANY_PIETRA": (0, 1), # 1 = pościg nigdy nie wchodzi na schody/dziury (poza wypadem do miasta)
+    "PET_WLACZONY": (0, 1),             # 17.10: 1 = przywołuj peta (utevo res) poza walką; domyślnie 0, tylko Karol
+    "PET_MANA_MIN": (200, 1000),        # mana wymagana do przywołania (Elf Scout ok. 360)
+    "PET_STABILNE_S": (10.0, 300.0),    # s na tym samym piętrze, zanim wolno przywołać
+    "PET_PIETRO": (0, 15),              # 0 = piętro spota wykrywane; 1-15 = tylko to piętro (z)
+    "PET_ZMIANY_MAX": (1, 6),           # tyle zmian pięter w oknie = spot wielopiętrowy, bez przywoływania
+    "PET_ZMIANY_OKNO_S": (60.0, 3600.0),   # s okna liczenia zmian pięter
+    "PET_PRZERWA_S": (10.0, 600.0),     # s min. odstęp między rzutami
+    "PET_PORAZKI": (1, 10),             # czary z rzędu bez peta obok = przerwa
+    "PET_PRZERWA_PO_PORAZKACH_S": (60.0, 7200.0),  # s przerwy po porażkach
+    "PET_ZGONY_MAX": (0, 30),           # zgonów peta w sesji do zatrzymania przywoływania (0 = bez limitu)
     "TRASA_PIETRA": (0, 2),             # trasa wielopiętrowa w pętli łowiska: 0 = wył., 1 = zawsze, 2 = tylko gdy trasa ma > 1 piętro (domyślnie)
     "LOOT_PONOW_LOKALNIE": (0, 2),      # ile razy ponowić loot od razu po brak_okna, gdy w widoku brak żywych mobów
     "LOOT_POMIN_CIEZKIE": (0, 1),       # 1 = przedmiot za ciężki (cap) pomijamy w lootcie 300 s; 0 = tylko klasyfikacja w logu
@@ -294,6 +304,7 @@ ZAKRESY = {
 }
 # Pokrętła tekstowe (tylko ręcznie w na_zywo.json): nazwa -> dozwolone wartości
 TEKSTY = {
+    "PET_NAZWA": ("Elf Scout", "Dwarf Soldier", "Orc Warrior", "Scarab", "Minotaur Archer", "Amazon", "Smuggler"),
     "RUNA_KLAWISZ": tuple(f"F{i}" for i in range(1, 13)),   # hotkey runy w kliencie
     "UH_KLAWISZ": tuple(f"F{i}" for i in range(1, 13)),     # hotkey czaru runowego w kliencie
     "UH_CZAR": ("adori gran", "adura gran", "adura vita", "adura"),   # słowa czaru (log); koszt osobno
@@ -302,6 +313,9 @@ TEKSTY = {
 # nigdy w stronę skracania pościgu / zasięgu dobijania. "nie_nizej": wartość >= domyślna,
 # "nie_wyzej": wartość <= domyślna. Ręczny plik na_zywo.json podlega tylko ZAKRESY.
 KIERUNEK = {
+    # pet: analityk nie może go włączyć ani obniżyć progu many / wydłużyć limitów (tylko Karol w na_zywo.json)
+    "PET_WLACZONY": "nie_wyzej", "PET_MANA_MIN": "nie_nizej", "PET_PRZERWA_S": "nie_nizej",
+    "PET_STABILNE_S": "nie_nizej",
     "POGON_ZASIEG": "nie_nizej", "POGON_LIMIT": "nie_nizej",
     "POGON_TWARDY": "nie_nizej", "POGON_TWARDY_INNY": "nie_nizej",
     "POGON_DOBICIE_HP": "nie_nizej",

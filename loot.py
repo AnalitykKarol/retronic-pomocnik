@@ -1721,6 +1721,7 @@ def zbierz_szczegoly(pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA, log=print)
         wynik["zrodlo"] = p["zrodlo"]
         najedzony = not JEDZ_ZE_ZWLOK
         zjedzen = 0
+        proba_plecaka = False
         for _ in range(MAKS_RUCHOW + MAKS_ZJEDZENIA):
             bot.sprawdz_stop()
             if PRZERWIJ is not None and PRZERWIJ():
@@ -1735,6 +1736,10 @@ def zbierz_szczegoly(pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA, log=print)
             if not p["przedmiot"] or len(wynik["zebrano"]) >= MAKS_RUCHOW:
                 break
             if not p["plecak"]:
+                if not proba_plecaka and otworz_plecak(mysz, log):
+                    proba_plecaka = True
+                    _obraz, p = _plan_teraz(mysz, lista, log)
+                    continue
                 wynik["status"] = "brak_plecaka"
                 break
             if not p["cel"]:
@@ -1782,6 +1787,71 @@ def zbierz_szczegoly(pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA, log=print)
         _sprzatnij_okno_ilosci(mysz, log)
         wynik["zamkniete"] = _zamknij_zwloki(mysz, p, pole, klucz, log)
     return wynik
+
+
+# --- otwieranie i rozciąganie plecaka (18.10) ---------------------------------
+
+SLOT_PLECAKA_EKWIPUNEK = (1089, 143)  # plecak w slocie ekwipunku, okno gry 1175x910 (18.10): Ctrl+lewy klik = otwórz
+ROZCIAGNIECIE_DO_RZEDOW = 5           # okno plecaka rozciągamy do tylu rzędów slotów (krok rzędu 37 px)
+ODSTEP_OTWARCIA_S = 20.0              # nie próbujemy otwierać plecaka częściej niż co tyle sekund
+_ostatnia_proba_otwarcia = [None]
+
+
+def plecak_otwarty(obraz):
+    """True, gdy w panelu jest okno plecaka (tytuł ze wzorców z PLECAKI)."""
+    return any((_nazwa_tytulu(obraz, o) or "").casefold() in PLECAKI for o in znajdz_okna(obraz))
+
+
+def dolna_krawedz(okno):
+    """Y dolnej ramki okna: dolny rząd slotów plus 10 px (kalibracja 18.10)."""
+    return max(s.y + s.bok for s in okno.sloty) + 10
+
+
+def _okno_plecaka(obraz):
+    for o in znajdz_okna(obraz):
+        if (_nazwa_tytulu(obraz, o) or "").casefold() in PLECAKI and o.sloty:
+            return o
+    return None
+
+
+def rozciagnij_plecak(mysz, obraz, log=print):
+    """Przeciąga dolną krawędź okna plecaka w dół, aż ma ROZCIAGNIECIE_DO_RZEDOW rzędów slotów.
+    Ciągnie za linię ramki (drganie 0): róg z uchwytem w lewym dolnym rogu nie reagował (18.10)."""
+    okno = _okno_plecaka(obraz)
+    if okno is None:
+        return False
+    rzedy = len({s.y for s in okno.sloty})
+    brak = ROZCIAGNIECIE_DO_RZEDOW - rzedy
+    if brak <= 0:
+        return False
+    x = (okno.lewo + okno.prawo) // 2
+    y = dolna_krawedz(okno)
+    bot.sprawdz_stop()
+    mysz.przeciagnij(x, y, x, y + brak * 37, drganie=0)
+    _pauza(0.4, 0.6)
+    log(f"plecak: okno rozciągnięte z {rzedy} do {ROZCIAGNIECIE_DO_RZEDOW} rzędów")
+    return True
+
+
+def otworz_plecak(mysz, log=print):
+    """Gdy żadne okno plecaka nie jest otwarte: Ctrl+lewy klik na plecaku w ekwipunku, potem rozciągnięcie.
+    True tylko wtedy, gdy klik faktycznie otworzył plecak (zweryfikowane zrzutem)."""
+    if plecak_otwarty(_zrzut(mysz)):
+        return False
+    teraz = time.monotonic()
+    ostatnia = _ostatnia_proba_otwarcia[0]
+    if ostatnia is not None and teraz - ostatnia < ODSTEP_OTWARCIA_S:
+        return False
+    _ostatnia_proba_otwarcia[0] = teraz
+    bot.sprawdz_stop()
+    mysz.lewy(*SLOT_PLECAKA_EKWIPUNEK, modyfikator="Control_L", drganie=2)
+    _pauza(0.9, 1.3)
+    obraz = _zrzut(mysz)
+    otwarto = plecak_otwarty(obraz)
+    log(f"plecak: Ctrl+klik na ekwipunku, okno plecaka {'otwarte' if otwarto else 'NIE pojawiło się'}")
+    if otwarto:
+        rozciagnij_plecak(mysz, obraz, log)
+    return otwarto
 
 
 def zbierz(pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA):
