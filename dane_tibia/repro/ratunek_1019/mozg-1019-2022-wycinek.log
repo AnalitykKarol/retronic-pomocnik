@@ -1,0 +1,99 @@
+20:24:29 Przejście pięter: z8 -> z7 (punkt trasy 53), kandydaci: [((33128, 31810), 'pewny')]
+20:24:29 Przejście pięter: próba 1/5 (R, Ctrl+klik) z (33128, 31809, 8), pole (33128, 31810)
+20:24:31 debug: stwory: Mastafian 0,0 hp100
+20:24:32 Przejście pięter: próba 2/5 (lina z plecaka) z (33128, 31809, 8), pole (33128, 31810)
+20:24:33 Przejście pięter: z8 -> z7 w (33128, 31811, 7) (próba 2, lina)
+20:24:34 debug: stwory: Mastafian 0,0 hp100
+20:24:35 debug: stwory: Mastafian 0,0 hp100
+20:24:36 debug: stwory: Mastafian 0,0 hp100
+20:24:38 debug: stwory: Mastafian 0,-1 hp100
+20:24:39 debug: stwory: Mastafian 0,-1 hp100
+20:24:40 debug: stwory: Mastafian 0,-1 hp100
+20:24:41 debug: stwory: Mastafian 0,0 hp100
+20:24:42 debug: stwory: Mastafian 0,0 hp100
+20:24:44 debug: stwory: Mastafian 0,0 hp100
+20:24:45 debug: stwory: Mastafian 0,0 hp100
+20:24:46 debug: stwory: Mastafian 0,-1 hp100
+20:24:48 debug: stwory: Mastafian 0,0 hp100
+20:24:49 debug: stwory: Mastafian 1,0 hp100
+20:24:51 debug: stwory: Mastafian 0,0 hp100
+20:24:52 debug: stwory: Mastafian 0,0 hp100
+20:24:53 debug: stwory: Mastafian 0,0 hp100
+20:24:54 debug: stwory: Mastafian 0,0 hp100
+20:24:55 debug: stwory: Mastafian 0,0 hp100
+20:24:57 debug: stwory: Mastafian 0,0 hp100
+20:24:58 debug: stwory: Mastafian 0,0 hp100
+20:24:59 debug: stwory: Mastafian 0,0 hp100
+20:25:00 debug: stwory: Mastafian 1,0 hp100
+20:25:02 debug: stwory: Mastafian 0,0 hp100
+20:25:03 debug: stwory: Mastafian 0,0 hp100
+20:25:04 debug: stwory: Mastafian 0,0 hp100; Goblin -8,6 hp100
+20:25:05 debug: stwory: Mastafian 0,0 hp100; Goblin -6,5 hp100; Goblin -7,5 hp100
+20:25:06 Trasa wstrzymana: Goblin 4 pól od nas (piętro 7), najpierw walka.
+20:25:06 [WALKA] trasa wstrzymana: Goblin odl 4
+20:25:07 debug: stwory: Mastafian 0,0 hp100; Goblin -4,4 hp100; Goblin -5,4 hp100
+20:25:07 [IDZ] punkt 97/121
+20:25:07 [WALKA] trasa wstrzymana: Goblin odl 4
+20:25:07 [IDZ] punkt 98/121
+20:25:07 [WALKA] trasa wstrzymana: Goblin odl 4
+20:25:07 [IDZ] punkt 98/121
+20:25:07 [WALKA] trasa wstrzymana: Goblin odl 4
+20:25:07 [IDZ] punkt 98/121
+20:25:07 [WALKA] trasa wstrzymana: Goblin odl 3
+20:25:07 [IDZ] punkt 99/121
+20:25:08 debug: stwory: Mastafian 0,0 hp100; Goblin -2,3 hp100; Goblin -1,3 hp100
+20:25:09 debug: stwory: Mastafian 0,0 hp100; Goblin -1,2 hp100; Goblin -2,3 hp100
+20:25:10 debug: stwory: Mastafian 0,0 hp100; Goblin 0,2 hp100; Goblin 1,2 hp100
+20:25:11 debug: stwory: Mastafian 0,0 hp100; Goblin -1,0 hp100; Goblin 0,-1 hp100; Goblin 0,6 hp100
+20:25:12 debug: stwory: Mastafian 0,0 hp100; Goblin -1,-2 hp100; Goblin 0,-2 hp100; Goblin -1,5 hp100
+20:25:13 debug: stwory: Mastafian 0,0 hp100; Goblin -2,-2 hp100; Goblin -1,-2 hp100; Goblin -1,4 hp100
+20:25:15 debug: stwory: Mastafian 0,0 hp100; Goblin -1,-1 hp100; Goblin -2,-2 hp100; Goblin -1,2 hp100; Goblin 7,6 hp100; Goblin 8,4 hp100
+20:25:16 debug: stwory: Mastafian 0,0 hp100; Goblin -2,-2 hp100; Goblin -2,-1 hp100; Goblin -1,-4 hp100; Goblin 5,4 hp100; Goblin 7,3 hp100
+20:25:18 debug: stwory: Mastafian 0,0 hp100; Goblin -2,-2 hp100; Goblin 3,3 hp100; Goblin -3,-2 hp100; Goblin -2,-4 hp100; Goblin 6,3 hp100
+20:25:19 debug: stwory: Mastafian 0,0 hp100; Goblin 2,2 hp100; Goblin 0,2 hp100; Goblin -3,-2 hp100; Goblin -4,-4 hp100; Goblin -4,-3 hp100
+20:25:20 Przejście pięter: stoję na z6, a punkt przed 110 jest na z7 (cel z7), szukam punktu trasy na tym piętrze
+20:25:21 debug: stwory: Mastafian 0,0 hp100
+20:25:21 Przejście pięter NIEUDANE (wyczerpane pola przejścia), z (33106, 31850, 6) do punktu 110; porażka 1/3
+20:25:21 Dojście: przejście pięter nieudane, kończę próbę (bez zawracania trasy).
+20:25:21 Koniec.
+Dojście: próba 2/5 od (33106, 31850, 6), 1 pkt.
+20:25:27 [OGIEN] nie wczytam maski stałych pól: AttributeError("'CavebotDojscie' object has no attribute 'mapa'")
+20:25:27 Start: trasa 1 pkt, najbliższy 0, próg HP 30.0%, jedzenie=None, potwory=['goblin']
+20:25:27 Wpadnięcie: wczytano 15 nauczonych dziur ([(31979, 32153, 11), (32338, 32226, 7), (32482, 32296, 8), (32498, 32271, 8), (32508, 32273, 8)]).
+20:25:27 debug: stwory: Mastafian 0,0 hp100
+20:25:27 pochodnia: w slocie 10 nieznane ID 3003, nie ruszam (po pierwszym Use/wypaleniu bot sam się nauczy)
+20:25:27 [IDZ] punkt 0/1
+20:25:28 Okrążenie 1 gotowe.
+20:25:28 Dojście: koniec trasy w (33106, 31849, 6) bez osiągnięcia celu, kończę próbę (bez odwracania).
+20:25:28 Koniec.
+Dojście: próba 3/5 od (33106, 31849, 6), 1 pkt.
+20:25:33 [OGIEN] nie wczytam maski stałych pól: AttributeError("'CavebotDojscie' object has no attribute 'mapa'")
+20:25:34 Start: trasa 1 pkt, najbliższy 0, próg HP 30.0%, jedzenie=None, potwory=['goblin']
+20:25:34 Wpadnięcie: wczytano 15 nauczonych dziur ([(31979, 32153, 11), (32338, 32226, 7), (32482, 32296, 8), (32498, 32271, 8), (32508, 32273, 8)]).
+20:25:34 debug: stwory: Mastafian 0,0 hp100
+20:25:34 pochodnia: w slocie 10 nieznane ID 3003, nie ruszam (po pierwszym Use/wypaleniu bot sam się nauczy)
+20:25:34 [IDZ] punkt 0/1
+20:25:34 Okrążenie 1 gotowe.
+20:25:34 Dojście: koniec trasy w (33106, 31849, 6) bez osiągnięcia celu, kończę próbę (bez odwracania).
+20:25:34 Koniec.
+Dojście: próba 4/5 od (33106, 31849, 6), 1 pkt.
+20:25:39 [OGIEN] nie wczytam maski stałych pól: AttributeError("'CavebotDojscie' object has no attribute 'mapa'")
+20:25:40 Start: trasa 1 pkt, najbliższy 0, próg HP 30.0%, jedzenie=None, potwory=['goblin']
+20:25:40 Wpadnięcie: wczytano 15 nauczonych dziur ([(31979, 32153, 11), (32338, 32226, 7), (32482, 32296, 8), (32498, 32271, 8), (32508, 32273, 8)]).
+20:25:40 debug: stwory: Mastafian 0,0 hp100
+20:25:40 pochodnia: w slocie 10 nieznane ID 3003, nie ruszam (po pierwszym Use/wypaleniu bot sam się nauczy)
+20:25:40 [IDZ] punkt 0/1
+20:25:40 Okrążenie 1 gotowe.
+20:25:40 Dojście: koniec trasy w (33106, 31849, 6) bez osiągnięcia celu, kończę próbę (bez odwracania).
+20:25:40 Koniec.
+Dojście: próba 5/5 od (33106, 31849, 6), 1 pkt.
+20:25:45 [OGIEN] nie wczytam maski stałych pól: AttributeError("'CavebotDojscie' object has no attribute 'mapa'")
+20:25:46 Start: trasa 1 pkt, najbliższy 0, próg HP 30.0%, jedzenie=None, potwory=['goblin']
+20:25:46 Wpadnięcie: wczytano 15 nauczonych dziur ([(31979, 32153, 11), (32338, 32226, 7), (32482, 32296, 8), (32498, 32271, 8), (32508, 32273, 8)]).
+20:25:46 debug: stwory: Mastafian 0,0 hp100
+20:25:46 pochodnia: w slocie 10 nieznane ID 3003, nie ruszam (po pierwszym Use/wypaleniu bot sam się nauczy)
+20:25:46 [IDZ] punkt 0/1
+20:25:46 Okrążenie 1 gotowe.
+20:25:46 Dojście: koniec trasy w (33106, 31849, 6) bez osiągnięcia celu, kończę próbę (bez odwracania).
+20:25:46 Koniec.
+20:25:46 Dojście nieukończone (przerwane albo nie dotarłem do końca) i postać jest daleko od trasy gobliny_edron_z8_petla, nie zaczynam głównej trasy.

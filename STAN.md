@@ -9,6 +9,8 @@ Specyfikacje i decyzje: `dane_tibia/SPEC_*.md`. Ten plik streszcza i linkuje.
 
 ## Gdzie jesteśmy
 
+- **19.10 ratunek Haiku (DRAFT, czeka na Q1-Q6 Karola):** `dane_tibia/SPEC_ratunek_haiku_1019.md`. Przypadek R1: Mastafian po walce przy otworze do goblinów stanął na z6 (33106,31849), dojście 5x nieudane, bot zakończony 20:25:46; dowody w `dane_tibia/repro/ratunek_1019/`. Bez kodu.
+
 - **Do zrobienia (zgłosił Karol 18.10, wymaga specyfikacji):** lina/drabina/dziura zajęte przez przedmioty (np. zwłoki szczura na polu liny) — nie da się skorzystać z przejścia. Bot ma nauczyć się zdejmować śmieci z pola przejścia (przesunąć/zabrać przedmiot) przed użyciem liny; dziś próba 18.10 11:30 na z9->z8 (33131,31806) skończyła się `Przejście pięter NIEUDANE` i dojście przerwane. Przyczyna zajętego pola niepotwierdzona zrzutem.
 
 - **18.10 izolacja okna (poprawka w `bot.py`, bez commita):** `ekran_gry()` łapał dowolny proces z tekstem `retronicgl-` w wierszu poleceń (też powłokę z grepem) -> DISPLAY pulpitu `:0` (4480x1440) zamiast gry `:1`; bot ślepy, stał w miejscu. Teraz tylko argv[0] `RetronicGL-<n>.exe` + `RETRONIC_ID` + `WAYLAND_DISPLAY` z `sesja/wayland` swojej instancji (każdy bot widzi tylko swoje okno; docelowo kilka klientów). Test `testy/test_ekran_gry.py` 7/7. Start z z9 / z8 wymaga ręcznego `--dojscie gobliny_edron_z_depo` (uruchom.sh dodaje dojście tylko z z7 i tylko z `RETRONIC_POSTAC=Mastafian`). Inne źródła wspólne dla instancji (gniazdo `retronic-pomocnik.sock`) nie sprawdzone.
