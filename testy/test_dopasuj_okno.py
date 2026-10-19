@@ -329,4 +329,39 @@ _os.makedirs(f"{_tmp}/333"); open(f"{_tmp}/333/cmdline", "wb").write(b"python3\0
 sprawdz("BD5 proces bez czytelnego environ liczy się ostrożnie jak dawniej (blokuje)", d.bot_dziala(proc=_tmp, instancja="inna") is True)
 shutil.rmtree(_tmp, ignore_errors=True)
 
+
+# 19.10: skala tylko na sway TEJ instancji (helper Mastafiana przeskalował sesję Johny'ego) i powrót do skali 1 przy bocie
+_rt = tempfile.mkdtemp(prefix="rt-"); _pr = tempfile.mkdtemp(prefix="proc-")
+_sg, _st = f"{_rt}/retronic-sesja", f"{_rt}/retronic-sesja-test"
+for _k in (_sg, _st): _os.makedirs(_k)
+for _pid, _k in (("100", _sg), ("200", _st)):
+    open(f"{_rt}/sway-ipc.1000.{_pid}.sock", "w").close()
+    _os.makedirs(f"{_pr}/{_pid}")
+    open(f"{_pr}/{_pid}/cmdline", "wb").write(b"sway\0--unsupported-gpu\0-c\0" + f"{_k}/sway.conf".encode() + b"\0")
+_os.utime(f"{_rt}/sway-ipc.1000.200.sock", (2e9, 2e9))      # sway testu nowszy: stary kod wybrałby go dla głównej
+sprawdz("GS1 główna bez pliku swaysock: gniazdo z argv swaya głównej, nie najnowsze",
+        d.gniazdo_sway(_sg, _rt, _pr) == f"{_rt}/sway-ipc.1000.100.sock")
+sprawdz("GS2 instancja test: swój sway", d.gniazdo_sway(_st, _rt, _pr) == f"{_rt}/sway-ipc.1000.200.sock")
+open(f"{_st}/swaysock", "w").write(f"{_rt}/sway-ipc.1000.200.sock")
+sprawdz("GS3 plik swaysock wygrywa", d.gniazdo_sway(_st, _rt, _pr) == f"{_rt}/sway-ipc.1000.200.sock")
+_os.makedirs(f"{_rt}/retronic-sesja-inna")
+sprawdz("GS4 sesja bez swaya: None (nigdy cudze gniazdo)", d.gniazdo_sway(f"{_rt}/retronic-sesja-inna", _rt, _pr) is None)
+_wyw = []
+class _W:
+    def __init__(self, rc=0, out=""): self.returncode, self.stdout = rc, out
+def _swaymsg(skala):
+    def f(cmd, **kw):
+        _wyw.append(cmd)
+        return _W(0, json.dumps([{"name": "HEADLESS-1", "active": True, "scale": skala}])) if "get_outputs" in cmd else _W(0)
+    return f
+sprawdz("SB1 bez bota skali nie ruszamy", d.skala_przy_bocie("g", False, _swaymsg(1.175), log=lambda m: None) is False and not _wyw)
+sprawdz("SB2 bot + skala 1.175 -> scale 1 na TYM gnieździe",
+        d.skala_przy_bocie("g", True, _swaymsg(1.175), log=lambda m: None) is True and _wyw[-1] == ["swaymsg", "-s", "g", "output", "*", "scale", "1"])
+_wyw.clear()
+sprawdz("SB3 bot + skala 1 -> nic", d.skala_przy_bocie("g", True, _swaymsg(1.0), log=lambda m: None) is False and len(_wyw) == 1)
+sprawdz("SB4 bez gniazda -> nic", d.skala_przy_bocie(None, True, _swaymsg(1.5), log=lambda m: None) is False)
+_wyw.clear()
+sprawdz("SS2 ustaw_skale_sway idzie na podane gniazdo", d.ustaw_skale_sway(940, _swaymsg(1.0), gniazdo="moje", bot=False) and _wyw[-1][:3] == ["swaymsg", "-s", "moje"])
+shutil.rmtree(_rt, ignore_errors=True); shutil.rmtree(_pr, ignore_errors=True)
+
 print("WYNIK", "OK" if all(ok) else "FAIL", f"{sum(ok)}/{len(ok)}"); sys.exit(0 if all(ok) else 1)

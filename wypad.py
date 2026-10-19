@@ -1690,6 +1690,14 @@ class Wypad:
         teraz = cb.zegar()
         self.dojscie = None
         self._blad(typ, opis=opis)
+        try:   # 19.10 ratunek F1 (S1, cień): nieodwracalny problem wyprawy
+            z = getattr(cb, "_ratunek_zdarzenie", None)
+            if z is not None:
+                z("porazka_trasy", None, co="wyprawa", typ=typ, powod=opis)
+        except bot.Zatrzymano:
+            raise
+        except Exception:
+            pass
         self.wynik = "porazka_sklepu" if self.faza != "z" else (self.wynik or "awaria")
         if self.faza in ("do", "sklep"):
             self.log(f"Wypad: awaria ({typ}: {opis}), wracam na łowisko bez zakupów")

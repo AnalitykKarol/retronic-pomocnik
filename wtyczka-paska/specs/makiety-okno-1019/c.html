@@ -1,0 +1,50 @@
+<!doctype html><html lang="pl"><head><meta charset="utf-8"><title>Wariant C</title><link rel="stylesheet" href="wspolne.css">
+<style>
+.top{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line)}
+.cmd{flex:1;max-width:520px;height:32px;border:1px solid var(--blue);border-radius:8px;display:flex;align-items:center;padding:0 12px;gap:8px;background:var(--sur)}
+.cmd .kbd{margin-left:auto;color:var(--dim2);font-size:10.5px;border:1px solid var(--line2);border-radius:4px;padding:0 5px}
+.cols{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px 18px;min-height:0;position:relative}
+.col{border:1px solid var(--line);border-radius:12px;background:var(--sur);display:flex;flex-direction:column;overflow:hidden}
+.ch{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.ch .nm{font-size:16px;font-weight:700}
+.sec{padding:12px 16px;border-bottom:1px solid var(--line)}
+.sec .lbl{margin-bottom:8px;display:block}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opt{padding:5px 10px;border-radius:6px;border:1px solid var(--line2);color:var(--fg2);font-size:11.5px}
+.opt.on{border-color:var(--blue);background:rgba(122,162,247,.14);color:var(--fg)}
+.opt.on2{border-color:var(--mag);background:rgba(187,154,247,.14);color:var(--fg)}
+.pal{position:absolute;left:18px;top:2px;width:560px;border:1px solid var(--blue);border-radius:10px;background:var(--bg2);box-shadow:0 18px 50px rgba(0,0,0,.6);z-index:5;overflow:hidden}
+.pal .r{display:grid;grid-template-columns:1fr 70px 60px;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line);align-items:center}
+.pal .r.on{background:rgba(122,162,247,.10)}
+.pal .grp{color:var(--dim2);font-size:10.5px}
+mark{background:rgba(224,175,104,.3);color:var(--fg);border-radius:2px}
+</style></head><body><div class="win">
+<div class="titlebar"><b>Retronic</b><span>okno zarządzania</span><span style="margin-left:auto">2 postaci obok siebie</span></div>
+<div class="top"><div class="cmd"><span class="t-blue">⌕</span><span>uh</span><span class="kbd">Ctrl K</span></div><span class="t-dim">szukaj pokrętła, mapy, akcji — dla obu postaci</span><span style="margin-left:auto" class="btn">Sesje gier</span></div>
+<div class="cols">
+ <div class="pal">
+  <div class="r on"><div><div class="k"><mark>UH</mark>_KOSZT <span class="t-dim">· koszt many runy</span></div><div class="grp">Leczenie i runy · Mastafian</div></div><div class="val zm">110</div><span class="t-dim">Enter</span></div>
+  <div class="r"><div><div class="k"><mark>UH</mark>_MANA_MIN <span class="t-dim">· mana do startu</span></div><div class="grp">Leczenie i runy · Mastafian</div></div><div class="val">100</div><span></span></div>
+  <div class="r"><div><div class="k"><mark>UH</mark>_W_WALCE <span class="t-dim">· runa w trakcie walki</span></div><div class="grp">Leczenie i runy · Mastafian</div></div><div class="tog on"></div><span></span></div>
+  <div class="r"><div><div class="k">PK_<mark>UH</mark>_SZYBKIE <span class="t-dim">· UH na siebie przy PK</span></div><div class="grp">Gracze i PK · obie postaci</div></div><div class="tog"></div><span></span></div>
+  <div class="r"><div><div class="k">tryb „<mark>uh</mark>” <span class="t-dim">· robienie run UH w spokoju</span></div><div class="grp">Mapa i tryb</div></div><span class="chip">dodaj</span><span></span></div>
+ </div>
+ <div class="col">
+  <div class="ch"><span class="dot ok"></span><span class="nm">Mastafian</span><span class="chip">główna</span><span class="t-dim" style="margin-left:auto">IDZ · z8</span></div>
+  <div class="sec" style="padding-top:150px"><span class="lbl">Mapa</span><div class="opts"><span class="opt on">gobliny_edron</span><span class="opt">gobliny_edron_z9</span><span class="opt">trolle_edron_patrol</span><span class="opt">trolle_patrol</span><span class="opt">raty</span><span class="opt">wilki</span></div></div>
+  <div class="sec"><span class="lbl">Tryb</span><div class="opts"><span class="opt on2">ostrozny</span><span class="opt on2">wyprawa</span><span class="opt">ml</span><span class="opt">uh</span><span class="opt">runy</span><span class="opt">sredni</span></div></div>
+  <div class="sec row"><span class="btn stop">■ Stop</span><span class="btn">⌂ Miasto</span><span class="btn">↻ Refill</span><span class="btn">↗ Spot</span><span class="t-dim" style="margin-left:auto">ratunek: 3 dziś</span></div>
+ </div>
+ <div class="col">
+  <div class="ch"><span class="dot ok"></span><span class="nm">Johny Dang</span><span class="chip">test · proxy</span><span class="t-dim" style="margin-left:auto">WALKA · z8</span></div>
+  <div class="sec"><span class="lbl">Stan</span>
+   <div class="row" style="gap:6px"><span class="lbl" style="width:24px;margin:0">HP</span><div class="bar hp"><i style="width:95%"></i></div><span class="mono t-dim">95 %</span></div>
+   <div class="row" style="gap:6px;margin-top:6px"><span class="lbl" style="width:24px;margin:0">MP</span><div class="bar mp"><i style="width:0%"></i></div><span class="mono t-dim">0/65</span></div>
+   <div class="row" style="margin-top:10px;gap:20px"><div class="stat"><span class="lbl" style="margin:0">exp</span><span class="v">6 723</span></div><div class="stat"><span class="lbl" style="margin:0">zabite</span><span class="v">22 <span class="t-dim" style="font-size:11px">/ 15 min</span></span></div><div class="stat"><span class="lbl" style="margin:0">cap</span><span class="v">46</span></div></div></div>
+  <div class="sec"><span class="lbl">Mapa</span><div class="opts"><span class="opt">trolle</span><span class="opt on">trolle_patrol</span><span class="opt">trolle_pelny</span><span class="opt">trolle_nowe</span><span class="opt">raty</span><span class="opt">rook</span></div></div>
+  <div class="sec"><span class="lbl">Tryb</span><div class="opts"><span class="opt on2">ml</span><span class="opt on2">ostrozny</span><span class="opt">wyprawa</span><span class="opt">sredni</span></div></div>
+  <div class="sec row"><span class="btn stop">■ Stop</span><span class="btn">⌂ Miasto</span><span class="btn">↻ Refill</span><span class="btn">↗ Spot</span><span class="t-dim" style="margin-left:auto">ratunek: S6 21:00</span></div>
+ </div>
+</div>
+<div class="foot"><span>zmiana mapy/trybu = przy następnym starcie · pokrętła = na żywo</span><span style="margin-left:auto">Ctrl K szukaj · Esc zamknij</span></div>
+</div></body></html>

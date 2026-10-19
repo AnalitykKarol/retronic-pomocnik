@@ -1,0 +1,62 @@
+<!doctype html><html lang="pl"><head><meta charset="utf-8"><title>Wariant A</title><link rel="stylesheet" href="wspolne.css">
+<style>
+.head{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line)}
+.who{display:flex;gap:8px}
+.who .p{display:flex;align-items:center;gap:9px;padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:var(--sur)}
+.who .p.on{border-color:var(--blue);background:rgba(122,162,247,.10)}
+.who .p .nm{font-weight:700}
+.who .p .sub{color:var(--dim);font-size:10.5px}
+.tabs{display:flex;gap:2px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--bg2)}
+.tab{padding:11px 16px;color:var(--dim);font-weight:600;border-bottom:2px solid transparent}
+.tab.on{color:var(--fg);border-bottom-color:var(--blue)}
+.tab .n{display:inline-block;margin-left:6px;padding:0 6px;border-radius:8px;background:rgba(217,164,65,.2);color:var(--warn);font-size:10px}
+.body{flex:1;display:grid;grid-template-columns:210px 1fr;min-height:0}
+.groups{border-right:1px solid var(--line);padding:14px 10px;display:flex;flex-direction:column;gap:2px;overflow:hidden}
+.g{display:flex;justify-content:space-between;padding:7px 10px;border-radius:6px;color:var(--fg2)}
+.g span{color:var(--dim2)}
+.g.on{background:var(--sur2);color:var(--fg)}
+.search{height:30px;border:1px solid var(--line2);border-radius:6px;display:flex;align-items:center;padding:0 10px;color:var(--dim2);margin-bottom:10px}
+.main{padding:16px 26px;overflow:hidden}
+.save{display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 12px;border-radius:8px;background:rgba(217,164,65,.08);border:1px solid rgba(217,164,65,.35)}
+</style></head><body><div class="win">
+<div class="titlebar"><b>Retronic</b><span>okno zarządzania</span><span style="margin-left:auto">2 postaci · 2 boty działają · ratunek: cień</span></div>
+<div class="head">
+ <div class="who">
+  <div class="p on"><span class="dot ok"></span><div><div class="nm">Mastafian</div><div class="sub">gobliny_edron · ostrozny, wyprawa</div></div></div>
+  <div class="p"><span class="dot ok"></span><div><div class="nm">Johny Dang</div><div class="sub">trolle_patrol · ml, ostrozny · proxy</div></div></div>
+  <div class="p" style="border-style:dashed;color:var(--dim)">+ instancja</div>
+ </div>
+ <div style="margin-left:auto;display:flex;gap:16px;align-items:center">
+  <div style="width:150px"><div class="row" style="gap:6px"><span class="lbl" style="width:28px">HP</span><div class="bar hp"><i style="width:100%"></i></div><span class="mono t-dim">250</span></div>
+   <div class="row" style="gap:6px;margin-top:5px"><span class="lbl" style="width:28px">MP</span><div class="bar mp"><i style="width:6%"></i></div><span class="mono t-dim">25</span></div></div>
+  <span class="btn stop">■ Stop</span><span class="btn">⌂ Miasto</span><span class="btn">↻ Refill</span><span class="btn">↗ Spot</span>
+ </div>
+</div>
+<div class="tabs"><div class="tab">Sesja gry</div><div class="tab">Mapa i tryb</div><div class="tab on">Ustawienia</div><div class="tab">Ratunek<span class="n">3</span></div></div>
+<div class="body">
+ <div class="groups">
+  <div class="search">⌕ szukaj pokrętła…</div>
+  <div class="g"><b style="font-weight:600">Walka i pościg</b><span>36</span></div>
+  <div class="g on"><b style="font-weight:600">Leczenie i runy</b><span>32</span></div>
+  <div class="g">Wyprawa i serwis<span>37</span></div>
+  <div class="g">Patrol<span>29</span></div>
+  <div class="g">Gracze i PK<span>57</span></div>
+  <div class="g">Piętra i dojście<span>22</span></div>
+  <div class="g">Loot<span>11</span></div>
+  <div class="g">Ratunek<span>13</span></div>
+  <div class="g">Zaawansowane<span>70</span></div>
+ </div>
+ <div class="main">
+  <div class="row" style="justify-content:space-between;margin-bottom:6px"><div><div style="font-size:16px;font-weight:700">Leczenie i runy</div><div class="t-dim" style="margin-top:3px">zmiana działa na żywo w bocie Mastafiana (na_zywo.json), bez restartu</div></div><span class="chip">tylko zmienione</span></div>
+  <div class="knob"><div><div class="n">Leczenie exura poniżej</div><div class="d">ZDROWIE_CZAR_HP · HP% poniżej którego leczymy</div></div><div class="slider"><i style="width:75%"></i><b style="left:75%"></b></div><div class="val">80 %</div></div>
+  <div class="knob"><div><div class="n">Runa UH w walce</div><div class="d">UH_W_WALCE · gdy mana prawie pełna</div></div><div></div><div class="tog on"></div></div>
+  <div class="knob"><div><div class="n">Koszt many runy</div><div class="d">UH_KOSZT · adura vita, F7</div></div><div class="slider"><i style="width:20%"></i><b style="left:20%"></b></div><div class="val zm">110</div></div>
+  <div class="knob"><div><div class="n">Mana do startu runy</div><div class="d">UH_MANA_MIN</div></div><div class="slider"><i style="width:20%"></i><b style="left:20%"></b></div><div class="val">100</div></div>
+  <div class="knob"><div><div class="n">HP do startu runy</div><div class="d">UH_MIN_HP · % HP gracza</div></div><div class="slider"><i style="width:80%"></i><b style="left:80%"></b></div><div class="val">90 %</div></div>
+  <div class="knob"><div><div class="n">Strzał runą w cel</div><div class="d">RUNA_AKTYWNA · HMM w walce</div></div><div></div><div class="tog"></div></div>
+  <div class="knob"><div><div class="n">Jedzenie na zapas w walce</div><div class="d">JEDZENIE_ZAPAS_W_WALCE</div></div><div></div><div class="tog on"></div></div>
+  <div class="save"><span class="t-warn" style="font-weight:700">1 niezapisana zmiana</span><span class="t-dim">UH_KOSZT 100 → 110</span><span style="margin-left:auto" class="btn">Cofnij</span><span class="btn prim">Zapisz</span></div>
+ </div>
+</div>
+<div class="foot"><span><span class="dot ok"></span> Mastafian: IDZ (33101, 31878, z8)</span><span>exp 118 030</span><span>ostatni zapis 20:52</span><span style="margin-left:auto">AI: reguły + ratunek w cieniu</span></div>
+</div></body></html>

@@ -3834,6 +3834,28 @@ def przejdz_dojscie(postac, punkty, prog_hp=40, jedzenie=None, potwory=None, gra
     return False
 
 
+def ratunek_porazka(postac, co, log=print, **d):
+    """Ratunek F1 (SPEC_ratunek_haiku_1019, S1, cień): porażka trasy -> log „wołałbym Haiku”. Nic nie zmienia."""
+    if not getattr(cavebot, "RATUNEK_HAIKU", 0):
+        return
+    try:
+        import ratunek  # noqa: PLC0415
+        try:
+            poz = tuple(postac.pozycja())
+        except bot.Zatrzymano:
+            raise
+        except Exception:
+            poz = None
+        s = ratunek.detektor(cavebot).zdarzenie("porazka_trasy", time.monotonic(), poz, co=co, **d)   # zegar jak Cavebot
+        plik = None if os.environ.get("RETRONIC_TESTY") else ratunek.plik_logu(instancja.S.logi)
+        ratunek.zglos(s, log=log, plik_logu=plik, pytaj=bool(getattr(cavebot, "RATUNEK_HAIKU_PYTAJ", 0)) and cavebot.RATUNEK_HAIKU == 1,
+                      limit_h=getattr(cavebot, "RATUNEK_LIMIT_H", None))   # F2a: Haiku w cieniu (wątek, bez ruchu)
+    except bot.Zatrzymano:
+        raise
+    except Exception as e:
+        log(f"debug: ratunek błąd {e!r}")
+
+
 def blisko_trasy(postac, punkty, odl=DOJSCIE_BLISKO_TRASY):
     """True, gdy postać stoi na piętrze trasy w odległości <= odl pól (Chebyshev) od któregoś jej punktu."""
     x, y, z = postac.pozycja()
@@ -3935,6 +3957,7 @@ def main(argv):
         log(f"Dojście: trasa {a.dojscie} ({len(dojscie)} pkt), potem {a.trasa}.")
         if not przejdz_dojscie(postac, dojscie, a.prog_hp, a.jedzenie, potwory, not a.ignoruj_graczy,
                                a.stop_przy_graczach):
+            ratunek_porazka(postac, "dojscie", log=log, trasa=a.dojscie)
             if not blisko_trasy(postac, punkty):
                 log("Dojście nieukończone (przerwane albo nie dotarłem do końca) i postać jest daleko od trasy "
                     f"{a.trasa}, nie zaczynam głównej trasy.")
