@@ -10,6 +10,7 @@ więc widać i guziki aktywne dla działającego bota (Stop, ⌂ Miasto), i dla 
 """
 import json
 import os
+import shutil
 import stat
 import sys
 import time
@@ -85,8 +86,12 @@ def buduj(korzen, ile=2):
              "wyprawa": {"opis": "Wyprawy po zapasy w trakcie patrolu.", "pokretla": {"WYPRAWA_AKTYWNA": 1, "WYPRAWA_CO_MIN": 20}},
              "ml": {"opis": "Trening ML przez utevo lux (F1) w spokoju; robienie run wyłączone.",
                     "pokretla": {"ML_CZAR_AKTYWNY": 1, "UH_AKTYWNY": 0}},
-             "runy": {"opis": "Robienie run w spokoju: tarcza do plecaka, blank do ręki, rzut, runa do plecaka.",
-                      "pokretla": {"UH_AKTYWNY": 1, "ML_CZAR_AKTYWNY": 0, "UH_KLAWISZ": "F6"}}}
+             "runy": {"opis": "Robienie run w spokoju (adori gran, F6, 70 many): tarcza do plecaka, blank do ręki, rzut, runa do plecaka.",
+                      "pokretla": {"UH_AKTYWNY": 1, "ML_CZAR_AKTYWNY": 0, "UH_KLAWISZ": "F6", "UH_CZAR": "adori gran", "UH_KOSZT": 70,
+                                   "UH_MANA_MIN": 70}},
+             "uh": {"opis": "Robienie run UH (adura vita, F7, 100 many): tarcza do plecaka, blank do ręki, rzut, runa do plecaka.",
+                    "pokretla": {"UH_AKTYWNY": 1, "ML_CZAR_AKTYWNY": 0, "UH_KLAWISZ": "F7", "UH_CZAR": "adura vita", "UH_KOSZT": 100,
+                                 "UH_MANA_MIN": 100}}}
     zapisz(kat / "mapy.json", json.dumps(mapy, ensure_ascii=False), False)
     zapisz(kat / "tryby.json", json.dumps(tryby, ensure_ascii=False), False)
     zapisz(kat / "ostatni_start.env", "MAPA=gobliny_edron\nTRYB=ostrozny,wyprawa\n", False)
@@ -119,7 +124,13 @@ def buduj(korzen, ile=2):
            json.dumps(sygnal(teraz - 86400 + 60, "S3", "stoi", [33100, 31860, 8], "IDZ", stoi_s=34.8, kotwica=[33101, 31860, 8])) + "\n", False)
     test = [sygnal(teraz - 900, "S6", "klik bez skutku", [32483, 32293, 8], "WALKA", n=5, cel="Troll")]
     zapisz(kat / "instancje" / "test" / "logi" / f"ratunek-{data}.jsonl", "".join(json.dumps(r) + "\n" for r in test), False)
-    zapisz(kat / "na_zywo.json", json.dumps({"RATUNEK_HAIKU": 1, "RATUNEK_LIMIT_H": 20}), False)
+    # ---- pokrętła: cavebot.py kopiowany tylko do odczytu (okno_api czyta z niego domyślne i komentarze przez ast, nigdy go nie uruchamia)
+    shutil.copy(DOM / "cavebot.py", kat / "cavebot.py")
+    zapisz(kat / "na_zywo.json", json.dumps({
+        "RATUNEK_HAIKU": 1, "RATUNEK_LIMIT_H": 20, "RUNA_AKTYWNA": 1, "UH_AKTYWNY": 0, "UH_CZAR": "adura vita", "UH_KLAWISZ": "F7",
+        "UH_KOSZT": 100, "UH_MANA_MIN": 100, "POGON_LIMIT": 25.0, "_opis": "ręczna notatka", "STARY_KLUCZ": 5}, indent=1), False)
+    zapisz(kat / "instancje" / "test" / "na_zywo.json", json.dumps({
+        "UH_AKTYWNY": 1, "UH_CZAR": "adori gran", "UH_KLAWISZ": "F6", "UH_KOSZT": 70, "UH_MANA_MIN": 70, "ML_CZAR_AKTYWNY": 0}, indent=1), False)
 
     # ---- atrapa /proc: tylko bot głównej instancji (python3 mozg.py, RETRONIC_POSTAC=Mastafian)
     proc = korzen / "proc" / "4242"
