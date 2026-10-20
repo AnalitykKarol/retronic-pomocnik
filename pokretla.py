@@ -201,6 +201,7 @@ ZAKRESY = {
     "WPADNIECIE_LINA": (0, 1),          # 1 = pierwsza próba wyjścia: Use liny na polu lądowania (rope spot pod dziurą)
     "WPADNIECIE_LINA_PROB": (1, 5),     # prób liny przed planem po mapie
     "WPADNIECIE_PLAN": (0, 1),          # 1 = gdy lina nie działa, plan wielopiętrowy po mapie i przejściach z danych (pietra.py)
+    "WPADNIECIE_POSCIG": (0, 1),        # 20.10: 1 = upadek w dziurę w trakcie pościgu też jest wykrywany (ostatnia próbka odświeżana w pętli); domyślnie 0
     "WPADNIECIE_WALIDACJA": (0, 1),     # 1 = nauka dziury tylko z flagą 2 mapy i bez schodów w pobliżu (domyślnie 0)
     "WPADNIECIE_ODL": (1, 6),           # pola: lądowanie tak blisko poprzedniej pozycji = upadek (dalej: teleport/śmierć)
     "DZIURA_PRZY_CELU": (0, 1),         # 15.10: 1 = nie atakujemy/nie gonimy celu stojącego przy znanej dziurze, gdy klient szedłby przez nią
@@ -317,6 +318,11 @@ ZAKRESY = {
     "RATUNEK_OKRAZENIA_S": (20.0, 300.0),  # S7: okno [s] (domyślnie 60)
     "RATUNEK_PRZERWA_S": (30.0, 1800.0),   # debounce sygnału w tym samym miejscu [s] (domyślnie 120)
     "RATUNEK_LIMIT_H": (1, 120),        # limit wywołań Haiku na godzinę (Q3, domyślnie 20); w cieniu tylko flaga
+    "STRAZNIK_ORBITY": (0, 2),          # 20.10 (SPEC_orbity_straznik_1020, B): 0 = wyłączony; 1 = cień: log [ORBITA] + telemetria straznik_orbita; 2 = działa: stop chodzenia, rotacja sposobów naprawy do skutku, nigdy STOP (domyślnie 0)
+    "STRAZNIK_ORBITA_S": (30.0, 600.0),    # s okno orbity: >= STRAZNIK_ORBITA_ZMIAN zmian pozycji w <= STRAZNIK_ORBITA_POL polach poza walką (domyślnie 60)
+    "STRAZNIK_ORBITA_POL": (3, 12),     # maks. różnych pól orbity (domyślnie 8)
+    "STRAZNIK_ORBITA_ZMIAN": (6, 60),   # min. zmian pozycji w oknie (domyślnie 15)
+    "STRAZNIK_WYJSCIE_S": (30.0, 150.0),   # s aktywne na dłuższy sposób naprawy (plan pięter, A* do punktu), potem następny sposób (domyślnie 90; plan pięter zawsze zwijany po <= 120 s, przed PIETRA_MAX_S)
     "D3_ALARM_S": (0.0, 1800.0),        # 17.10 (F1): >0 = zawieszka D3 trwająca tyle s => jedno powiadomienie krytyczne, bez STOP (domyślnie 0 = wyłączone)
     "SLEPOTA_DIAG_S": (0.0, 900.0),     # 19.10: s bez expa i potworów (bot polował) => zrzut diagnostyki do logi/slepota/ (0 = wyłączone)
     "SLEPOTA_RESTART_S": (0.0, 1800.0), # 19.10: s takiej ślepoty => restart mozg.py (0 = bez restartu; min. rozsądnie 240)
@@ -408,7 +414,7 @@ KIERUNEK = {
     "WYPRAWA_AKTYWNA": "nie_wyzej", "WYPRAWA_BLANKI": "nie_wyzej", "WYPRAWA_BLANKI_MAX_KOSZT": "nie_wyzej",
     "WYPRAWA_JEDZENIE_CEL": "nie_wyzej", "WYPRAWA_JEDZENIE_DOKUP": "nie_wyzej", "WYPRAWA_MIN_HP": "nie_nizej",
     "WYPRAWA_CO_MIN": "nie_nizej", "WYPRAWA_MAX_CZAS_S": "nie_wyzej", "WYPRAWA_MAX_KROKOW": "nie_wyzej",
-    "WYPRAWA_STOP_PRZY_UTKNIECIU": "nie_nizej", "WYPRAWA_CZEKAJ_NA_GLOD": "nie_wyzej", "JEDZENIE_BRAK_WALIDUJ": "nie_nizej", "JEDZENIE_BRAK_PROBY": "nie_nizej", "GLOD_ZAPAS_WAZNY_S": "nie_wyzej", "WYPRAWA_WZNOW_WALIDUJ": "nie_nizej", "WYPAD_BIEGNIJ": "nie_nizej", "DOJSCIE_BIEGNIJ": "nie_nizej", "WPADNIECIE": "nie_nizej", "WPADNIECIE_WALIDACJA": "nie_wyzej", "WPADNIECIE_LINA": "nie_nizej", "WPADNIECIE_PLAN": "nie_nizej", "DZIURY_NAUCZONE": "nie_nizej", "DZIURA_PRZY_CELU": "nie_nizej", "WPADNIECIE_LINA_PROB": "nie_nizej", "PIETRA_LOPATA": "nie_nizej", "PIETRA_TRYBY_Z_DANYCH": "nie_nizej", "PIETRA_STARTY_DOMYSLNE": "nie_nizej", "WYPRAWA_DEPO_POWROT": "nie_wyzej", "WYPRAWA_DEPO_POSTOJ_S": "nie_wyzej", "WYPRAWA_TYLKO_DEPO": "nie_wyzej", "WYPRAWA_MARSZ_KLIK": "nie_wyzej", "WROC_REFILL": "nie_wyzej", "WYPRAWA_ZLOTO_MIN": "nie_nizej", "WYPRAWA_CAP_REZERWA": "nie_nizej",
+    "WYPRAWA_STOP_PRZY_UTKNIECIU": "nie_nizej", "WYPRAWA_CZEKAJ_NA_GLOD": "nie_wyzej", "JEDZENIE_BRAK_WALIDUJ": "nie_nizej", "JEDZENIE_BRAK_PROBY": "nie_nizej", "GLOD_ZAPAS_WAZNY_S": "nie_wyzej", "WYPRAWA_WZNOW_WALIDUJ": "nie_nizej", "WYPAD_BIEGNIJ": "nie_nizej", "DOJSCIE_BIEGNIJ": "nie_nizej", "WPADNIECIE": "nie_nizej", "WPADNIECIE_WALIDACJA": "nie_wyzej", "WPADNIECIE_POSCIG": "nie_wyzej", "WPADNIECIE_LINA": "nie_nizej", "WPADNIECIE_PLAN": "nie_nizej", "DZIURY_NAUCZONE": "nie_nizej", "DZIURA_PRZY_CELU": "nie_nizej", "WPADNIECIE_LINA_PROB": "nie_nizej", "PIETRA_LOPATA": "nie_nizej", "PIETRA_TRYBY_Z_DANYCH": "nie_nizej", "PIETRA_STARTY_DOMYSLNE": "nie_nizej", "WYPRAWA_DEPO_POWROT": "nie_wyzej", "WYPRAWA_DEPO_POSTOJ_S": "nie_wyzej", "WYPRAWA_TYLKO_DEPO": "nie_wyzej", "WYPRAWA_MARSZ_KLIK": "nie_wyzej", "WROC_REFILL": "nie_wyzej", "WYPRAWA_ZLOTO_MIN": "nie_nizej", "WYPRAWA_CAP_REZERWA": "nie_nizej",
     # ogłoszenia Trade: analityk nie może ich włączyć ani skrócić odstępów (tylko Karol w na_zywo.json)
     "MODEL_TRASA_MIASTA": "nie_wyzej", "MODEL_TRASA_ZAMROZENIE_S": "nie_wyzej", "MODEL_TRASA_MAX_ODL": "nie_wyzej",
     "TRADE_OGLOSZENIA": "nie_wyzej", "TRADE_PRIV_ODPOWIEDZI": "nie_wyzej", "TRADE_MIN_S": "nie_nizej", "TRADE_MAX_S": "nie_nizej", "TRADE_MIN_UH": "nie_nizej",
@@ -424,6 +430,10 @@ KIERUNEK = {
     "DOJSCIE_WALKA_PRZEJSCIE_S": "nie_wyzej", "DOJSCIE_BEZ_UNIKANIA_POL": "nie_wyzej", "DOJSCIE_PROBY": "nie_nizej",
     "DOJSCIE_PAUZA_PROBY_S": "nie_nizej",
     "IGNOR_TWARDE": "nie_nizej", "STRAZNIK_CEL": "nie_nizej", "BLOK_WYJSCIE": "nie_wyzej", "STRAZNIK_POSTEP": "nie_wyzej",
+    # strażnik orbit: analityk nie może go włączyć ani osłabić (dłuższe okno, mniej pól, więcej zmian = rzadsze wykrycie); tylko Karol w na_zywo.json
+    # (kierunek = ograniczenie wartości względem domyślnej: nie_wyzej => v <= domyślna, nie_nizej => v >= domyślna)
+    "STRAZNIK_ORBITY": "nie_wyzej", "STRAZNIK_ORBITA_S": "nie_wyzej", "STRAZNIK_ORBITA_POL": "nie_nizej",
+    "STRAZNIK_ORBITA_ZMIAN": "nie_wyzej", "STRAZNIK_WYJSCIE_S": "nie_wyzej",
 }
 COFNIECIE_S = 300
 

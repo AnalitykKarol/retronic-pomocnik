@@ -117,6 +117,7 @@ WPADNIECIE_LINA = 1                # pokrętło 0/1: 1 = pierwsza próba wyjści
 WPADNIECIE_LINA_PROB = 3           # prób liny (pokrętło 1-5)
 WPADNIECIE_PLAN = 1                # pokrętło 0/1: 1 = gdy lina nie działa, plan wielopiętrowy po mapie i przejściach z danych (wykonuje pietra.py)
 WPADNIECIE_ODL = 3                 # pola: tak blisko poprzedniej pozycji musi być lądowanie, żeby zmiana piętra była upadkiem (nie teleportem/śmiercią); pokrętło 1-6
+WPADNIECIE_POSCIG = 0              # pokrętło 0/1 (domyślnie 0 = jak dotąd): 1 = pozycje czytane w pętli pościgu/lootu odświeżają ostatnią próbkę wpadnięcia, więc upadek w dziurę podczas pościgu jest wykrywany (wpadniecie.w_petli; SPEC_orbity_straznik_1020 A)
 WPADNIECIE_WALIDACJA = 0           # pokrętło 0/1 (domyślnie 0 = jak dotąd): 1 = przed nauką dziury sprawdź mapę (flaga 2, brak 4) i brak schodów w cheb<=1 od lądowania/p0; inaczej bez nauki (wpadniecie.py)
 DZIURY_NAUCZONE = 1                # pokrętło 0/1: 1 = pola z trasy/dziury_nauczone.json są ścianą dla każdej drogi A* i kroku na danym piętrze
 DZIURA_PODEJSCIE_S = 10.0           # s: tyle idziemy sami obok celu stojącego przy dziurze, potem go odpuszczamy (DZIURA_PRZY_CELU)
@@ -609,6 +610,11 @@ RATUNEK_OKRAZENIA_N = 3            # S7: tyle końców okrążenia trasy w RATUN
 RATUNEK_OKRAZENIA_S = 60.0         # S7: okno [s]
 RATUNEK_PRZERWA_S = 120.0          # debounce: ten sam sygnał w tym samym miejscu najwcześniej po tylu s
 RATUNEK_LIMIT_H = 20               # limit wywołań Haiku na godzinę (Q3); w cieniu tylko flaga „ponad limit”
+STRAZNIK_ORBITY = 0                # 20.10 (SPEC_orbity_straznik_1020, B): 0 = wyłączony (zero zmian); 1 = cień: log [ORBITA] + telemetria straznik_orbita; 2 = działa: stop chodzenia, potem rotacja sposobów naprawy aż do skutku, nigdy STOP (straznik_orbity.py)
+STRAZNIK_ORBITA_S = 60.0           # s okno orbity: >= STRAZNIK_ORBITA_ZMIAN zmian pozycji w <= STRAZNIK_ORBITA_POL polach poza walką (albo złe piętro tak długo)
+STRAZNIK_ORBITA_POL = 8            # maks. różnych pól orbity (Karol 20.10: 8; pomiar 14-20.10 0 fałszywych)
+STRAZNIK_ORBITA_ZMIAN = 15         # min. zmian pozycji w oknie (Karol 20.10: 15)
+STRAZNIK_WYJSCIE_S = 90.0          # s aktywne (bez walki/lootu) na dłuższe sposoby naprawy (plan pięter, A* do punktu trasy); potem następny sposób z rotacji, nigdy STOP
 D3_ASTAR_MAX = 6                   # najwyżej tyle wywołań A* na jedną zawieszkę przy liczeniu opcji D3 (koszt ograniczony)
 PATROL_RESPAWN_CIEN = 1            # 15.10: tryb cienia (SPEC_patrol_respawn_1015 krok 2): mapa obecności mobów liczona na żywo (obecnosc.py), a przy wyborze
                                    # celu patrolu w telemetrii patrol_cel (cel_respawn, wartosci, zgodny) i "decyzja" D4 wybór nowej metody; bot idzie jak dziś; pokrętło 0/1
@@ -1069,6 +1075,7 @@ class Cavebot:
         self._ogien_stale_wczytaj()    # R1a: zasiew maski stałych pól (wymaga mapy)
         self.ostatni_objazd = ""       # opis ostatniego odrzuconego celu (do logu)
         self._klucze, self._klucze_n = {}, -1   # pamięć podręczna droga(): piętro -> klucze pól
+        self._straznik = None          # 20.10: straznik_orbity (Detektor, Reakcja); tworzony przy pierwszym obiegu z STRAZNIK_ORBITY > 0
         self.wpadniecie = None         # wpadniecie.Wpadniecie (15.10): wykrycie upadku, nauczone dziury, wyjście (tworzone przy pierwszym użyciu)
         self.pietra = None             # pietra.Pietra: przejścia pięter z trasy wielopiętrowej (tworzone przy pierwszym użyciu)
         self.ruch_kliki = self.ruch_strzalki = 0   # R0b: liczniki do ruch_okno (klik w mapę / krok strzałką)
@@ -2586,6 +2593,11 @@ class Cavebot:
     def zapamietaj_pole(self, poz):
         """Pozycja gracza = pole, po którym da się chodzić. Na żywo co ZNANE_ZAPIS_CO s zapis do pliku."""
         poz = tuple(poz)
+        if WPADNIECIE_POSCIG and WPADNIECIE and self.wpadniecie:
+            try:
+                self.wpadniecie.w_petli(poz, self.zegar())      # 20.10: pętla pościgu/lootu nie wraca do ticka, a ostatnia próbka musi być świeża
+            except Exception as e:
+                log(f"debug: wpadniecie.w_petli błąd {e!r}")
         if poz not in self.znane:
             self.znane.add(poz)
             self.znane_nowe += 1
@@ -4345,6 +4357,8 @@ class Cavebot:
         self.ratunek_g = g                 # 19.10 (F2a): HP/mana do migawki dla Haiku w cieniu (bez nowego RPC)
         self._d3_tick(g, poz, teraz)       # 16.10: detektor zawieszki (D3 krok A), tylko log
         self._ratunek_tick(poz, teraz)     # 19.10: detektor zachowań „jak bot” (ratunek F1, cień), tylko log
+        if STRAZNIK_ORBITY or self._straznik is not None:
+            self._straznik_tick(poz, teraz)    # 20.10: strażnik orbit (straznik_orbity.py): wykrycie (1 = cień, 2 = + reakcja w kroku 3a)
         if self.ruch_poz != tuple(poz):
             self.ruch_poz, self.ruch_czas = tuple(poz), teraz
             self.aktywnosc_ts = teraz
@@ -4740,6 +4754,10 @@ class Cavebot:
             if st_dz:
                 st_dz.pop(cel["id"], None)                     # cel już nie przy dziurze: budżet podejścia od nowa
             return self.walcz(cel, g, poz)
+
+        # 3a. strażnik orbit (STRAZNIK_ORBITY=2): stop chodzenia, rotacja sposobów naprawy (nigdy STOP); walka ma pierwszeństwo
+        if self._straznik is not None and self._straznik_reakcja(poz, teraz):
+            return True
 
         # 3b. wpadnięcie na piętro bez trasy (wpadniecie.py): lina / plan po mapie / ALARM; walka ma pierwszeństwo
         if WPADNIECIE and self.wpadniecie:
@@ -5632,6 +5650,89 @@ class Cavebot:
             raise
         except Exception as e:
             log(f"debug: ratunek błąd {e!r}")
+
+    # --- strażnik orbit (SPEC_orbity_straznik_1020, B) ---
+
+    def _straznik_planowane(self):
+        """Wypad/wyprawa/dojście mają własny cel i własne piętra: tam strażnik tylko loguje (cień), nie reaguje."""
+        w = self.wyprawa
+        return bool(self.wypad_aktywny or self.dojscie_aktywne or (w is not None and getattr(w, "w", None) is not None))
+
+    def _straznik_zle_pietro(self, poz):
+        """S2 strażnika: trasa/patrol nie ma żadnego punktu na piętrze postaci (nie w wypadzie/dojściu/wyprawie/przejściu pięter)."""
+        if not self.punkty or self._straznik_planowane():
+            return False
+        if self.pietra is not None and getattr(self.pietra, "st", None) is not None:
+            return False
+        wp = self._wp()
+        if wp is not None:
+            return not wp._trasa_na_pietrze(poz[2])
+        return not any(p[2] == poz[2] for p in self.punkty)
+
+    def _straznik_tick(self, poz, teraz):
+        """Wykrycie orbity co obieg. 0 = nic (nie tworzy niczego); 1 = cień: tylko log i telemetria; 2 = start reakcji
+        (jej kroki w _straznik_reakcja, po walce). Błąd tylko w logu."""
+        try:
+            tryb = int(STRAZNIK_ORBITY)
+            if not tryb:
+                if self._straznik is not None and self._straznik[1].aktywna():
+                    self._straznik[1].sprzatnij()          # 2->0 w locie: oddaj wp.st / pietra.st, które ustawił strażnik
+                return
+            if self._straznik is None:
+                import straznik_orbity  # noqa: PLC0415
+                mod = sys.modules[__name__]
+                det = straznik_orbity.Detektor(mod)
+                rea = straznik_orbity.Reakcja(self, mod, log=lambda t: log(t))
+                rea.det = det
+                self._straznik = (det, rea)
+            det, rea = self._straznik
+            if rea.aktywna():
+                if tryb < 2:
+                    rea.sprzatnij()
+                return                          # reakcja trwa: okno nie liczy ruchu planu wyjścia
+            wp = self._wp()
+            if wp is not None and wp.st is not None:
+                det.reset()                     # wpadniecie.py ma własne wyjście (i alarm)
+                return
+            for zd in det.tick(teraz, poz, self.stan, self._straznik_zle_pietro(poz), self.exp_teraz):
+                if tryb >= 2 and not self._straznik_planowane():
+                    if not rea.aktywna():          # dwa zdarzenia w jednym obiegu (np. pietro + orbita): jeden epizod
+                        rea.start(zd, teraz)
+                else:
+                    log(f"[ORBITA] cień: {zd['rodzaj']} w {tuple(zd['poz'])}: {rea._opis(zd)}"
+                        f"{'; bez reakcji (wypad/dojście/wyprawa)' if tryb >= 2 else ''}.")
+                    self._straznik_tele("cien" if tryb < 2 else "cien_wypad", **{k: v for k, v in zd.items() if k != "t"})
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"debug: strażnik orbit błąd {e!r}")
+
+    def _straznik_tele(self, etap, **d):
+        if self.tele:
+            try:
+                self.tele.zdarzenie("straznik_orbita", etap=etap, **d)
+            except Exception:
+                pass
+
+    def _straznik_reakcja(self, poz, teraz):
+        """Krok reakcji strażnika (po walce, przed wpadnięciem): True = obieg zużyty."""
+        try:
+            rea = self._straznik[1]
+            if not rea.aktywna():
+                return False
+            if int(STRAZNIK_ORBITY) < 2:
+                rea.sprzatnij()
+                return False
+            return bool(rea.tick(poz, teraz))
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"[ORBITA] błąd reakcji {e!r}")
+            try:
+                self._straznik[1].sprzatnij()              # wyjątek w reakcji: oddaj wp.st / pietra.st (inaczej 3b doprowadzi do alarmu)
+            except Exception:
+                pass
+            return False
 
     def _ratunek_zdarzenie(self, rodzaj, poz=None, **d):
         """Zdarzenie porażki (krok, klik, okrążenie) do detektora ratunku; tylko log."""
