@@ -93,6 +93,18 @@ def komponent(m, start, pts, znane, r=24):
     return wid
 
 
+def ladowania(m, T, z_g):
+    """-> (wyjscie_dol, wyjscie_gora): pola lądowania po zejściu (z_g -> z_g+1) i po wejściu (z_g+1 -> z_g).
+    Dziura + drabina (flaga 2 tylko na górnym piętrze; 7 z 8 przejść): zejście ląduje w (T.x, T.y, z+1), wejście
+    (Ctrl+klik) w (T.x, T.y+1, z). Prawdziwe SCHODY (flaga 2 także na T(z+1); tu (32498,32270)): zejście krokiem ląduje
+    o 1 pole na południe (T.x, T.y+1, z+1), a wejście krokiem na T(z+1) o 1 pole na północ (T.x, T.y-1, z). Dowód:
+    telemetria pietra_krok (zejście 154x, wejście 166x) i dane_tibia/ruch/MAPA_DOSWIADCZENIA.md 4.1. Do 20.10 generator
+    liczył schody jak dziurę + drabinę (wpis (32498,32270) miał lądowania (32498,32270,9) i (32498,32271,8))."""
+    if m.flagi(T[0], T[1], z_g + 1) & 2:
+        return [T[0], T[1] + 1, z_g + 1], [T[0], T[1] - 1, z_g]
+    return [T[0], T[1], z_g + 1], [T[0], T[1] + 1, z_g]
+
+
 def przejscia_z_tras(m, trasy, pts=frozenset(), znane=None):
     """-> lista przejść. Dedup po (x, y, piętro górne) pola schodów T."""
     znane = znane or {}
@@ -130,13 +142,14 @@ def przejscia_z_tras(m, trasy, pts=frozenset(), znane=None):
             nb = [q for q in nb if pole_ok(m, q[0], q[1], q[2], pts, znane)]
             nb.sort(key=lambda q: (q not in pts,))
             ad = nb[0] if nb else (T[0], T[1], z_g + 1)
+        wyjscie_dol, wyjscie_gora = ladowania(m, T, z_g)
         wyn_l.append({
             "id": f"schody_{T[0]}_{T[1]}",
             "pole": [T[0], T[1], z_g],
             "wejscie_gora": list(a),
-            "wyjscie_dol": [T[0], T[1], z_g + 1],
+            "wyjscie_dol": wyjscie_dol,
             "wejscie_dol": list(ad),
-            "wyjscie_gora": [T[0], T[1] + 1, z_g],
+            "wyjscie_gora": wyjscie_gora,
             "zrodla": e["zrodla"],
         })
     return wyn_l
@@ -280,6 +293,38 @@ def buduj_graf(cb, plik):
             "wezly": out, "odl": odl}
 
 
+def graf_i_sasiedzi(m, plik, miejsca):
+    """Przelicza z `plik` ("przejscia", "laczniki", "miejsca") graf dróg i pola miejsc "sasiedzi", "od_startu" (w
+    miejscach in-place). -> (graf, brak): brak = pary bez drogi. Ten sam kod co przy generowaniu pliku (main) i przy
+    późniejszych ręcznych poprawkach danych (narzedzia_jednorazowe/napraw_schody_32498_1020.py)."""
+    cb = zrob_cb(m, [(32493, 32260, 8), (32492, 32260, 8)])
+    cb.przejscia, cb.laczniki = cb._patrol_przejscia(plik)
+    graf = buduj_graf(cb, plik)
+    cb.patrol_graf = cb._patrol_graf(graf)
+    cb.miejsca = []
+    for mm in miejsca:
+        mm2 = dict(mm)
+        mm2["mobow"] = None
+        cb.miejsca.append(mm2)
+    brak = []
+    for mm in miejsca:
+        mm["sasiedzi"] = []
+        for nn in miejsca:
+            if nn["id"] == mm["id"]:
+                continue
+            uz = []
+            d = cb._patrol_droga((mm["x"], mm["y"], mm["z"]), nn, uz)
+            if d is None:
+                brak.append((mm["nazwa"], nn["nazwa"]))
+                continue
+            mm["sasiedzi"].append({"id": nn["id"], "droga": len(d), "przez": [u.split(":")[0] for u in uz]})
+        d0 = cb._patrol_droga(START, mm, [])
+        mm["od_startu"] = len(d0) if d0 is not None else None
+        if d0 is None:
+            brak.append(("START", mm["nazwa"]))
+    return graf, brak
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--zapisz", action="store_true", help=f"zapisz {WYJSCIE.name} (bez tego tylko raport)")
@@ -337,32 +382,8 @@ def main(argv=None):
     # graf: droga między wszystkimi parami miejsc planerem bota (A* + przejścia + łączniki)
     plik = {"przejscia": przej, "laczniki": lacz,
             "miejsca": [{k: v for k, v in mm.items()} for mm in miejsca]}
-    cb = zrob_cb(m, [(32493, 32260, 8), (32492, 32260, 8)])
-    cb.przejscia, cb.laczniki = cb._patrol_przejscia(plik)
-    graf = buduj_graf(cb, plik)
+    graf, brak = graf_i_sasiedzi(m, plik, miejsca)
     plik["graf"] = graf
-    cb.patrol_graf = cb._patrol_graf(graf)
-    cb.miejsca = []
-    for mm in miejsca:
-        mm2 = dict(mm)
-        mm2["mobow"] = None
-        cb.miejsca.append(mm2)
-    brak = []
-    for mm in miejsca:
-        mm["sasiedzi"] = []
-        for nn in miejsca:
-            if nn["id"] == mm["id"]:
-                continue
-            uz = []
-            d = cb._patrol_droga((mm["x"], mm["y"], mm["z"]), nn, uz)
-            if d is None:
-                brak.append((mm["nazwa"], nn["nazwa"]))
-                continue
-            mm["sasiedzi"].append({"id": nn["id"], "droga": len(d), "przez": [u.split(":")[0] for u in uz]})
-        d0 = cb._patrol_droga(START, mm, [])
-        mm["od_startu"] = len(d0) if d0 is not None else None
-        if d0 is None:
-            brak.append(("START", mm["nazwa"]))
     print("bez drogi:", brak or "brak")
     for mm in miejsca:
         mm["komp"] = next(n["komp"] for n in graf["wezly"] if n["pole"] == [mm["x"], mm["y"], mm["z"]])
