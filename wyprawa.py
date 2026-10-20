@@ -2142,6 +2142,7 @@ class Wyprawa(Wypad):
     # --- auto-refill po dojściu do depo (WROC_REFILL, 20.10; refill_auto.py) ---
 
     refill_start = None            # testy: podmieniają start czekacza (None = refill_auto.start_czekacza, prawdziwy proces)
+    refill_procesy = None          # testy: podmieniają listę procesów (None = instancja.procesy, /proc tej instancji)
 
     def _auto_refill(self, poz):
         """Decyzja o auto-refillu przy STOP w depo: (stan, powód) z refill_auto.zlec albo None przy błędzie. Czekacz rusza dopiero
@@ -2149,7 +2150,7 @@ class Wyprawa(Wypad):
         stan_dir = Path(self.plik_stop or bot.STOP).parent
         try:
             import refill_auto  # noqa: PLC0415
-            return refill_auto.zlec(tuple(poz), stan_dir, katalog=TRASY, start=lambda: None)
+            return refill_auto.zlec(tuple(poz), stan_dir, katalog=TRASY, start=lambda: None, procesy=self.refill_procesy)
         except Exception as e:                    # noqa: BLE001  (błąd pomocnika nie może zepsuć zatrzymania w depo)
             self.log(f"Wyprawa: auto-refill: błąd decyzji {e!r}, bot staje jak dotąd")
             return None
