@@ -318,10 +318,11 @@ ZAKRESY = {
     "RATUNEK_OKRAZENIA_S": (20.0, 300.0),  # S7: okno [s] (domyślnie 60)
     "RATUNEK_PRZERWA_S": (30.0, 1800.0),   # debounce sygnału w tym samym miejscu [s] (domyślnie 120)
     "RATUNEK_LIMIT_H": (1, 120),        # limit wywołań Haiku na godzinę (Q3, domyślnie 20); w cieniu tylko flaga
-    "STRAZNIK_ORBITY": (0, 2),          # 20.10 (SPEC_orbity_straznik_1020, B): 0 = wyłączony; 1 = cień: log [ORBITA] + telemetria straznik_orbita; 2 = działa: stop chodzenia, jedna próba wyjścia, ALARM + STOP (domyślnie 0)
-    "STRAZNIK_ORBITA_S": (30.0, 600.0),    # s okno orbity: >= 8 zmian pozycji w <= STRAZNIK_ORBITA_POL polach poza walką (domyślnie 60)
-    "STRAZNIK_ORBITA_POL": (3, 12),     # maks. różnych pól orbity (domyślnie 6)
-    "STRAZNIK_WYJSCIE_S": (30.0, 300.0),   # s na jedną próbę wyjścia (plan po mapie / A* do trasy), potem alarm (domyślnie 90)
+    "STRAZNIK_ORBITY": (0, 2),          # 20.10 (SPEC_orbity_straznik_1020, B): 0 = wyłączony; 1 = cień: log [ORBITA] + telemetria straznik_orbita; 2 = działa: stop chodzenia, rotacja sposobów naprawy do skutku, nigdy STOP (domyślnie 0)
+    "STRAZNIK_ORBITA_S": (30.0, 600.0),    # s okno orbity: >= STRAZNIK_ORBITA_ZMIAN zmian pozycji w <= STRAZNIK_ORBITA_POL polach poza walką (domyślnie 60)
+    "STRAZNIK_ORBITA_POL": (3, 12),     # maks. różnych pól orbity (domyślnie 8)
+    "STRAZNIK_ORBITA_ZMIAN": (6, 60),   # min. zmian pozycji w oknie (domyślnie 15)
+    "STRAZNIK_WYJSCIE_S": (30.0, 300.0),   # s aktywne na dłuższy sposób naprawy (plan pięter, A* do punktu), potem następny sposób (domyślnie 90)
     "D3_ALARM_S": (0.0, 1800.0),        # 17.10 (F1): >0 = zawieszka D3 trwająca tyle s => jedno powiadomienie krytyczne, bez STOP (domyślnie 0 = wyłączone)
     "SLEPOTA_DIAG_S": (0.0, 900.0),     # 19.10: s bez expa i potworów (bot polował) => zrzut diagnostyki do logi/slepota/ (0 = wyłączone)
     "SLEPOTA_RESTART_S": (0.0, 1800.0), # 19.10: s takiej ślepoty => restart mozg.py (0 = bez restartu; min. rozsądnie 240)
@@ -429,8 +430,10 @@ KIERUNEK = {
     "DOJSCIE_WALKA_PRZEJSCIE_S": "nie_wyzej", "DOJSCIE_BEZ_UNIKANIA_POL": "nie_wyzej", "DOJSCIE_PROBY": "nie_nizej",
     "DOJSCIE_PAUZA_PROBY_S": "nie_nizej",
     "IGNOR_TWARDE": "nie_nizej", "STRAZNIK_CEL": "nie_nizej", "BLOK_WYJSCIE": "nie_wyzej", "STRAZNIK_POSTEP": "nie_wyzej",
-    # strażnik orbit: analityk nie może go włączyć ani poluzować progów (tylko Karol w na_zywo.json)
-    "STRAZNIK_ORBITY": "nie_wyzej", "STRAZNIK_ORBITA_S": "nie_nizej", "STRAZNIK_ORBITA_POL": "nie_wyzej",
+    # strażnik orbit: analityk nie może go włączyć ani osłabić (dłuższe okno, mniej pól, więcej zmian = rzadsze wykrycie); tylko Karol w na_zywo.json
+    # (kierunek = ograniczenie wartości względem domyślnej: nie_wyzej => v <= domyślna, nie_nizej => v >= domyślna)
+    "STRAZNIK_ORBITY": "nie_wyzej", "STRAZNIK_ORBITA_S": "nie_wyzej", "STRAZNIK_ORBITA_POL": "nie_nizej",
+    "STRAZNIK_ORBITA_ZMIAN": "nie_wyzej", "STRAZNIK_WYJSCIE_S": "nie_wyzej",
 }
 COFNIECIE_S = 300
 

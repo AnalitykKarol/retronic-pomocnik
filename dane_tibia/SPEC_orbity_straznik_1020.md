@@ -4,6 +4,14 @@ Cel: bot nie może chodzić w kółko po kilku polach. Człowiek tak nie chodzi,
 że to bot (Karol 20.10: „takie dziwne ruchy trzeba wyłapywać i analizować, po to mamy logi”). Zakres = cztery punkty
 zaakceptowane przez Karola 20.10 po diagnozie niżej.
 
+## Decyzje Karola (20.10, po F1 i pomiarze)
+
+| Pytanie | Decyzja |
+|---|---|
+| Q1 progi strażnika | **8 pól, >= 15 zmian pozycji, 60 s** (pomiar 14–20.10: 14 epizodów, wszystkie prawdziwe, 0 fałszywych; łapie orbity 7–8 pól z 17.10 i 18.10). Próg zmian jako pokrętło `STRAZNIK_ORBITA_ZMIAN`. |
+| Q2 brak postępu / powroty orbity | **Nigdy STOP, zawsze naprawa.** „Nie myśl o zatrzymywaniu, tylko o naprawianiu.” Zamiast alarmu i STOP: rotacja sposobów naprawy (klik w inne miejsce, rotacja punktu trasy, inna droga, plan pięter…), aż coś pomoże. Zasada ogólna bota, zapisana w `CLAUDE.md`. |
+| Q3 wypad/dojście/wyprawa | **Tak**: na start strażnik w tych stanach tylko loguje (cień). |
+
 ## Diagnoza (20.10, tylko odczyt logów i telemetrii)
 
 **Przypadek K1 — Kutangen, Rook `rook_raty_z8`, 20.10 16:38:27–17:02:49 (24 min).**
@@ -53,8 +61,14 @@ chodzić; (3) model w `mozg.py` co minutę ocenia „ekspuję standardowo” (15
   2. **Jedna próba wyjścia planem po mapie** (istniejąca maszyneria `wpadniecie.py`: wielopiętrowy plan + `pietra.py`; dla
      orbity na tym samym piętrze: A* do najbliższego osiągalnego punktu trasy/patrolu z polami orbity jako zakazanymi).
      Limit `STRAZNIK_WYJSCIE_S` (90 s).
-  3. **Brak postępu** (nadal w tym samym obszarze albo na złym piętrze) → alarm: `powiadom.powiadom(..., "critical", "orbita")` i plik
-     STOP, jak alarm wpadnięcia (`wpadniecie.py:690`). Postać stoi.
+  3. **Brak postępu** (nadal w tym samym obszarze albo na złym piętrze) → **następny sposób naprawy z rotacji, nigdy STOP**
+     (Q2, 20.10). Rotacja (kolejność do strojenia, każdy sposób raz na epizod, potem od nowa z innymi parametrami):
+     klik w inne osiągalne pole 3–7 pól poza obszarem orbity (losowo, nie to samo co poprzednio); rotacja punktu trasy
+     (następny/inny punkt, odwrócenie kierunku pętli, inne miejsce patrolu); A* do dalszego punktu trasy z polami orbity
+     jako zakazanymi; plan pięter/`pietra.py` (złe piętro); krok w losowym wolnym kierunku i krótka pauza jak człowiek.
+     Między próbami losowe pauzy 2–6 s (nie wahadło). Po N nieudanych pełnych rotacjach tylko powiadomienie (nie critical,
+     bez STOP) i dalsza rotacja z dłuższymi pauzami. Kolejne epizody orbity w krótkim czasie = mocniejsza naprawa
+     (start rotacji od zmiany punktu/miejsca), nie alarm.
 - Postęp = wyjście poza obszar orbity o >= 3 pola albo powrót na piętro trasy z osiągalnym punktem; wtedy normalna praca od
   najbliższego punktu trasy.
 - Gdy kiedyś powstanie `RATUNEK_HAIKU=2` (SPEC_ratunek_haiku_1019 F2), Haiku idzie pierwszy, strażnik po jego limicie. Teraz
@@ -63,7 +77,7 @@ chodzić; (3) model w `mozg.py` co minutę ocenia „ekspuję standardowo” (15
   `STRAZNIK_ORBITA_S`, `STRAZNIK_ORBITA_POL`, `STRAZNIK_WYJSCIE_S` jako pokrętła.
 - Zapis: każde zdarzenie w logu bota (`[ORBITA] …`) i w telemetrii (`straznik_orbita`: start, pola, czas, etap, wynik).
 - Testy (`testy/test_straznik_orbity.py`): (a) sekwencja pozycji K1 (6 pól, cykl 12) → wyzwolenie po 60 s, stop chodzenia, próba
-  planu, alarm + STOP przy braku wyjścia; (b) wyjście w trakcie → powrót do pracy bez alarmu; (c) normalny patrol (te same miejsca,
+  planu, przy braku wyjścia kolejne sposoby naprawy z rotacji — nigdy plik STOP ani alarm critical; (b) wyjście w trakcie → powrót do pracy bez alarmu; (c) normalny patrol (te same miejsca,
   ale z wyjściem poza 6 pól), walka w miejscu, PAUZA/PRZERWA, mijanie gracza → brak wyzwolenia; (d) pokrętło 0 = zero zmian,
   1 = tylko log. (e) Pomiar na telemetrii 14–20.10 (`narzedzia/orbity.py` z C): ile wyzwoleń dałby strażnik i czy któreś to
   fałszywy alarm — wynik do raportu.

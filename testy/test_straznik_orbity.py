@@ -51,8 +51,8 @@ zd = przebieg(d, k1(60))                                      # 60 próbek co 2 
 sprawdz("a1 K1: wyzwolenie (rodzaj orbita)", zd and zd[0][1]["rodzaj"] == "orbita", [z["rodzaj"] for _, z in zd])
 sprawdz("a1 K1: nie wcześniej niż po 60 s (pierwsza próbka t=0)", zd and zd[0][0] >= 60.0, zd[0][0] if zd else None)
 sprawdz("a1 K1: tuż po progu (<= 64 s)", zd and zd[0][0] <= 64.0, zd[0][0] if zd else None)
-sprawdz("a1 K1: 6 pól, zmian >= 8, stan IDZ w opisie", zd and {tuple(p) for p in zd[0][1]["pola"]} == pola_k1
-        and zd[0][1]["zmian"] >= 8 and "IDZ" in zd[0][1]["stany"], zd[0][1] if zd else None)
+sprawdz("a1 K1: 6 pól pętli (+ ewentualnie pole lądowania), zmian >= 15, stan IDZ w opisie", zd and pola_k1 <= {tuple(p) for p in zd[0][1]["pola"]}
+        and len(zd[0][1]["pola"]) <= 7 and zd[0][1]["zmian"] >= 15 and "IDZ" in zd[0][1]["stany"], zd[0][1] if zd else None)
 sprawdz("a1 K1: debounce - jedno wyzwolenie na 118 s", len(zd) == 1, len(zd))
 d = straznik_orbity.Detektor(konf())
 zd = przebieg(d, k1(29))                                      # 58 s
@@ -68,10 +68,10 @@ seq = k1(10) + [((32085, 32197, 9), "LOOT")] * 5 + k1(30, od=10)
 sprawdz("b0 loot w środku: nadal wyzwolenie", len(przebieg(d, seq)) == 1)
 
 d = straznik_orbity.Detektor(konf())
-seq = k1(10) + [((32100, 32197, 9), "WALKA")] * 8 + k1(20, od=10)            # pościg 15 pól w bok i z powrotem: to już nie ta sama orbita
+seq = k1(10) + [((32100 + i // 3, 32197, 9), "WALKA") for i in range(9)] + k1(20, od=10)            # pościg 15 pól w bok i z powrotem: to już nie ta sama orbita
 sprawdz("b0 pole z walki poza obszarem (pościg w bok) wchodzi do obszaru: brak wyzwolenia (pomiar 14.10 12:46 - fałszywy alarm)", przebieg(d, seq) == [])
 d = straznik_orbity.Detektor(konf())
-seq = k1(10) + [((32100, 32197, 9), "WALKA")] * 8 + k1(60, od=10)           # ... ale gdy okno przejdzie dalej, orbita znów jest orbitą
+seq = k1(10) + [((32100 + i // 3, 32197, 9), "WALKA") for i in range(9)] + k1(60, od=10)           # ... ale gdy okno przejdzie dalej, orbita znów jest orbitą
 sprawdz("b0 pole z walki wypada z okna po 60 s: wyzwolenie", len(przebieg(d, seq)) == 1)
 print("--- detektor: wyjście w trakcie okna ---")
 d = straznik_orbity.Detektor(konf())
@@ -114,6 +114,10 @@ sprawdz("c11 próg pól: cykl 6 pól przy POL=3: brak", przebieg(d, k1(60)) == [
 d = straznik_orbity.Detektor(konf())
 sprawdz("c12 oscylacja A-B 90 s: jest (2 pola)", len(przebieg(d, [(32085 + i % 2, 32197, 9) for i in range(45)])) == 1)
 
+d = straznik_orbity.Detektor(konf())
+sprawdz("c13 dokładnie 14 zmian w 60 s (oscylacja co 4,3 s): brak", przebieg(d, [(32085 + i % 2, 32197, 9) for i in range(100)], dt=4.3) == [])
+d = straznik_orbity.Detektor(konf())
+sprawdz("c13 15 zmian w 60 s (oscylacja co 3,9 s): jest", len(przebieg(d, [(32085 + i % 2, 32197, 9) for i in range(40)], dt=3.9)) == 1)
 d = straznik_orbity.Detektor(konf(STRAZNIK_ORBITA_ZMIAN=40))
 sprawdz("c13 próg zmian (parametr pomiaru): 40 zmian w 60 s nie spełnione = brak", przebieg(d, k1(40)) == [])
 print("--- detektor: złe piętro (S2) ---")
@@ -313,49 +317,63 @@ sprawdz("a7 plan po mapie wyprowadził na z8 (log planu + zmiana piętra)", s.po
         and any("plan po mapie" in l for l in LOG), f"{s.poz} {s.zmiany} ticki={n}")
 sprawdz("a7 log [ORBITA] postęp, faza zakończona", any("[ORBITA] postęp" in l for l in LOG) and rea.faza is None, [l for l in LOG if "ORBITA" in l][-3:])
 sprawdz("a7 bez alarmu, powiadomienia i STOP", not ALARMY and not POWIADOMIENIA and not (b.kat / "STOP").exists(), (ALARMY, POWIADOMIENIA))
-sprawdz("a7 telemetria: start, pauza, wyjscie, postep", [d["etap"] for d in straznik_tele(b)] == ["start", "pauza", "wyjscie", "postep"], [d["etap"] for d in straznik_tele(b)])
+sprawdz("a7 telemetria: start, pauza, sposob (plan), postep", [d["etap"] for d in straznik_tele(b)] == ["start", "pauza", "sposob", "postep"]
+        and straznik_tele(b, "sposob")[0]["sposob"] == "plan", [d["etap"] for d in straznik_tele(b)])
 sprawdz("a7 detektor od nowa po epizodzie", not b._straznik[0].biegi and not b._straznik[0].ost)
 n_ticki = ticki(b, 60)
 sprawdz("a8 dalej normalna praca na z8 (znów bez orbity)", s.poz[2] == 8 and rea.faza is None and len(straznik_tele(b, "start")) == 1, (s.poz, rea.faza))
 straznik_orbity.random.uniform = oryg_uniform
 
-# --- (a) brak wyjścia: alarm + STOP, postać stoi ---
+# --- (a) brak wyjścia: rotacja sposobów naprawy, ZERO pliku STOP i ZERO critical (Karol 20.10, Q2) ---
 random.seed(7)
-s, b = nowy((32086, 32197, 9), TRASA, gora={})                  # brak przejścia w górę: plan nie ma jak się udać
+uzycia.clear()
+straznik_orbity.random.uniform = lambda a, b_: (uzycia.append((a, b_)), oryg_uniform(a, b_))[1]
+s, b = nowy((32086, 32197, 9), TRASA, gora={})                  # brak przejścia w górę: plan pięter nie ma jak się udać
 cavebot.STRAZNIK_WYJSCIE_S = 12.0
 try:
     orbituj(s, b, 1)
     rea = b._straznik[1]
-    rea.plik_stop = b.kat / "STOP"
     orbituj(s, b, 100, az=lambda: rea.faza is not None)
     s.stoi = False
-    ticki(b, 4000, az=lambda: rea.faza == "alarm")
-    sprawdz("a9 brak wyjścia: faza alarm", rea.faza == "alarm", (rea.faza, [l for l in LOG if "ORBITA" in l or "Wpad" in l][-4:]))
-    sprawdz("a9 plik STOP zapisany", (b.kat / "STOP").exists(), list(b.kat.iterdir()))
-    sprawdz("a9 powiadomienie critical „orbita”", any(len(a) >= 4 and a[2] == "critical" and a[3] == "orbita" for a in POWIADOMIENIA), POWIADOMIENIA)
-    sprawdz("a9 alarm callback bota", len(ALARMY) == 1 and "orbita" in ALARMY[0], ALARMY)
+    ticki(b, 20000, az=lambda: rea.ep is not None and rea.ep["runda"] >= 4 and rea.faza == "pauza")
+    ep = rea.ep
+    starty = [m for m, w in rea.historia if w == "start"]
+    sprawdz("a9 brak wyjścia: rotacja trwa (runda >= 4), faza nie jest końcem", ep is not None and ep["runda"] >= 4 and rea.faza is not None, (ep and ep["runda"], rea.faza))
+    sprawdz("a9 ZERO pliku STOP", not (b.kat / "STOP").exists(), list(b.kat.iterdir()))
+    sprawdz("a9 ZERO powiadomień critical", not any(len(a) >= 3 and a[2] == "critical" for a in POWIADOMIENIA), POWIADOMIENIA)
+    sprawdz("a9 ZERO alarmu bota i ZERO alarmu wpadniecie.py", not ALARMY and not any("ALARM" in l for l in LOG), [l for l in LOG if "ALARM" in l])
+    sprawdz("a9 każdy sposób z rotacji faktycznie próbowany: plan, klik, krok", {"plan", "klik", "krok"} <= set(starty), starty)
+    sprawdz("a9 kolejność w rundzie: plan, klik, krok (złe piętro)", starty[:3] == ["plan", "klik", "krok"], starty[:6])
     sprawdz("a9 próba planu była (log planu po mapie)", any("plan po mapie" in l for l in LOG))
-    sprawdz("a9 telemetria alarm", len(straznik_tele(b, "alarm")) == 1 and straznik_tele(b, "alarm")[0]["wynik"] == "alarm", straznik_tele(b, "alarm"))
-    s.klawisze.clear(); s.klikniecia.clear(); poz_al = tuple(s.poz)
-    ticki(b, 30)
-    sprawdz("a9 po alarmie postać stoi: brak kroków i klików", not s.klawisze and not s.klikniecia and tuple(s.poz) == poz_al, (s.klawisze, s.klikniecia))
-    sprawdz("a9 po alarmie stan ORBITA, dalej alarm", str(b.stan) == "ORBITA" and rea.faza == "alarm", (b.stan, rea.faza))
+    sprawdz("a9 plan wyczerpany kończy sposób (nie alarm wpadniecie.py)", any(m == "plan" and w in ("plan wyczerpany", "limit czasu") for m, w in rea.historia), rea.historia[:8])
+    kl = ep["uzyte_kliki"]
+    sprawdz("a9 rotacja nie powtarza tego samego pola kliku (co najmniej 3 różne, pary > 1 pole od siebie)",
+            len(kl) >= 3 and all(max(abs(x[0] - y[0]), abs(x[1] - y[1])) > 1 for i_, x in enumerate(kl) for y in kl[i_ + 1:]), kl)
+    sprawdz("a9 klik poza obszarem orbity: 3-7 pól od najbliższego pola orbity", all(
+        3 <= min(max(abs(c[0] - x), abs(c[1] - y)) for x, y, _ in ep["pola"]) <= 7 for c in kl), kl)
+    sprawdz("a9 pauzy między próbami losowe z zakresu 2-6 s (po powiadomieniu 6-15 s)",
+            (2.0, 6.0) in uzycia and (6.0, 15.0) in uzycia and (3.0, 8.0) in uzycia, set(uzycia))
+    nor = [a for a in POWIADOMIENIA if len(a) >= 4 and a[3] == "orbita"]
+    sprawdz("a9 po N=2 nieudanych rotacjach: jedno zwykłe powiadomienie (normal, bez STOP), nie więcej", len(nor) == 1 and nor[0][2] == "normal", POWIADOMIENIA)
+    sprawdz("a9 telemetria: rotacja_bez_skutku, powiadomienie, sposob_nieudany, brak etapu alarm", len(straznik_tele(b, "rotacja_bez_skutku")) >= 2
+            and len(straznik_tele(b, "powiadomienie")) == 1 and straznik_tele(b, "sposob_nieudany") and not straznik_tele(b, "alarm"))
+    sprawdz("a9 klik faktycznie poszedł (nowe kliki klienta po pauzie)", s.klikniecia or s.klawisze)
 finally:
     cavebot.STRAZNIK_WYJSCIE_S = 90.0
+    straznik_orbity.random.uniform = oryg_uniform
 
-# --- orbita wraca po udanym wyjściu: trzeci epizod w 30 min = od razu alarm (substytucja, spec milczy) ---
+# --- limity napraw nie liczą czasu walki/lootu (uwaga checkera): luka między obiegami reakcji > 6 s nie wchodzi do czasu aktywnego ---
 s, b = nowy((32086, 32197, 9), TRASA, GORA_K1)
 orbituj(s, b, 1)
-rea = b._straznik[1]; rea.plik_stop = b.kat / "STOP"
-for nr in (1, 2, 3):
-    s.poz[:] = [32086, 32197, 9]; s.stoi = True; b.tick()
-    orbituj(s, b, 100, az=lambda: rea.faza is not None)
-    s.stoi = False
-    ticki(b, 3000, az=lambda: rea.faza in (None, "alarm"))
-    if nr < 3:
-        sprawdz(f"a10 epizod {nr}: wyjście udane (z8), bez alarmu", s.poz[2] == 8 and rea.faza is None and not POWIADOMIENIA, (s.poz, rea.faza))
-sprawdz("a10 epizod 3 w 30 min: alarm bez próby wyjścia", rea.faza == "alarm" and (b.kat / "STOP").exists()
-        and any("orbita wraca" in l for l in LOG), [l for l in LOG if "ORBITA" in l][-2:])
+rea = b._straznik[1]
+rea.start({"rodzaj": "orbita", "poz": [32086, 32197, 9], "pola": [[32085, 32197, 9]], "zmian": 15, "czas_s": 60, "stany": {}}, 1000.0)
+rea.akt = 0.0; rea.ost_tick = None
+for t_ in (1000.0, 1100.0, 1250.0, 1400.0):                     # walka/loot między obiegami: setki sekund
+    rea.tick((32086, 32197, 9), t_)
+sprawdz("a11 długa walka między obiegami nie nalicza czasu napraw (akt < 1 s)", rea.akt < 1.0, rea.akt)
+for t_ in (1401.0, 1402.5, 1404.0):
+    rea.tick((32086, 32197, 9), t_)
+sprawdz("a11 zwykłe obiegi co 1-2 s naliczają czas", 3.0 <= rea.akt <= 4.0, rea.akt)
 
 # --- (b) orbita na piętrze trasy: A* do punktu trasy z polami orbity jako zakazanymi ---
 def otwarty_blok():
@@ -386,12 +404,29 @@ if blok:
         s.poz[:] = [cykl8[i % len(cykl8)][0], cykl8[i % len(cykl8)][1], 8]; s.t += 1.9; b.tick()
     sprawdz("b3 orbita na piętrze trasy: wykryta", rea.faza in ("start", "pauza"), (rea.faza, [l for l in LOG if "ORBITA" in l][-2:]))
     s.stoi = False
-    n = ticki(b, 3000, az=lambda: rea.faza is None or rea.faza == "alarm")
-    sprawdz("b3 wyjście A*: log wyjścia z pominięciem pól orbity", any("A* do punktu trasy" in l for l in LOG), [l for l in LOG if "ORBITA" in l])
+    n = ticki(b, 3000, az=lambda: rea.faza is None)
+    sprawdz("b3 pierwszy sposób: wyjście A* z polami orbity zakazanymi", any("sposób 1" in l and "wyjscie" in l for l in LOG) and rea.historia[0] == ("wyjscie", "start"), [l for l in LOG if "ORBITA" in l])
     sprawdz("b3 postęp: poza obszarem orbity o >= 3 pola, bez alarmu", rea.faza is None and any("[ORBITA] postęp" in l for l in LOG)
-            and all(max(abs(s.poz[0] - x), abs(s.poz[1] - y)) >= 3 for x, y, _ in pola8) and not ALARMY, (s.poz, rea.faza, n))
+            and straznik_tele(b, "postep") and all(max(abs(straznik_tele(b, "postep")[0]["poz"][0] - x), abs(straznik_tele(b, "postep")[0]["poz"][1] - y)) >= 3
+                                                   for x, y, _ in pola8) and not ALARMY, (s.poz, rea.faza, n))
     sprawdz("b3 powrót do pracy: idx trasy ustawiony na najbliższy punkt", 0 <= b.idx < len(trasa8))
-    # korytarz 1-polowy: wszystkie pola orbity zamykają jedyną drogę -> brak wyjścia -> alarm
+    # kolejny epizod w 30 min: start od mocniejszej naprawy (rotacja punktu), nie alarm
+    hist1 = list(rea.historia)
+    s.poz[:] = [bx, by, 8]; s.stoi = True
+    for i in range(60):
+        if rea.faza is not None: break
+        s.poz[:] = [cykl8[i % len(cykl8)][0], cykl8[i % len(cykl8)][1], 8]; s.t += 1.9; b.tick()
+    sprawdz("b5 drugi epizod w 30 min: oznaczony jako powrót, zaczyna od rotacji punktu", rea.ep is not None and rea.ep["powrot"]
+            and rea.ep["kolejka"] == [] and rea.faza == "pauza", (rea.ep and rea.ep["powrot"], rea.faza))
+    s.stoi = False
+    ticki(b, 3000, az=lambda: rea.faza is None or (rea.historia and rea.historia[0][1] == "start" and rea.faza.startswith("m_")))
+    sprawdz("b5 pierwszy sposób drugiego epizodu: punkt", rea.historia and rea.historia[0] == ("punkt", "start"), rea.historia[:3])
+    sprawdz("b5 telemetria rotacja_punktu", straznik_tele(b, "rotacja_punktu"), straznik_tele(b))
+    ticki(b, 3000, az=lambda: rea.faza is None)
+    sprawdz("b5 po rotacji punktu bot wyszedł z obszaru, bez alarmu i STOP", rea.faza is None and not ALARMY and not (b.kat / "STOP").exists()
+            and all(max(abs(straznik_tele(b, "postep")[-1]["poz"][0] - x), abs(straznik_tele(b, "postep")[-1]["poz"][1] - y)) >= 3 for x, y, _ in pola8),
+            (s.poz, rea.faza, rea.historia))
+    # korytarz 1-polowy: pola orbity zamykają jedyną drogę -> A* i klik nie mają jak, bot (punkt trasy) wychodzi sam; STOP nigdy
     kor = [p for p in TRASA[:200] if p[2] == 8]
     c = None
     for i in range(10, len(kor) - 10):
@@ -403,19 +438,22 @@ if blok:
     if c:
         pola_k = [tuple(q) for q in c]
         s, b = nowy(tuple(pola_k[2]), [p for p in TRASA[:200]])
-        cavebot.STRAZNIK_ORBITA_POL = 6
         s.stoi = True
         cyk = pola_k + pola_k[::-1][1:-1]
         b.tick()
-        rea = b._straznik[1]; rea.plik_stop = b.kat / "STOP"
+        rea = b._straznik[1]
         for i in range(60):
             if rea.faza is not None: break
             s.poz[:] = list(cyk[i % len(cyk)]); s.t += 1.9; b.tick()
         s.poz[:] = list(pola_k[2])                      # postać stoi w środku korytarza: oba sąsiednie pola są polami orbity
         s.stoi = False
-        ticki(b, 3000, az=lambda: rea.faza in (None, "alarm"))
-        sprawdz("b4 korytarz zamknięty polami orbity: alarm + STOP, bez ruchu", rea.faza == "alarm" and (b.kat / "STOP").exists(),
-                (rea.faza, [l for l in LOG if "ORBITA" in l][-3:]))
+        ticki(b, 6000, az=lambda: rea.faza is None)
+        pominiete = [m for m, w in rea.historia if w == "pominiety"]
+        sprawdz("b4 korytarz zamknięty polami orbity: wyjscie i klik niemożliwe (pominięte), naprawa i tak idzie dalej, zero STOP/critical",
+                {"wyjscie", "klik"} <= set(pominiete) and not (b.kat / "STOP").exists() and not ALARMY
+                and not any(len(a) >= 3 and a[2] == "critical" for a in POWIADOMIENIA), (rea.historia, rea.faza))
+        sprawdz("b4 naprawa zakończona postępem (bot wyszedł z korytarza sam po rotacji lub krokach)", rea.faza is None
+                and any("[ORBITA] postęp" in l for l in LOG), (rea.faza, rea.historia, [l for l in LOG if "ORBITA" in l][-3:]))
 
 # --- (d) pokrętło 0 = zero zmian, 1 = tylko log ---
 def scenariusz(tryb):
@@ -443,10 +481,20 @@ sprawdz("d4 pokrętło w pokretla.py: zakres 0-2, domyślnie 0, wpis w na_zywo.p
         __import__("pokretla").ZAKRESY["STRAZNIK_ORBITY"] == (0, 2) and cavebot.STRAZNIK_ORBITY in (0, 1, 2)
         and json.loads((Path(_R) / "na_zywo.przyklad.json").read_text())["STRAZNIK_ORBITY"] == 0
         and all(k in __import__("pokretla").ZAKRESY and k in json.loads((Path(_R) / "na_zywo.przyklad.json").read_text())
-                for k in ("STRAZNIK_ORBITA_S", "STRAZNIK_ORBITA_POL", "STRAZNIK_WYJSCIE_S")))
+                for k in ("STRAZNIK_ORBITA_S", "STRAZNIK_ORBITA_POL", "STRAZNIK_ORBITA_ZMIAN", "STRAZNIK_WYJSCIE_S")))
+import pokretla as _pk
+dom = {"STRAZNIK_ORBITY": 0, "STRAZNIK_ORBITA_S": 60.0, "STRAZNIK_ORBITA_POL": 8, "STRAZNIK_ORBITA_ZMIAN": 15, "STRAZNIK_WYJSCIE_S": 90.0}
+slabsze = {"STRAZNIK_ORBITY": 0, "STRAZNIK_ORBITA_S": 120.0, "STRAZNIK_ORBITA_POL": 4, "STRAZNIK_ORBITA_ZMIAN": 30, "STRAZNIK_WYJSCIE_S": 200.0}
+mocniejsze = {"STRAZNIK_ORBITA_S": 40.0, "STRAZNIK_ORBITA_POL": 10, "STRAZNIK_ORBITA_ZMIAN": 10, "STRAZNIK_WYJSCIE_S": 60.0}
+ok_s, bl_s = _pk.waliduj(slabsze, dom)
+ok_m, bl_m = _pk.waliduj(mocniejsze, dom)
+sprawdz("d5 analityk (waliduj z domyślnymi) nie może osłabić strażnika: dłuższe okno, mniej pól, więcej zmian, dłuższy limit odrzucone",
+        set(ok_s) == {"STRAZNIK_ORBITY"} and len(bl_s) == 4, (ok_s, bl_s))
+sprawdz("d5 analityk może wzmocnić strażnika (krótsze okno, więcej pól, mniej zmian, krótszy limit)",
+        set(ok_m) == set(mocniejsze) and not bl_m, (ok_m, bl_m))
 src = (Path(_R) / "cavebot.py").read_text()
-sprawdz("d4 domyślne w cavebot.py: STRAZNIK_ORBITY=0, S=60, POL=6, WYJSCIE=90",
-        all(l in src for l in ("\nSTRAZNIK_ORBITY = 0 ", "\nSTRAZNIK_ORBITA_S = 60.0 ", "\nSTRAZNIK_ORBITA_POL = 6 ", "\nSTRAZNIK_WYJSCIE_S = 90.0 ")))
+sprawdz("d4 domyślne w cavebot.py: STRAZNIK_ORBITY=0, S=60, POL=8, ZMIAN=15, WYJSCIE=90",
+        all(l in src for l in ("\nSTRAZNIK_ORBITY = 0 ", "\nSTRAZNIK_ORBITA_S = 60.0 ", "\nSTRAZNIK_ORBITA_POL = 8 ", "\nSTRAZNIK_ORBITA_ZMIAN = 15 ", "\nSTRAZNIK_WYJSCIE_S = 90.0 ")))
 
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)
