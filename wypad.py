@@ -872,12 +872,14 @@ class Wypad:
     # --- marsz klikiem w drodze do miasta (WYPRAWA_MARSZ_KLIK, 20.10) ---
 
     def _marsz_klik(self, poz, pkt, teraz):
-        """Jeden klik w najdalsze pole odcinka `pkt` (do KLIK_MAKS_POL pól naprzód), do którego wszystkie pola są zwykłe wg mapy
-        (bez schodów/dziur i pól obok nich), bez ognia i bez zajętych przez innych (widma pomijane), min. 2 pola; potem czekanie
-        na ruch (marsz_klik.klik_i_czekaj). Bez kliku (False): postać nie stoi na odcinku, mob blisko, groźny gracz, mniej niż 2 pola,
-        klik poza widokiem albo po kliku bez ruchu (wtedy KLIK_BLAD_PAUZA_S przerwy). True = obieg zużyty: ruch, zmiana piętra
-        (dalej rządzi _resync / etap przejścia) albo przerwanie (mob, PK, spadek HP: Escape, a walkę/ucieczkę podejmuje Cavebot
-        w następnym obiegu jak dotąd). Nigdy nie zmienia chodzenia poza tym jednym kliknięciem."""
+        """Jeden klik w najdalsze pole GĘSTEJ ścieżki odcinka `pkt` (kolejne pola sąsiednie; rzadkie punkty nagrania uzupełnia linia prosta),
+        do KLIK_MAKS_POL pól naprzód i w zasięgu widoku. Wszystkie pola ścieżki muszą być zwykłe wg mapy i wolne (bez ognia, bez zajętych
+        przez stwory i graczy, widma pomijane), a prostokąt postać + cała ścieżka z marginesem 1 pola nie może zawierać pola z flagą 2
+        (schody, dziury, krzesła, nieznane przejścia) ani dziury nauczonej; inaczej ścieżka jest skracana. Min. 2 pola, inaczej kroki.
+        Potem czekanie na ruch (marsz_klik.klik_i_czekaj, limit czasu liczony w polach). False (kroki jak dotąd): postać nie stoi na
+        odcinku, mob blisko, groźny gracz, ucieczka, mniej niż 2 pola, klik bez ruchu (wtedy KLIK_BLAD_PAUZA_S przerwy) albo klik
+        odrzucony (ValueError, 3 s przerwy). True = obieg zużyty: ruch, zmiana piętra (dalej rządzi _resync / etap przejścia) albo
+        przerwanie (mob, groźny gracz, spadek HP: Escape, a walkę/ucieczkę podejmuje Cavebot w następnym obiegu jak dotąd)."""
         cb = self.cb
         klik, mp = getattr(cb, "klik", None), getattr(cb, "mapa", None)
         if klik is None or mp is None or teraz < self._klik_zakaz_do:
@@ -889,12 +891,8 @@ class Wypad:
         k = next((i for i in range(max(0, self.pi - 3), min(len(pkt), self.pi + 12)) if tuple(pkt[i]) == poz), None)
         if k is None:
             return False                      # postać zeszła z odcinka: wraca na niego dotychczasowa maszyneria
-        sciezka = []
-        for q in pkt[k:k + marsz_klik.KLIK_MAKS_POL + 2]:
-            if q[2] != z:
-                break
-            sciezka.append(tuple(q))
-        if len(sciezka) < 3:
+        pola = marsz_klik.gesta_sciezka(poz, pkt[k + 1:])
+        if len(pola) < 2:
             return False
         lista = [m for m in (getattr(cb, "ostatnie_stwory", None) or []) if m.get("z") == z and not m.get("widmo")]
         ja = getattr(getattr(cb, "postac", None), "nazwa", None)
@@ -908,21 +906,21 @@ class Wypad:
             ogien = set(cb._ogien_xy(z))
         except (AttributeError, TypeError):
             pass
-        koszt = lambda x, y, zz: marsz_klik.koszt_pola(mp, x, y, zz, None, zajete | ogien)
-        dalej = marsz_klik.dalej_klik(sciezka, koszt, z, marsz_klik.KLIK_MAKS_POL, pierwsze_zwykle=True)
-        for i in range(1, dalej + 1):         # mob tuż przy ścieżce kliku: klient poprowadziłby postać obok niego
-            if any(cheb((m["x"], m["y"]), sciezka[i]) <= KLIK_MOB_ODL - 1 for m in moby):
-                dalej = i - 1
+        n = marsz_klik.ile_pol_klik(mp, poz, pola, unik=zajete | ogien, zakaz=(ogien, self._klik_dziury(poz, pola)))
+        for i in range(n):                    # mob tuż przy ścieżce kliku: klient poprowadziłby postać obok niego
+            if any(cheb((m["x"], m["y"]), pola[i]) <= KLIK_MOB_ODL - 1 for m in moby):
+                n = i
                 break
-        if dalej < 2:
+        if n < 2:
             return False
-        cel_kl = sciezka[dalej]
+        cel_kl = (pola[n - 1][0], pola[n - 1][1], z)
         try:
             klik(cel_kl[0] - poz[0], cel_kl[1] - poz[1])
         except ValueError:
-            return False                      # pole poza widokiem mapy
+            self._klik_zakaz_do = teraz + 3.0  # poza widokiem: nie ponawiamy co obieg
+            return False
         hp0 = self._klik_hp()
-        wynik = marsz_klik.klik_i_czekaj(cb.postac, poz, cel_kl, dalej, zegar=marsz_klik.Czas(cb.zegar, cb.spij), log=self.log,
+        wynik = marsz_klik.klik_i_czekaj(cb.postac, poz, cel_kl, n, zegar=marsz_klik.Czas(cb.zegar, cb.spij), log=self.log,
                                          przerwij=lambda p: self._klik_przerwij(p, hp0), prefiks="Wypad: marsz klikiem")
         nowa = tuple(cb.postac.pozycja())
         if wynik == "ruch":
@@ -946,6 +944,24 @@ class Wypad:
         self.log(f"Wypad: marsz klikiem: klik na {cel_kl[:2]} z {poz[:2]} nic nie ruszył, wracam do kroków na {KLIK_BLAD_PAUZA_S:.0f} s")
         self._klik_zakaz_do = teraz + KLIK_BLAD_PAUZA_S
         return False
+
+    def _klik_dziury(self, poz, pola):
+        """Pola (x, y) w prostokącie postać + ścieżka (margines 1), które Cavebot zna jako zmianę piętra albo dziurę nauczoną."""
+        cb = self.cb
+        fn = [getattr(cb, n, None) for n in ("pole_zmiany_pietra", "dziura_nauczona")]
+        fn = [f for f in fn if callable(f)]
+        wynik = set()
+        if not fn:
+            return wynik
+        xs, ys = [poz[0]] + [p[0] for p in pola], [poz[1]] + [p[1] for p in pola]
+        for x in range(min(xs) - 1, max(xs) + 2):
+            for y in range(min(ys) - 1, max(ys) + 2):
+                try:
+                    if any(f((x, y, poz[2])) for f in fn):
+                        wynik.add((x, y))
+                except Exception:             # noqa: BLE001  (błąd odczytu mapy = brak informacji, nie klik)
+                    return {(x, y) for x in range(min(xs) - 1, max(xs) + 2) for y in range(min(ys) - 1, max(ys) + 2)}
+        return wynik
 
     def _klik_zagrozenie(self, inni, poz):
         """Powód, dla którego nie klikamy: żywy mob (nie gracz) w KLIK_MOB_ODL albo groźny gracz (GM/czaszka) w widoku; None = wolno."""

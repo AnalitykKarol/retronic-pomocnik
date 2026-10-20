@@ -80,14 +80,19 @@ Stałe w `cavebot.py`, zakres i kierunek (analityk nie włączy) w `pokretla.py`
 
 - **Gdzie:** `Wypad._idz_faza`, TYLKO faza `do` (droga do miasta/depo: „Wróć do miasta” i każda wyprawa), przed `cb._idz_odcinek`. Klik dotyczy
   jednego odcinka (etapu IDZ) na jednym piętrze; postać musi stać na punkcie odcinka (inaczej zostają dotychczasowe kroki).
-- **Reguła kliku (jak w serwisie, `marsz_klik.py`; serwis używa teraz tych samych funkcji i działa jak dotąd):** najdalsze pole odcinka, do 5 pól
-  naprzód (`KLIK_MAKS_POL`), do którego WSZYSTKIE pola są zwykłe wg mapy (bez blokady, bez schodów/dziur: pole z flagą 2 z odpowiednikiem flagi 2 na
-  piętrze obok; pole z flagą 2 bez odpowiednika, np. krzesło, nie jest „zwykłe”), bez ognia (`cb._ogien_xy`), bez pól zajętych przez stwory i graczy
-  (widma pomijane, wpis własny postaci pomijany); pierwsze pole też musi być zwykłe; min. 2 pola, inaczej krok jak dotąd. Mob (nie gracz) w 3 polach
-  od postaci albo w 2 polach od pola ścieżki kliku = bez kliku albo klik skrócony; groźny gracz (GM/czaszka) w widoku, `ucieczka`, `ostrozny` = bez kliku.
+- **Reguła kliku (klocki `marsz_klik.py`; serwis nadal używa swojej gęstej Dijkstry i działa jak dotąd):** ścieżka kliku to GĘSTA ścieżka odcinka:
+  kolejne pola sąsiednie (nagrania bywają rzadkie, co 2+ pola: luki uzupełnia linia prosta), to samo piętro, do 5 pól naprzód (`KLIK_MAKS_POL`, liczone
+  w POLACH, nie w punktach nagrania) i w zasięgu widoku (|dx| ≤ 6, |dy| ≤ 4, klik poza widokiem nie jest wołany). Każde pole ścieżki musi być zwykłe wg
+  mapy (bez blokady, schodów/dziur, bez pola z flagą 2 także bez odpowiednika, np. krzesło = koszt 6), wolne (bez ognia, bez stworów i graczy; widma i wpis
+  własny pomijane). Obszar kontrolny: prostokąt obejmujący postać i WSZYSTKIE pola ścieżki do celu kliku z marginesem 1 pola nie może zawierać pola z flagą 2
+  ani ognia ani dziury/zmiany piętra znanej Cavebotowi (klient wybiera własną drogę i przy obejściu przeszkody ma objazdy po obu stronach, więc znana dziura
+  przy depo (33167,31812,z7), omijana przez nagranie, blokuje klik w okolicy); inaczej ścieżkę skracamy, < 2 pola = kroki jak dotąd. Mob (nie gracz) w 3
+  polach od postaci albo w 2 polach od pola ścieżki = bez kliku albo skrócenie; groźny gracz (GM/czaszka) w widoku, `ucieczka`, `ostrozny` = bez kliku.
+  Na prawdziwych planach (bez stworów): troll 119/197, gobliny_edron 136/182, edron 80/117 pozycji ma dozwolony klik, 0 naruszeń prostokąta.
 - **Po kliku:** czekanie na ruch jak w serwisie (do 0,8 s + 0,45 s na pole); co 3. odczyt kontrola: mob w 3 polach, groźny gracz albo spadek HP o
   > 5 pp = przerwanie (Escape, obieg oddany; walka/ucieczka/PK idą dotychczasową logiką w następnym obiegu, kolejny klik najwcześniej po 3 s).
-  Zmiana piętra = przerwanie obiegu (dalej `_resync` / etap przejścia). Klik bez ruchu = powrót do kroków i 8 s przerwy w klikach.
+  Zmiana piętra = przerwanie obiegu (dalej `_resync` / etap przejścia). Klik bez ruchu = powrót do kroków i 8 s przerwy w klikach. Limit czasu 0,8 s + 0,45 s
+  na POLE ścieżki; klik odrzucony (poza widokiem) = 3 s przerwy.
 - **Cofnięcie:** `WYPRAWA_MARSZ_KLIK=0` (albo usunięcie z `na_zywo.json`). Przy 0 ścieżka jest identyczna jak przed zmianą (test 20r).
 - **Czego nie obejmuje:** faza `z` (powrót na spot), dojście do planu drogą patrolu (`WYPRAWA_DOJSCIE_PATROLEM`), przejścia pięter (lina, dziura,
   drzwi), sklepy, patrol i walka w `cavebot.py` (osobna gałąź `feat/marsz-klik-patrol`, pokrętło `MARSZ_KLIK`: tam `not self.wypad_aktywny`, więc
@@ -106,8 +111,10 @@ Stałe w `cavebot.py`, zakres i kierunek (analityk nie włączy) w `pokretla.py`
 - **Pierwszeństwo człowieka i warunki odmowy** (wszystko ląduje w `wroc_refill.json` instancji z powodem; bot i tak stoi w depo jak dotąd):
   `STOP_RECZNY` (guzik Stop, `zatrzymaj.sh`, `refill.sh --przerwij`) = bez auto-refillu; serwis / praca `refill.sh` / czekacz już działa = bez drugiego;
   postać nie stoi przy depo = bez; błąd startu czekacza = bez (STOP zostaje).
-- **Anulowanie:** `./wroc.sh --anuluj` (usuwa zlecenie ORAZ oczekującego czekacza: „auto-refill anulowany”), `./refill.sh --przerwij` (ubija czekacza, potem
-  jak dotąd). Anulowanie ręcznego zlecenia przed ruszeniem (plik WROC) nic nie uruchamia, bo wyprawa nie doszła do depo.
+- **Anulowanie:** `./wroc.sh --anuluj` (usuwa zlecenie ORAZ oczekującego czekacza: „auto-refill anulowany”; gdy czekacz już wołał `refill.sh` albo refill trwa:
+  „refill już ruszył: ./refill.sh --przerwij” i nic nie ubija), `./refill.sh --przerwij` (ubija czekacza, potem jak dotąd).
+- **Cooldown:** auto-refill nie rusza, jeśli poprzedni ruszył mniej niż 20 min temu (`COOLDOWN_S`, `ostatni_start` w `wroc_refill.json`): pętla wyprawa → depo → refill.
+- Anulowanie ręcznego zlecenia przed ruszeniem (plik WROC) nic nie uruchamia, bo wyprawa nie doszła do depo.
 - **Miasto bez planu serwisu:** plan serwisu ma tylko Edron (`trasy/serwis_edron.json`, `serwis.py` przyjmuje wyłącznie `edron`). Miasto ocenia się po
   położeniu postaci tak jak pole panelu `w_miescie`. Poza Edronem: `stan: brak_planu`, wpis w logu bota („auto-refill pominięty: brak planu serwisu…”), dymek
   „Wróć do miasta: bez auto-refillu”, pole `wroc_refill: "brak_planu"` w panelu; nic innego nie jest zatrzymywane ani zmieniane.
@@ -116,13 +123,12 @@ Stałe w `cavebot.py`, zakres i kierunek (analityk nie włączy) w `pokretla.py`
   z wpisem „brak planu”. Auto-refill dla Thais wymaga osobnej specyfikacji serwisu (NPC, depo, trasy).
 - **Cofnięcie:** `WROC_REFILL=0`. Pliki: `wroc_refill.json` w katalogu stanu (kasowany ręcznie, panel pokazuje go tylko do następnego startu bota).
 - **Ryzyko:** po refillu bot rusza na spot (`STARTUJ=1`); jeśli zakupy się nie powiodły, wyprawa po `WYPRAWA_PO_DEPO_S` (900 s) może znów wrócić do depo i
-  refill ruszy znowu (pętla co ok. 15 min); `REFILL: BLAD` zostawia STOP, wtedy pętli nie ma.
+  refill ruszy znowu najwcześniej po cooldownie 20 min (pętla co >= 20 min); `REFILL: BLAD` zostawia STOP, wtedy pętli nie ma.
 
 ### C. `panel.py --json` (addytywnie)
 
 `wroc_refill`: `null` | `"czeka"` (czekacz żyje, bot się zatrzymuje) | `"trwa"` (refill ruszył, serwis działa) | `"pominiety"` | `"brak_planu"`;
-`wroc_refill_komunikat`: powód (do 200 znaków). Wynik samego refillu zostaje w `serwis_wynik` / `serwis_komunikat`. Pominięty/brak planu znikają po następnym
-starcie bota.
+`wroc_refill_komunikat`: powód (do 200 znaków). Wynik samego refillu zostaje w `serwis_wynik` / `serwis_komunikat`. Pominięty/brak planu zostają widoczne do następnego STARTU bota (żywy proces bota nowszy niż decyzja), a nie do pierwszej linii logu bota.
 
 ### Testy i weryfikacja
 

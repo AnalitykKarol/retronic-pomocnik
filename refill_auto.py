@@ -34,6 +34,7 @@ WZOR_BOT = r"(mozg|cavebot)\.py"
 WZOR_SERWIS = r"(^|[ /])serwis\.py "
 WZOR_REFILL = r"^(\S*/)?bash (\S*/)?refill\.sh *$"
 WZOR_CZEKACZ = r"(^|[ /])refill_auto\.py czekaj"
+COOLDOWN_S = 1200.0                                      # min. odstęp między startami auto-refillu (pętla wyprawa → depo → refill → wyprawa)
 CZEKAJ_NA_BOTA_S = 60.0                                  # tyle czekacz czeka, aż bot zniknie po STOP (potem rezygnuje, niczego nie ubija)
 
 
@@ -50,12 +51,19 @@ def czytaj_stan(stan_dir):
 
 
 def zapisz_stan(stan_dir, stan, powod="", teraz=time.time):
-    """Atomowy zapis decyzji (czyta ją panel). Błąd zapisu nie przerywa niczego."""
+    """Atomowy zapis decyzji (czyta ją panel). `ostatni_start` (kiedy czekacz ostatnio wołał refill.sh) przechodzi przez kolejne zapisy:
+    na nim opiera się cooldown. Błąd zapisu nie przerywa niczego."""
     p = sciezka_stanu(stan_dir)
     try:
         p.parent.mkdir(parents=True, exist_ok=True)
         tmp = p.with_name(PLIK + ".tmp")
-        tmp.write_text(json.dumps({"stan": stan, "powod": powod, "t": round(teraz(), 1)}, ensure_ascii=False))
+        d = {"stan": stan, "powod": powod, "t": round(teraz(), 1)}
+        ost = czytaj_stan(stan_dir).get("ostatni_start")
+        if stan == "startuje":
+            ost = d["t"]
+        if isinstance(ost, (int, float)):
+            d["ostatni_start"] = ost
+        tmp.write_text(json.dumps(d, ensure_ascii=False))
         os.replace(tmp, p)
     except OSError:
         pass
@@ -86,7 +94,7 @@ def start_czekacza():
                             start_new_session=True)
 
 
-def zlec(poz, stan_dir, katalog=TRASY, start=start_czekacza, procesy=None):
+def zlec(poz, stan_dir, katalog=TRASY, start=start_czekacza, procesy=None, teraz=time.time, cooldown_s=COOLDOWN_S):
     """Decyzja przy STOP w depo (woła ją bot). -> (stan, powód); `start()` tylko wtedy, gdy stan == "czeka".
     brak_planu = miasto bez planu serwisu (np. Thais): nic się nie dzieje poza wpisem w logu, panelu i dymku."""
     stan_dir = Path(stan_dir)
@@ -100,6 +108,9 @@ def zlec(poz, stan_dir, katalog=TRASY, start=start_czekacza, procesy=None):
         return zapisz_stan(stan_dir, "pominiety", f"postać nie stoi przy depo {miasto} (pozycja {tuple(poz)})")
     if trwa_serwis(procesy):
         return zapisz_stan(stan_dir, "pominiety", "serwis albo refill już trwa")
+    ost = czytaj_stan(stan_dir).get("ostatni_start")
+    if isinstance(ost, (int, float)) and 0 <= teraz() - ost < cooldown_s:
+        return zapisz_stan(stan_dir, "pominiety", f"poprzedni auto-refill ruszył {(teraz() - ost) / 60:.0f} min temu (cooldown {cooldown_s / 60:.0f} min)")
     try:
         start()
     except Exception as e:                                # noqa: BLE001
@@ -130,6 +141,7 @@ def czekaj(stan_dir=None, katalog=KATALOG, czekaj_s=CZEKAJ_NA_BOTA_S, procesy=No
         uruchom([sys.executable, "-I", str(katalog / "zwolnij_wejscie.py")], timeout=20, capture_output=True)
     except (OSError, subprocess.SubprocessError):
         pass
+    zapisz_stan(stan_dir, "startuje", "wołam refill.sh --tlo")
     try:
         r = uruchom(["bash", str(katalog / "refill.sh"), "--tlo"], capture_output=True, text=True, timeout=60)
     except (OSError, subprocess.SubprocessError) as e:
@@ -144,9 +156,15 @@ def czekaj(stan_dir=None, katalog=KATALOG, czekaj_s=CZEKAJ_NA_BOTA_S, procesy=No
 
 
 def anuluj(stan_dir=None, procesy=None, zabij=os.kill):
-    """Ubija czekacza tej instancji (jeśli jest) i zapisuje powód. -> liczba ubitych."""
+    """Ubija czekacza tej instancji (jeśli jest) i zapisuje powód. -> liczba ubitych; -1, gdy czekacz już wołał refill.sh
+    (refill ruszył albo rusza: czekacz nie jest ubijany, anulować można tylko `refill.sh --przerwij`)."""
     stan_dir = Path(stan_dir or instancja.S.stan)
-    pidy = (procesy or instancja.procesy)(WZOR_CZEKACZ)
+    procesy = procesy or instancja.procesy
+    st = czytaj_stan(stan_dir).get("stan")
+    if st in ("startuje", "uruchomiony") and (procesy(WZOR_SERWIS) or procesy(WZOR_REFILL, comm=None)
+                                              or (st == "startuje" and procesy(WZOR_CZEKACZ))):
+        return -1                                          # stary wpis „uruchomiony” po zakończonym refillu nie liczy się
+    pidy = procesy(WZOR_CZEKACZ)
     for p in pidy:
         try:
             zabij(p, signal.SIGTERM)
@@ -163,7 +181,8 @@ def main(argv=None):
         return czekaj()
     if a == ["anuluj"]:
         n = anuluj()
-        print("auto-refill anulowany" if n else "brak oczekującego auto-refillu")
+        print("refill już ruszył: ./refill.sh --przerwij" if n < 0
+              else "auto-refill anulowany" if n else "brak oczekującego auto-refillu")
         return 0
     print("użycie: refill_auto.py czekaj | anuluj", file=sys.stderr)
     return 2

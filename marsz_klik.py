@@ -8,6 +8,7 @@ Zmiana piętra, brak ruchu i przerwanie (mob, PK, spadek HP) oddają sterowanie 
 import time
 
 KLIK_MAKS_POL = 5      # ile pól naprzód klikamy naraz (widok mapy ma ±7 x ±5 pól)
+ZASIEG_KLIKU = (6, 4)  # |dx|, |dy| klikanego pola: widok ±7 x ±5 z zapasem 1 pola od krawędzi (poza widokiem ekran.klik_pola rzuca ValueError)
 ZWYKLE = 1.0           # koszt zwykłego pola
 FLAGA_CHODLIWE, FLAGA_SCHODY, FLAGA_BLOK = 1, 2, 4
 
@@ -47,17 +48,65 @@ def koszt_pola(mp, x, y, z, cel=None, unik=()):
     return ZWYKLE
 
 
-def dalej_klik(sciezka, koszt, z, maks=KLIK_MAKS_POL, pierwsze_zwykle=False):
-    """Indeks najdalszego pola `sciezka` (lista (x, y, ...) od pozycji postaci), w które wolno kliknąć: kolejne pola aż do
-    `maks`, każde zwykłe wg `koszt(x, y, z)`. 1 = nie ma co klikać (krok strzałką). `pierwsze_zwykle`: także pole nr 1 musi
-    być zwykłe (serwis go nie sprawdza, bo plan Dijkstry dopuszcza w nim pole z kosztem 6)."""
-    if pierwsze_zwykle and len(sciezka) > 1 and koszt(sciezka[1][0], sciezka[1][1], z) != ZWYKLE:
-        return 1
+def dalej_klik(sciezka, koszt, z, maks=KLIK_MAKS_POL):
+    """SERWIS (gęsta Dijkstra po polach): indeks najdalszego pola `sciezka` (lista (x, y, ...) od pozycji postaci), w które wolno
+    kliknąć: kolejne pola aż do `maks`, każde zwykłe wg `koszt(x, y, z)`. 1 = nie ma co klikać (krok strzałką). Wyprawa używa
+    gesta_sciezka + ile_pol_klik (rzadkie punkty nagrania, prostokąt z marginesem)."""
     dalej = 1
     while (dalej < len(sciezka) - 1 and dalej < maks
            and koszt(sciezka[dalej + 1][0], sciezka[dalej + 1][1], z) == ZWYKLE):
         dalej += 1
     return dalej
+
+
+def gesta_sciezka(poz, punkty, maks=KLIK_MAKS_POL, zasieg=ZASIEG_KLIKU):
+    """Pola do przejścia po `punktach` odcinka (lista (x, y, z), zwykle zaczyna się od `poz`) jako ścieżka GĘSTA: kolejne pola są
+    sąsiednie (Chebyshev 1), tego samego piętra co `poz`, w zasięgu kliku. Rzadkie punkty nagrania (co 2+ pola) uzupełniamy linią prostą
+    (każde pole pośrednie i tak sprawdzi `koszt_pola`). -> lista (x, y) BEZ pola `poz`, najwyżej `maks` pól; kończy się na pierwszym polu
+    poza zasięgiem albo na zmianie piętra."""
+    z, prev, wynik = poz[2], (poz[0], poz[1]), []
+    for q in punkty:
+        if len(q) > 2 and q[2] != z:
+            break
+        d = max(abs(q[0] - prev[0]), abs(q[1] - prev[1]))
+        for i in range(1, d + 1):
+            xy = (prev[0] + round(i * (q[0] - prev[0]) / d), prev[1] + round(i * (q[1] - prev[1]) / d))
+            if abs(xy[0] - poz[0]) > zasieg[0] or abs(xy[1] - poz[1]) > zasieg[1]:
+                return wynik
+            wynik.append(xy)
+            if len(wynik) >= maks:
+                return wynik
+        if d:
+            prev = (q[0], q[1])
+    return wynik
+
+
+def prostokat_czysty(mp, poz, pola, zakaz=()):
+    """Klient wybiera własną drogę do klikniętego pola i przy obejściu przeszkody ma równorzędne objazdy po obu stronach, więc sprawdzamy
+    prostokąt obejmujący postać i WSZYSTKIE `pola` ścieżki z marginesem 1 pola: żadnego pola z flagą 2 (schody, dziury, krzesła, nieznane
+    przejścia: także koszt 6.0) ani z `zakaz` (zbiory (x, y): ogień, dziury nauczone). To samo pole `poz` jest pomijane."""
+    z = poz[2]
+    xs = [poz[0]] + [p[0] for p in pola]
+    ys = [poz[1]] + [p[1] for p in pola]
+    for x in range(min(xs) - 1, max(xs) + 2):
+        for y in range(min(ys) - 1, max(ys) + 2):
+            if (x, y) == (poz[0], poz[1]):
+                continue
+            if mp.flagi(x, y, z) & FLAGA_SCHODY or any((x, y) in zb for zb in zakaz):
+                return False
+    return True
+
+
+def ile_pol_klik(mp, poz, pola, unik=(), zakaz=()):
+    """Ile początkowych pól gęstej ścieżki `pola` wolno przejść jednym klikiem: każde pole zwykłe (koszt 1.0, bez `unik`: zajęte, ogień),
+    a prostokąt całej ścieżki z marginesem 1 czysty (prostokat_czysty); skracamy do pierwszego spełnienia. < 2 = nie klikamy."""
+    z = poz[2]
+    k = 0
+    while k < len(pola) and koszt_pola(mp, pola[k][0], pola[k][1], z, None, unik) == ZWYKLE:
+        k += 1
+    while k >= 2 and not prostokat_czysty(mp, poz, pola[:k], zakaz):
+        k -= 1
+    return k if k >= 2 else 0
 
 
 def klik_i_czekaj(postac, poz, cel_kl, dalej, zegar=time, log=print, przerwij=None, przerwij_co=3, prefiks="marsz klikiem"):

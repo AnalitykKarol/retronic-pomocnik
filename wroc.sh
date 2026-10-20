@@ -13,7 +13,8 @@ case "${1:-}" in
   "") ;;
   --anuluj)
     # oczekujący auto-refill po dojściu do depo (WROC_REFILL=1, refill_auto.py): też anulujemy; refill, który już trwa: ./refill.sh --przerwij
-    ar=0; python3 -I "$DIR/refill_auto.py" anuluj 2>/dev/null | grep -q 'anulowany' && ar=1
+    wyn=$(python3 -I "$DIR/refill_auto.py" anuluj 2>/dev/null); ar=0
+    case "$wyn" in *anulowany*) ar=1 ;; *"już ruszył"*) notify-send "$TYTUL" "Refill już ruszył (anuluj: ./refill.sh --przerwij)"; echo "$wyn"; ar=2 ;; esac
     if [ -e "$WROC" ]; then
       rm -f "$WROC"; notify-send "$TYTUL" "Zlecenie anulowane"; echo "zlecenie anulowane"
     elif [ "$ar" = 0 ]; then

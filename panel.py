@@ -376,24 +376,37 @@ def stan_serwisu(stan_dir, teraz=None, dziala=None, kolejnosc=None):
             "serwis_tryb": tryb if dziala else None, "serwis_wynik": wynik, "serwis_komunikat": komunikat[:200], "serwis_wiek_s": wiek}
 
 
-def stan_auto_refill(stan_dir, serwis_dziala, czeka=None):
+def _start_bota_po(t):
+    """Czy żywy proces bota tej instancji wystartował po chwili `t` (czas ścienny). Start liczymy z uptime procesu (ps/proc)."""
+    teraz = time.time()
+    for pid, _tryb in procesy_bota():
+        wiek = czas_dzialania(pid)
+        if wiek is not None and teraz - wiek > t + 1.0:
+            return True
+    return False
+
+
+def stan_auto_refill(stan_dir, serwis_dziala, czeka=None, bot_po=None):
     """Auto-refill po dojściu do depo (WROC_REFILL=1): wroc_refill = "czeka" (czekacz żyje, bot jeszcze się zatrzymuje),
-    "trwa" (refill ruszył i serwis działa), "pominiety" (powód w komunikacie: ręczny stop, serwis już trwał, anulowano...),
-    "brak_planu" (miasto bez planu serwisu, np. Thais) albo None. Pominięty/brak planu znikają, gdy bot wystartował po decyzji.
-    Wynik samego refillu (ok/błąd) jest w serwis_wynik, tu go nie powtarzamy."""
+    "trwa" (refill ruszył i serwis działa), "pominiety" (powód w komunikacie: ręczny stop, serwis już trwał, anulowano, cooldown...),
+    "brak_planu" (miasto bez planu serwisu) albo None. Pominięty / brak planu zostają widoczne do NASTĘPNEGO STARTU bota (żywy proces
+    bota nowszy niż decyzja), nie do pierwszej linii logu: bot sam loguje zaraz po decyzji. Wynik samego refillu (ok/błąd) jest
+    w serwis_wynik, tu go nie powtarzamy. `bot_po(t)` podmienia sprawdzenie startu bota (testy)."""
     stan_dir = Path(stan_dir)
-    plik = stan_dir / REFILL_AUTO_PLIK
-    d = _json_pliku(plik)
+    d = _json_pliku(stan_dir / REFILL_AUTO_PLIK)
     st, powod = d.get("stan"), str(d.get("powod") or "")
     if czeka is None:
         czeka = bool(instancja.procesy(CZEKACZ_WZOR))
     wynik = None
     if st == "czeka" and czeka:
         wynik = "czeka"
-    elif st in ("czeka", "uruchomiony") and serwis_dziala:
+    elif st in ("czeka", "startuje", "uruchomiony") and serwis_dziala:
         wynik = "trwa"
-    elif st in ("pominiety", "brak_planu") and not _bot_startowal_po(stan_dir / "logi", plik):
-        wynik = st
+    elif st in ("pominiety", "brak_planu"):
+        t = d.get("t")
+        po = (bot_po or _start_bota_po)(t) if isinstance(t, (int, float)) else False
+        if not po:
+            wynik = st
     return {"wroc_refill": wynik, "wroc_refill_komunikat": powod[:200] if wynik else ""}
 
 

@@ -35,9 +35,24 @@ sc = [(1 + i, 1, 7) for i in range(10)]
 sprawdz("1f dalej_klik: zwykła ścieżka = KLIK_MAKS_POL", marsz_klik.dalej_klik(sc, lambda x, y, z: 1.0, 7) == marsz_klik.KLIK_MAKS_POL == 5)
 sprawdz("1g dalej_klik: krótka ścieżka kończy się na ostatnim polu", marsz_klik.dalej_klik(sc[:3], lambda x, y, z: 1.0, 7) == 2)
 sprawdz("1h dalej_klik: niezwykłe pole nr 3 skraca do 2", marsz_klik.dalej_klik(sc, lambda x, y, z: None if x == 4 else 1.0, 7) == 2)
-sprawdz("1i dalej_klik: pole nr 1 niezwykłe — serwis (domyślnie) je pomija, wyprawa (pierwsze_zwykle) nie klika",
-        marsz_klik.dalej_klik(sc, lambda x, y, z: 6.0 if x == 2 else 1.0, 7) == 5
-        and marsz_klik.dalej_klik(sc, lambda x, y, z: 6.0 if x == 2 else 1.0, 7, pierwsze_zwykle=True) == 1)
+sprawdz("1i dalej_klik (serwis): pole nr 1 niezwykłe nie blokuje (plan Dijkstry dopuszcza w nim pole z kosztem 6)",
+        marsz_klik.dalej_klik(sc, lambda x, y, z: 6.0 if x == 2 else 1.0, 7) == 5)
+# gęsta ścieżka i prostokąt z marginesem (wyprawa)
+sprawdz("1i2 gesta_sciezka: punkty co 2 pola zagęszczone do sąsiednich pól, najwyżej KLIK_MAKS_POL",
+        marsz_klik.gesta_sciezka((10, 10, 7), [(10, 10, 7), (12, 10, 7), (14, 10, 7), (16, 10, 7)]) == [(11, 10), (12, 10), (13, 10), (14, 10), (15, 10)])
+sprawdz("1i3 gesta_sciezka: skos, zmiana piętra i wyjście poza zasięg widoku kończą ścieżkę",
+        marsz_klik.gesta_sciezka((10, 10, 7), [(12, 12, 7), (13, 13, 7)]) == [(11, 11), (12, 12), (13, 13)]
+        and marsz_klik.gesta_sciezka((10, 10, 7), [(11, 10, 7), (12, 10, 6)]) == [(11, 10)]
+        and marsz_klik.gesta_sciezka((10, 10, 7), [(25, 10, 7)]) == [(11, 10), (12, 10), (13, 10), (14, 10), (15, 10)]
+        and marsz_klik.gesta_sciezka((10, 10, 7), [(11, 10, 7), (30, 10, 7)], maks=50)[-1] == (16, 10))
+pk = lambda p, pola: marsz_klik.prostokat_czysty(M, p, pola)
+sprawdz("1i4 prostokat_czysty: flaga 2 (schody) w prostokącie ścieżki z marginesem 1 = nieczysty; bez niej czysty (blokada 4 to nie flaga 2)",
+        not pk((6, 6, 7), [(7, 6)]) and pk((1, 1, 7), [(2, 1), (3, 1)]) and pk((1, 4, 7), [(2, 4), (3, 4)]))
+sprawdz("1i5 ile_pol_klik: 4 zwykłe pola = 4; schody w marginesie skracają do 0 (poniżej 2 pól); krzesło (koszt 6) na ścieżce też",
+        marsz_klik.ile_pol_klik(M, (1, 1, 7), [(2, 1), (3, 1), (4, 1), (5, 1)]) == 4
+        and marsz_klik.ile_pol_klik(M, (4, 6, 7), [(5, 6), (6, 6), (7, 6)]) == 0
+        and marsz_klik.ile_pol_klik(M, (3, 6, 7), [(4, 6), (5, 6)]) == 2
+        and marsz_klik.ile_pol_klik(M, (17, 20, 7), [(18, 20), (19, 20), (20, 20)]) == 0)
 
 class Sw:
     """Czas wirtualny i postać: lista pozycji zwracanych kolejnym odczytom (ostatnia się powtarza)."""
@@ -131,6 +146,20 @@ sprawdz("2l bot nie zatrzymał się w limicie: rezygnacja (kod 1), nic nie ubija
 kod, wyw = czekaj_t(Proc(bot_n=1), rc=1, out="bot działa (pid 5), zatrzymaj: ./zatrzymaj.sh")
 sprawdz("2m refill.sh odmówił: pominiety z jego komunikatem, kod odmowy", kod == 1 and cz()["stan"] == "pominiety" and "bot działa" in cz()["powod"], (kod, cz()))
 
+# cooldown: poprzedni start młodszy niż COOLDOWN_S blokuje następny, stary nie; zapis pominięcia nie kasuje ostatniego startu
+czysc(); starty.clear()
+refill_auto.zapisz_stan(stan, "startuje", "x", teraz=lambda: 1000.0)
+refill_auto.zapisz_stan(stan, "uruchomiony", "x", teraz=lambda: 1001.0)
+r = refill_auto.zlec(EDRON_DEPO, stan, start=lambda: starty.append(1), procesy=nic, teraz=lambda: 1000.0 + 600)
+sprawdz("2h2 cooldown: poprzedni auto-refill ruszył 10 min temu (< 20): pominiety z powodem, czekacz nie rusza",
+        r[0] == "pominiety" and starty == [] and "cooldown" in r[1], r)
+r = refill_auto.zlec(EDRON_DEPO, stan, start=lambda: starty.append(1), procesy=nic, teraz=lambda: 1000.0 + 900)
+sprawdz("2h3 cooldown przetrwał zapis pominięcia (ostatni_start w pliku): nadal blokuje", r[0] == "pominiety" and starty == []
+        and cz().get("ostatni_start") == 1000.0, (r, cz()))
+r = refill_auto.zlec(EDRON_DEPO, stan, start=lambda: starty.append(1), procesy=nic, teraz=lambda: 1000.0 + 1300)
+sprawdz("2h4 po cooldownie (21+ min) auto-refill rusza", r[0] == "czeka" and starty == [1], r)
+czysc()
+
 # anuluj
 czysc(); ubite = []
 n = refill_auto.anuluj(stan, procesy=lambda w, **kw: [31, 32] if "czekaj" in w else [], zabij=lambda p, s: ubite.append(p))
@@ -138,6 +167,16 @@ sprawdz("2n anuluj: ubija czekaczy tej instancji i zapisuje powód", n == 2 and 
 czysc()
 n = refill_auto.anuluj(stan, procesy=nic, zabij=lambda p, s: ubite.append(p))
 sprawdz("2o anuluj bez czekacza: 0 i brak pliku decyzji", n == 0 and cz() == {})
+refill_auto.zapisz_stan(stan, "startuje", "wołam refill.sh --tlo")
+ubite.clear()
+n = refill_auto.anuluj(stan, procesy=lambda w, **kw: [31] if "czekaj" in w else [], zabij=lambda p, s: ubite.append(p))
+sprawdz("2o2 czekacz już woła refill.sh (stan startuje): -1, czekacz NIE ubity (komunikat 'refill już ruszył')", n == -1 and ubite == [], (n, ubite))
+refill_auto.zapisz_stan(stan, "uruchomiony", "refill.sh --tlo")
+n = refill_auto.anuluj(stan, procesy=lambda w, **kw: [41] if "serwis" in w else [], zabij=lambda p, s: ubite.append(p))
+sprawdz("2o3 refill trwa (stan uruchomiony, serwis żyje): -1", n == -1 and ubite == [], n)
+n = refill_auto.anuluj(stan, procesy=nic, zabij=lambda p, s: ubite.append(p))
+sprawdz("2o4 stary wpis 'uruchomiony' po zakończonym refillu (nic nie żyje): zwykłe 'brak oczekującego', 0", n == 0, n)
+czysc()
 
 # ---------------------------------------------------------------- 3. panel: pole wroc_refill
 logi = stan / "logi"; logi.mkdir()
@@ -159,9 +198,28 @@ sprawdz("3f brak_planu: pole i komunikat widoczne w panelu", r["wroc_refill"] ==
 refill_auto.zapisz_stan(stan, "pominiety", "ręczny stop (STOP_RECZNY) ma pierwszeństwo")
 sprawdz("3g pominiety: widoczny z powodem", A(serwis_dziala=False, czeka=False)["wroc_refill"] == "pominiety")
 plik = stan / refill_auto.PLIK
-bl = logi / "mozg-stdout-1020-1200.log"; bl.write_text("bot\n")
-t0 = plik.stat().st_mtime; _os.utime(bl, (t0 + 60, t0 + 60))
-sprawdz("3h bot wystartował po decyzji: pominięcie/brak planu przestają obowiązywać", A(serwis_dziala=False, czeka=False)["wroc_refill"] is None)
+t_dec = json.loads(plik.read_text())["t"]
+bl = logi / "mozg-stdout-1020-1200.log"; bl.write_text("Wyprawa: auto-refill pominięty\nZatrzymano (plik STOP).\n")      # bot loguje zaraz po decyzji i przy wyjściu
+tl = plik.stat().st_mtime; _os.utime(bl, (tl + 60, tl + 60))
+sprawdz("3h decyzja → dopisanie logu bota → panel nadal pokazuje pominięcie (log nie jest startem bota)",
+        A(serwis_dziala=False, czeka=False, bot_po=lambda t: False)["wroc_refill"] == "pominiety"
+        and A(serwis_dziala=False, czeka=False)["wroc_refill"] == "pominiety")
+refill_auto.zapisz_stan(stan, "brak_planu", "brak planu serwisu dla tego miasta (pozycja (32366, 32215, 7)); serwis ma: edron")
+sprawdz("3h2 brak_planu też zostaje po dopisaniu logu", A(serwis_dziala=False, czeka=False, bot_po=lambda t: False)["wroc_refill"] == "brak_planu")
+sprawdz("3h3 dopiero start bota (proces nowszy niż decyzja) czyści pole", A(serwis_dziala=False, czeka=False, bot_po=lambda t: t > 0)["wroc_refill"] is None)
+(stan / refill_auto.PLIK).write_text(json.dumps({"stan": "brak_planu", "powod": "x", "t": time.time() - 100}))      # decyzja sprzed 100 s
+orig_pb, orig_cd = panel.procesy_bota, panel.czas_dzialania
+try:
+    panel.procesy_bota = lambda: [(4242, "mozg.py")]
+    panel.czas_dzialania = lambda pid: 1000000                 # proces starszy niż decyzja
+    s_stary = A(serwis_dziala=False, czeka=False)["wroc_refill"]
+    panel.czas_dzialania = lambda pid: 1                        # proces młodszy niż decyzja (wystartował po niej)
+    s_nowy = A(serwis_dziala=False, czeka=False)["wroc_refill"]
+finally:
+    panel.procesy_bota, panel.czas_dzialania = orig_pb, orig_cd
+sprawdz("3h4 prawdziwe sprawdzenie startu z procesu bota: stary proces nie czyści, świeży czyści", s_stary == "brak_planu" and s_nowy is None, (s_stary, s_nowy))
+refill_auto.zapisz_stan(stan, "startuje", "wołam refill.sh --tlo")
+sprawdz("3h5 stan startuje + serwis działa = trwa", A(serwis_dziala=True, czeka=False)["wroc_refill"] == "trwa")
 (stan / refill_auto.PLIK).write_text("{zepsute")
 sprawdz("3i zepsuty plik decyzji nie psuje panelu", A(serwis_dziala=False, czeka=False)["wroc_refill"] is None)
 sprawdz("3j panel.py --json zawiera pola wroc_refill i wroc_refill_komunikat obok dotychczasowych (addytywnie)",
@@ -248,6 +306,17 @@ try:
             and (INST / "STOP").exists(), (r.returncode, r.stdout, r.stderr, stan_pliku()))
     bot.kill(); bot.wait(); posprzataj()
 
+    # d2. czekacz już wołał refill.sh (stan uruchomiony, serwis żyje): wroc.sh nie mówi 'anulowany'
+    refill_auto_stub = INST / refill_auto.PLIK
+    refill_auto_stub.write_text(json.dumps({"stan": "uruchomiony", "powod": "refill.sh --tlo", "t": time.time()}))
+    (SAND / "serwis.py").write_text("import time\ntime.sleep(60)\n")
+    srv_p = subprocess.Popen(["python3", "-I", str(SAND / "serwis.py"), "edron"], env=ENV(), start_new_session=True)
+    time.sleep(0.5)
+    r = subprocess.run(["bash", str(SAND / "wroc.sh"), "--anuluj"], env=ENV(), capture_output=True, text=True, timeout=30)
+    srv_p.kill(); srv_p.wait()
+    sprawdz("4h0 wroc.sh --anuluj gdy refill już ruszył: komunikat 'refill już ruszył: ./refill.sh --przerwij', bez 'auto-refill anulowany'",
+            r.returncode == 0 and "refill już ruszył" in r.stdout and "auto-refill anulowany" not in r.stdout, (r.stdout, r.stderr))
+    posprzataj()
     # d. wroc.sh --anuluj anuluje oczekujący auto-refill
     bot = start_bota(); time.sleep(0.4); cz_ = start_czekacza()
     czekaj_na(lambda: stan_pliku().get("stan") == "czeka")
