@@ -57,6 +57,13 @@ jest "wróć do domyślnej: UH_KOSZT = 70" "$NA_ZYWO" UH_KOSZT 70
 jest "wróć do domyślnej: UH_KLAWISZ = F6" "$NA_ZYWO" UH_KLAWISZ '"F6"'
 jest "pokrętło poza listą (STARY_KLUCZ) nietknięte" "$NA_ZYWO" STARY_KLUCZ 5
 
+echo "== B2: zapisy w kolejce nie giną przy zmianie postaci (kolejka + wybierz w jednym kroku)"
+uruchom "czekaj:600;sekcja:ustawienia;czekaj:800;kolejka:UH_KOSZT=111,UH_MANA_MIN=112,UH_MIN_HP=88>test;czekaj:3500;stan;koniec"
+jest "kolejka: UH_KOSZT zapisany w głównej mimo przełączenia na test" "$NA_ZYWO" UH_KOSZT 111
+jest "kolejka: UH_MANA_MIN zapisany w głównej" "$NA_ZYWO" UH_MANA_MIN 112
+jest "kolejka: UH_MIN_HP zapisany w głównej" "$NA_ZYWO" UH_MIN_HP 88
+jest "kolejka: nic nie trafiło do instancji test (UH_KOSZT zostaje 70)" "$NA_ZYWO_TEST" UH_KOSZT 70
+
 echo "== C: filtr, grupa tylko do odczytu, tylko zmienione, ostrzeżenie o trybie (instancja test)"
 uruchom "czekaj:600;sekcja:ustawienia;czekaj:800;grupa:Walka i pościg;czekaj:500;zrzut:$S-6-grupa-walka.png;filtr:koszt;czekaj:500;zrzut:$S-7-filtr-koszt.png;filtr:;grupa:Poza listą;czekaj:500;zrzut:$S-8-poza-lista.png;grupa:Runy (UH);zmienione;czekaj:500;zrzut:$S-9-tylko-zmienione.png;koniec"
 uruchom "wybierz:test;sekcja:ustawienia;czekaj:1500;zrzut:$S-10-test-ostrzezenie-trybu.png;koniec"

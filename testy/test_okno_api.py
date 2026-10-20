@@ -184,7 +184,7 @@ with tempfile.TemporaryDirectory() as tmp:
     sprawdz("ustaw: dziennik cofania ma poprzednie wartości i listę dodanych kluczy", len(wpisy) == 3 and wpisy[0]["przed"] == {"POGON_ZASIEG": 11, "POGON_LIMIT": 20.0}
             and sorted(wpisy[0]["brak"]) == ["KROKI_DO_ZWLOK"] and wpisy[1]["przed"] == {"POGON_ZASIEG": 13} and wpisy[0]["po"]["POGON_ZASIEG"] == 13, wpisy[0])
     oz = uruchom(tmp, "pokretla", "--instancja", "dwa")[1]["ostatnia_zmiana"]
-    sprawdz("pokretla: ostatnia_zmiana = ostatni wpis dziennika (po/przed/brak/czas), podpis przycisku Cofnij", oz == {"czas": wpisy[-1]["czas"], "po": wpisy[-1]["po"],
+    sprawdz("pokretla: ostatnia_zmiana = ostatni wpis dziennika (po/przed/brak/czas), podpis przycisku Cofnij", oz == {"czas": wpisy[-1]["czas"], "epoch": wpisy[-1]["epoch"], "po": wpisy[-1]["po"],
             "przed": wpisy[-1]["przed"], "brak": wpisy[-1]["brak"]} and oz["po"] == {"POGON_ZASIEG": 12}, oz)
     kod, d = uruchom(tmp, "ustaw", "--instancja", "dwa", "UH_KLAWISZ=F9")
     sprawdz("ustaw: pokrętło tekstowe z dozwolonych", kod == 0 and json.loads(plik.read_text())["UH_KLAWISZ"] == "F9")
@@ -265,6 +265,31 @@ with tempfile.TemporaryDirectory() as tmp:
 
     # kopia przy cofnięciu: nie nadpisuje istniejącej z tego dnia
     sprawdz("cofnij/ustaw: jedna kopia dzienna", len(list(plik.parent.glob("na_zywo.json.bak-*"))) == 1)
+
+# cofnij nie nadpisuje zmian z międzyczasu i odmawia, gdy przycisk wskazywał inny wpis
+with tempfile.TemporaryDirectory() as tmp:
+    r = zrob_korzen(tmp)
+    plik, dziennik = r / "instancje/dwa/na_zywo.json", r / "instancje/dwa/okno_cofnij.jsonl"
+    uruchom(tmp, "ustaw", "--instancja", "dwa", "POGON_ZASIEG=14", "KROKI_DO_ZWLOK=40")          # POGON_ZASIEG 11 -> 14, KROKI dodany
+    uruchom(tmp, "ustaw", "--instancja", "dwa", "POGON_ZASIEG=12", "LIMIT_WALKI=80", teraz=TERAZ + 10)            # POGON_ZASIEG 14 -> 12, LIMIT_WALKI dodany
+    ep = uruchom(tmp, "pokretla", "--instancja", "dwa")[1]["ostatnia_zmiana"]["epoch"]
+    d0 = json.loads(plik.read_text()); d0["POGON_ZASIEG"] = 13; plik.write_text(tekst_na_zywo(d0))   # „zewnętrznie” (analityk/ręcznie): 12 -> 13
+    kod, d = uruchom(tmp, "cofnij", "--instancja", "dwa", "--epoch", str(ep))
+    po = json.loads(plik.read_text())
+    sprawdz("cofnij: klucz zmieniony z zewnątrz zostaje (13), zgłoszony w pominiete", kod == 0 and po["POGON_ZASIEG"] == 13
+            and [x["klucz"] for x in d["pominiete"]] == ["POGON_ZASIEG"] and "POGON_ZASIEG" not in d["przywrocone"], (d, po))
+    sprawdz("cofnij: klucz nietknięty z zewnątrz wraca (LIMIT_WALKI dodany przez okno jest usuwany)", "LIMIT_WALKI" not in po and d["usuniete"] == ["LIMIT_WALKI"], (d, po))
+    kod, d = uruchom(tmp, "ustaw", "--instancja", "dwa", "LIMIT_WALKI=90", teraz=TERAZ + 20)
+    ep_stary = ep
+    kod, d = uruchom(tmp, "cofnij", "--instancja", "dwa", "--epoch", str(ep_stary))
+    sprawdz("cofnij --epoch: inny ostatni wpis niż na przycisku = odmowa, plik i dziennik bez zmian", kod != 0 and d["ok"] is False and "inna" in d["blad"]
+            and json.loads(plik.read_text())["LIMIT_WALKI"] == 90 and len(dziennik.read_text().splitlines()) == 2, d)
+    # wszystkie klucze zmienione z zewnątrz: nic nie jest zapisywane (brak nowej kopii), wpis dziennika znika
+    d1 = json.loads(plik.read_text()); d1["LIMIT_WALKI"] = 100; plik.write_text(tekst_na_zywo(d1))
+    przed = plik.read_bytes()
+    kod, d = uruchom(tmp, "cofnij", "--instancja", "dwa")
+    sprawdz("cofnij: wszystko zmienione z zewnątrz = plik bajtowo bez zmian, wszystko w pominiete", kod == 0 and plik.read_bytes() == przed
+            and d["przywrocone"] == {} and [x["klucz"] for x in d["pominiete"]] == ["LIMIT_WALKI"] and d["pozostalo_w_dzienniku"] == 1, d)
 
 # REGRESJA: wartość „przed” poza zakresem (bot ją ignoruje) nie może trwale blokować cofnij
 with tempfile.TemporaryDirectory() as tmp:

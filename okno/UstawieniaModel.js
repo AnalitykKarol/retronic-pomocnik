@@ -63,9 +63,12 @@ function pokretlaCommand(repoDir, id) {
   return apiCommand(repoDir, ["pokretla", "--instancja", String(id)])
 }
 
-function cofnijCommand(repoDir, id) {
+// epoch (opcjonalnie) = identyfikator wpisu dziennika z podpisu przycisku (ostatnia_zmiana.epoch): zaplecze odmówi, gdy ostatni wpis jest już inny.
+function cofnijCommand(repoDir, id, epoch) {
   if (!validId(id)) return null
-  return apiCommand(repoDir, ["cofnij", "--instancja", String(id)])
+  var args = ["cofnij", "--instancja", String(id)]
+  if (typeof epoch === "number" && isFinite(epoch)) args.push("--epoch", String(epoch))
+  return apiCommand(repoDir, args)
 }
 
 // ---------------------------------------------------------------- liczby i wartości

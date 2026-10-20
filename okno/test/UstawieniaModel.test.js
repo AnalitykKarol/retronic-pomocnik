@@ -129,6 +129,9 @@ describe("polecenie zapisu i cofania (bez powłoki)", () => {
   it("pokretla i cofnij: tylko z poprawnym id", () => {
     assert.deepEqual(U.pokretlaCommand("/r", ""), ["python3", "-I", "/r/okno_api.py", "pokretla", "--instancja", ""])
     assert.deepEqual(U.cofnijCommand("/r", "test"), ["python3", "-I", "/r/okno_api.py", "cofnij", "--instancja", "test"])
+    assert.deepEqual(U.cofnijCommand("/r", "test", 1792490400.123456), ["python3", "-I", "/r/okno_api.py", "cofnij", "--instancja", "test", "--epoch", "1792490400.123456"])
+    assert.deepEqual(U.cofnijCommand("/r", "test", undefined), ["python3", "-I", "/r/okno_api.py", "cofnij", "--instancja", "test"])
+    assert.deepEqual(U.cofnijCommand("/r", "test", null), ["python3", "-I", "/r/okno_api.py", "cofnij", "--instancja", "test"])
     assert.equal(U.cofnijCommand("/r", "../x"), null)
     assert.equal(U.pokretlaCommand("/r", "A;b"), null)
   })
@@ -337,6 +340,24 @@ describe("zapis i cofnięcie na atrapie (okno_api z prawdziwą walidacją pokret
     assert.equal(fs.readFileSync(plik(), "utf8").includes('"POGON_LIMIT": 20.0'), true)
     assert.equal(M.parseApi(run(U.cofnijCommand(REPO, "")).stdout).data.przywrocone.UH_KOSZT, 100)
     assert.equal(JSON.parse(fs.readFileSync(plik(), "utf8")).UH_KLAWISZ, "F7")
+  })
+  it("cofnij z epoch z podpisu przycisku: zgodny cofa, nieaktualny jest odrzucany; zmiana z zewnątrz zostaje", () => {
+    const by = U.byKeyMap(U.allKnobs(read("").data))
+    assert.equal(M.parseApi(run(U.ustawCommand(REPO, "", { UH_KOSZT: 80 }, by)).stdout).ok, true)
+    const epoch1 = read("").data.ostatnia_zmiana.epoch
+    assert.equal(typeof epoch1, "number")
+    assert.equal(M.parseApi(run(U.ustawCommand(REPO, "", { UH_MANA_MIN: 80 }, by)).stdout).ok, true)
+    const odm = M.parseApi(run(U.cofnijCommand(REPO, "", epoch1)).stdout)       // przycisk wskazywał starszy wpis niż ostatni
+    assert.equal(odm.ok, false)
+    assert.match(odm.blad, /inna niż ta na przycisku/)
+    const raw = JSON.parse(fs.readFileSync(plik(), "utf8")); raw.UH_MANA_MIN = 90; fs.writeFileSync(plik(), JSON.stringify(raw, null, 1))   // zmiana z zewnątrz
+    const ep2 = read("").data.ostatnia_zmiana.epoch
+    const c = M.parseApi(run(U.cofnijCommand(REPO, "", ep2)).stdout)
+    assert.equal(c.ok, true, JSON.stringify(c))
+    assert.deepEqual(c.data.pominiete.map((x) => x.klucz), ["UH_MANA_MIN"])
+    assert.equal(JSON.parse(fs.readFileSync(plik(), "utf8")).UH_MANA_MIN, 90)
+    assert.equal(M.parseApi(run(U.cofnijCommand(REPO, "", read("").data.ostatnia_zmiana.epoch)).stdout).ok, true)      // wpis UH_KOSZT
+    assert.equal(JSON.parse(fs.readFileSync(plik(), "utf8")).UH_KOSZT, 100)
   })
   it("zaplecze odrzuca wartość, którą model by przepuścił (np. spoza opcji) bez zapisu", () => {
     const before = fs.readFileSync(plik(), "utf8")

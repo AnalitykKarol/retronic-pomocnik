@@ -21,7 +21,7 @@ Jedno wywołanie danego rodzaju naraz, wszystko asynchronicznie (`Job.qml`).
 
 Wybrana w pasku bocznym postać wyznacza instancję; zapis idzie do jej `na_zywo.json` (bot czyta plik na żywo, bez restartu).
 Zapis **od razu** po puszczeniu suwaka, kliknięciu przełącznika albo przycisku wyboru, Enterze w polu liczby (decyzja Q3, bez „Zapisz”);
-pod listą stoi wynik ostatniej zmiany i **Cofnij ostatnią** (jeden wpis dziennika `okno_cofnij.jsonl`; zestaw run to jeden wpis).
+pod listą stoi wynik ostatniej zmiany i **Cofnij ostatnią** (jeden wpis dziennika `okno_cofnij.jsonl`; zestaw run to jeden wpis). Cofnięcie przywraca tylko klucze, które nadal mają wartość ustawioną z okna (zmiany z zewnątrz zostają, lista „pominięto”), a przycisk przekazuje `--epoch` wpisu z podpisu: gdy ostatni wpis jest już inny, zaplecze odmawia. Zapisy czekające w kolejce nie giną przy zmianie postaci (każdy niesie własną instancję).
 Zapis robi `okno_api.py ustaw` (granice i dozwolone wartości z `pokretla.py`, kopia `na_zywo.json.bak-DATA-okno` przy pierwszej zmianie dnia,
 zapis atomowy); okno liczy tylko polecenie (`UstawieniaModel.js`) i pokazuje wynik.
 

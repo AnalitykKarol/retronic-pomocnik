@@ -96,8 +96,7 @@ QtObject {
     pokretlaData = null
     pokretlaRaw = ""
     pokretlaError = ""
-    writeQueue = []
-    setKnobNote("", "")
+    setKnobNote("", "")           // kolejka zapisów zostaje: elementy niosą własne id instancji (onUstaw)
     markNote = ""
     startNote = ""
     pollSelected()
@@ -199,7 +198,10 @@ QtObject {
 
   function onUstaw(text, id) {
     var r = Model.parseApi(text)
-    if (id === selectedId) {
+    if (id !== selectedId) {
+      // zapis z kolejki dla postaci, którą użytkownik już przełączył: błąd nie może zginąć po cichu
+      if (!r.ok) setKnobNote("nie zapisano (" + nickOfId(id) + "): " + r.blad, "bad")
+    } else {
       if (!r.ok) setKnobNote("nie zapisano: " + r.blad, "bad")
       else if (Object.keys(r.data.zmienione || {}).length === 0) setKnobNote("bez zmian: wartość już jest ustawiona", "ok")
       else {
@@ -212,9 +214,16 @@ QtObject {
     pumpWrites()
   }
 
+  function nickOfId(id) {
+    for (var i = 0; i < instances.length; i++) if (instances[i].id === id) return Model.nickOf(instances[i])
+    return id === "" ? "główna" : id
+  }
+
   function undo() {
-    if (knobBusy || !Ust.cofnijCommand(repoDir, selectedId)) return
-    cofnijJob.start(Ust.cofnijCommand(repoDir, selectedId), selectedId)
+    if (knobBusy) return
+    var last = pokretlaData ? pokretlaData.ostatnia_zmiana : null
+    var cmd = Ust.cofnijCommand(repoDir, selectedId, last && typeof last.epoch === "number" ? last.epoch : undefined)
+    if (cmd) cofnijJob.start(cmd, selectedId)
   }
 
   function onCofnij(text, id) {

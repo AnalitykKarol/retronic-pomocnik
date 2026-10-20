@@ -12,7 +12,8 @@ Wynik: JSON na stdout; sukces `{"ok": true, ...}` i kod 0; błąd `{"ok": false,
                                                wybraną postać co 2 s, pozostałe co 5 s
   pokretla [--instancja ID]                    meta pokręteł: grupa, typ, zakres, domyślna, bieżąca, opis
   ustaw --instancja ID KLUCZ=WART [...]        zapis do na_zywo.json przez pokretla.waliduj (błąd = zero zapisu)
-  cofnij --instancja ID                        przywraca ostatnią zmianę z dziennika okno_cofnij.jsonl
+  cofnij --instancja ID [--epoch E]            przywraca ostatnią zmianę z dziennika okno_cofnij.jsonl (tylko klucze nietknięte z zewnątrz;
+                                               z --epoch odmawia, gdy ostatni wpis jest inny niż ten z przycisku)
   ratunek [--instancja ID] [--od RRRR-MM-DD]   sygnały ratunku z logi/ratunek-RRRRMMDD.jsonl + etykiety + liczniki;
                                                WSZYSTKIE liczniki (też `najczestszy_kod` i `kody`) liczą z okna --od
                                                (domyślnie ostatnie 7 dni), nie z całej historii
@@ -313,7 +314,7 @@ def ostatnia_zmiana(sc):
         return None
     if not isinstance(wpis, dict) or not isinstance(wpis.get("po"), dict):
         return None
-    return {"czas": wpis.get("czas"), "po": wpis["po"], "przed": wpis.get("przed") or {}, "brak": wpis.get("brak") or []}
+    return {"czas": wpis.get("czas"), "epoch": wpis.get("epoch"), "po": wpis["po"], "przed": wpis.get("przed") or {}, "brak": wpis.get("brak") or []}
 
 
 # ---------- ustaw / cofnij ----------
@@ -425,7 +426,10 @@ def _nazwa_kopii(sc, kiedy):
     return str(p.with_name(f"{p.name}.bak-{time.strftime('%Y%m%d', time.localtime(kiedy))}-okno"))
 
 
-def cmd_cofnij(id_):
+def cmd_cofnij(id_, epoch=None):
+    """Cofa ostatni wpis dziennika. `epoch` (opcjonalnie) = identyfikator wpisu, który widział użytkownik na przycisku: przy
+    niezgodności (ktoś zapisał w międzyczasie) odmawia i nic nie rusza. Przywraca TYLKO klucze, których bieżąca wartość w
+    na_zywo.json to nadal ta ustawiona przez okno (`po`); zmienione z zewnątrz od tamtej pory zostają i trafiają do `pominiete`."""
     sc = sciezki(id_)
     with blokada(sc):
         dz = _dziennik(sc)
@@ -441,6 +445,8 @@ def cmd_cofnij(id_):
             przed, brak = dict(wpis["przed"]), list(wpis["brak"])
         except (ValueError, KeyError, TypeError) as e:
             raise Blad(f"dziennik cofania uszkodzony (ostatni wpis): {e}")
+        if epoch is not None and not (isinstance(wpis.get("epoch"), (int, float)) and abs(wpis["epoch"] - epoch) < 1e-6):
+            raise Blad("ostatnia zmiana w dzienniku jest inna niż ta na przycisku (zapis w międzyczasie); odśwież i spróbuj ponownie")
         # klucz, którego „przed” nie przechodzi walidacji (stary lub ręcznie edytowany dziennik), jest POMIJANY i
         # zgłoszony w wyniku; reszta wpisu jest cofana (jeden zły klucz nie blokuje cofania na zawsze)
         przywroc, pominiete = {}, []
@@ -451,18 +457,34 @@ def cmd_cofnij(id_):
             else:
                 pominiete.append({"klucz": k, "powod": "; ".join(bledy) or "klucz z _ nie jest pokrętłem"})
         surowe, dane = _wczytaj_do_zmiany(sc)
+        po = wpis.get("po") if isinstance(wpis.get("po"), dict) else {}
+
+        def zmieniona_z_zewnatrz(k):
+            """Wpis starego formatu bez `po` dla klucza: bez sprawdzenia. Inaczej: bieżąca wartość musi być tą z okna."""
+            return k in po and not (k in dane and dane[k] == po[k] and isinstance(dane[k], bool) == isinstance(po[k], bool))
+        for k in list(przywroc):
+            if zmieniona_z_zewnatrz(k):
+                del przywroc[k]
+                pominiete.append({"klucz": k, "powod": "zmieniony poza oknem od tej zmiany: zostaje bieżąca wartość"})
+        usuniete = []
+        for k in brak:
+            if zmieniona_z_zewnatrz(k):
+                pominiete.append({"klucz": k, "powod": "zmieniony poza oknem od tej zmiany: zostaje bieżąca wartość"})
+            else:
+                usuniete.append(k)
         nowe = dict(dane)
         nowe.update(przywroc)
-        for k in brak:
+        for k in usuniete:
             nowe.pop(k, None)
         kiedy = teraz()
         try:
-            _zapisz_zmiany_pliku(sc, surowe, nowe, kiedy)
+            if nowe != dane:
+                _zapisz_zmiany_pliku(sc, surowe, nowe, kiedy)
             reszta = "".join(l + "\n" for l in linie[:-1])
             zapisz_atomowo(dz, reszta)
         except Exception as e:
             raise Blad(f"zapis nie powiódł się ({e})")
-    return {"instancja": id_, "przywrocone": przywroc, "pominiete": pominiete, "usuniete": brak, "cofnieta_zmiana": wpis.get("czas"),
+    return {"instancja": id_, "przywrocone": przywroc, "pominiete": pominiete, "usuniete": usuniete, "cofnieta_zmiana": wpis.get("czas"),
             "pozostalo_w_dzienniku": len(linie) - 1}
 
 
@@ -833,7 +855,7 @@ def zbuduj_parser():
     sp = sub.add_parser("stan"); inst(sp, True)         # tu --instancja opcjonalne (brak = wszystkie)
     sp = sub.add_parser("pokretla"); inst(sp, False)
     sp = sub.add_parser("ustaw"); inst(sp, True); sp.add_argument("pary", nargs="+", metavar="KLUCZ=WART")
-    sp = sub.add_parser("cofnij"); inst(sp, True)
+    sp = sub.add_parser("cofnij"); inst(sp, True); sp.add_argument("--epoch", type=float, default=None, help="identyfikator wpisu dziennika z przycisku (ostatnia_zmiana.epoch)")
     sp = sub.add_parser("ratunek"); inst(sp, False); sp.add_argument("--od", default=None, metavar="RRRR-MM-DD")
     sp = sub.add_parser("ratunek-oznacz"); inst(sp, True); sp.add_argument("--id", required=True, dest="sygnal")
     g = sp.add_mutually_exclusive_group(required=True)
@@ -854,7 +876,7 @@ def wykonaj(a):
     if c == "ustaw":
         return cmd_ustaw(id_, a.pary)
     if c == "cofnij":
-        return cmd_cofnij(id_)
+        return cmd_cofnij(id_, a.epoch)
     if c == "ratunek":
         return cmd_ratunek(id_, a.od)
     if c == "ratunek-oznacz":
