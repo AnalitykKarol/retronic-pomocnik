@@ -410,7 +410,7 @@ class MapaObecnosci:
                 m.k[(cx, cy, z)] = Komorka.ze_slownika(cd, stary)
             m._przyp_n = sum(len(c.przypadki) for c in m.k.values())
             return m
-        except (OSError, ValueError, KeyError, TypeError):
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):     # AttributeError: JSON bez słownika (np. lista)
             return None
 
 

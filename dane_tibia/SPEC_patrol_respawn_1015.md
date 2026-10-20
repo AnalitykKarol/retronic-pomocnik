@@ -70,3 +70,48 @@ To też pierwsza "mapa obecności" mobów, z której skorzysta przyszły lokalny
   rekord `decyzja` D4; ruch bez zmian. Poprawki po recenzji: droga cienia po grafie pliku miejsc (`DrogiGraf`, bez A*,
   0,25 ms) zamiast linii prostej; martwe pokrętło `PATROL_RESPAWN` usunięte (wróci w kroku 3); mapa tylko dla trolli;
   `gracz_przy` liczony przy samym miejscu. Testy: test_obecnosc 60/60, test_patrol_respawn_cien 47/47.
+
+## 7. Krok 3 (20.10): pokrętło `PATROL_RESPAWN` — patrol idzie według respawnu
+
+Polecenie Karola 20.10: „włączyć mapę odrodzeń”. Kod gotowy, **domyślnie wyłączony** (`PATROL_RESPAWN = 0`); włączenie na żywo
+to wpis `"PATROL_RESPAWN": 1` w `na_zywo.json` danej instancji (hot-reload, bez restartu), decyzja o terminie po stronie Karola.
+
+**Co zrobiono**
+- `cavebot.py`: stała `PATROL_RESPAWN` (0/1), `_patrol_respawn_wybor()` w `_patrol_wybierz_dzis`; `pokretla.py`: zakres (0, 1);
+  `na_zywo.przyklad.json`: `"PATROL_RESPAWN": 0`. Test: `testy/test_patrol_respawn_wlacz.py` (32 kontrole).
+- Przy 1 cel patrolu = `cel_respawn` metody cienia (`obecnosc.wybierz`: drogi po grafie pliku miejsc, bez A*, bez losowania),
+  gdy metoda ma zdanie (pewność >= `PEWNOSC_MIN` 0,15, wartość > 0 = dane wystarczają). Remis / niska pewność / brak danych /
+  błąd mapy = **dzisiejsze losowanie wg wag** (ten sam los: zero dodatkowych `random`). A* liczy się tylko dla wybranej drogi
+  (jak dotąd). Przy `PATROL_RESPAWN=1` mapa obecności liczy się także, gdy `PATROL_RESPAWN_CIEN=0` (`_respawn_liczy()`).
+- Kandydaci to ci sami, których zostawia dzisiejszy patrol po wszystkich filtrach (`_patrol_kandydaci` + `PATROL_RUNDA` +
+  `PATROL_ODL_MIN`): blokada przy graczu (`UNIKANIE_PUNKT_D`), `patrol_blok` (m.in. `PATROL_GRACZ_ZMIEN`, brak drogi),
+  rezerwacje `PATROL_KOORD`, bramka gniazda (HP/mana). Metoda wybiera spośród nich, **nie omija żadnej blokady**. Dodatkowo, jak
+  waga: bez `PATROL_BYLO_WYKLUCZ` (4) ostatnio odwiedzonych miejsc i bez miejsc, przy których niedawno widziano obcego gracza
+  (`PATROL_GRACZ_PAM_*`; waga tylko obniża je do 0,1, respawn pomija je całkiem, a gdy wszystkie odpadną, losuje wagą).
+  Gdy droga do wybranego celu nie istnieje albo rezerwacja przepadła, miejsce dostaje `patrol_blok` i metoda liczy ponownie
+  spośród reszty (do 6 prób), potem waga.
+- Bez zmian: pierwszy wybór po starcie/wypadzie (najbliższe), „po walce, tuż obok”, zawrót z pustego miejsca, walka, ogień,
+  zmiana respa przy graczu (ona woła ten sam `_patrol_wybierz`, więc nowy cel też idzie przez respawn), wyprawy.
+- **`PATROL_RUNDA=1`**: runda zostaje jako ograniczenie; respawn wybiera tylko spośród miejsc jeszcze nieodwiedzonych w rundzie
+  (każde raz na rundę, kolejność wg wartości zamiast losowej). Gwarantuje pokrycie, ale ostatnie miejsca rundy bywają świeżo
+  wyczyszczone. **`PATROL_RUNDA=0`** (Johny): bez rundy; respawn wybiera spośród wszystkich oprócz 4 ostatnio odwiedzonych, więc
+  wraca do tych samych miejsc, gdy ich wartość znów jest najwyższa (to właściwy test metody). Wartość pewności liczona jest
+  na puli po filtrach, więc przy mniejszej puli (np. koniec rundy) częściej zdecyduje waga.
+- Telemetria `patrol_cel`: nowe pole `metoda` = `respawn` | `waga` (losowanie) | `najblizsze` (pierwszy wybór) | `inna`
+  (np. „po walce”); stare pola bez zmian (przy respawnie `waga` = None, `powod` = `respawn…`). Rekord `decyzja` D4 też ma `metoda`
+  (przy `respawn` pole `regula` = wybrana, nie reguła wag; do treningu D4 filtrować po `metoda`).
+- Log: `Patrol: cel m3 (x,y) respawn, droga N pól, wartość 0.0712, pewność 0.34.`
+
+**Cofnięcie:** `"PATROL_RESPAWN": 0` w `na_zywo.json` (od następnego wyboru patrolu) albo usunięcie klucza. Przy 0 ruch jest
+identyczny z poprzednim kodem (sprawdzone: 30 wyborów z ustalonym losem — te same id, drogi, stan generatora, zapytania i A*).
+Mapa obecności nadal liczy się w tle przy `PATROL_RESPAWN_CIEN=1`.
+
+**Miary do porównania (A/B, Q2: zmiana godzinami na jednym komputerze albo jeden z, drugi bez)**
+1. **zabicia/h** (`epizod_celu` wynik `zabity` / czas patrolu) oraz exp/h;
+2. **puste dojścia/h**: `patrol_wizyta` bez zabić na miejscu i w drodze (dziś 28 min w 7,7 h, ok. 6%), z podziałem po `metoda` z `patrol_cel`;
+3. **udział IDZ** w czasie (dziś 35%), czas dojścia na wizytę;
+4. pomocniczo: odsetek wyborów z `metoda=respawn` (reszta to wstrzymania metody) i `zgodny` w trybie cienia.
+Okno oceny: min. kilka godzin na wariant; metoda wstrzymana nie jest błędem, tylko „waga”.
+
+**Niezweryfikowane:** zachowanie na żywo (zysk zabić/h nie wynika z symulacji, tylko z A/B), wielkość `pewnosc` na prawdziwych
+stanach `obecnosc_stan.json` (ile wyborów da `respawn` zamiast `waga`), zachowanie z `PATROL_KOORD=1` poza atrapą.
