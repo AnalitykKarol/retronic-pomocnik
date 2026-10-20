@@ -231,6 +231,7 @@ ZAKRESY = {
     "POSCIG_SKOSY_ZAPAS": (0, 1),       # 1 = bez drogi prostej druga próba ze skosami (korytarz skośny z8), też dla ignorowanych "za ścianą"
     "PATROL_ZAWROT": (0, 1),            # 15.10: 1 = zawrót z miejsca, gdy jest w widoku i puste
     "PATROL_RESPAWN_CIEN": (0, 1),      # 15.10: 1 = tryb cienia patrolu według respawnu: mapa obecności + wybór nowej metody w telemetrii (patrol_cel, D4), bez wpływu na ruch
+    "PATROL_RESPAWN": (0, 1),           # 20.10: 1 = patrol idzie do celu wybranego metodą respawnu (mapa obecności), gdy metoda ma zdanie; inaczej losowanie wg wag. 0 = jak dotąd (SPEC_patrol_respawn_1015, krok 3)
     "OGIEN_IGNORUJ_S": (0, 60),         # 15.10: s ignorowania ognia po OGIEN_CZEKAJ_MAX_S bez drogi; 0 = nigdy
     "CZAT_SPOT_AKTYWNY": (0, 1),        # 15.10: 1 = wiadomość do gracza, który wraca na spot / zabiera moby (SPEC_czat_spot_1015)
     "CZAT_SPOT_SPOTKAN": (2, 10),       # S1: spotkań z tym samym graczem w CZAT_SPOT_OKNO_MIN

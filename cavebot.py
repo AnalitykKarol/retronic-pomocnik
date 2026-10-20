@@ -599,6 +599,9 @@ RATUNEK_LIMIT_H = 20               # limit wywołań Haiku na godzinę (Q3); w c
 D3_ASTAR_MAX = 6                   # najwyżej tyle wywołań A* na jedną zawieszkę przy liczeniu opcji D3 (koszt ograniczony)
 PATROL_RESPAWN_CIEN = 1            # 15.10: tryb cienia (SPEC_patrol_respawn_1015 krok 2): mapa obecności mobów liczona na żywo (obecnosc.py), a przy wyborze
                                    # celu patrolu w telemetrii patrol_cel (cel_respawn, wartosci, zgodny) i "decyzja" D4 wybór nowej metody; bot idzie jak dziś; pokrętło 0/1
+PATROL_RESPAWN = 0                 # 20.10: pokrętło 0/1 (SPEC_patrol_respawn_1015 krok 3; domyślnie 0 = ruch jak dotąd, bit w bit): 1 = patrol IDZIE do celu wybranego metodą respawnu
+                                   # (mapa obecności: gdzie trolle powinny już być; cel_respawn), gdy metoda ma zdanie i dane wystarczają; inaczej losowanie wg wag jak dziś.
+                                   # Liczy mapę obecności także przy PATROL_RESPAWN_CIEN=0. Blokady miejsc (gracz, PATROL_GRACZ_*, PATROL_KOORD, gniazdo) zostają; cofnięcie = 0
 OBECNOSC_ZAPIS_S = 60.0            # s: najwyżej tak często zapis stanu mapy obecności (poza tym na końcu pracy)
 OBECNOSC_STAN_PLIK = None if os.environ.get("RETRONIC_TESTY") else instancja.S.stan / "obecnosc_stan.json"   # stan mapy obecności (przeżywa restart); None = bez pliku
 ODWROCENIE_TRASY = 0.35            # szansa na przejście kolejnego okrążenia w drugą stronę
@@ -5387,6 +5390,12 @@ class Cavebot:
     _obecnosc = None             # None = jeszcze nie tworzona, False = nie da się (brak miejsc / błąd), inaczej MapaObecnosci
     _cien_wybor = None           # wynik cienia dla bieżącego _patrol_wybierz (None = brak)
 
+    @staticmethod
+    def _respawn_liczy():
+        """Mapa obecności i wybór metody respawnu mają się liczyć: tryb cienia (PATROL_RESPAWN_CIEN) albo włączone
+        PATROL_RESPAWN (20.10: sterowanie respawnem nie może zależeć od pokrętła cienia)."""
+        return bool(PATROL_RESPAWN_CIEN or PATROL_RESPAWN)
+
     def _obecnosc_blad(self, gdzie, e):
         """Błąd mapy obecności: tylko log (pierwsze trzy razy i co 200.), nigdy wyjątek."""
         n = getattr(self, "_obecnosc_bledy", 0) + 1
@@ -5400,12 +5409,12 @@ class Cavebot:
 
     def _obecnosc_mapa(self):
         """Mapa obecności; tworzona leniwie, gdy znamy miejsca patrolu (obszar = bbox miejsc + margines) i któreś z
-        PATROL_RESPAWN_CIEN jest włączone (tylko spot z trollami). Stan z OBECNOSC_STAN_PLIK (inny obszar = od zera).
+        PATROL_RESPAWN_CIEN albo PATROL_RESPAWN jest włączone (tylko spot z trollami). Stan z OBECNOSC_STAN_PLIK (inny obszar = od zera).
         None = brak mapy (nic się nie dzieje)."""
         mo = self._obecnosc
         if mo is not None:
             return mo or None
-        if not PATROL_RESPAWN_CIEN or not getattr(self, "miejsca", None):
+        if not self._respawn_liczy() or not getattr(self, "miejsca", None):
             return None
         if not any("troll" in p for p in (self.potwory or ())):
             self._obecnosc = False                 # 15.10: mapa obecności zna tylko trolle (Edron/szczury: bez szumu)
@@ -5431,7 +5440,7 @@ class Cavebot:
 
     def _obecnosc_obserwuj(self, lista, poz):
         """Jedna obserwacja mapy obecności z ticka (lista stworów i pozycja są już w ręku) + zapis stanu co OBECNOSC_ZAPIS_S."""
-        if not PATROL_RESPAWN_CIEN or poz is None:
+        if not self._respawn_liczy() or poz is None:
             return
         try:
             mo = self._obecnosc_mapa()
@@ -5448,7 +5457,7 @@ class Cavebot:
 
     def _obecnosc_zabicie(self, c):
         """Zabity cel (c = słownik celu z "poz" = ostatnio widziane pole) do mapy obecności."""
-        if not PATROL_RESPAWN_CIEN:
+        if not self._respawn_liczy():
             return
         try:
             mo = self._obecnosc_mapa()
@@ -5514,7 +5523,7 @@ class Cavebot:
         """Tryb cienia: wybór nowej metody (obecnosc.wybierz) na kandydatach `kand` [(m, d)], które patrol już ma. Wynik w
         self._cien_wybor (cel, wartosci, pewnosc, opcje) dla _patrol_cien_pola; błąd = brak wyniku, nigdy wyjątek."""
         self._cien_wybor = None
-        if not PATROL_RESPAWN_CIEN or not kand:
+        if not self._respawn_liczy() or not kand:
             return
         try:
             mo = self._obecnosc_mapa()
@@ -8772,8 +8781,10 @@ class Cavebot:
             log(f"Patrol: koordynator miejsc: błąd rezerwacji {e!r}, jadę bez niego.")
             return True
 
-    def _patrol_nowy(self, poz, m, powod, waga=None):
-        """Wizyta w miejscu m: droga A* z bieżącej pozycji; None (i blokada miejsca), gdy drogi nie ma."""
+    def _patrol_nowy(self, poz, m, powod, waga=None, metoda="inna", wartosc=None, pewnosc=None):
+        """Wizyta w miejscu m: droga A* z bieżącej pozycji; None (i blokada miejsca), gdy drogi nie ma.
+        `metoda` (20.10, do telemetrii patrol_cel): kto wybrał cel: "respawn" (mapa obecności, PATROL_RESPAWN=1; `wartosc`
+        i `pewnosc` z tej metody do logu), "waga" (losowanie wg wag), "najblizsze" (pierwszy wybór), "inna" (reszta)."""
         teraz = self.zegar()
         tgt = (m["x"], m["y"])
         uzyte = []
@@ -8806,12 +8817,14 @@ class Cavebot:
             powod += ", przez " + ",".join(uzyte)
         self._wypad_reset_klik()
         wtxt = f", waga {waga:.3f}" if waga is not None else ""
+        if metoda == "respawn" and wartosc is not None:
+            wtxt = f", wartość {wartosc:.4f}" + (f", pewność {pewnosc:.2f}" if pewnosc is not None else "")
         if self._patrol_sweep_buduj(p, poz, teraz):
             powod += ", sweep zachodu"
         log(f"Patrol: cel m{m['id']} ({m['x']},{m['y']}) {powod}, droga {len(p['seg'])} pól{wtxt}.")
         cien = self._patrol_cien_pola(poz, m)      # 15.10: tryb cienia (puste {}, gdy wyłączony albo brak wyniku)
         self._patrol_tele("patrol_cel", id=m["id"], x=m["x"], y=m["y"], powod=powod, droga=len(p["seg"]),
-                          waga=round(waga, 4) if waga is not None else None, poz=list(poz[:3]), **cien)
+                          waga=round(waga, 4) if waga is not None else None, poz=list(poz[:3]), metoda=metoda, **cien)
         return p
 
     def _sweep_wczytaj(self):
@@ -8925,7 +8938,7 @@ class Cavebot:
             self.patrol_pierwszy = False
             self._patrol_cien_licz(kand, poz)      # tryb cienia: tylko odczyt, bez losowania i bez A*
             for m, d in sorted(kand, key=lambda md: md[1])[:6]:
-                p = self._patrol_nowy(poz, m, "najbliższe")
+                p = self._patrol_nowy(poz, m, "najbliższe", metoda="najblizsze")
                 if p is not None:
                     return p
             return None
@@ -8940,7 +8953,14 @@ class Cavebot:
                 runda.clear()
             kand = [(m, d) for m, d in kand if m["id"] not in runda] or kand
         pula = [(m, d) for m, d in kand if d >= PATROL_ODL_MIN] or kand
-        self._patrol_cien_licz(pula, poz)          # tryb cienia: ci sami kandydaci co losowanie (tylko odczyt, bez losowania i bez A*)
+        if PATROL_RESPAWN:
+            p, pula = self._patrol_respawn_wybor(poz, pula, hist)       # 20.10: krok 3, pokrętło PATROL_RESPAWN=1
+            if p is not None:
+                return p
+            if not pula:
+                return None
+        else:
+            self._patrol_cien_licz(pula, poz)      # tryb cienia: ci sami kandydaci co losowanie (tylko odczyt, bez losowania i bez A*)
         for _ in range(6):
             wagi = [self._patrol_waga(m, d, hist) for m, d in pula]
             if sum(wagi) <= 0:
@@ -8958,13 +8978,43 @@ class Cavebot:
                     i = j
                     break
             m, d = pula[i]
-            p = self._patrol_nowy(poz, m, "losowo", waga=wagi[i] / (sum(wagi) or 1.0))
+            p = self._patrol_nowy(poz, m, "losowo", waga=wagi[i] / (sum(wagi) or 1.0), metoda="waga")
             if p is not None:
                 return p
             pula = [(mm, dd) for mm, dd in pula if mm["id"] != m["id"]]
             if not pula:
                 break
         return None
+
+    def _patrol_respawn_wybor(self, poz, pula, historia):
+        """20.10 (SPEC_patrol_respawn_1015 krok 3, PATROL_RESPAWN=1): cel patrolu wg mapy obecności (obecnosc.wybierz na
+        drogach po grafie pliku miejsc, bez losowania). `pula` to kandydaci już po wszystkich filtrach dzisiejszego patrolu
+        (_patrol_kandydaci: blokady przy graczu, patrol_blok, rezerwacje PATROL_KOORD, gniazdo; PATROL_RUNDA; PATROL_ODL_MIN),
+        więc metoda wybiera tylko spośród nich. Dodatkowo, jak waga: bez PATROL_BYLO_WYKLUCZ ostatnio odwiedzonych miejsc
+        i bez miejsc przy niedawno widzianym graczu (_patrol_gracz_czynnik < 1, PATROL_GRACZ_PAM_*).
+        Zwraca (wizyta | None, pula): wizyta gotowa, gdy metoda ma zdanie (cel_respawn nie None, droga istnieje); None =
+        metoda bez zdania / brak danych / puste → wołający losuje po staremu z zwróconej puli (bez miejsc, do których
+        nie ma drogi). Błąd mapy = brak zdania, nigdy wyjątek."""
+        pula = list(pula)
+        ostatnie = {h for h in historia[-PATROL_BYLO_WYKLUCZ:]} if PATROL_BYLO_WYKLUCZ > 0 else set()
+        for _ in range(6):
+            kand = [(m, d) for m, d in pula if m["id"] not in ostatnie and self._patrol_gracz_czynnik(m) >= 1.0]
+            self._patrol_cien_licz(kand, poz)
+            cw = self._cien_wybor
+            cel = cw["cel"] if cw else None
+            if cel is None:
+                return None, pula
+            m = next((mm for mm, _d in kand if mm["id"] == cel), None)
+            if m is None:
+                return None, pula
+            p = self._patrol_nowy(poz, m, "respawn", metoda="respawn", wartosc=cw["wartosci"].get(cel), pewnosc=cw["pewnosc"])
+            if p is not None:
+                return p, pula
+            pula = [(mm, dd) for mm, dd in pula if mm["id"] != cel]     # brak drogi / rezerwacja: miejsce zablokowane, następna próba
+            if not pula:
+                break
+        self._cien_wybor = None      # ostatni wynik dotyczył puli sprzed usunięć: dzisiejszy wybór idzie bez pól cienia
+        return None, pula
 
     def _patrol_zawrot(self, p, poz, tgt, odl, teraz):
         """15.10: miejsce spawnu razem z okolicą PATROL_ZAWROT_PROMIEN jest w widoku (to samo piętro) i od PATROL_ZAWROT_S
