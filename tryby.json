@@ -70,7 +70,7 @@
    "WYPRAWA_JEDZENIE_DOKUP": 5,
    "WYPRAWA_JEDZ_NA_MIEJSCU": 1,
    "WYPRAWA_CZEKAJ_NA_GLOD": 1,
-   "WYPRAWA_BLANKI": 0
+   "WYPRAWA_BLANKI": 1
   }
  },
  "wyprawa_blanki": {

@@ -1,5 +1,5 @@
 {
- "_opis": "pola (x, y, pi\u0119tro), na kt\u00f3rych krok ko\u0144czy\u0142 si\u0119 niespodziewanym upadkiem; bot traktuje je jak \u015bcian\u0119",
+ "_opis": "pola (x, y, piętro), na których krok kończył się niespodziewanym upadkiem; bot traktuje je jak ścianę",
  "dziury": [
   [
    31979,
@@ -75,6 +75,19 @@
    33170,
    31818,
    6
+  ],
+  [
+   33106,
+   31851,
+   7
   ]
- ]
+ ],
+ "_zakazane_reczne": [
+  [
+   33106,
+   31851,
+   7
+  ]
+ ],
+ "_zakazane_opis": "20.10 Karol: schody z7->z6 obok liny gobliny Edron; bot wchodził na nie w drodze do depo (zgubiona_pozycja na z6). Nie dziura, wpis ręczny = zakaz wejścia."
 }
