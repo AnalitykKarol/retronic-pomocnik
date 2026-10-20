@@ -564,6 +564,7 @@ KLIK_ODSTEP = 0.4                  # s: min. odstęp między kliknięciami w map
 # pola po drodze są zwykłe (bez schodów/dziur i ich sąsiedztwa, ognia, dziur nauczonych, drzwi, zajęte przez stwory/graczy), klient idzie ciągiem
 MARSZ_KLIK = 0                     # pokrętło 0/1 (nie_wyzej): 1 = marsz klikiem w patrolu/dojściu; 0 = dotychczasowe chodzenie bit w bit
 MARSZ_KLIK_MAKS_POL = 5            # pokrętło 2-7: ile pól naprzód klikamy naraz (widok ma ±7 x ±5, klikamy z 1 polem zapasu od krawędzi)
+KROK_BEZ_SCIAN = 0                 # pokrętło 0/1 (nie_wyzej): 1 = krok_do po nieudanym pierwszym kierunku ponawia go raz i nie wciska zapasowych kierunków w pola, które mapa jednoznacznie uznaje za ścianę (przechodnie False / flaga 4); pole nieznane (None) nadal próbujemy; 0 = dotychczasowe
 MARSZ_BEZ_RUCHU_S = 1.2            # s bez zmiany pozycji po kliku = klient nie idzie: ten odcinek wraca do kroków klawiszem
 MARSZ_BLOK_S = 8.0                 # s: tyle (i w promieniu MARSZ_BLOK_R pól) po braku ruchu nie klikamy, tylko krok klawiszem
 MARSZ_BLOK_R = 3
@@ -3896,6 +3897,7 @@ class Cavebot:
             if wynik:
                 return True
             sk = None
+        pierwszy = None                        # KROK_BEZ_SCIAN: pierwszy kierunek, w który faktycznie wcisnęliśmy strzałkę
         for k in kier:
             if self.zablokowane.get(((x, y, z), k)):
                 continue
@@ -3908,6 +3910,9 @@ class Cavebot:
                 n_xy = (x + d[0], y + d[1])
                 if n_xy != (cel[0], cel[1]) and self.pole_zmiany_pietra((n_xy[0], n_xy[1], z)):
                     continue                   # trasa wielopiętrowa: schodów nie wchodzimy "przy okazji" (cel kroku wolno)
+            if KROK_BEZ_SCIAN and pierwszy is not None and self._krok_sciana_mapy(
+                    (x + bot.KIERUNKI[k][0], y + bot.KIERUNKI[k][1], z)):
+                continue                       # po nieudanym pierwszym kierunku: nie bijemy w ścianę z mapy (każda próba ~1,5 s)
             if self.postac.krok(k):
                 self.zablokowane.clear()
                 d = bot.KIERUNKI[k]
@@ -3929,12 +3934,34 @@ class Cavebot:
                 pass
             self._ratunek_zdarzenie("krok_nieudany", (x, y, z))
             self.zablokowane[((x, y, z), k)] = True
+            if KROK_BEZ_SCIAN and pierwszy is None:
+                pierwszy = k
+                d_ = bot.KIERUNKI[k]
+                if not self._krok_sciana_mapy((x + d_[0], y + d_[1], z)) and self.postac.krok(k):
+                    # pierwszy (przechodni wg mapy) kierunek zawodzi przejściowo: ponowienie raz, zanim ruszymy kolejne kierunki
+                    self.zablokowane.clear()
+                    if wstecz is not None and (x + d_[0], y + d_[1], z) == wstecz and k != kier[0]:
+                        pass
+                    else:
+                        self.nieudane = 0
+                    self.krok_z = ((x, y, z), teraz)
+                    return True
         if sk is not None and self._krok_do_skos(x, y, z, sk, teraz, wstecz):
             return True                       # strzałki w osiach nie ruszyły, skos tak
         self.nieudane += 1
         self.zablokowane.clear()
         self.pauza(0.3, 0.8)
         return False
+
+    def _krok_sciana_mapy(self, pole):
+        """KROK_BEZ_SCIAN: True, gdy mapa jednoznacznie uznaje pole za nieprzechodnie (przechodnie False albo flaga ściany 4);
+        pole nieznane (None) to False: wciąż próbujemy."""
+        if self.mapa is None:
+            return False
+        try:
+            return self.mapa.przechodnie(*pole) is False or bool(self.mapa.flagi(*pole) & 4)
+        except Exception:
+            return False
 
     def _skos_kandydat(self, x, y, z, cel, pietra_on):
         """(dx, dy) skosu w stronę celu, gdy skos awaryjny jest włączony, postać umie skos, a pole po skosie nie jest
