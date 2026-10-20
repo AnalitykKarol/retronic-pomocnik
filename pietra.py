@@ -748,7 +748,7 @@ class Pietra:
                         if nowa != tuple(poz):
                             poz = nowa
                             break
-                self.log(f"Przejście pięter: próba {n + 1}/{len(tryby)} (lina z plecaka) z {tuple(poz)}, pole {T[:2]}")
+                self.log(f"Przejście pięter: próba {n + 1}/{len(tryby)} (lina z otwartego pojemnika) z {tuple(poz)}, pole {T[:2]}")
                 self.ops.uzyj_line(T, poz)
             else:
                 return True
