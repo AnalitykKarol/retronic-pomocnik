@@ -1,4 +1,12 @@
-# SPEC: naprawa zamiast STOP w starym kodzie — 20.10 — SZKIC do akceptu Karola
+# SPEC: naprawa zamiast STOP w starym kodzie — 20.10 — ZATWIERDZONY (Karol 20.10: Q1 „zawsze zgon” = STOP zostaje, Q2 ok = 3, Q3 ok = dwóch agentów)
+
+## Decyzje Karola (20.10)
+
+| Pytanie | Decyzja |
+|---|---|
+| Q1 teleport do miasta w wyprawie | **Zawsze zgon** → wyjątek życia: STOP zostaje bez zmian (`wymus_stop`). |
+| Q2 nieudane dojście | **3 ponowienia**, potem plan po mapie do najbliższego punktu trasy. |
+| Q3 podział | **Dwóch agentów równolegle**: silnik napraw (N1, N3, N4, N6) i wyprawa + dojście (N2, N5). |
 
 Cel: zasada naprawiania (`CLAUDE.md`, Karol 20.10: „nie stop tylko naprawa… zawsze”) obejmuje też kod sprzed strażnika orbit.
 Bot, który utknął, ma próbować kolejnych sposobów naprawy, a nie zapisywać STOP ani wysyłać alarmu krytycznego. Wzór i silnik:
