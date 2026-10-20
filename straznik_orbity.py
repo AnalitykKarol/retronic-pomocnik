@@ -90,7 +90,8 @@ class Detektor:
             b.popleft()
         nowe = []
         if zle_pietro and self.pietro_t >= okno:
-            nowe += self._zdarzenie("pietro", teraz, poz, trwa_s=round(self.pietro_t, 1))
+            pola = list(dict.fromkeys(r[1] for r in reversed(b)))[:20]            # ostatnie różne pola (A* wyjścia omija je)
+            nowe += self._zdarzenie("pietro", teraz, poz, trwa_s=round(self.pietro_t, 1), pola=sorted(list(p) for p in pola))
         if teraz - b[0][0] >= okno:
             nowe += self._orbita(teraz, poz)
         return nowe
@@ -135,6 +136,7 @@ class Reakcja:
         self.ep = None
         self.stop_zapisany = False
         self.epizody = 0
+        self.det = None                     # Detektor do wyzerowania po epizodzie (ustawia cavebot)
 
     def k(self, nazwa):
         return getattr(self.konf, nazwa, DOMYSLNE[nazwa]) if self.konf is not None else DOMYSLNE[nazwa]
@@ -269,7 +271,7 @@ class Reakcja:
         kand.sort(key=lambda q: _czeb(q, p))
         for q in kand[:KAND_TRASY]:
             try:
-                d = cb.droga((p[0], p[1], p[2]), q, zak, 0)
+                d = cb._droga_do((p[0], p[1], p[2]), q, zak)       # bez zapasowej drogi „po samej mapie”: pola orbity są zakazane naprawdę
             except Exception as e:
                 if type(e).__name__ == "Zatrzymano":
                     raise
@@ -309,13 +311,17 @@ class Reakcja:
                                            if s.get("z") == p[2] and s.get("hp", 100) > 0 and (s["x"], s["y"]) != tuple(p[:2])
                                            and not (s.get("gracz") and s.get("nazwa") == getattr(cb.postac, "nazwa", None))]
         cb.ustaw_stan("ORBITA", f"wychodzę do {cel[:2]}")
+        r = None
         try:
-            r = cb.podejdz(cel[:2], p, zajete=zajete, objazd=False, dlugosc=0)
+            d = cb._droga_do((p[0], p[1], p[2]), cel[:2], zajete)
+            if d:
+                r = cb.idz_do(self._cel_kroku(p, d), p, True, krok=d[0])
+            elif d is not None:
+                r = True                                  # już przy celu
         except Exception as e:
             if type(e).__name__ == "Zatrzymano":
                 raise
             self.log(f"[ORBITA] krok wyjścia: błąd {e!r}")
-            r = None
         q = tuple(cb.postac.pozycja())
         if q[2] != p[2] or self._wyszedl(q):
             return self._postep(q, teraz, "wyszedłem poza obszar orbity" if q[2] == p[2] else "zmiana piętra")
@@ -323,6 +329,16 @@ class Reakcja:
         if ep["fails"] >= 12:
             return self._alarm("kroki wyjścia nie ruszają postaci", q, teraz)
         return True
+
+    @staticmethod
+    def _cel_kroku(p, d):
+        """Najdalsze pole drogi (do 4 pól), do którego z `p` idzie się prosto po polach drogi (klient nie skróci przez orbitę)."""
+        for k in range(min(len(d), 4), 0, -1):
+            dx, dy = d[0][0] - p[0], d[0][1] - p[1]
+            if all(d[i][0] - (p[0] if i == 0 else d[i - 1][0]) == dx and d[i][1] - (p[1] if i == 0 else d[i - 1][1]) == dy
+                   for i in range(k)):
+                return (d[k - 1][0], d[k - 1][1])
+        return (d[0][0], d[0][1])
 
     def _wyszedl(self, p):
         pola = self.ep["pola"]
@@ -351,6 +367,8 @@ class Reakcja:
             except Exception:
                 pass
         self.ep = None
+        if self.det is not None:
+            self.det.po_reakcji()
         cb.pauza(0.15, 0.35)
         return True
 

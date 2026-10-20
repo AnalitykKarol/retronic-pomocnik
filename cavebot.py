@@ -5677,6 +5677,7 @@ class Cavebot:
                 det = straznik_orbity.Detektor(mod)
                 rea = straznik_orbity.Reakcja(self, mod, log=lambda t: log(t),
                                               plik_stop=None)
+                rea.det = det
                 self._straznik = (det, rea)
             det, rea = self._straznik
             if rea.aktywna():
