@@ -6,7 +6,7 @@ zorientują się, że to bot.
 
 Dwie części:
   * `Detektor` — czyste liczenie jak `ratunek.Detektor` (ten sam zegar `teraz`, te same `STANY_WALKI`/`STANY_ZAMIERZONE`, ta sama
-    luka MAX_PRZERWA_S). Okno przesuwne `STRAZNIK_ORBITA_S`: ORBITA = >= MIN_ZMIAN zmian pozycji, wszystkie pozycje na jednym
+    luka MAX_PRZERWA_S). Okno przesuwne `STRAZNIK_ORBITA_S`: ORBITA = >= STRAZNIK_ORBITA_ZMIAN (8) zmian pozycji, wszystkie pozycje na jednym
     piętrze i w <= `STRAZNIK_ORBITA_POL` różnych polach, bez długiego stania w środku; PIETRO = złe piętro >= `STRAZNIK_ORBITA_S`.
     Walka/loot nie zeruje okna (orbita z przerwami na szczura to nadal orbita), stany zamierzone (PRZERWA, PAUZA, ...) zerują.
   * `Reakcja` — maszyna stanów w cavebocie (tylko `STRAZNIK_ORBITY=2`): stop chodzenia (stan ORBITA, pauza 3-8 s) -> jedna
@@ -24,11 +24,13 @@ from pathlib import Path
 import ratunek
 from ratunek import STANY_WALKI, STANY_ZAMIERZONE
 
-DOMYSLNE = dict(STRAZNIK_ORBITY=0, STRAZNIK_ORBITA_S=60.0, STRAZNIK_ORBITA_POL=6, STRAZNIK_WYJSCIE_S=90.0)
-MIN_ZMIAN = 8                        # tyle zmian pozycji w oknie = „zmienia pozycję” (spec)
+DOMYSLNE = dict(STRAZNIK_ORBITY=0, STRAZNIK_ORBITA_S=60.0, STRAZNIK_ORBITA_POL=6, STRAZNIK_WYJSCIE_S=90.0,
+                STRAZNIK_ORBITA_ZMIAN=8)   # ZMIAN: tyle zmian pozycji w oknie = „zmienia pozycję” (spec: 8); nie jest pokrętłem, tylko do pomiaru (--zmian)
 MAX_STOJ_UL = 0.5                    # w oknie nie ma stania (poza walką) dłuższego niż tyle okna: to nie wahadło, tylko przystanek
 PAUZA_S = (3.0, 8.0)                 # losowa pauza (stop chodzenia) przed próbą wyjścia
 DEBOUNCE_S = 300.0                   # ten sam sygnał w tym samym miejscu najwcześniej po tylu s
+POWROTY_MAX = 3                      # SUBSTYTUCJA (spec milczy): tyle epizodów w POWROTY_OKNO_S = orbita wraca po „udanym” wyjściu -> od razu alarm
+POWROTY_OKNO_S = 1800.0              # (bez tego: wyjście, orbita, wyjście ... bez końca; do decyzji Karola)
 POSTEP_POL = 3                       # postęp = >= tyle pól od najbliższego pola orbity (albo powrót na piętro trasy)
 KAND_TRASY = 8                       # ile najbliższych punktów trasy/patrolu sprawdzamy A*
 MAX_PRZERWA_S = ratunek.MAX_PRZERWA_S
@@ -49,6 +51,7 @@ class Detektor:
         self.konf = konf
         self.ost_t = None
         self.biegi = collections.deque()    # [t_start, poz, stan, exp, stoi_s]: kolejne różne pozycje poza walką/stanami zamierzonymi
+        self.walka = collections.deque()    # (t, poz) pozycji z walki/lootu w oknie: liczą się do obszaru, nie do zmian
         self.pietro_t = 0.0                 # s poza walką na złym piętrze
         self.ost = {}                       # rodzaj -> (t, poz): debounce
 
@@ -58,6 +61,7 @@ class Detektor:
     def reset(self):
         """Okno od nowa (luka w obserwacji, stan zamierzony, koniec reakcji)."""
         self.biegi.clear()
+        self.walka.clear()
         self.pietro_t = 0.0
 
     def po_reakcji(self):
@@ -75,7 +79,13 @@ class Detektor:
             self.reset()                    # postój z własnej woli: okno od nowa
             return []
         if _pasuje(stan, STANY_WALKI):
-            return []                       # walka/loot nie zeruje okna i nie przyrasta (po niej liczymy dalej)
+            # walka/loot nie zeruje okna i nie jest ruchem orbity (po niej liczymy dalej), ale pola, na których staliśmy
+            # w walce, wchodzą do obszaru: pościg o 14 pól w bok to nie ta sama orbita (pomiar 14-20.10: fałszywe wyzwolenia)
+            if not self.walka or self.walka[-1][1] != poz:
+                self.walka.append((teraz, poz))
+            while self.walka and self.walka[0][0] <= teraz - float(self.k("STRAZNIK_ORBITA_S")):
+                self.walka.popleft()
+            return []
         if zle_pietro:
             self.pietro_t += dt
         else:
@@ -88,6 +98,8 @@ class Detektor:
         okno = float(self.k("STRAZNIK_ORBITA_S"))
         while len(b) >= 2 and b[1][0] <= teraz - okno:
             b.popleft()
+        while self.walka and self.walka[0][0] <= teraz - okno:
+            self.walka.popleft()
         nowe = []
         if zle_pietro and self.pietro_t >= okno:
             pola = list(dict.fromkeys(r[1] for r in reversed(b)))[:20]            # ostatnie różne pola (A* wyjścia omija je)
@@ -99,9 +111,10 @@ class Detektor:
     def _orbita(self, teraz, poz):
         b = self.biegi
         zmian = len(b) - 1
-        if zmian < MIN_ZMIAN:
+        if zmian < int(self.k("STRAZNIK_ORBITA_ZMIAN")):
             return []
-        pola = {p for _, p, _, _, _ in b}
+        okno_ = float(self.k("STRAZNIK_ORBITA_S"))
+        pola = {p for _, p, _, _, _ in b} | {p for tw, p in self.walka if tw > teraz - okno_}
         if len({p[2] for p in pola}) != 1 or len(pola) > int(self.k("STRAZNIK_ORBITA_POL")):
             return []
         okno = float(self.k("STRAZNIK_ORBITA_S"))
@@ -136,6 +149,7 @@ class Reakcja:
         self.ep = None
         self.stop_zapisany = False
         self.epizody = 0
+        self.hist = []                      # czasy startów epizodów (zegar bota)
         self.det = None                     # Detektor do wyzerowania po epizodzie (ustawia cavebot)
 
     def k(self, nazwa):
@@ -156,7 +170,8 @@ class Reakcja:
     def start(self, zd, teraz):
         self.epizody += 1
         self.faza = "start"
-        self.ep = {"zd": zd, "t0": teraz, "z": zd["poz"][2], "pola": [tuple(p) for p in zd.get("pola") or [tuple(zd["poz"])]],
+        self.hist = [x for x in self.hist if teraz - x < POWROTY_OKNO_S] + [teraz]
+        self.ep = {"powrot": len(self.hist) >= POWROTY_MAX, "zd": zd, "t0": teraz, "z": zd["poz"][2], "pola": [tuple(p) for p in zd.get("pola") or [tuple(zd["poz"])]],
                    "nr": self.epizody}
         self.log(f"[ORBITA] wykryto {zd['rodzaj']} w {tuple(zd['poz'])}: {self._opis(zd)}; zatrzymuję chodzenie.")
         self._tele("start", **self._tele_zd(zd))
@@ -224,6 +239,8 @@ class Reakcja:
         cb = self.cb
         ep = self.ep
         ep["t_wyj"] = teraz
+        if ep.get("powrot"):                # SUBSTYTUCJA: trzecia orbita w 30 min = wyjście nie pomaga, nie próbujemy czwartej
+            return self._alarm(f"orbita wraca: {len(self.hist)} epizody w {POWROTY_OKNO_S / 60:.0f} min", p, teraz)
         wp = cb._wp()
         if wp is not None:
             try:

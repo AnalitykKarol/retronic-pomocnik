@@ -67,6 +67,12 @@ d = straznik_orbity.Detektor(konf())
 seq = k1(10) + [((32085, 32197, 9), "LOOT")] * 5 + k1(30, od=10)
 sprawdz("b0 loot w środku: nadal wyzwolenie", len(przebieg(d, seq)) == 1)
 
+d = straznik_orbity.Detektor(konf())
+seq = k1(10) + [((32100, 32197, 9), "WALKA")] * 8 + k1(20, od=10)            # pościg 15 pól w bok i z powrotem: to już nie ta sama orbita
+sprawdz("b0 pole z walki poza obszarem (pościg w bok) wchodzi do obszaru: brak wyzwolenia (pomiar 14.10 12:46 - fałszywy alarm)", przebieg(d, seq) == [])
+d = straznik_orbity.Detektor(konf())
+seq = k1(10) + [((32100, 32197, 9), "WALKA")] * 8 + k1(60, od=10)           # ... ale gdy okno przejdzie dalej, orbita znów jest orbitą
+sprawdz("b0 pole z walki wypada z okna po 60 s: wyzwolenie", len(przebieg(d, seq)) == 1)
 print("--- detektor: wyjście w trakcie okna ---")
 d = straznik_orbity.Detektor(konf())
 wyjscie = k1(20) + [(32086 + i, 32199, 9) for i in range(1, 12)] + [(32097, 32199 - j, 9) for j in range(1, 20)]
@@ -108,6 +114,8 @@ sprawdz("c11 próg pól: cykl 6 pól przy POL=3: brak", przebieg(d, k1(60)) == [
 d = straznik_orbity.Detektor(konf())
 sprawdz("c12 oscylacja A-B 90 s: jest (2 pola)", len(przebieg(d, [(32085 + i % 2, 32197, 9) for i in range(45)])) == 1)
 
+d = straznik_orbity.Detektor(konf(STRAZNIK_ORBITA_ZMIAN=40))
+sprawdz("c13 próg zmian (parametr pomiaru): 40 zmian w 60 s nie spełnione = brak", przebieg(d, k1(40)) == [])
 print("--- detektor: złe piętro (S2) ---")
 d = straznik_orbity.Detektor(konf())
 zd = przebieg(d, [(32085, 32197, 9)] * 40, zle=True, dt=1.0)
@@ -334,6 +342,20 @@ try:
     sprawdz("a9 po alarmie stan ORBITA, dalej alarm", str(b.stan) == "ORBITA" and rea.faza == "alarm", (b.stan, rea.faza))
 finally:
     cavebot.STRAZNIK_WYJSCIE_S = 90.0
+
+# --- orbita wraca po udanym wyjściu: trzeci epizod w 30 min = od razu alarm (substytucja, spec milczy) ---
+s, b = nowy((32086, 32197, 9), TRASA, GORA_K1)
+orbituj(s, b, 1)
+rea = b._straznik[1]; rea.plik_stop = b.kat / "STOP"
+for nr in (1, 2, 3):
+    s.poz[:] = [32086, 32197, 9]; s.stoi = True; b.tick()
+    orbituj(s, b, 100, az=lambda: rea.faza is not None)
+    s.stoi = False
+    ticki(b, 3000, az=lambda: rea.faza in (None, "alarm"))
+    if nr < 3:
+        sprawdz(f"a10 epizod {nr}: wyjście udane (z8), bez alarmu", s.poz[2] == 8 and rea.faza is None and not POWIADOMIENIA, (s.poz, rea.faza))
+sprawdz("a10 epizod 3 w 30 min: alarm bez próby wyjścia", rea.faza == "alarm" and (b.kat / "STOP").exists()
+        and any("orbita wraca" in l for l in LOG), [l for l in LOG if "ORBITA" in l][-2:])
 
 # --- (b) orbita na piętrze trasy: A* do punktu trasy z polami orbity jako zakazanymi ---
 def otwarty_blok():
