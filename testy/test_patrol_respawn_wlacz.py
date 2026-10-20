@@ -362,9 +362,7 @@ for resp in (1, 0):
     try:
         pZ, rZ, bZ, sZ = jeden(resp=resp)
         n_miejsc = len(bZ.miejsca)
-        n_przed = len(proby)
         pZ2 = bZ._patrol_wybierz(START)
-        n_po = len(proby)
         sZ.t += cavebot.PATROL_BLOK_S + 1             # blokady wygasają
         cavebot.Cavebot._patrol_droga = stara_droga
         pZ3 = bZ._patrol_wybierz(START)
@@ -372,8 +370,9 @@ for resp in (1, 0):
         cavebot.Cavebot._patrol_droga = stara_droga
     sprawdz(f"7b RESPAWN={resp}: wszystkie drogi zawodzą: wynik None, bez zapętlenia, prób drogi <= liczba miejsc + 6",
             pZ is None and 0 < len(proby) <= n_miejsc + 6, (pZ, len(proby), n_miejsc))
-    sprawdz(f"7c RESPAWN={resp}: każde nieosiągalne miejsce dostało patrol_blok, a kolejny wybór od razu nie próbuje ich znów",
-            set(proby) <= set(bZ.patrol_blok) and pZ2 is None and n_po == n_przed, (sorted(set(proby)), sorted(bZ.patrol_blok)))
+    sprawdz(f"7c RESPAWN={resp}: miejsce z patrol_blok nie jest próbowane ponownie (drugi wybór dopina tylko resztę; żadne id dwa razy)",
+            set(proby) <= set(bZ.patrol_blok) and pZ2 is None and len(proby) == len(set(proby)) <= n_miejsc,
+            (proby, sorted(bZ.patrol_blok), pZ2 and pZ2["m"]["id"]))
     sprawdz(f"7d RESPAWN={resp}: po PATROL_BLOK_S blokady wygasają i patrol znów wybiera cel", pZ3 is not None, pZ3)
 
 # --- 8. błąd mapy = brak zdania, wybór po staremu ------------------------------------------------------------------------
