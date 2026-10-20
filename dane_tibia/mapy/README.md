@@ -9,6 +9,8 @@ obraz, trasa dojścia i pętla patrolowa po spawnach. Specyfikacja: `../SPEC_map
 |---|---|
 | `port_hope_swamp_trolle.png/.json`, `rysuj_trase.py` | Port Hope (środek miasta) -> dżungla swamp trolli, 186 pól po powierzchni z7 |
 | `patrol_gobliny_z8.png/.json`, `patrol.py` | Edron, jaskinia goblinów z8: 12 przystanków, ok. 39 goblinów, pętla 273 pola, start przy linie |
+| `rook_raty_z8.png/.json`, `../../generuj_trasy_rook.py` | Rookgaard, jaskinia szczurów z8 tuż pod miastem (20.10): składowa 872 pola, 25 przystanków, 34 szczury, pętla 491 pól; dojście z7 do wejścia (32046,32221) |
+| `rook_kanaly_z11.png/.json`, tamże | Rookgaard, kanały z11 (20.10): składowa 774 pola, 17 przystanków, 35 szczurów, pętla 479 pól; dojście = odwrócone `do_miasta` |
 
 Skrypty to prototypy (stałe współrzędne w kodzie). Skrypt wymaga `skladowa_z8.json` (wynik flood-fill z pozycji gracza), więc `patrol.py`
 nie uruchomi się sam bez kroku 2 poniżej (przykładowy wynik jest obok: `skladowa_z8.json`); docelowo F3 ma to zamknąć w jednym poleceniu.
@@ -39,3 +41,11 @@ nie uruchomi się sam bez kroku 2 poniżej (przykładowy wynik jest obok: `sklad
 - Edron, jaskinia goblinów: na z10 mapa ma cztery oddzielne kawałki bez widocznego dojścia, na z8 jedną dużą komorę z wyjściem na linę; sama mapa nie wystarczała do trasy z miasta
   (powierzchnia z7 Edronu kończy się w mapie na x = 33141), więc ostatni odcinek trzeba przejść raz i nagrać (`nagraj_trase.py`).
 E
+## Rookgaard, szczury (20.10)
+
+`python3 -I generuj_trasy_rook.py [--zapisz]` (z `pomocnik/`) liczy z mapy i spawnów szczurów dwie trasy (`mapy.json`: `rook_raty_z8`, `rook_kanaly_z11`; test `testy/test_trasy_rook.py`).
+Uruchomienie: `MAPA=rook_raty_z8 TRYB=ostrozny ./uruchom.sh` (na z7 bot najpierw idzie dojściem, na z8/z11 startuje od razu).
+
+- **z8 pod miastem:** wejście z miasta to (32046,32221,z7). Wniosek z mapy: to jedyne pole z kolorem 210 i flagą 2 po obu stronach (z7 i z8 w tym samym polu) przy składowej 872 pól; pozostałe pola z flagą 2 przy tej składowej na z7 mają zwykły kolor (blokujące przedmioty). **Typ przejścia (dziura, schody, kratka) i pole lądowania niezweryfikowane w grze**: w dojściu przyjęto lądowanie (32046,32222,z8). Pierwsze przejście sprawdzić na żywo (jedno wywołanie) i poprawić `rook_raty_z8_dojscie`, jeśli lądowanie jest inne.
+- **z11 kanały:** dojście to odwrócone nagranie `do_miasta` (z7 -> z8 -> z9 -> z10 -> z11, przejścia sprawdzone w grze). Dziura nauczona (31979,32153,z11) jest ścianą dla A*.
+- Obie składowe zawierają tylko szczury (z listy 114 potworów serwera 7.4); pozostałe składowe z8 pod miastem (np. 159 pól z robakiem i pająkiem) pominięte.

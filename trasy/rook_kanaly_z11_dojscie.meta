@@ -1,0 +1,49 @@
+{
+ "specjalne": [
+  {
+   "idx": 4,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 8 -> 7 (w górę), z (32060,32172) (po odwróceniu kierunek przeciwny)"
+  },
+  {
+   "idx": 5,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 7"
+  },
+  {
+   "idx": 6,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 9 -> 8 (w górę), z (32059,32170) (po odwróceniu kierunek przeciwny)"
+  },
+  {
+   "idx": 7,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 8"
+  },
+  {
+   "idx": 23,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 10 -> 9 (w górę), z (32050,32158) (po odwróceniu kierunek przeciwny)"
+  },
+  {
+   "idx": 24,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 10, potem piętro 9"
+  },
+  {
+   "idx": 25,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 11 -> 10 (w górę), z (32049,32155) (po odwróceniu kierunek przeciwny)"
+  },
+  {
+   "idx": 26,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 11, potem piętro 10"
+  },
+  {
+   "idx": 50,
+   "typ": "start",
+   "komentarz": "początek nagrania"
+  }
+ ]
+}
