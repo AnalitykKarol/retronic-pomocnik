@@ -349,12 +349,16 @@ class Pamiec:
     WIEK_STWORY = 0.5             # s: jw., gdy są stwory (pozycje i HP muszą być świeże)
     CZEKANIE_NA_SKAN = 0.6        # s: tyle zapytanie czeka na trwający skan, zanim weźmie starszy cache
     SKANER_BEZCZYNNY = 20.0       # s bez zapytania o stwory i wątek się usypia
+    ZAPAS_SKANU = 0.05            # s: skan w tle startuje, gdy wynik ma (limit wieku - średni czas skanu - zapas); 20.10:
+                                  # bot pyta 1,5-2,5 razy/s i bierze wynik do 0,5 s, a skaner robił 7-8 skanów/s (4 z 5 do kosza)
+    _czas_skanu = 0.1             # s: średnia krocząca czasu szybkiego skanu
     LOG_SKANU_MAX = 1 << 20
     _cache = None                 # (lista, t_mono, rodzaj, t_pelnego)
     _regiony_wiek = None
     _zamek = None
     _ostatnie_zapytanie = 0.0
     _agregat = None
+    _zapytania = None             # [liczba zapytań o stwory, z nich obsłużone z cache] od ostatniego wpisu logu (pomiar 20.10)
 
     def _log_skanu(self, tekst, wymus=False):
         """Rotowany log pomiarów skanu (logi/rdzen-skan.log, 1 MB + .1). Nigdy nie rzuca."""
@@ -446,6 +450,8 @@ class Pamiec:
             self.pelny_skan_stworow = teraz
         self._cache = (lista, teraz, "pelny" if pelny else "szybki", t_pelnego)
         dt = teraz - t0
+        if not pelny:
+            self._czas_skanu = 0.8 * self._czas_skanu + 0.2 * dt
         if pelny:
             self._log_skanu(f"pelny {dt:.3f}s regiony={len(regiony)} stwory={len(lista)} "
                             f"(poza graczem {sum(1 for s in lista if not s['gracz'])}) "
@@ -456,8 +462,11 @@ class Pamiec:
             ag[2] += dt
             ag[3] = max(ag[3], dt)
             if teraz - ag[0] >= 10:
-                self._log_skanu(f"szybki x{ag[1]} w {teraz - ag[0]:.0f}s srednio={ag[2] / ag[1]:.3f}s "
-                                f"max={ag[3]:.3f}s regiony={len(regiony)}")
+                zq = self._zapytania or [0, 0]
+                self._log_skanu(f"[{os.environ.get('RETRONIC_ID', '-')}] szybki x{ag[1]} w {teraz - ag[0]:.0f}s "
+                                f"srednio={ag[2] / ag[1]:.3f}s max={ag[3]:.3f}s regiony={len(regiony)} "
+                                f"zapytania={zq[0]} z_cache={zq[1]}")
+                self._zapytania = None
                 ag = None
             self._agregat = ag
         return self._cache
@@ -468,6 +477,8 @@ class Pamiec:
         import threading
         teraz = time.monotonic()
         self._ostatnie_zapytanie = teraz
+        self._zapytania = self._zapytania or [0, 0]
+        self._zapytania[0] += 1
         if self._zamek is None:
             self._zamek = threading.Lock()
         c = self._cache
@@ -475,6 +486,7 @@ class Pamiec:
             ma = any(not s["gracz"] for s in c[0])
             limit = maks_wiek if maks_wiek is not None else (self.WIEK_STWORY if ma else self.WIEK_PUSTO)
             if teraz - c[1] <= limit:
+                self._zapytania[1] += 1
                 return self._odpowiedz_skanu(c, teraz)
         # wątek akurat skanuje: bierzemy co mamy, jeśli nie jest bardzo stare
         # (serwer strażnika jest jednowątkowy: zapytanie czekające na zamek blokuje WSZYSTKIE inne, więc czekamy
@@ -510,15 +522,22 @@ class Pamiec:
         """Jeden obieg wątku w tle: skan, jeśli wynik się zestarzał. Zwraca czas snu."""
         if self.mem is None or time.monotonic() - self._ostatnie_zapytanie > self.SKANER_BEZCZYNNY:
             return 0.5
+        # skan tylko wtedy, gdy wynik zbliża się do wieku, który zapytania akceptują (WIEK_*), albo gdy czas na pełny
+        teraz = time.monotonic()
+        c = self._cache
+        if c is not None and not self._potrzebny_pelny(teraz):
+            ma = any(not s["gracz"] for s in c[0])
+            limit = self.WIEK_STWORY if ma else self.WIEK_PUSTO
+            zostalo = c[1] + limit - min(self._czas_skanu, limit / 2) - self.ZAPAS_SKANU - teraz
+            if zostalo > 0:
+                return min(zostalo, 0.5)
         import threading
         if self._zamek is None:
             self._zamek = threading.Lock()
         with self._zamek:
             teraz = time.monotonic()
             self._skanuj_stwory(self._potrzebny_pelny(teraz))
-        c = self._cache
-        ma = c is not None and any(not s["gracz"] for s in c[0])
-        return 0.05 if ma else 0.15
+        return 0.01
 
     @staticmethod
     def _ramka(bufor, n):
