@@ -35,6 +35,7 @@ import time
 from pathlib import Path
 
 import bot
+import marsz_klik
 
 KATALOG = Path(__file__).resolve().parent
 TRASY = KATALOG / "trasy"
@@ -70,6 +71,9 @@ DOJSCIE_LIMIT_S = (45.0, 2.5)   # limit marszu jednego planu dojścia: stała + 
 DOJSCIE_PRZEJSCIE_S = 40.0  # s dodawane do limitu za każde przejście pięter na drodze
 DOJSCIE_MAX_S = 600.0       # twardy limit całego dojścia (wszystkie plany razem)
 DOJSCIE_PLANY_MAX = 6       # tyle planów dojścia na wyprawę (start + ponowne po nieudanym przejściu / odcinku); zejście z drogi się nie liczy
+KLIK_MOB_ODL = 3            # WYPRAWA_MARSZ_KLIK: żywy mob (nie gracz) tak blisko postaci albo ścieżki kliku = bez kliku, rządzi dotychczasowa logika
+KLIK_HP_SPADEK = 5.0        # pp HP gracza, o które musi spaść HP w trakcie marszu klikiem, by go przerwać (ktoś nas bije)
+KLIK_BLAD_PAUZA_S = 8.0     # s bez prób kliku po kliku, który nic nie ruszył (krok strzałką jak dotąd)
 ETAP_PRZEJSCIE_PROB = 6     # prób przejścia pięter (lina/dziura) zanim uznamy awarię
 PRZEJSCIE_ODSTEP = (1.0, 3.0, 6.0, 8.0)   # s przerwy między kolejnymi próbami
 DRZWI_PROB = 6              # prób otwarcia i wejścia w drzwi (typ etapu DRZWI), potem awaria jak przy linie/dziurze
@@ -463,6 +467,8 @@ class Wypad:
         self.drzwi_otwarte = set()  # kafelki drzwi, które w tym wypadzie już się otworzyły (powrót: najpierw krok)
         self.pj = None              # [klucz, od kiedy]: czy etap przejścia (LINA/DZIURA) robi postęp (_pilnuj_przejscia)
         self.pj_proby = 0           # liczba wykonanych prób przejścia w tym wypadzie (zmiana = postęp)
+        self._klik_zakaz_do = float("-inf")   # WYPRAWA_MARSZ_KLIK: do kiedy nie próbujemy kliku (klik bez ruchu, przerwanie)
+        self.klik_ile = 0           # udane marsze klikiem w tym wypadzie (do logu)
 
     # --- konfiguracja (stałe z modułu cavebot: pokrętła ustawiają je w locie) ---
 
@@ -848,6 +854,10 @@ class Wypad:
             self.osiag_proba = teraz
             if self._objazd_nieosiagalny(poz, e, ost, teraz):
                 return True
+        # WYPRAWA_MARSZ_KLIK=1: w drodze do miasta/depo klik w najdalsze zwykłe pole ścieżki; bez kliku (albo po nim bez ruchu)
+        # idzie dotychczasowa maszyneria poniżej
+        if self.faza == "do" and int(self._k("WYPRAWA_MARSZ_KLIK", 0)) and self._marsz_klik(poz, pkt, teraz):
+            return True
         # krok po odcinku: ta sama maszyneria co zwykła trasa
         wynik, idx = cb._idz_odcinek(pkt, min(self.pi, len(pkt) - 1))
         self.pi = idx
@@ -858,6 +868,122 @@ class Wypad:
                 self.utk = 0
                 return self._utkniecie(poz, e, teraz, wymus=True)
         return True
+
+    # --- marsz klikiem w drodze do miasta (WYPRAWA_MARSZ_KLIK, 20.10) ---
+
+    def _marsz_klik(self, poz, pkt, teraz):
+        """Jeden klik w najdalsze pole odcinka `pkt` (do KLIK_MAKS_POL pól naprzód), do którego wszystkie pola są zwykłe wg mapy
+        (bez schodów/dziur i pól obok nich), bez ognia i bez zajętych przez innych (widma pomijane), min. 2 pola; potem czekanie
+        na ruch (marsz_klik.klik_i_czekaj). Bez kliku (False): postać nie stoi na odcinku, mob blisko, groźny gracz, mniej niż 2 pola,
+        klik poza widokiem albo po kliku bez ruchu (wtedy KLIK_BLAD_PAUZA_S przerwy). True = obieg zużyty: ruch, zmiana piętra
+        (dalej rządzi _resync / etap przejścia) albo przerwanie (mob, PK, spadek HP: Escape, a walkę/ucieczkę podejmuje Cavebot
+        w następnym obiegu jak dotąd). Nigdy nie zmienia chodzenia poza tym jednym kliknięciem."""
+        cb = self.cb
+        klik, mp = getattr(cb, "klik", None), getattr(cb, "mapa", None)
+        if klik is None or mp is None or teraz < self._klik_zakaz_do:
+            return False
+        if getattr(cb, "ucieczka", False) or getattr(cb, "ostrozny", False):
+            return False
+        poz = tuple(poz)
+        z = poz[2]
+        k = next((i for i in range(max(0, self.pi - 3), min(len(pkt), self.pi + 12)) if tuple(pkt[i]) == poz), None)
+        if k is None:
+            return False                      # postać zeszła z odcinka: wraca na niego dotychczasowa maszyneria
+        sciezka = []
+        for q in pkt[k:k + marsz_klik.KLIK_MAKS_POL + 2]:
+            if q[2] != z:
+                break
+            sciezka.append(tuple(q))
+        if len(sciezka) < 3:
+            return False
+        lista = [m for m in (getattr(cb, "ostatnie_stwory", None) or []) if m.get("z") == z and not m.get("widmo")]
+        ja = getattr(getattr(cb, "postac", None), "nazwa", None)
+        inni = [m for m in lista if m.get("nazwa") != ja]
+        if self._klik_zagrozenie(inni, poz):
+            return False
+        moby = [m for m in inni if not m.get("gracz") and m.get("hp", 100) > 0]
+        zajete = {(m["x"], m["y"]) for m in inni if m.get("x") is not None}
+        ogien = set()
+        try:
+            ogien = set(cb._ogien_xy(z))
+        except (AttributeError, TypeError):
+            pass
+        koszt = lambda x, y, zz: marsz_klik.koszt_pola(mp, x, y, zz, None, zajete | ogien)
+        dalej = marsz_klik.dalej_klik(sciezka, koszt, z, marsz_klik.KLIK_MAKS_POL, pierwsze_zwykle=True)
+        for i in range(1, dalej + 1):         # mob tuż przy ścieżce kliku: klient poprowadziłby postać obok niego
+            if any(cheb((m["x"], m["y"]), sciezka[i]) <= KLIK_MOB_ODL - 1 for m in moby):
+                dalej = i - 1
+                break
+        if dalej < 2:
+            return False
+        cel_kl = sciezka[dalej]
+        try:
+            klik(cel_kl[0] - poz[0], cel_kl[1] - poz[1])
+        except ValueError:
+            return False                      # pole poza widokiem mapy
+        hp0 = self._klik_hp()
+        wynik = marsz_klik.klik_i_czekaj(cb.postac, poz, cel_kl, dalej, zegar=marsz_klik.Czas(cb.zegar, cb.spij), log=self.log,
+                                         przerwij=lambda p: self._klik_przerwij(p, hp0), prefiks="Wypad: marsz klikiem")
+        nowa = tuple(cb.postac.pozycja())
+        if wynik == "ruch":
+            self.klik_ile += 1
+            i = next((j for j in range(k, len(pkt)) if tuple(pkt[j]) == nowa), None)
+            if i is not None:
+                self.pi = max(self.pi, i)
+            return True
+        if wynik == "pietro":
+            return True
+        if wynik == "przerwano":
+            self.log(f"Wypad: marsz klikiem przerwany w {nowa} (mob, PK albo spadek HP), dalej jak dotąd")
+            try:
+                cb.postac.klawisz("Escape")   # klient dalej prowadziłby postać do klikniętego pola
+            except bot.Zatrzymano:
+                raise
+            except Exception:
+                pass
+            self._klik_zakaz_do = teraz + 3.0
+            return True
+        self.log(f"Wypad: marsz klikiem: klik na {cel_kl[:2]} z {poz[:2]} nic nie ruszył, wracam do kroków na {KLIK_BLAD_PAUZA_S:.0f} s")
+        self._klik_zakaz_do = teraz + KLIK_BLAD_PAUZA_S
+        return False
+
+    def _klik_zagrozenie(self, inni, poz):
+        """Powód, dla którego nie klikamy: żywy mob (nie gracz) w KLIK_MOB_ODL albo groźny gracz (GM/czaszka) w widoku; None = wolno."""
+        groznie = getattr(self.cb, "gracz_grozny", None)
+        for m in inni:
+            if m.get("x") is None or m.get("hp", 100) <= 0:
+                continue
+            if m.get("gracz"):
+                if callable(groznie) and groznie(m):
+                    return "gracz"
+            elif cheb((m["x"], m["y"]), poz) <= KLIK_MOB_ODL:
+                return "mob"
+        return None
+
+    def _klik_hp(self):
+        try:
+            return float(self.cb.gracz().get("proc", 100.0))
+        except Exception:
+            return None
+
+    def _klik_przerwij(self, poz, hp0):
+        """Odpytywane w trakcie marszu klikiem: True = przerwać (STOP rzuca bot.Zatrzymano). Świeża lista stworów z cache skanera."""
+        cb = self.cb
+        self._stop()
+        hp = self._klik_hp()
+        if hp0 is not None and hp is not None and hp < hp0 - KLIK_HP_SPADEK:
+            return True
+        try:
+            lista = cb.stwory(maks_wiek=0.6)
+        except (AttributeError, TypeError):
+            lista = getattr(cb, "ostatnie_stwory", None) or []
+        except bot.Zatrzymano:
+            raise
+        except Exception:
+            return False
+        ja = getattr(getattr(cb, "postac", None), "nazwa", None)
+        inni = [m for m in lista or [] if m.get("z") == poz[2] and not m.get("widmo") and m.get("nazwa") != ja]
+        return self._klik_zagrozenie(inni, poz) is not None
 
     def _najblizszy_osiagalny(self, poz, pomin_ei):
         """(ei, pi) najbliższego (długość drogi A*) punktu planu na piętrze gracza, do którego `cb.droga` ma

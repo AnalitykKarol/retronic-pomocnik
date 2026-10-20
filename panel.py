@@ -212,6 +212,8 @@ MARGINES_MIASTA = 8                                 # pól poza skrajnymi punkta
 SERWIS_WZOR = r"(^|[ /])serwis\.py "                 # python3 -I -u serwis.py edron ...
 REFILL_WZOR = r"^(\S*/)?bash (\S*/)?refill\.sh *$"   # sama praca refill.sh (bez --tlo i --przerwij)
 REFILL_LOG = "refill.log"
+CZEKACZ_WZOR = r"(^|[ /])refill_auto\.py czekaj"         # czekacz auto-refillu (WROC_REFILL=1, refill_auto.py)
+REFILL_AUTO_PLIK = "wroc_refill.json"                    # decyzja auto-refillu: {"stan": czeka|uruchomiony|pominiety|brak_planu, "powod", "t"}
 WROC_POWOD = "depo:reczny"                          # powód wyprawy z wyprawa.py dla pliku WROC
 
 
@@ -374,6 +376,27 @@ def stan_serwisu(stan_dir, teraz=None, dziala=None, kolejnosc=None):
             "serwis_tryb": tryb if dziala else None, "serwis_wynik": wynik, "serwis_komunikat": komunikat[:200], "serwis_wiek_s": wiek}
 
 
+def stan_auto_refill(stan_dir, serwis_dziala, czeka=None):
+    """Auto-refill po dojściu do depo (WROC_REFILL=1): wroc_refill = "czeka" (czekacz żyje, bot jeszcze się zatrzymuje),
+    "trwa" (refill ruszył i serwis działa), "pominiety" (powód w komunikacie: ręczny stop, serwis już trwał, anulowano...),
+    "brak_planu" (miasto bez planu serwisu, np. Thais) albo None. Pominięty/brak planu znikają, gdy bot wystartował po decyzji.
+    Wynik samego refillu (ok/błąd) jest w serwis_wynik, tu go nie powtarzamy."""
+    stan_dir = Path(stan_dir)
+    plik = stan_dir / REFILL_AUTO_PLIK
+    d = _json_pliku(plik)
+    st, powod = d.get("stan"), str(d.get("powod") or "")
+    if czeka is None:
+        czeka = bool(instancja.procesy(CZEKACZ_WZOR))
+    wynik = None
+    if st == "czeka" and czeka:
+        wynik = "czeka"
+    elif st in ("czeka", "uruchomiony") and serwis_dziala:
+        wynik = "trwa"
+    elif st in ("pominiety", "brak_planu") and not _bot_startowal_po(stan_dir / "logi", plik):
+        wynik = st
+    return {"wroc_refill": wynik, "wroc_refill_komunikat": powod[:200] if wynik else ""}
+
+
 def pola_guzikow(s):
     """Dodatkowe pola --json dla guzików „Wróć do miasta” i „Refill”. s = wynik stan()."""
     poz = pozycja_postaci() if s["gra"] else None
@@ -384,6 +407,7 @@ def pola_guzikow(s):
             "plan_depo_dostepny": None if poz is None else plan_depo(poz) is not None}
     pola.update(stan_wroc(instancja.S.stan, s["dziala"]))
     pola.update(stan_serwisu(instancja.S.stan, kolejnosc=kolejnosc))
+    pola.update(stan_auto_refill(instancja.S.stan, pola["serwis_dziala"]))
     return pola
 
 
