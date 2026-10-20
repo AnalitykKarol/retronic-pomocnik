@@ -272,7 +272,7 @@ LOGI.clear()
 s, b = nowy((100, 50, Z))
 r = marsz(b)
 sprawdz("2a zwykły korytarz: klik 5 pól naprzód (105,50), obieg zużyty", r is True and s.kliki() == [(105, 50)], (r, s.kliki()))
-sprawdz("2b log [MARSZ] klik na (105, 50) 5 pól", any(l.startswith("[MARSZ] klik na (105, 50) 5 pól") for l in LOGI), LOGI)
+sprawdz("2b log [MARSZ] klik na (105, 50) 5 pól", any(l.startswith("[MARSZ] klik na (105, 50) 5 pól z (100, 50)") for l in LOGI), LOGI)
 sprawdz("2c stan marszu zapamiętany (cel, n, piętro)", b.marsz and b.marsz["cel"] == (105, 50) and b.marsz["n"] == 5 and b.marsz["z"] == Z)
 
 cavebot.MARSZ_KLIK_MAKS_POL = 3
@@ -295,7 +295,7 @@ for _ in range(400):
 sprawdz("2f korytarz 30 pól: dochodzimy klikami, bez klawiszy", tuple(s.poz[:2]) == (130, 50) and not s.klawisze(),
         (s.poz, s.klawisze()[:3]))
 sprawdz("2g 30 pól to 6 kliknięć po 5 pól (nie 30 kroków)", len(s.kliki()) == 6, s.kliki())
-sprawdz("2h logi wyników: 'doszedł' dla odcinków", sum("[MARSZ] doszedł na" in l for l in LOGI) >= 5, LOGI[:6])
+sprawdz("2h logi wyników: 'doszedł' dla odcinków", sum(": doszedł w" in l for l in LOGI) >= 5, LOGI[:6])
 
 # minimum 2 pola: jedno pole to zwykły krok
 s, b = nowy((100, 50, Z), [(101, 50, Z)])
@@ -411,7 +411,7 @@ for _ in range(40):
         marsz(b)                      # obieg, w którym marsz widzi dojście
         break
 sprawdz("4b doszedł na (105,50), log 'doszedł', zaplanowany kolejny klik (110,50)",
-        any("[MARSZ] doszedł na (105, 50)" in l for l in LOGI) and (110, 50) in s.kliki(), (LOGI, s.kliki()))
+        any("[MARSZ] klik na (105, 50) 5 pól z (100, 50): doszedł w" in l for l in LOGI) and (110, 50) in s.kliki(), (LOGI, s.kliki()))
 
 # 4c brak ruchu: klient nie idzie -> blokada, kroki klawiszem
 s, b = nowy((100, 50, Z))
@@ -424,7 +424,7 @@ for _ in range(30):
     if b.marsz_blok:
         break
 sprawdz("4d brak ruchu > MARSZ_BEZ_RUCHU_S: blokada odcinka i log 'brak ruchu'", b.marsz_blok is not None
-        and any("[MARSZ] brak ruchu" in l for l in LOGI), (b.marsz_blok, LOGI))
+        and any("[MARSZ] klik na (105, 50) 5 pól z (100, 50): brak ruchu" in l for l in LOGI), (b.marsz_blok, LOGI))
 sprawdz("4e po braku ruchu marsz wyczyszczony, klik_cel zdjęty", b.marsz is None and b.klik_cel is None)
 s.stoi = False
 liczba, kl0, x0 = len(s.kliki()), len(s.klawisze()), s.poz[0]
@@ -466,9 +466,9 @@ LOGI.clear()
 marsz(b)
 for _ in range(60):
     marsz(b)
-    if any("[MARSZ] limit czasu" in l or "[MARSZ] stanął" in l for l in LOGI):
+    if any(": limit czasu" in l or ": stanął" in l for l in LOGI):
         break
-sprawdz("4j zbyt wolny marsz kończy się po limicie (log), bez blokady (poszliśmy)", any("[MARSZ] limit czasu" in l for l in LOGI)
+sprawdz("4j zbyt wolny marsz kończy się po limicie (log), bez blokady (poszliśmy)", any(": limit czasu" in l for l in LOGI)
         and b.marsz_blok is None and s.poz[0] > 100, (LOGI, s.poz))
 
 # 4k klient stanął po drodze (przeszkoda, której nie znaliśmy): koniec marszu, kolejny klik od nowej pozycji
@@ -478,9 +478,9 @@ LOGI.clear()
 marsz(b)
 for _ in range(30):
     marsz(b)
-    if any("[MARSZ] stanął" in l for l in LOGI):
+    if any(": stanął" in l for l in LOGI):
         break
-sprawdz("4k klient stanął przed przeszkodą: log 'stanął', blokada nie (ruszyliśmy)", any("[MARSZ] stanął w (102, 50)" in l for l in LOGI)
+sprawdz("4k klient stanął przed przeszkodą: log 'stanął', blokada nie (ruszyliśmy)", any(": stanął w (102, 50)" in l for l in LOGI)
         and b.marsz_blok is None, (LOGI, b.marsz_blok))
 
 # ---------- 5. walka nie startuje marszu i przerywa trwający ----------
@@ -547,7 +547,7 @@ for _ in range(20):
     if tuple(s.poz[:2]) == (105, 50):
         marsz(b)                          # obieg, w którym marsz widzi dojście
         break
-sprawdz("5g po dojściu: log 'doszedł', marsz i klik_cel wyczyszczone", any("[MARSZ] doszedł na (105, 50)" in l for l in LOGI)
+sprawdz("5g po dojściu: log 'doszedł', marsz i klik_cel wyczyszczone", any("[MARSZ] klik na (105, 50) 5 pól z (100, 50): doszedł w" in l for l in LOGI)
         and b.marsz is None and b.klik_cel is None, (LOGI, b.marsz, b.klik_cel))
 w = b.zatrzymaj_klik(b.postac.pozycja())
 sprawdz("5g2 zatrzymaj_klik po dojściu nie wysyła Escape", w is False and "Escape" not in s.klawisze(), (w, s.klawisze()))
@@ -632,6 +632,37 @@ s, b = nowy((100, 50, Z), mapa=mapa_ob)
 b.ogien_pola = {(102, 47, Z): 1}
 r = b._marsz_klik((100, 50, Z), objazd)
 sprawdz("3v ogień poza marginesem objazdu nie skraca odcinka", r is True and s.kliki() == [(104, 51)], (r, s.kliki()))
+
+# ---------- 3w. klik „za siebie”: idx w tyle, zawrót przez pole postaci, cel = pole postaci ----------
+# idx odcinka został w tyle o kilka punktów (klik minął je między obiegami): klik naprzód od pozycji, nie od idx
+s, b = nowy((106, 50, Z), [(100 + i, 50, Z) for i in range(1, 26)])
+b.idx = 0                                  # postać stoi na (106,50) = punkt nr 5, idx wskazuje (101,50)
+r = b._marsz_klik((106, 50, Z), None)
+sprawdz("3w idx w tyle o 5 punktów: klik naprzód (111,50), nie wstecz", r is True and s.kliki() == [(111, 50)], (r, s.kliki()))
+sprawdz("3w2 wyrównanie nie zmienia self.idx", b.idx == 0, b.idx)
+sprawdz("3w3 log kliku zawiera pozycję startową", any(l == "[MARSZ] klik na (111, 50) 5 pól z (106, 50)" for l in LOGI), LOGI[-2:])
+# idx wyprzedza postać (postać cofnięta): ścieżka dalej liczona od pozycji w planie
+s, b = nowy((103, 50, Z), [(100 + i, 50, Z) for i in range(1, 26)])
+b.idx = 9
+r = b._marsz_klik((103, 50, Z), None)
+sprawdz("3x idx przed postacią (okno idx-4): postać poza oknem planu = bez kliku (stara ścieżka)", r is None and not s.kliki(), (r, s.kliki()))
+# trasa z zawrotem przez pole postaci: po zawrocie wracamy na (104,50) - ścieżka urywa się na polu, które już na niej było / jest polem postaci
+zawrot = [(101, 50, Z), (102, 50, Z), (103, 50, Z), (104, 50, Z), (105, 50, Z), (104, 50, Z), (103, 50, Z), (102, 50, Z), (101, 50, Z)]
+s, b = nowy((104, 50, Z), zawrot)
+b.idx = 3
+r = b._marsz_klik((104, 50, Z), None)
+sprawdz("3y zawrót przez pole postaci: brak kliku wstecz (ścieżka urwana na (104,50), 1 pole <2)", r is None and not s.kliki(), (r, s.kliki()))
+s, b = nowy((100, 50, Z), [(101, 50, Z), (102, 50, Z), (103, 50, Z), (102, 50, Z), (101, 50, Z)])
+b.idx = 0
+r = b._marsz_klik((100, 50, Z), None)
+sprawdz("3z odbicie na końcu odcinka: klik tylko do (103,50), nigdy z powrotem", r is True and s.kliki() == [(103, 50)], (r, s.kliki()))
+# cel = własne pole: wszystkie punkty planu to pole postaci
+s, b = nowy((100, 50, Z), [(100, 50, Z)] * 6)
+r = b._marsz_klik((100, 50, Z), None)
+sprawdz("3zz plan = samo pole postaci: brak kliku", r is None and not s.kliki(), (r, s.kliki()))
+s, b = nowy((100, 50, Z), [(100, 50, Z)] * 6)
+r = b._marsz_klik((100, 50, Z), [(100, 50, Z), (100, 50, Z)])
+sprawdz("3zy droga A* z samym polem postaci: brak kliku", r is None and not s.kliki(), (r, s.kliki()))
 
 # ---------- 6. pełny obieg przez _idz_segment (patrol) ----------
 LOGI.clear()
