@@ -62,6 +62,13 @@
     "prog_hp": 30,
     "dojscie": "rook_raty_z8_dojscie"
   },
+  "ph_raty_z8": {
+    "opis": "Port Hope, jaskinia z8 na pn-wsch od miasta (644 pola, 34 potwory: cave rat, bug, spider; spot niszowy pod runy, ser na jedzenie): pętla ph_raty_z8_petla z mapy klienta (20.10, generuj_trasy_ph.py). Dojście ze środka miasta (z7) 68 pól trasą ph_raty_z8_dojscie do wejścia (32662,32741,z7): wejście wywnioskowane z mapy, typ przejścia niezweryfikowany w grze. Uwaga: w jaskini dziura w dół na z9 (32654,32706). Wasp i Snake na liście, bo przy dojściu mogą zalecieć i trują (trucizna 25/20, bot nie leczy trucizny): zabić od razu",
+    "trasa": "ph_raty_z8_petla",
+    "potwory": "Cave Rat,Bug,Spider,Wasp,Snake",
+    "prog_hp": 30,
+    "dojscie": "ph_raty_z8_dojscie"
+  },
   "rook_kanaly_z11": {
     "opis": "Rookgaard, kanały z11 (774 pola, ok. 35 szczurów): pętla rook_kanaly_z11_petla z mapy klienta (20.10). Dojście z depo w mieście (z7) trasą rook_kanaly_z11_dojscie = odwrócone nagranie do_miasta (przejścia z7-z8-z9-z10-z11 sprawdzone w grze); na z11 start na miejscu",
     "trasa": "rook_kanaly_z11_petla",
