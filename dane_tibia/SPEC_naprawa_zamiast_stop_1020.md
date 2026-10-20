@@ -7,6 +7,7 @@
 | Q1 teleport do miasta w wyprawie | **Zawsze zgon** → wyjątek życia: STOP zostaje bez zmian (`wymus_stop`). |
 | Q2 nieudane dojście | **3 ponowienia**, potem plan po mapie do najbliższego punktu trasy. |
 | Q3 podział | **Dwóch agentów równolegle**: silnik napraw (N1, N3, N4, N6) i wyprawa + dojście (N2, N5). |
+| Q4 marsz do depo (`_zakoncz_depo`, `wymus_stop`) | **Rozdzielić** (Karol 20.10 „ok”): teleport/zgon = STOP jak dziś; zwykłe utknięcie w marszu do depo = naprawa (inna droga, klik obok, cofnięcie) i ponowienie marszu do depo, bez STOP, powiadomienie normal. |
 
 Cel: zasada naprawiania (`CLAUDE.md`, Karol 20.10: „nie stop tylko naprawa… zawsze”) obejmuje też kod sprzed strażnika orbit.
 Bot, który utknął, ma próbować kolejnych sposobów naprawy, a nie zapisywać STOP ani wysyłać alarmu krytycznego. Wzór i silnik:
