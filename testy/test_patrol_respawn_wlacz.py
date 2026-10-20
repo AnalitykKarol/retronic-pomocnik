@@ -215,6 +215,15 @@ sprawdz("2b RESPAWN=0: metoda każdego patrol_cel = waga (nigdy respawn), stare 
 sprawdz("2c RESPAWN=0: powód każdego wyboru = losowo, w logu nie ma wyboru respawnem",
         all(r["powod"].startswith("losowo") for r in rek(b01.tele, "patrol_cel")))
 
+# 2d. złota sekwencja: policzona na czystej bazie 2395bef (git archive), RESPAWN=0, ziarno 1234, historia = 3 ostatnie wybory.
+# Zmiana tych liczb = zmiana dzisiejszego losowania patrolu (świadoma decyzja, nie skutek uboczny).
+ZLOTE_ID = [2, 8, 6, 1, 5, 2, 4, 1, 8, 2, 6, 4, 5, 1, 7, 6, 4, 8, 2, 6, 7, 1, 5, 4, 2, 7, 1, 4, 6, 3]
+ZLOTE_DROGI = [60, 62, 88, 49, 34, 60, 101, 49, 62, 60, 88, 101, 34, 49, 91, 88, 101, 62, 60, 88, 91, 49, 34, 101, 60, 91, 49, 101, 88, 92]
+for _cien in (0, 1):
+    _ids, _dr, *_ = seria(0, _cien, n=30, dane_b=False)
+    sprawdz(f"2d złota sekwencja id i długości dróg z bazy 2395bef (RESPAWN=0, cień {_cien}, 30 wyborów)",
+            _ids == ZLOTE_ID and [len(x) for x in _dr] == ZLOTE_DROGI, f"{_ids} / {[len(x) for x in _dr]}")
+
 # --- 3. RESPAWN=1: świeżo wyczyszczone miejsce przegrywa z dawno niewidzianym ----------------------------------------------
 p0, r0, b_, s_ = jeden(resp=1, X=None)
 top = r0.get("cel_respawn")
@@ -344,6 +353,28 @@ _, _, bA1, _ = jeden(resp=1)
 _, _, bA0, _ = jeden(resp=0)
 sprawdz("7 respawn nie liczy A* dla kandydatów: tyle samo wywołań A* co waga (droga tylko do wybranego celu)",
         bA1._licznik_astar == bA0._licznik_astar, f"{bA1._licznik_astar} vs {bA0._licznik_astar}")
+
+# --- 7b. wszystkie drogi zawodzą: bez zapętlenia, ograniczona liczba prób, blokady wygasają -------------------------------
+stara_droga = cavebot.Cavebot._patrol_droga
+for resp in (1, 0):
+    proby = []
+    cavebot.Cavebot._patrol_droga = lambda self, poz, m, uzyte=None: (proby.append(m["id"]), None)[1]
+    try:
+        pZ, rZ, bZ, sZ = jeden(resp=resp)
+        n_miejsc = len(bZ.miejsca)
+        n_przed = len(proby)
+        pZ2 = bZ._patrol_wybierz(START)
+        n_po = len(proby)
+        sZ.t += cavebot.PATROL_BLOK_S + 1             # blokady wygasają
+        cavebot.Cavebot._patrol_droga = stara_droga
+        pZ3 = bZ._patrol_wybierz(START)
+    finally:
+        cavebot.Cavebot._patrol_droga = stara_droga
+    sprawdz(f"7b RESPAWN={resp}: wszystkie drogi zawodzą: wynik None, bez zapętlenia, prób drogi <= liczba miejsc + 6",
+            pZ is None and 0 < len(proby) <= n_miejsc + 6, (pZ, len(proby), n_miejsc))
+    sprawdz(f"7c RESPAWN={resp}: każde nieosiągalne miejsce dostało patrol_blok, a kolejny wybór od razu nie próbuje ich znów",
+            set(proby) <= set(bZ.patrol_blok) and pZ2 is None and n_po == n_przed, (sorted(set(proby)), sorted(bZ.patrol_blok)))
+    sprawdz(f"7d RESPAWN={resp}: po PATROL_BLOK_S blokady wygasają i patrol znów wybiera cel", pZ3 is not None, pZ3)
 
 # --- 8. błąd mapy = brak zdania, wybór po staremu ------------------------------------------------------------------------
 stare_w = obecnosc.MapaObecnosci.wybierz
