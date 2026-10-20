@@ -108,8 +108,8 @@ def normalizuj_id(wartosc):
 
 
 def lista_instancji():
-    ids = [""]
     kat = katalog() / "instancje"
+    ids = [] if (kat / "_bez_glownej").is_dir() else [""]      # znacznik (20.10): główna ukryta; cofnięcie = rmdir
     if kat.is_dir():
         for p in sorted(kat.iterdir()):
             if not p.is_dir():

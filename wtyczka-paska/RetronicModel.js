@@ -3,7 +3,7 @@
 //   status:  RETRONIC_ID=<id> python3 -I panel.py --json -> {"text","tooltip","class","alt"}, class: dziala|alarm|stop|brak
 //   stop:    RETRONIC_ID=<id> ./zatrzymaj.sh
 //   start:   RETRONIC_ID=<id> ./uruchom.sh (bez MAPA/TRYB bierze ostatni_start[.<id>].env)
-//   lista:   pusty ID (główna) + podkatalogi instancje/ poza _wspolne
+//   lista:   pusty ID (główna, chyba że jest instancje/_bez_glownej) + podkatalogi instancje/ poza _wspolne
 //   miasto:  RETRONIC_ID=<id> ./wroc.sh [--anuluj]            ("Wróć do miasta": plik WROC, bot rusza w spokojnej chwili)
 //            RETRONIC_ID=<id> ./refill.sh --tlo | --spot | --przerwij  ("Refill": serwis w mieście odłączony, log refill.log;
 //                                  "Spot": to samo bez zakupów, tylko wyjście z miasta i start bota)
@@ -50,9 +50,14 @@ function parseInstanceListing(text) {
   return ids
 }
 
-// Główna instancja (pusty ID) zawsze pierwsza.
+// Katalog instancje/_bez_glownej (20.10) chowa główną instancję: po jej zakończeniu nie ma jej w panelu. Cofnięcie: rmdir.
+var NO_MAIN_MARKER = "_bez_glownej"
+
+// Główna instancja (pusty ID) pierwsza, chyba że jest znacznik NO_MAIN_MARKER.
 function instanceIds(listingText) {
-  return [""].concat(parseInstanceListing(listingText))
+  var hidden = String(listingText || "").split("\n").some(function (l) { return l.trim() === NO_MAIN_MARKER })
+  var ids = parseInstanceListing(listingText)
+  return hidden ? ids : [""].concat(ids)
 }
 
 // ---------------------------------------------------------------- polecenia

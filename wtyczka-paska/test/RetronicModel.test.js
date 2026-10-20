@@ -18,6 +18,8 @@ describe("lista instancji", () => {
     assert.deepEqual(M.instanceIds("test\n_wspolne\ndwa\n"), ["", "dwa", "test"])
     assert.deepEqual(M.instanceIds(""), [""])
     assert.deepEqual(M.instanceIds(undefined), [""])
+    assert.deepEqual(M.instanceIds("invincible\n_wspolne\n_bez_glownej\n"), ["invincible"])
+    assert.deepEqual(M.instanceIds("_bez_glownej\n"), [])
   })
   it("odrzuca nazwy niezgodne ze wzorem bota (spacje, wielkie litery, ścieżki, średniki)", () => {
     assert.deepEqual(M.parseInstanceListing("Test\na b\n../x\na;rm\n-x\n" + "a".repeat(25) + "\nok_1\n"), ["ok_1"])
