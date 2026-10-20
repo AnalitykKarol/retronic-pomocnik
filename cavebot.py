@@ -609,10 +609,11 @@ RATUNEK_OKRAZENIA_N = 3            # S7: tyle końców okrążenia trasy w RATUN
 RATUNEK_OKRAZENIA_S = 60.0         # S7: okno [s]
 RATUNEK_PRZERWA_S = 120.0          # debounce: ten sam sygnał w tym samym miejscu najwcześniej po tylu s
 RATUNEK_LIMIT_H = 20               # limit wywołań Haiku na godzinę (Q3); w cieniu tylko flaga „ponad limit”
-STRAZNIK_ORBITY = 0                # 20.10 (SPEC_orbity_straznik_1020, B): 0 = wyłączony (zero zmian); 1 = cień: log [ORBITA] + telemetria straznik_orbita; 2 = działa: stop chodzenia, jedna próba wyjścia, potem ALARM + STOP (straznik_orbity.py)
-STRAZNIK_ORBITA_S = 60.0           # s okno orbity: >= 8 zmian pozycji w <= STRAZNIK_ORBITA_POL polach poza walką (albo złe piętro tak długo)
-STRAZNIK_ORBITA_POL = 6            # maks. różnych pól orbity
-STRAZNIK_WYJSCIE_S = 90.0          # s na próbę wyjścia (plan po mapie / A* do trasy); potem alarm
+STRAZNIK_ORBITY = 0                # 20.10 (SPEC_orbity_straznik_1020, B): 0 = wyłączony (zero zmian); 1 = cień: log [ORBITA] + telemetria straznik_orbita; 2 = działa: stop chodzenia, potem rotacja sposobów naprawy aż do skutku, nigdy STOP (straznik_orbity.py)
+STRAZNIK_ORBITA_S = 60.0           # s okno orbity: >= STRAZNIK_ORBITA_ZMIAN zmian pozycji w <= STRAZNIK_ORBITA_POL polach poza walką (albo złe piętro tak długo)
+STRAZNIK_ORBITA_POL = 8            # maks. różnych pól orbity (Karol 20.10: 8; pomiar 14-20.10 0 fałszywych)
+STRAZNIK_ORBITA_ZMIAN = 15         # min. zmian pozycji w oknie (Karol 20.10: 15)
+STRAZNIK_WYJSCIE_S = 90.0          # s aktywne (bez walki/lootu) na dłuższe sposoby naprawy (plan pięter, A* do punktu trasy); potem następny sposób z rotacji, nigdy STOP
 D3_ASTAR_MAX = 6                   # najwyżej tyle wywołań A* na jedną zawieszkę przy liczeniu opcji D3 (koszt ograniczony)
 PATROL_RESPAWN_CIEN = 1            # 15.10: tryb cienia (SPEC_patrol_respawn_1015 krok 2): mapa obecności mobów liczona na żywo (obecnosc.py), a przy wyborze
                                    # celu patrolu w telemetrii patrol_cel (cel_respawn, wartosci, zgodny) i "decyzja" D4 wybór nowej metody; bot idzie jak dziś; pokrętło 0/1
@@ -5675,8 +5676,7 @@ class Cavebot:
                 import straznik_orbity  # noqa: PLC0415
                 mod = sys.modules[__name__]
                 det = straznik_orbity.Detektor(mod)
-                rea = straznik_orbity.Reakcja(self, mod, log=lambda t: log(t),
-                                              plik_stop=None)
+                rea = straznik_orbity.Reakcja(self, mod, log=lambda t: log(t))
                 rea.det = det
                 self._straznik = (det, rea)
             det, rea = self._straznik
@@ -5690,7 +5690,8 @@ class Cavebot:
                 return
             for zd in det.tick(teraz, poz, self.stan, self._straznik_zle_pietro(poz), self.exp_teraz):
                 if tryb >= 2 and not self._straznik_planowane():
-                    rea.start(zd, teraz)
+                    if not rea.aktywna():          # dwa zdarzenia w jednym obiegu (np. pietro + orbita): jeden epizod
+                        rea.start(zd, teraz)
                 else:
                     log(f"[ORBITA] cień: {zd['rodzaj']} w {tuple(zd['poz'])}: {rea._opis(zd)}"
                         f"{'; bez reakcji (wypad/dojście/wyprawa)' if tryb >= 2 else ''}.")

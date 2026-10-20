@@ -6,33 +6,45 @@ zorientują się, że to bot.
 
 Dwie części:
   * `Detektor` — czyste liczenie jak `ratunek.Detektor` (ten sam zegar `teraz`, te same `STANY_WALKI`/`STANY_ZAMIERZONE`, ta sama
-    luka MAX_PRZERWA_S). Okno przesuwne `STRAZNIK_ORBITA_S`: ORBITA = >= STRAZNIK_ORBITA_ZMIAN (8) zmian pozycji, wszystkie pozycje na jednym
-    piętrze i w <= `STRAZNIK_ORBITA_POL` różnych polach, bez długiego stania w środku; PIETRO = złe piętro >= `STRAZNIK_ORBITA_S`.
+    luka MAX_PRZERWA_S). Okno przesuwne `STRAZNIK_ORBITA_S` (60 s): ORBITA = >= `STRAZNIK_ORBITA_ZMIAN` (15) zmian pozycji, wszystkie
+    na jednym piętrze i w <= `STRAZNIK_ORBITA_POL` (8) różnych polach, bez długiego stania w środku; PIETRO = złe piętro >= okno.
     Walka/loot nie zeruje okna (orbita z przerwami na szczura to nadal orbita), stany zamierzone (PRZERWA, PAUZA, ...) zerują.
-  * `Reakcja` — maszyna stanów w cavebocie (tylko `STRAZNIK_ORBITY=2`): stop chodzenia (stan ORBITA, pauza 3-8 s) -> jedna
-    próba wyjścia (wpadniecie.py: plan po mapie + pietra.py; na tym samym piętrze A* do najbliższego osiągalnego punktu trasy
-    z polami orbity jako zakazanymi) w limicie `STRAZNIK_WYJSCIE_S` -> postęp (normalna praca) albo ALARM (powiadom critical
-    „orbita” + plik STOP, jak wpadniecie.py), postać stoi.
+  * `Reakcja` — NAPRAWA, nigdy STOP (Karol 20.10, Q2; CLAUDE.md „Zasada naprawiania"). Tylko `STRAZNIK_ORBITY=2`: stop chodzenia
+    (stan ORBITA, pauza 3-8 s), potem rotacja sposobów naprawy aż do skutku, między próbami losowe pauzy 2-6 s:
+      wyjscie  jedna próba wg speca: plan pięter (wpadniecie.py + pietra.py) albo A* do najbliższego punktu trasy poza orbitą
+      klik     klik w inne osiągalne pole 3-7 pól poza obszarem orbity (losowe, nie to samo co poprzednio)
+      punkt    rotacja punktu: inne miejsce patrolu / odwrócenie pętli / inny punkt trasy (mechanizmy cavebota)
+      astar    A* do DALSZEGO punktu trasy z polami orbity zakazanymi
+      plan     plan pięter (wpadniecie.z_kieszeni), gdy zła kieszeń/piętro
+      krok     jeden krok w losowym wolnym kierunku
+    Każdy sposób ma limit czasu AKTYWNEGO (bez czasu walki/lootu, który ma pierwszeństwo). Po ROTACJE_N pełnych nieudanych rotacjach
+    jedno zwykłe powiadomienie (nie critical, bez STOP, rzadko) i dalsza rotacja z dłuższymi pauzami. Kolejny epizod w ciągu
+    POWROTY_OKNO_S zaczyna od mocniejszej naprawy (rotacja punktu).
 Pokrętło `STRAZNIK_ORBITY`: 0 wyłączony (zero zmian w zachowaniu), 1 cień (log `[ORBITA] cień` + telemetria `straznik_orbita`),
-2 działa. Progi: STRAZNIK_ORBITA_S, STRAZNIK_ORBITA_POL, STRAZNIK_WYJSCIE_S (stałe w cavebot.py, pokrętła w pokretla.py).
+2 działa. Progi: STRAZNIK_ORBITA_S/POL/ZMIAN, STRAZNIK_WYJSCIE_S (stałe w cavebot.py, pokrętła w pokretla.py).
 """
 import collections
-import os
 import random
-from pathlib import Path
 
 import ratunek
 from ratunek import STANY_WALKI, STANY_ZAMIERZONE
 
-DOMYSLNE = dict(STRAZNIK_ORBITY=0, STRAZNIK_ORBITA_S=60.0, STRAZNIK_ORBITA_POL=6, STRAZNIK_WYJSCIE_S=90.0,
-                STRAZNIK_ORBITA_ZMIAN=8)   # ZMIAN: tyle zmian pozycji w oknie = „zmienia pozycję” (spec: 8); nie jest pokrętłem, tylko do pomiaru (--zmian)
+DOMYSLNE = dict(STRAZNIK_ORBITY=0, STRAZNIK_ORBITA_S=60.0, STRAZNIK_ORBITA_POL=8, STRAZNIK_WYJSCIE_S=90.0,
+                STRAZNIK_ORBITA_ZMIAN=15)
 MAX_STOJ_UL = 0.5                    # w oknie nie ma stania (poza walką) dłuższego niż tyle okna: to nie wahadło, tylko przystanek
-PAUZA_S = (3.0, 8.0)                 # losowa pauza (stop chodzenia) przed próbą wyjścia
+PAUZA_S = (3.0, 8.0)                 # losowa pauza (stop chodzenia) po wykryciu, przed pierwszą próbą
+PAUZA_MIEDZY_S = (2.0, 6.0)          # losowa pauza między sposobami naprawy
+PAUZA_DLUGA_S = (6.0, 15.0)          # ... po powiadomieniu (dłuższe)
 DEBOUNCE_S = 300.0                   # ten sam sygnał w tym samym miejscu najwcześniej po tylu s
-POWROTY_MAX = 3                      # SUBSTYTUCJA (spec milczy): tyle epizodów w POWROTY_OKNO_S = orbita wraca po „udanym” wyjściu -> od razu alarm
-POWROTY_OKNO_S = 1800.0              # (bez tego: wyjście, orbita, wyjście ... bez końca; do decyzji Karola)
+POWROTY_OKNO_S = 1800.0              # drugi epizod w tym oknie = start od mocniejszej naprawy (rotacja punktu)
+ROTACJE_N = 2                        # tyle pełnych nieudanych rotacji = jedno zwykłe powiadomienie
+POWIADOM_CO_S = 1800.0               # powiadomienie najwyżej raz na tyle s
 POSTEP_POL = 3                       # postęp = >= tyle pól od najbliższego pola orbity (albo powrót na piętro trasy)
 KAND_TRASY = 8                       # ile najbliższych punktów trasy/patrolu sprawdzamy A*
+LIMIT_KLIK_S = 25.0                  # limity czasu aktywnego sposobów (s); wyjscie/astar/plan: STRAZNIK_WYJSCIE_S
+LIMIT_PUNKT_S = 30.0
+MAX_DT_S = 6.0                       # dłuższa luka między obiegami reakcji = była walka/loot: nie liczy się do limitów
+KLIK_MIN, KLIK_MAX = 3, 7            # klik: odległość pola od najbliższego pola orbity
 MAX_PRZERWA_S = ratunek.MAX_PRZERWA_S
 _pasuje = ratunek._pasuje
 _czeb = ratunek._czeb
@@ -137,20 +149,23 @@ class Detektor:
 
 
 class Reakcja:
-    """Maszyna stanów reakcji (STRAZNIK_ORBITY=2). `cb` = Cavebot (zegar, postac, punkty, droga/podejdz, _wp(), tele, alarm),
-    `konf` = moduł cavebot (stałe), `plik_stop` = None -> bot.STOP (w testach RETRONIC_TESTY bez pliku)."""
+    """Maszyna stanów naprawy (STRAZNIK_ORBITY=2). `cb` = Cavebot, `konf` = moduł cavebot (stałe). Nigdy STOP ani alarm critical.
+    faza: None | start | pauza | m_<sposób>. `tick(poz, teraz)`: True = obieg zużyty, None = bot pracuje normalnie (sposób `punkt`)."""
 
-    def __init__(self, cb, konf=None, log=print, plik_stop=None):
+    def __init__(self, cb, konf=None, log=print):
         self.cb = cb
         self.konf = konf
         self.log = log
-        self.plik_stop = plik_stop
-        self.faza = None                    # None | start | pauza | wp | droga | alarm
+        self.faza = None
         self.ep = None
-        self.stop_zapisany = False
         self.epizody = 0
         self.hist = []                      # czasy startów epizodów (zegar bota)
+        self.var_punkt = 0                  # kolejny wariant rotacji punktu (przeżywa epizody: za każdym razem inny)
+        self.ost_powiad = float("-inf")
+        self.akt = 0.0                      # czas aktywny reakcji (bez walki/lootu), s
+        self.ost_tick = None
         self.det = None                     # Detektor do wyzerowania po epizodzie (ustawia cavebot)
+        self.historia = []                  # [(sposób, wynik)] ostatniego epizodu (testy, telemetria)
 
     def k(self, nazwa):
         return getattr(self.konf, nazwa, DOMYSLNE[nazwa]) if self.konf is not None else DOMYSLNE[nazwa]
@@ -166,59 +181,56 @@ class Reakcja:
             except Exception:
                 pass
 
-    # --- wejście: zdarzenie z detektora ---
-    def start(self, zd, teraz):
-        self.epizody += 1
-        self.faza = "start"
-        self.hist = [x for x in self.hist if teraz - x < POWROTY_OKNO_S] + [teraz]
-        self.ep = {"powrot": len(self.hist) >= POWROTY_MAX, "zd": zd, "t0": teraz, "z": zd["poz"][2], "pola": [tuple(p) for p in zd.get("pola") or [tuple(zd["poz"])]],
-                   "nr": self.epizody}
-        self.log(f"[ORBITA] wykryto {zd['rodzaj']} w {tuple(zd['poz'])}: {self._opis(zd)}; zatrzymuję chodzenie.")
-        self._tele("start", **self._tele_zd(zd))
-
     @staticmethod
     def _opis(zd):
         if zd["rodzaj"] == "pietro":
             return f"złe piętro z{zd['poz'][2]} od {zd.get('trwa_s')} s"
         return f"{zd.get('zmian')} zmian w {len(zd.get('pola') or [])} polach przez {zd.get('czas_s')} s, stany {zd.get('stany')}"
 
-    @staticmethod
-    def _tele_zd(zd):
-        return {k: v for k, v in zd.items() if k != "t"}
+    # --- wejście: zdarzenie z detektora ---
+    def start(self, zd, teraz):
+        self.epizody += 1
+        self.faza = "start"
+        self.hist = [x for x in self.hist if teraz - x < POWROTY_OKNO_S] + [teraz]
+        powrot = len(self.hist) >= 2
+        wp = self.cb._wp()
+        zle = zd["rodzaj"] == "pietro" or bool(wp is not None and not wp._trasa_na_pietrze(zd["poz"][2]))
+        self.ep = {"zd": zd, "t0": teraz, "z": zd["poz"][2], "pola": [tuple(p) for p in zd.get("pola") or [tuple(zd["poz"])]],
+                   "nr": self.epizody, "powrot": powrot, "zle": zle, "runda": 0, "n_met": 0, "kolejka": [],
+                   "uzyte_kliki": [], "uzyte_cele": [], "powiadomiono": False}
+        self.historia = []
+        self.log(f"[ORBITA] wykryto {zd['rodzaj']} w {tuple(zd['poz'])}: {self._opis(zd)}; zatrzymuję chodzenie"
+                 f"{' (kolejny epizod w 30 min: zaczynam od zmiany punktu)' if powrot else ''}.")
+        self._tele("start", powrot=powrot, **{k: v for k, v in zd.items() if k != "t"})
 
     # --- obieg ---
     def tick(self, poz, teraz):
-        """True = obieg zużyty. None = nic do roboty (brak epizodu)."""
         if self.faza is None:
             return None
         cb = self.cb
         p = (int(poz[0]), int(poz[1]), int(poz[2]))
+        dt = 0.0 if self.ost_tick is None else teraz - self.ost_tick
+        self.ost_tick = teraz
+        if 0 < dt <= MAX_DT_S:
+            self.akt += dt                   # luka (walka, loot, pauza po ticku) dłuższa niż MAX_DT_S nie liczy się do limitów
         f = self.faza
         if f == "start":
             self._stop_chodzenia(p)
             self.ep["pauza_do"] = teraz + random.uniform(*PAUZA_S)
-            self.faza = "pauza"
-            self.log(f"[ORBITA] stoję {self.ep['pauza_do'] - teraz:.1f} s, potem jedna próba wyjścia (limit {self.k('STRAZNIK_WYJSCIE_S'):.0f} s).")
+            self.faza = f = "pauza"
+            self.log(f"[ORBITA] stoję {self.ep['pauza_do'] - teraz:.1f} s, potem sposoby naprawy (rotacja, nigdy STOP).")
             self._tele("pauza", poz=list(p), pauza_s=round(self.ep["pauza_do"] - teraz, 1))
-            f = "pauza"
         if f == "pauza":
-            cb.ustaw_stan("ORBITA", f"pauza przed wyjściem z {tuple(p)}")
+            cb.ustaw_stan("ORBITA", f"pauza przed próbą naprawy w {tuple(p)}")
             if teraz < self.ep["pauza_do"]:
                 cb.pauza(0.3, 0.8)
                 return True
-            return self._wyjscie(p, teraz)
-        if f == "alarm":
-            cb.ustaw_stan("ORBITA", "alarm: czekam na STOP")
-            cb.pauza(1.0, 2.0)
-            return True
-        if teraz - self.ep["t_wyj"] > float(self.k("STRAZNIK_WYJSCIE_S")):
-            return self._alarm(f"brak postępu w {self.k('STRAZNIK_WYJSCIE_S'):.0f} s", p, teraz)
-        if f == "wp":
-            return self._tick_wp(p, teraz)
-        if f == "droga":
-            return self._tick_droga(p, teraz)
-        self.faza = None
-        return None
+            return self._nastepny(p, teraz)
+        if self._sukces(p):
+            return self._postep(p, teraz, "wyszedłem z orbity")
+        met = f[2:]
+        r = getattr(self, "_t_" + met)(p, teraz)
+        return r
 
     def _stop_chodzenia(self, p):
         cb = self.cb
@@ -234,37 +246,128 @@ class Reakcja:
             pass
         cb.ustaw_stan("ORBITA", f"stop chodzenia w {tuple(p)}")
 
-    # --- wyjście ---
-    def _wyjscie(self, p, teraz):
-        cb = self.cb
+    # --- rotacja ---
+    def _nowa_kolejka(self):
         ep = self.ep
-        ep["t_wyj"] = teraz
-        if ep.get("powrot"):                # SUBSTYTUCJA: trzecia orbita w 30 min = wyjście nie pomaga, nie próbujemy czwartej
-            return self._alarm(f"orbita wraca: {len(self.hist)} epizody w {POWROTY_OKNO_S / 60:.0f} min", p, teraz)
-        wp = cb._wp()
-        if wp is not None:
+        if ep["zle"]:
+            return ["plan", "klik", "krok"]
+        if ep["runda"] == 0 and not ep["powrot"]:
+            return ["wyjscie", "klik", "punkt", "astar", "plan", "krok"]
+        if ep["runda"] == 0:                  # kolejny epizod w krótkim czasie: mocniejsza naprawa od razu
+            return ["punkt", "klik", "astar", "plan", "krok", "wyjscie"]
+        return ["klik", "punkt", "astar", "plan", "krok"]
+
+    def _nastepny(self, p, teraz):
+        ep = self.ep
+        proby = 0
+        while True:
+            if not ep["kolejka"]:
+                if ep["n_met"]:      # pełna rotacja za nami
+                    ep["runda"] += 1
+                    self._po_rundzie(p, teraz)
+                ep["kolejka"] = self._nowa_kolejka()
+            met = ep["kolejka"].pop(0)
+            proby += 1
+            ep["t_met"] = teraz
+            ep["akt0"] = self.akt
+            ep["n_met"] += 1
+            ok = getattr(self, "_s_" + met)(p, teraz)
+            if ok:
+                self.faza = "m_" + met
+                self.log(f"[ORBITA] sposób {ep['n_met']} (runda {ep['runda'] + 1}): {met}.")
+                self._tele("sposob", sposob=met, nr=ep["n_met"], runda=ep["runda"] + 1, poz=list(p))
+                self.historia.append((met, "start"))
+                return True
+            ep["n_met"] -= 1
+            self.historia.append((met, "pominiety"))
+            if proby >= 12:                                        # nic nie ma zastosowania: pauza i od nowa
+                ep["kolejka"] = []
+                return self._pauza(p, teraz, "żaden sposób nie ma zastosowania")
+
+    def _po_rundzie(self, p, teraz):
+        ep = self.ep
+        self.log(f"[ORBITA] rotacja {ep['runda']} bez skutku.")
+        self._tele("rotacja_bez_skutku", runda=ep["runda"], poz=list(p))
+        if ep["runda"] >= ROTACJE_N and teraz - self.ost_powiad >= POWIADOM_CO_S:
+            self.ost_powiad = teraz
+            ep["powiadomiono"] = True
+            tresc = f"orbita {self._opis(ep['zd'])}; {ep['runda']} rotacje naprawy bez skutku, próbuję dalej; jestem w {tuple(p)}"
+            self.log(f"[ORBITA] powiadomienie (zwykłe, bez STOP): {tresc}")
+            self._tele("powiadomienie", runda=ep["runda"], poz=list(p))
             try:
-                if wp.st is not None or wp.z_kieszeni(p, teraz):
-                    self.faza = "wp"
-                    ep["wp_z0"] = wp.st["z0"] if wp.st else None
-                    self.log(f"[ORBITA] wyjście: plan po mapie (wpadniecie.py, wyjście na z{ep['wp_z0']}).")
-                    self._tele("wyjscie", sposob="plan_pietra", poz=list(p), z0=ep["wp_z0"])
-                    return True
-            except Exception as e:
-                if type(e).__name__ == "Zatrzymano":
-                    raise
-                self.log(f"[ORBITA] plan pięter nie wyszedł ({e!r}), próbuję A* po piętrze.")
-        cel = self._cel_na_pietrze(p)
-        if cel is None:
-            return self._alarm("brak osiągalnego punktu trasy poza polami orbity", p, teraz)
-        ep.update(cel=cel, fails=0)
-        self.faza = "droga"
-        self.log(f"[ORBITA] wyjście: A* do punktu trasy {cel[:2]} z pominięciem {len(ep['pola'])} pól orbity.")
-        self._tele("wyjscie", sposob="astar", poz=list(p), cel=list(cel))
+                import powiadom  # noqa: PLC0415
+                powiadom.powiadom("Bot: orbita, naprawiam", tresc, "normal", "orbita")
+            except Exception:
+                pass
+
+    def _pauza(self, p, teraz, powod):
+        ep = self.ep
+        self._stop_chodzenia(p)
+        zakres = PAUZA_DLUGA_S if ep["powiadomiono"] else PAUZA_MIEDZY_S
+        ep["pauza_do"] = teraz + random.uniform(*zakres)
+        self.faza = "pauza"
+        self.log(f"[ORBITA] {powod}; stoję {ep['pauza_do'] - teraz:.1f} s i próbuję kolejny sposób.")
+        cb = self.cb
+        cb.pauza(0.3, 0.8)
         return True
 
-    def _zakazane(self, ep, p):
-        return [(q[0], q[1]) for q in ep["pola"] if tuple(q[:2]) != tuple(p[:2])]
+    def _koniec_sposobu(self, p, teraz, powod):
+        met = self.faza[2:]
+        self.historia.append((met, powod))
+        self._tele("sposob_nieudany", sposob=met, powod=powod, poz=list(p))
+        return self._pauza(p, teraz, f"sposób {met} bez skutku ({powod})")
+
+    # --- postęp ---
+    def _wyszedl(self, p):
+        return self._daleko(p, self.ep["pola"])
+
+    def _daleko(self, q, pola):
+        return all(q[2] != f[2] or _czeb(q, f) >= POSTEP_POL for f in pola)
+
+    def _sukces(self, p):
+        ep = self.ep
+        if ep["zle"]:
+            wp = self.cb._wp()
+            na_trasie = wp._trasa_na_pietrze(p[2]) if wp is not None else any(q[2] == p[2] for q in self.cb.punkty)
+            return p[2] != ep["z"] and na_trasie
+        return p[2] != ep["z"] or self._wyszedl(p)
+
+    def _postep(self, p, teraz, powod, sync=True):
+        cb = self.cb
+        ep = self.ep
+        po_punkcie = self.faza == "m_punkt"          # bot pracuje na już zmienionym punkcie: nie nadpisujemy go synchronizacją
+        self.faza = None
+        czas = teraz - ep["t0"]
+        self.log(f"[ORBITA] postęp: {powod}, jestem w {tuple(p)} po {czas:.0f} s od wykrycia ({ep['n_met']} sposobów); wracam do pracy.")
+        self._tele("postep", wynik="ok", poz=list(p), czas_s=round(czas, 1), powod=powod, sposoby=ep["n_met"],
+                   pola=[list(q) for q in ep["pola"]])
+        wp = cb._wp()
+        if wp is not None and wp.st is not None:
+            wp.st = None
+            if getattr(cb, "pietra", None) is not None:
+                cb.pietra.st = None
+        try:
+            if sync and not po_punkcie and not cb._wypad_wroc_na_trase(p):   # plan pięter robi to sam
+                cb._patrol_sync_idx(p)
+        except Exception as e:
+            if type(e).__name__ == "Zatrzymano":
+                raise
+            self.log(f"[ORBITA] powrót na trasę nie wyszedł ({e!r})")
+        self.ep = None
+        if self.det is not None:
+            self.det.po_reakcji()
+        cb.pauza(0.15, 0.35)
+        return True
+
+    # --- sposoby: _s_<nazwa> = start (True = zastosowano), _t_<nazwa> = obieg ---
+    def _zakazane(self, p):
+        return [(q[0], q[1]) for q in self.ep["pola"] if tuple(q[:2]) != tuple(p[:2]) and q[2] == p[2]]
+
+    def _stwory_xy(self, p):
+        cb = self.cb
+        return [(s["x"], s["y"]) for s in (cb.ostatnie_stwory or [])
+                if s.get("z") == p[2] and s.get("hp", 100) > 0 and (s["x"], s["y"]) != tuple(p[:2])
+                and not (s.get("gracz") and s.get("nazwa") == getattr(cb.postac, "nazwa", None))]
 
     def _kandydaci(self, z):
         cb = self.cb
@@ -274,77 +377,121 @@ class Reakcja:
                 wyn += [(m["x"], m["y"]) for m in (cb.miejsca or []) if m.get("z") == z]
         except Exception:
             pass
-        return wyn
+        return list(dict.fromkeys(wyn))
 
-    def _daleko(self, q, pola):
-        return all(q[2] != f[2] or _czeb(q, f) >= POSTEP_POL for f in pola)
+    def _droga(self, p, cel_xy, extra=()):
+        try:
+            return self.cb._droga_do((p[0], p[1], p[2]), cel_xy, self._zakazane(p) + list(extra))   # bez zapasowej drogi „po samej mapie”
+        except Exception as e:
+            if type(e).__name__ == "Zatrzymano":
+                raise
+            return None
 
-    def _cel_na_pietrze(self, p):
-        """Najbliższy osiągalny punkt trasy/patrolu poza obszarem orbity (A* z polami orbity jako zakazanymi) albo None."""
-        cb = self.cb
-        pola = self.ep["pola"]
-        zak = self._zakazane(self.ep, p)
-        kand = [q for q in dict.fromkeys(self._kandydaci(p[2])) if self._daleko((q[0], q[1], p[2]), pola)]
+    def _ustaw_cel(self, p, cel, limit_s):
+        ep = self.ep
+        ep.update(cel=cel, fails=0, limit=limit_s, ost_poz=tuple(p))
+
+    # wyjscie: wg speca jedna próba: plan pięter (kieszeń) albo A* do najbliższego punktu trasy
+    def _s_wyjscie(self, p, teraz):
+        if self._s_plan(p, teraz):
+            self.ep["alias"] = "plan"
+            return True
+        kand = [q for q in self._kandydaci(p[2]) if self._daleko((q[0], q[1], p[2]), self.ep["pola"])]
         kand.sort(key=lambda q: _czeb(q, p))
         for q in kand[:KAND_TRASY]:
-            try:
-                d = cb._droga_do((p[0], p[1], p[2]), q, zak)       # bez zapasowej drogi „po samej mapie”: pola orbity są zakazane naprawdę
-            except Exception as e:
-                if type(e).__name__ == "Zatrzymano":
-                    raise
-                continue
-            if d is not None:
-                return (q[0], q[1], p[2])
-        return None
+            if self._droga(p, q) is not None:
+                self._ustaw_cel(p, (q[0], q[1], p[2]), float(self.k("STRAZNIK_WYJSCIE_S")))
+                self.ep["alias"] = "droga"
+                self.ep["uzyte_cele"].append(q)
+                return True
+        return False
 
-    def _tick_wp(self, p, teraz):
+    def _t_wyjscie(self, p, teraz):
+        if self.ep.get("alias") == "plan":
+            return self._t_plan(p, teraz)
+        return self._idz(p, teraz)
+
+    # klik: inne osiągalne pole 3-7 pól poza obszarem orbity
+    def _s_klik(self, p, teraz):
+        ep = self.ep
         cb = self.cb
-        wp = cb._wp()
-        if wp is None or wp.st is None:
-            return self._postep(p, teraz, "plan pięter zakończony", sync=False)
-        if wp.st.get("alarm"):
-            self.faza = "alarm"                  # wpadniecie.py samo już zaalarmowało (powiadomienie + STOP)
-            self.log("[ORBITA] wpadniecie.py zaalarmowało: stoję.")
-            self._tele("alarm", powod="alarm wpadniecie.py", poz=list(p))
-            return True
-        try:
-            wp.tick(p, teraz)
-        except Exception as e:
-            if type(e).__name__ == "Zatrzymano":
-                raise
-            self.log(f"[ORBITA] plan pięter: błąd {e!r}")
-            return self._alarm(f"błąd planu pięter {e!r}", p, teraz)
-        if wp.st is None:
-            return self._postep(tuple(cb.postac.pozycja()), teraz, "plan pięter zakończony", sync=False)
-        return True
+        m = cb.mapa
+        cand = []
+        for dx in range(-(KLIK_MAX + 8), KLIK_MAX + 9):
+            for dy in range(-(KLIK_MAX + 8), KLIK_MAX + 9):
+                c = (p[0] + dx, p[1] + dy, p[2])
+                odl = min((_czeb(c, f) for f in ep["pola"] if f[2] == p[2]), default=KLIK_MAX)
+                if not KLIK_MIN <= odl <= KLIK_MAX:
+                    continue
+                if any(_czeb(c, u) <= 1 for u in ep["uzyte_kliki"]):
+                    continue
+                if m is not None:
+                    try:
+                        v = int(m.flagi(c[0], c[1], c[2]))
+                    except Exception:
+                        continue
+                    if not v & 1 or v & 4 or v & 2:
+                        continue
+                if cb.pole_zmiany_pietra(c):
+                    continue
+                cand.append(c)
+        random.shuffle(cand)
+        for c in cand[:14]:
+            d = self._droga(p, c[:2])
+            if d is not None and len(d) <= 30:
+                ep["uzyte_kliki"].append(c)
+                self._ustaw_cel(p, c, LIMIT_KLIK_S)
+                self.log(f"[ORBITA] klik w pole {c[:2]} ({len(d)} kroków drogi).")
+                return True
+        return False
 
-    def _tick_droga(self, p, teraz):
+    def _t_klik(self, p, teraz):
+        return self._idz(p, teraz)
+
+    # astar: dalszy punkt trasy z polami orbity zakazanymi
+    def _s_astar(self, p, teraz):
+        ep = self.ep
+        kand = [q for q in self._kandydaci(p[2]) if self._daleko((q[0], q[1], p[2]), ep["pola"]) and q not in ep["uzyte_cele"]]
+        dalekie = [q for q in kand if _czeb(q, p) >= 8] or sorted(kand, key=lambda q: -_czeb(q, p))[:3]
+        random.shuffle(dalekie)
+        for q in dalekie[:KAND_TRASY]:
+            if self._droga(p, q) is not None:
+                ep["uzyte_cele"].append(q)
+                self._ustaw_cel(p, (q[0], q[1], p[2]), float(self.k("STRAZNIK_WYJSCIE_S")))
+                self.log(f"[ORBITA] A* do dalszego punktu trasy {q}.")
+                return True
+        return False
+
+    def _t_astar(self, p, teraz):
+        return self._idz(p, teraz)
+
+    def _idz(self, p, teraz):
+        """Wspólny marsz do ep['cel'] po drodze z polami orbity zakazanymi; koniec: dotarł / limit / stoi w miejscu."""
         cb = self.cb
         ep = self.ep
-        if self._wyszedl(p):
-            return self._postep(p, teraz, "wyszedłem poza obszar orbity")
         cel = ep["cel"]
-        zajete = self._zakazane(ep, p) + [(s["x"], s["y"]) for s in (cb.ostatnie_stwory or [])
-                                           if s.get("z") == p[2] and s.get("hp", 100) > 0 and (s["x"], s["y"]) != tuple(p[:2])
-                                           and not (s.get("gracz") and s.get("nazwa") == getattr(cb.postac, "nazwa", None))]
-        cb.ustaw_stan("ORBITA", f"wychodzę do {cel[:2]}")
+        if self.akt - ep["akt0"] > ep["limit"]:
+            return self._koniec_sposobu(p, teraz, "limit czasu")
+        d = self._droga(p, cel[:2], self._stwory_xy(p))
+        if d is None:
+            return self._koniec_sposobu(p, teraz, "brak drogi")
+        if not d and _czeb(p, cel) == 0:
+            return self._koniec_sposobu(p, teraz, "dotarłem, orbita nie ustała")
+        cb.ustaw_stan("ORBITA", f"naprawa: idę do {cel[:2]}")
         r = None
         try:
-            d = cb._droga_do((p[0], p[1], p[2]), cel[:2], zajete)
             if d:
                 r = cb.idz_do(self._cel_kroku(p, d), p, True, krok=d[0])
-            elif d is not None:
-                r = True                                  # już przy celu
         except Exception as e:
             if type(e).__name__ == "Zatrzymano":
                 raise
-            self.log(f"[ORBITA] krok wyjścia: błąd {e!r}")
+            self.log(f"[ORBITA] krok naprawy: błąd {e!r}")
         q = tuple(cb.postac.pozycja())
-        if q[2] != p[2] or self._wyszedl(q):
-            return self._postep(q, teraz, "wyszedłem poza obszar orbity" if q[2] == p[2] else "zmiana piętra")
+        if q[2] != p[2] or self._sukces(q):
+            return self._postep(q, teraz, "wyszedłem z orbity" if q[2] == p[2] else "zmiana piętra")
         ep["fails"] = 0 if (r and q != tuple(p)) else ep.get("fails", 0) + 1
         if ep["fails"] >= 12:
-            return self._alarm("kroki wyjścia nie ruszają postaci", q, teraz)
+            return self._koniec_sposobu(q, teraz, "kroki nie ruszają postaci")
         return True
 
     @staticmethod
@@ -357,73 +504,155 @@ class Reakcja:
                 return (d[k - 1][0], d[k - 1][1])
         return (d[0][0], d[0][1])
 
-    def _wyszedl(self, p):
-        pola = self.ep["pola"]
-        return self._daleko(p, pola)
-
-    # --- koniec epizodu ---
-    def _postep(self, p, teraz, powod, sync=True):
+    # punkt: rotacja punktu trasy / miejsca patrolu / kierunku pętli (mechanizmy cavebota); potem bot pracuje sam
+    def _s_punkt(self, p, teraz):
         cb = self.cb
         ep = self.ep
-        self.faza = None
-        czas = teraz - ep["t0"]
-        self.log(f"[ORBITA] postęp: {powod}, jestem w {tuple(p)} po {czas:.0f} s od wykrycia; wracam do pracy.")
-        self._tele("postep", wynik="ok", poz=list(p), czas_s=round(czas, 1), powod=powod, pola=[list(q) for q in ep["pola"]])
-        wp = cb._wp()
-        if wp is not None and wp.st is not None:
-            wp.st = None
+        n = len(cb.punkty or [])
+        patrol = False
         try:
-            if sync and not cb._wypad_wroc_na_trase(p):         # plan pięter robi to sam (wpadniecie._powrot)
-                cb._patrol_sync_idx(p)
+            patrol = bool(cb._patrol_aktywny())
+        except Exception:
+            pass
+        warianty = ["patrol", "odwroc", "inny"] if patrol else ["inny", "odwroc"]
+        if patrol and not cb.patrol:
+            warianty = ["odwroc", "inny"]
+        if n < 2 and not patrol:
+            return False
+        wariant = warianty[self.var_punkt % len(warianty)]
+        self.var_punkt += 1
+        opis = None
+        if wariant == "patrol" and cb.patrol:
+            try:
+                pp = cb.patrol
+                cb.patrol_blok[pp["m"]["id"]] = teraz + float(getattr(cb, "PATROL_BLOK_S", 150.0))
+                try:
+                    cb._patrol_zakoncz(pp, "strażnik orbit")
+                except Exception:
+                    pass
+                cb._patrol_reset(False)
+                opis = f"inne miejsce patrolu (blokuję {pp['m']['id']})"
+            except Exception as e:
+                if type(e).__name__ == "Zatrzymano":
+                    raise
+                return False
+        elif wariant == "odwroc" and n >= 2:
+            cb.punkty.reverse()
+            cb.idx = (n - (cb.idx - 1) % n) % n
+            cb.__dict__["utk_zakaz"] = {}
+            opis = f"odwrócenie pętli (punkt {cb.idx})"
+        else:
+            kand = [i for i in range(n) if cb.punkty[i][2] == p[2] and i != cb.idx
+                    and self._daleko(cb.punkty[i], ep["pola"]) and _czeb(cb.punkty[i], p) >= 5]
+            if not kand:
+                return False
+            k = random.choice(kand)
+            cb.idx = k
+            opis = f"inny punkt trasy {k} {tuple(cb.punkty[k])}"
+        for a in ("klik_j", "klik_cel", "trasa_droga", "utk_okno"):
+            setattr(cb, a, None)
+        cb.nieudane = 0
+        cb.cel = None
+        ep["limit"] = LIMIT_PUNKT_S
+        self.log(f"[ORBITA] rotacja punktu: {opis}.")
+        self._tele("rotacja_punktu", wariant=wariant, opis=opis, poz=list(p))
+        return True
+
+    def _t_punkt(self, p, teraz):
+        if self.akt - self.ep["akt0"] > self.ep["limit"]:
+            return self._koniec_sposobu(p, teraz, "limit czasu")
+        return None                              # bot pracuje normalnie na nowym punkcie; _sukces sprawdzamy co obieg
+
+    # plan: plan pięter (wpadniecie.py), gdy kieszeń/złe piętro i istnieje plan po mapie
+    def _s_plan(self, p, teraz):
+        wp = self.cb._wp()
+        if wp is None or wp.st is not None:
+            return False
+        try:
+            if not wp.z_kieszeni(p, teraz):                      # brak kieszeni/złego piętra albo trasa osiągalna
+                return False
+            if wp._znajdz_plan(p, set()) is None:                # plan musi istnieć: wpadniecie.py bez planu zaalarmowałoby STOP, my nie dopuszczamy
+                wp.st = None
+                return False
         except Exception as e:
             if type(e).__name__ == "Zatrzymano":
                 raise
-            self.log(f"[ORBITA] powrót na trasę nie wyszedł ({e!r})")
-            try:
-                cb._patrol_sync_idx(p)
-            except Exception:
-                pass
-        self.ep = None
-        if self.det is not None:
-            self.det.po_reakcji()
-        cb.pauza(0.15, 0.35)
+            self.log(f"[ORBITA] plan pięter nie wyszedł ({e!r})")
+            wp.st = None
+            return False
+        self.ep["limit"] = float(self.k("STRAZNIK_WYJSCIE_S"))
+        self.ep["alias"] = "plan"
+        self.log(f"[ORBITA] plan pięter (wpadniecie.py), wyjście na z{wp.st['z0'] if wp.st else '?'}.")
         return True
 
-    def _alarm(self, powod, p, teraz):
+    def _t_plan(self, p, teraz):
         cb = self.cb
         ep = self.ep
-        self.faza = "alarm"
         wp = cb._wp()
-        if wp is not None and wp.st is not None:
-            wp.st["alarm"] = True               # wpadniecie.tick tylko czeka; pietra.py nie kończy przejścia w tle
-            if getattr(cb, "pietra", None) is not None:
-                cb.pietra.st = None
-        czas = teraz - ep["t0"]
-        tresc = f"orbita {self._opis(ep['zd'])}; wyjście nie wyszło ({powod}); jestem w {tuple(p)}"
-        self.log(f"[ORBITA] ALARM, {tresc}. Zatrzymuję bota (STOP).")
-        self._tele("alarm", powod=powod, wynik="alarm", poz=list(p), czas_s=round(czas, 1), pola=[list(q) for q in ep["pola"]])
+        if wp is None or wp.st is None:
+            return self._koniec_sposobu(p, teraz, "plan pięter zakończony bez skutku")
+        if self.akt - ep["akt0"] > ep["limit"]:
+            return self._zwin_plan(p, teraz, "limit czasu")
+        st = wp.st
+        if st["krok"] is None and teraz >= st["nast"] and wp._znajdz_plan(p, st["zle"]) is None:
+            return self._zwin_plan(p, teraz, "plan wyczerpany")      # wpadniecie.py zaalarmowałoby STOP: my nie dopuszczamy
         try:
-            import powiadom  # noqa: PLC0415
-            powiadom.powiadom("Bot: orbita bez wyjścia", tresc, "critical", "orbita")
-        except Exception:
-            pass
-        al = getattr(cb, "alarm", None)
-        if callable(al):
-            try:
-                al(f"orbita: {tresc}")
-            except Exception:
-                pass
-        plik = self.plik_stop
-        if plik is None and not os.environ.get("RETRONIC_TESTY"):
-            import bot  # noqa: PLC0415
-            plik = bot.STOP
-        self.stop_zapisany = False
-        if plik is not None:
-            try:
-                Path(plik).write_text(f"orbita: {tresc}\n")
-                self.stop_zapisany = True
-                self.log(f"[ORBITA] zapisałem {plik} (zatrzymanie bota).")
-            except OSError as e:
-                self.log(f"[ORBITA] nie zapisałem STOP ({e})")
-        cb.pauza(1.0, 2.0)
+            wp.tick(p, teraz)
+        except Exception as e:
+            if type(e).__name__ == "Zatrzymano":
+                raise
+            self.log(f"[ORBITA] plan pięter: błąd {e!r}")
+            return self._zwin_plan(p, teraz, "błąd")
+        if wp.st is None:
+            q = tuple(cb.postac.pozycja())
+            if self._sukces(q):
+                return self._postep(q, teraz, "plan pięter zakończony", sync=False)
+            return self._koniec_sposobu(q, teraz, "plan pięter zakończony bez skutku")
         return True
+
+    def _zwin_plan(self, p, teraz, powod):
+        wp = self.cb._wp()
+        if wp is not None:
+            wp.st = None
+        if getattr(self.cb, "pietra", None) is not None:
+            self.cb.pietra.st = None
+        return self._koniec_sposobu(p, teraz, powod)
+
+    # krok: jeden krok w losowym wolnym kierunku
+    def _s_krok(self, p, teraz):
+        cb = self.cb
+        zajete = set(self._stwory_xy(p))
+        orb = {(q[0], q[1]) for q in self.ep["pola"]}
+        wolne = []
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            c = (p[0] + dx, p[1] + dy, p[2])
+            if (c[0], c[1]) in zajete or cb.pole_zmiany_pietra(c):
+                continue
+            if cb.mapa is not None:
+                try:
+                    v = int(cb.mapa.flagi(c[0], c[1], c[2]))
+                except Exception:
+                    continue
+                if not v & 1 or v & 4 or v & 2:
+                    continue
+            wolne.append(c)
+        if not wolne:
+            return False
+        poza = [c for c in wolne if (c[0], c[1]) not in orb]
+        c = random.choice(poza or wolne)
+        self.ep["krok_cel"] = c
+        return True
+
+    def _t_krok(self, p, teraz):
+        cb = self.cb
+        c = self.ep["krok_cel"]
+        cb.ustaw_stan("ORBITA", f"naprawa: krok w {c[:2]}")
+        try:
+            cb.krok_do(c)
+        except Exception as e:
+            if type(e).__name__ == "Zatrzymano":
+                raise
+        q = tuple(cb.postac.pozycja())
+        if self._sukces(q):
+            return self._postep(q, teraz, "wyszedłem z orbity")
+        return self._koniec_sposobu(q, teraz, "krok nie wyprowadził z orbity")
