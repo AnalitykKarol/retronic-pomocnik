@@ -16,7 +16,7 @@ trzeba im dorobić powrót albo wylogować, kiedy się da”; po rozmowie: „no
 - Wylogowanie: Ctrl+L w kliencie (OTClient) działa — 20.10 kutangen: lista postaci po 1 próbie; kolanoth: serwer odmawiał
   w walce, udało się po 30 próbach co ~4 s przy walczącym bocie. **Wszystkie klienty mają `autoReconnect: true`**: po Ctrl+L
   klient sam zalogował postać ponownie po < 60 s. Działający sposób: Ctrl+L, a po zniknięciu ikon paska klienta
-  (piksele W-80,17 i W-50,17) natychmiast `sesja_gry.py zamknij`. Prototyp: skrypt w scratchpadzie sesji Claude 20.10 (`wyloguj.py`).
+  (piksele W-80,17 i W-50,17) natychmiast `sesja_gry.py zamknij`. Prototyp: `narzedzia_jednorazowe/wyloguj_prototyp_1020.py` (użyty 20.10 na kutangen i kolanoth).
 
 ## Proponowane zachowanie
 

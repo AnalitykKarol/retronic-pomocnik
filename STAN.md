@@ -245,5 +245,5 @@ Do testu na drugiej postaci: postać w Edronie, >= 260 gp i >= 100 gold do wymia
   (`zatrzymaj.sh`), gry i podglądy otwarte. Spec powrotu i wylogowania: `dane_tibia/SPEC_powrot_rook_1020.md` (szkic, Q1–Q4).
 - 23:15 spec `dane_tibia/SPEC_powrot_rook_1020.md` **ZATWIERDZONY** (cele: 2 depo na z8 + 4 sklepy, losowane i rezerwowane między
   instancjami; po dojściu STOP; `wyloguj.sh` zamyka klienta; bez nowego guzika, Rook = kolejne miasto dla `wroc.sh`/`⌂ Miasto`).
-  **Następny krok:** implementacja F1 (PLANY_PK Rooka z odwróconych dojść + losowy cel) i F2 (`wyloguj.sh`, prototyp w scratchpadzie sesji
+  **Następny krok:** implementacja F1 (PLANY_PK Rooka z odwróconych dojść + losowy cel) i F2 (`wyloguj.sh`, prototyp `narzedzia_jednorazowe/wyloguj_prototyp_1020.py`
   Claude 20.10; logika opisana w specu). Punkt wejścia w kodzie: `wyprawa._okazja_wroc` -> `_start_wyprawa("depo:reczny")`, `_baza_dojscie`, `PLANY_PK`.
