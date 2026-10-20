@@ -144,6 +144,20 @@ def procesy(wzor, id_=None, proc="/proc", comm=("python", "python3")):
 
 # --- podgląd VNC: czy ktoś jest podłączony do wayvnc sesji ------------------------------------------
 
+def port_nasluchuje(port, proc="/proc"):
+    """Czy ktoś słucha na 127.0.0.1:<port> (wayvnc sesji gotowy na podgląd): /proc/net/tcp, stan 0A = LISTEN."""
+    cel = f"{int(port):04X}"
+    try:
+        linie = Path(f"{proc}/net/tcp").read_text().splitlines()[1:]
+    except (OSError, ValueError):
+        return False
+    for l in linie:
+        p = l.split()
+        if len(p) > 3 and p[3] == "0A" and p[1].split(":")[-1] == cel and p[1].split(":")[0] in ("0100007F", "00000000"):
+            return True
+    return False
+
+
 def podglad_polaczony(port, proc="/proc"):
     """Czy jest NAWIĄZANE połączenie TCP z 127.0.0.1:<port> (wayvnc sesji). Działa dla każdej przeglądarki VNC
     (Remmina, vncviewer), bez szukania procesu: /proc/net/tcp, stan 01 = ESTABLISHED, port lokalny = port wayvnc."""

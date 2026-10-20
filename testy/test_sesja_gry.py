@@ -8,6 +8,8 @@ sys.dont_write_bytecode = True
 KAT = Path(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 sys.path.insert(0, str(KAT))
 import okno_api, sesja_gry
+KLIENCI = []                                   # atrapa okien Hyprlanda: testy nigdy nie pytają prawdziwego hyprctl
+sesja_gry.klienci_hyprland = lambda: list(KLIENCI)
 ORYG_URUCHOM, ORYG_ODLACZ = sesja_gry.uruchom, sesja_gry.odlacz
 
 ok = []
@@ -16,7 +18,8 @@ def sprawdz(nazwa, warunek, info=""):
 
 TMP = Path(tempfile.mkdtemp(prefix="test-sesja-gry-"))
 R, PROC, RT = TMP / "pomocnik", TMP / "proc", TMP / "rt"
-_os.environ.update(RETRONIC_OKNO_KATALOG=str(R), RETRONIC_OKNO_PROC=str(PROC), XDG_RUNTIME_DIR=str(RT))
+_os.environ.update(RETRONIC_OKNO_KATALOG=str(R), RETRONIC_OKNO_PROC=str(PROC), XDG_RUNTIME_DIR=str(RT),
+                   RETRONIC_REMMINA_KATALOG=str(TMP / "remmina"))      # nigdy prawdziwe ~/.local/share/remmina
 _os.environ.pop("RETRONIC_POSTAC", None)
 
 def profil(user, ip, postac="Postac", konto=""):
@@ -116,7 +119,7 @@ sprawdz("S7 bez --instancja: błąd użycia", kod == 2 and d.get("ok") is False,
 # ================= sesja_gry.py (podmienione procesy) =================
 WYWOLANIA, ZABITE = [], []
 sesja_gry.sleep = lambda s: None
-sesja_gry.CZEKAJ_START_S = sesja_gry.CZEKAJ_ZAMKNIECIE_S = sesja_gry.CZEKAJ_TERM_S = 0.3
+sesja_gry.CZEKAJ_START_S = sesja_gry.CZEKAJ_ZAMKNIECIE_S = sesja_gry.CZEKAJ_TERM_S = sesja_gry.CZEKAJ_PODGLAD_S = 0.3
 
 class Proc:
     def __init__(self, kod=None): self.kod = kod
@@ -177,6 +180,19 @@ sprawdz("G4b środowisko: RETRONIC_ID, WINEPREFIX instancji, RETRONIC_POSTAC z p
         and w[2].get("RETRONIC_POSTAC") == "Dwojka", {k: w[2].get(k) for k in ("RETRONIC_ID", "WINEPREFIX", "RETRONIC_POSTAC")})
 logi = list((R / "instancje" / "dwa" / "logi").glob("sesja-*.log"))
 sprawdz("G4c nagłówek w logu akcji", len(logi) == 1 and "start z okna: dwa (postać Dwojka" in logi[0].read_text(), logi)
+sprawdz("G4d sesja.sh bez TigerVNC (RETRONIC_PODGLAD=0)", w[2].get("RETRONIC_PODGLAD") == "0", w[2].get("RETRONIC_PODGLAD"))
+sprawdz("G4e wayvnc nie słucha: bez Remminy, informacja w komunikacie", len(WYWOLANIA) == 1 and "niegotowy" in out, (out, WYWOLANIA))
+
+def start_z_nasluchem():
+    sesja_dzialajaca("dwa", 100, 5950, bot=False)
+    (PROC / "net").mkdir(exist_ok=True)
+    (PROC / "net" / "tcp").write_text("  sl  local_address rem_address   st\n   0: 0100007F:173E 00000000:0000 0A 0\n")
+reset()
+kod, out = akcja("dwa", "start", odlacz=odlacz_stub(efekt=lambda: start_z_nasluchem() if not (PROC / "100").exists() else None))
+rem = [x for x in WYWOLANIA if x[1][:1] == ["remmina"]]
+sprawdz("G4f wayvnc słucha: po starcie Remmina z profilem instancji (keymap Alt)", kod == 0 and len(rem) == 1
+        and rem[0][1] == ["remmina", "--disable-toolbar", "-c", str(TMP / "remmina" / "retronic-dwa.remmina")]
+        and "keymap=Retronic Alt" in (TMP / "remmina" / "retronic-dwa.remmina").read_text() and "Remmina otwiera" in out, (kod, out, WYWOLANIA))
 
 reset()
 kod, out = akcja("dwa", "start", odlacz=odlacz_stub(kod=1))
@@ -191,6 +207,7 @@ kod, out = akcja("dwa", "zamknij", uruchom=uruchom_stub({
     "swaymsg": lambda: (kolejnosc.append("sway"), usun(100, 101, 102))}))
 sprawdz("G6 zamknij: bot przed sway, kod 0", kod == 0 and kolejnosc == ["bot", "sway"] and "zamknięta" in out, (kod, out, kolejnosc))
 sw = [x for x in WYWOLANIA if x[1][:1] == ["swaymsg"]]
+sprawdz("G6a0 bez okna Remminy: nic nie zamyka", not [x for x in WYWOLANIA if "window.close" in " ".join(x[1])], WYWOLANIA)
 sprawdz("G6b swaymsg na gnieździe TEJ sesji", sw and sw[0][1] == ["swaymsg", "-s", sock_sway("dwa", 100), "exit"], sw)
 ws = [x for x in WYWOLANIA if x[1][:1] == ["wineserver"]]
 sprawdz("G6c wineserver -k z WINEPREFIX tej instancji", ws and ws[0][2].get("WINEPREFIX") == str(R / "instancje" / "dwa" / "prefix"),
@@ -206,6 +223,27 @@ sprawdz("G7 awaryjnie TERM tylko strażnika, siec_proxy.sh i sway tej instancji"
         and all(s == signal.SIGTERM for _, s in ZABITE), (kod, out, ZABITE))
 sprawdz("G7b bez bota: zatrzymaj.sh nie wołany", not [x for x in WYWOLANIA if x[1][0].endswith("zatrzymaj.sh")])
 sprawdz("G7c druga instancja żyje", all((PROC / str(p)).exists() for p in (200, 202)))
+
+# swaymsg exit: sway kończy się przed odpowiedzią (kod 1 + "Unable to receive IPC response", zmierzone 20.10): to sukces, bez TERM;
+# po zamknięciu okno Remminy TEJ instancji zamknięte po adresie, cudze nie
+reset()
+sesja_dzialajaca("dwa", 100, 5950, bot=False)
+sesja_dzialajaca("trzy", 200, 5960)
+KLIENCI[:] = [{"title": "Retronic dwa", "class": "org.remmina.Remmina", "address": "0xd1"},
+              {"title": "Retronic trzy", "class": "org.remmina.Remmina", "address": "0xd2"}]
+def sway_ipc_blad(argv, limit):
+    argv = [str(a) for a in argv]
+    WYWOLANIA.append(("uruchom", argv, {}))
+    if argv[:1] == ["swaymsg"]:
+        usun(100, 101, 102)
+        return 1, "00:00:00.002 [ERROR] [common/ipc-client.c:86] Unable to receive IPC response"
+    return 0, ""
+kod, out = akcja("dwa", "zamknij", uruchom=sway_ipc_blad)
+sprawdz("G6f swaymsg exit z błędem IPC = udane wyjście: bez awaryjnego TERM", kod == 0 and not ZABITE and "sway: exit" in out, (kod, out, ZABITE))
+zam = [x[1][-1] for x in WYWOLANIA if "window.close" in " ".join(x[1])]
+sprawdz("G6g okno Remminy tej instancji zamknięte po adresie, cudze nie", zam == ['hl.dsp.window.close({ window = "address:0xd1" })']
+        and "podgląd Remmina zamknięty" in out, (zam, out))
+KLIENCI[:] = []
 
 # id z prefiksem (dwa vs dwa2) i główna: zamknięcie "dwa" nie może ich ruszyć
 reset()
@@ -290,8 +328,6 @@ sprawdz("G9 podgląd bez sesji: odmowa", kod == 1 and not WYWOLANIA, (kod, out))
 # --- podgląd w Remminie (decyzja Karola 20.10 ~19:00: „tak jak było na invincible”) ---
 REM = TMP / "remmina"
 _os.environ["RETRONIC_REMMINA_KATALOG"] = str(REM)
-KLIENCI = []
-sesja_gry.klienci_hyprland = lambda: list(KLIENCI)
 LIMITY = []
 def uruchom_z_limitem(kod_wyj):
     def f(argv, limit):

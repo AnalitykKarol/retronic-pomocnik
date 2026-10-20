@@ -32,7 +32,8 @@ import instancja  # noqa: E402
 
 CZEKAJ_START_S = 8.0          # tyle czekamy, aż wstanie sway nowej sesji (gra i proxy dalej startują same)
 CZEKAJ_ZAMKNIECIE_S = 25.0    # po `swaymsg exit`: gra traci Xwayland i kończy się, strażnik i sieć proxy za nią
-CZEKAJ_TERM_S = 8.0           # po awaryjnym TERM
+CZEKAJ_TERM_S = 8.0
+CZEKAJ_PODGLAD_S = 10.0       # po wstaniu sway: tyle czekamy, aż wayvnc zacznie słuchać, zanim otworzymy Remminę           # po awaryjnym TERM
 KROK_S = 0.5
 
 # punkty podmiany dla testów (testy/test_sesja_gry.py)
@@ -118,6 +119,7 @@ def _start():
     env.pop("RETRONIC_POSTAC", None)
     if postac:
         env["RETRONIC_POSTAC"] = postac
+    env["RETRONIC_PODGLAD"] = "0"           # bez automatycznego TigerVNC z sesja.sh: podgląd = Remmina (niżej), jak okna Karola
     with log_akcji() as log:
         log.write(f"=== {time.strftime('%H:%M:%S')} start z okna: {ID} (postać {postac or '?'}, proxy {p.get('proxy')})\n")
         log.flush()
@@ -126,7 +128,8 @@ def _start():
     while time.monotonic() < koniec:
         sleep(KROK_S)
         if stan()["sesja"]:
-            print(f"sesja {ID} wystartowała: gra sprawdza IP proxy (do ~30 s), potem zaloguj postać {postac or ''} w podglądzie")
+            print(f"sesja {ID} wystartowała: gra sprawdza IP proxy (do ~30 s), potem zaloguj postać {postac or ''} w podglądzie; "
+                  + otworz_remmine_po_starcie())
             return 0
         kod = proc.poll()
         if kod is not None:
@@ -137,6 +140,24 @@ def _start():
         raise Odmowa(f"sesja.sh zakończył się (kod {kod}) bez sesji sway: {' | '.join(okno_api.ogon(log.name, 3))}")
     print(f"sesja.sh {ID} działa, sway jeszcze nie wstał (po {CZEKAJ_START_S:g} s); stan odświeży się w oknie")
     return 0
+
+
+def otworz_remmine_po_starcie():
+    """Po wstaniu sway: czeka, aż wayvnc zacznie słuchać (wcześniej Remmina dostaje „VNC connection timed out”), i otwiera
+    podgląd Remmina tej instancji. -> krótki opis do komunikatu akcji."""
+    koniec = time.monotonic() + CZEKAJ_PODGLAD_S
+    proc = os.environ.get("RETRONIC_OKNO_PROC") or "/proc"
+    while time.monotonic() < koniec:
+        port = stan()["podglad"]["port"]
+        if port is not None and instancja.port_nasluchuje(port, proc):
+            plik, _ = profil_remminy(port)
+            with log_akcji() as log:
+                log.write(f"=== {time.strftime('%H:%M:%S')} podgląd po starcie: remmina {plik.name} (port {port})\n")
+                log.flush()
+                odlacz(["remmina", "--disable-toolbar", "-c", plik], log)
+            return f"podgląd Remmina otwiera się (port {port})"
+        sleep(KROK_S)
+    return "podgląd jeszcze niegotowy (wayvnc nie słucha): otwórz go później klikiem w nick"
 
 
 def czekaj_na_koniec(limit):
@@ -170,7 +191,9 @@ def zamknij():
         sock = ""
     if s["sesja"] and sock:
         kod, wyj = uruchom(["swaymsg", "-s", sock, "exit"], 10)
-        kroki.append("sway: exit" if kod == 0 else f"swaymsg kod {kod} ({wyj})")
+        # sway kończy się, zanim odpowie: "Unable to receive IPC response" z kodem 1 to też udane exit (zmierzone 20.10 na żywo)
+        udane = kod == 0 or (kod == 1 and "Unable to receive IPC response" in wyj)
+        kroki.append("sway: exit" if udane else f"swaymsg kod {kod} ({wyj})")
     s = czekaj_na_koniec(CZEKAJ_ZAMKNIECIE_S if kroki and kroki[-1] == "sway: exit" else 0)
     if zyje(s):
         # wyłącznie procesy tej instancji (strażnik i siec_proxy.sh po RETRONIC_ID, sway po ścieżce sesji);
@@ -189,6 +212,8 @@ def zamknij():
     s = stan()
     inne_po = inne_sesje()
     zniknely = sorted(i for i in inne_przed if i not in inne_po)   # tylko informacja: zamykanie ich nie dotyka
+    if not zyje(s) and zamknij_okno_podgladu():
+        kroki.append("podgląd Remmina zamknięty")
     if zyje(s):
         raise Odmowa(f"gra {ID} nie zamknęła się: {opis(s)} ({'; '.join(kroki)})")
     uwaga = f"; UWAGA: w tym czasie skończyły się też sesje {zniknely}" if zniknely else ""
@@ -247,6 +272,28 @@ def fokus(selektor):
     kod, wyj = uruchom(["hyprctl", "dispatch", f'hl.dsp.focus({{ window = "{selektor}" }})'], 5)
     nieudany = re.search(r"not found|^error|^warning", wyj.strip(), re.I | re.M)
     return kod == 0 and not nieudany, f"hyprctl kod {kod}: {wyj or 'brak odpowiedzi'}"
+
+
+def okno_podgladu():
+    """Okno Remmina tej instancji (tytuł = name= z jej profilu) albo None. Nie tworzy profilu."""
+    plik = katalog_remminy() / f"retronic-{ID}.remmina"
+    tytul = f"Retronic {ID}"
+    try:
+        for linia in plik.read_text(errors="replace").splitlines():
+            if linia.startswith("name="):
+                tytul = linia[5:].strip() or tytul
+    except OSError:
+        pass
+    return next((k for k in klienci_hyprland() if k.get("title") == tytul and k.get("class") == REMMINA_KLASA), None)
+
+
+def zamknij_okno_podgladu():
+    """Po zamknięciu gry: okno Remmina tej instancji (po zerwanym VNC) zamykane po adresie. -> czy było co zamknąć."""
+    okno = okno_podgladu()
+    if okno is None:
+        return False
+    uruchom(["hyprctl", "dispatch", f'hl.dsp.window.close({{ window = "address:{okno.get("address")}" }})'], 5)
+    return True
 
 
 def podglad():
