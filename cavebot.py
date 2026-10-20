@@ -325,7 +325,7 @@ UH_MIN_HP = 90                     # pokrętło: % HP gracza wymagane do startu 
 UH_MOB_DYSTANS = 3                # pokrętło: stwory (moby) dalej niż tyle pól (Chebyshev) nie blokują ani nie przerywają runy; gracz zawsze w pełnym widoku
 UH_ODSTEP_S = 20.0                 # pokrętło: min. odstęp między próbami
 UH_PORAZKI = 3                     # tyle nieudanych prób z rzędu wyłącza UH
-UH_PRZERWA_PO_PORAZKACH_S = 1800.0 # s wyłączenia po porażkach / alarmie
+UH_PRZERWA_PO_PORAZKACH_S = 60.0   # s wyłączenia po porażkach / alarmie (20.10: z 1800, Karol: próbuj co minutę)
 UH_PRZERWA_BRAK_BLANK_S = 600.0    # s wyłączenia, gdy brak blank run
 UH_HOLD_MAX_S = 300.0              # s: tyle ML (utevo lux) czeka na manę dla UH (potem rzuca; bez zakleszczenia)
 # --- UH (uh.py): robienie run czarem runowym z blank runy w spokoju (tarcza do plecaka, blank do ręki, rzut, runa do plecaka).
@@ -339,7 +339,7 @@ UH_MIN_HP = 90                     # pokrętło: % HP gracza wymagane do startu 
 UH_MOB_DYSTANS = 3                # pokrętło: stwory (moby) dalej niż tyle pól (Chebyshev) nie blokują ani nie przerywają runy; gracz zawsze w pełnym widoku
 UH_ODSTEP_S = 20.0                 # pokrętło: min. odstęp między próbami
 UH_PORAZKI = 3                     # tyle nieudanych prób z rzędu wyłącza UH
-UH_PRZERWA_PO_PORAZKACH_S = 1800.0 # s wyłączenia po porażkach / alarmie
+UH_PRZERWA_PO_PORAZKACH_S = 60.0   # s wyłączenia po porażkach / alarmie (20.10: z 1800, Karol: próbuj co minutę)
 UH_PRZERWA_BRAK_BLANK_S = 600.0    # s wyłączenia, gdy brak blank run
 UH_HOLD_MAX_S = 300.0              # s: tyle ML (utevo lux) czeka na manę dla UH (potem rzuca; bez zakleszczenia)
 UH_PONOW_BRAK_EKW_S = 25.0         # s do kolejnej próby, gdy ekwipunek nieczytelny (po relogu); bez liczenia porażek
@@ -818,8 +818,10 @@ class _UhStan(dict):
 
 
 def alarm_dzwiekowy(powod):
-    """Dźwięk przez paplay/canberra, a gdy ich brak, sam wydruk."""
+    """Dźwięk przez paplay/canberra, a gdy ich brak, sam wydruk. Te same wyłączniki co powiadom.py."""
     log(f"ALARM: {powod}")
+    if os.environ.get("RETRONIC_POWIADOMIENIA", "").strip() == "0" or (Path(__file__).resolve().parent / "cisza").exists():
+        return
     try:
         for plik in DZWIEKI:
             if os.path.exists(plik):
