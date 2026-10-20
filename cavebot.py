@@ -842,6 +842,8 @@ def kierunki_do(x, y, cx, cy):
 
 class Cavebot:
     dojscie_aktywne = False            # True tylko w CavebotDojscie (bieg zamiast walki, bez lootu i przerw)
+    marsz = None                       # MARSZ_KLIK: trwający marsz klikiem (stan w __init__; None także w atrapach testowych)
+    marsz_blok = None
 
     def __init__(self, postac, punkty, okrazenia=None, czas_s=None, prog_hp=40, jedzenie=None,
                  potwory=None, zatrzymaj_przy_graczu=True, zapytaj=None, atak=None,
