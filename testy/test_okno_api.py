@@ -112,6 +112,8 @@ with tempfile.TemporaryDirectory() as tmp:
             and sum(g["ile"] for g in d["grupy"]) == len(d["pokretla"]))
     sprawdz("pokretla: klucze nieznane/_ z pliku zgłoszone jako odrzucone, nie jako pokrętła", "STARY_KLUCZ" not in lista
             and any("STARY_KLUCZ" in o for o in d["odrzucone_w_pliku"]), d["odrzucone_w_pliku"])
+    sprawdz("pokretla: inne_w_pliku = klucze spoza ZAKRESY/TEKSTY z wartością (bez _opis), tylko do odczytu w oknie", d["inne_w_pliku"] == {"STARY_KLUCZ": 5}, d["inne_w_pliku"])
+    sprawdz("pokretla: ostatnia_zmiana = None, gdy dziennik cofania nie istnieje", d["ostatnia_zmiana"] is None, d["ostatnia_zmiana"])
     sprawdz("pokretla: bez --instancja = główna (na_zywo 12)", uruchom(tmp, "pokretla")[1]["pokretla"][0]["klucz"] == "POGON_ZASIEG"
             and {p["klucz"]: p for p in uruchom(tmp, "pokretla")[1]["pokretla"]}["POGON_ZASIEG"]["biezaca"] == 12)
     # tryb odczytu: nic się nie zmieniło na dysku
@@ -181,6 +183,9 @@ with tempfile.TemporaryDirectory() as tmp:
     wpisy = [json.loads(l) for l in dziennik.read_text().splitlines()]
     sprawdz("ustaw: dziennik cofania ma poprzednie wartości i listę dodanych kluczy", len(wpisy) == 3 and wpisy[0]["przed"] == {"POGON_ZASIEG": 11, "POGON_LIMIT": 20.0}
             and sorted(wpisy[0]["brak"]) == ["KROKI_DO_ZWLOK"] and wpisy[1]["przed"] == {"POGON_ZASIEG": 13} and wpisy[0]["po"]["POGON_ZASIEG"] == 13, wpisy[0])
+    oz = uruchom(tmp, "pokretla", "--instancja", "dwa")[1]["ostatnia_zmiana"]
+    sprawdz("pokretla: ostatnia_zmiana = ostatni wpis dziennika (po/przed/brak/czas), podpis przycisku Cofnij", oz == {"czas": wpisy[-1]["czas"], "po": wpisy[-1]["po"],
+            "przed": wpisy[-1]["przed"], "brak": wpisy[-1]["brak"]} and oz["po"] == {"POGON_ZASIEG": 12}, oz)
     kod, d = uruchom(tmp, "ustaw", "--instancja", "dwa", "UH_KLAWISZ=F9")
     sprawdz("ustaw: pokrętło tekstowe z dozwolonych", kod == 0 and json.loads(plik.read_text())["UH_KLAWISZ"] == "F9")
     kod, d = uruchom(tmp, "ustaw", "--instancja", "dwa", "POGON_LIMIT=30")

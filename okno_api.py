@@ -292,7 +292,28 @@ def cmd_pokretla(id_):
     grupy = [{"nazwa": g, "ile": sum(1 for w in lista if w["grupa"] == g),
               "zmienione": sum(1 for w in lista if w["grupa"] == g and w["zmieniona"])} for g in GRUPY]
     return {"instancja": id_, "plik": str(sc.na_zywo), "plik_istnieje": Path(sc.na_zywo).exists(),
-            "blad_pliku": blad_pliku, "odrzucone_w_pliku": odrzucone, "grupy": grupy, "pokretla": lista}
+            "blad_pliku": blad_pliku, "odrzucone_w_pliku": odrzucone, "grupy": grupy, "pokretla": lista,
+            "inne_w_pliku": inne_w_pliku(sc), "ostatnia_zmiana": ostatnia_zmiana(sc)}
+
+
+def inne_w_pliku(sc):
+    """{klucz: wartość} z na_zywo.json, których nie ma w ZAKRESY/TEKSTY (poza kluczami z _): okno pokazuje je tylko do odczytu,
+    bo bot ich nie używa, a `ustaw` ich nie przyjmie."""
+    dane, _ = czytaj_json_dict(sc.na_zywo)
+    return {k: v for k, v in dane.items()
+            if not k.startswith("_") and k not in pokretla.ZAKRESY and k not in pokretla.TEKSTY}
+
+
+def ostatnia_zmiana(sc):
+    """Ostatni wpis dziennika `cofnij` ({czas, po, przed, brak}) albo None: okno podpisuje nim przycisk „Cofnij ostatnią”."""
+    try:
+        linie = [l for l in _dziennik(sc).read_text(encoding="utf-8").splitlines() if l.strip()]
+        wpis = json.loads(linie[-1])
+    except (OSError, IndexError, ValueError):
+        return None
+    if not isinstance(wpis, dict) or not isinstance(wpis.get("po"), dict):
+        return None
+    return {"czas": wpis.get("czas"), "po": wpis["po"], "przed": wpis.get("przed") or {}, "brak": wpis.get("brak") or []}
 
 
 # ---------- ustaw / cofnij ----------
