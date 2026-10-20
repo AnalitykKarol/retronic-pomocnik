@@ -1,0 +1,7019 @@
+{
+ "meta": "Spoty expowe przy Rookgaardzie i miastach z danych serwera 7.4 (monster.db z serwer74/potwory_pelne.json). sufit_exp_h = górna granica z respawnu, nie pomiar.",
+ "miasta": {
+  "Rookgaard": {
+   "swiatynia": {
+    "x": 32097,
+    "y": 32219,
+    "z": 7
+   },
+   "spoty": [
+    {
+     "srodek": {
+      "x": 32036,
+      "y": 32193,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 31999,
+      "y1": 32167,
+      "x2": 32092,
+      "y2": 32229
+     },
+     "potwory": {
+      "rat": 30,
+      "spider": 16,
+      "bug": 9,
+      "cave rat": 8,
+      "troll": 6,
+      "skeleton": 2
+     },
+     "potworow": 71,
+     "sufit_exp_h": 4644,
+     "exp_na_hp": 0.43,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 66
+    },
+    {
+     "srodek": {
+      "x": 31984,
+      "y": 32221,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 31964,
+      "y1": 32187,
+      "x2": 32004,
+      "y2": 32250
+     },
+     "potwory": {
+      "troll": 15,
+      "snake": 10,
+      "wolf": 9
+     },
+     "potworow": 34,
+     "sufit_exp_h": 3372,
+     "exp_na_hp": 0.5,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 113
+    },
+    {
+     "srodek": {
+      "x": 31991,
+      "y": 32193,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 31968,
+      "y1": 32167,
+      "x2": 32013,
+      "y2": 32224
+     },
+     "potwory": {
+      "snake": 19,
+      "wolf": 11,
+      "spider": 8
+     },
+     "potworow": 38,
+     "sufit_exp_h": 3336,
+     "exp_na_hp": 0.67,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 109
+    },
+    {
+     "srodek": {
+      "x": 32044,
+      "y": 32195,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32004,
+      "y1": 32157,
+      "x2": 32092,
+      "y2": 32247
+     },
+     "potwory": {
+      "rat": 43,
+      "cave rat": 5,
+      "poison spider": 3,
+      "bug": 2,
+      "troll": 2,
+      "spider": 1
+     },
+     "potworow": 56,
+     "sufit_exp_h": 2997,
+     "exp_na_hp": 0.33,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 58
+    },
+    {
+     "srodek": {
+      "x": 32056,
+      "y": 32203,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32011,
+      "y1": 32152,
+      "x2": 32116,
+      "y2": 32250
+     },
+     "potwory": {
+      "rat": 62,
+      "bug": 2,
+      "spider": 2
+     },
+     "potworow": 66,
+     "sufit_exp_h": 2728,
+     "exp_na_hp": 0.28,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 44
+    },
+    {
+     "srodek": {
+      "x": 31985,
+      "y": 32211,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 31973,
+      "y1": 32204,
+      "x2": 32004,
+      "y2": 32220
+     },
+     "potwory": {
+      "orc": 4,
+      "goblin": 3,
+      "orc spearman": 3,
+      "minotaur": 2,
+      "wasp": 1
+     },
+     "potworow": 13,
+     "sufit_exp_h": 2478,
+     "exp_na_hp": 0.42,
+     "cios_max": 45,
+     "najgrozniejszy": "minotaur",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 112
+    },
+    {
+     "srodek": {
+      "x": 32039,
+      "y": 32164,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32017,
+      "y1": 32144,
+      "x2": 32055,
+      "y2": 32188
+     },
+     "potwory": {
+      "snake": 13,
+      "wolf": 6,
+      "troll": 1
+     },
+     "potworow": 20,
+     "sufit_exp_h": 2274,
+     "exp_na_hp": 0.65,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 80
+    },
+    {
+     "srodek": {
+      "x": 32013,
+      "y": 32158,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 31977,
+      "y1": 32142,
+      "x2": 32056,
+      "y2": 32187
+     },
+     "potwory": {
+      "rat": 28
+     },
+     "potworow": 28,
+     "sufit_exp_h": 1980,
+     "exp_na_hp": 0.25,
+     "cios_max": 8,
+     "najgrozniejszy": "rat",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 104
+    },
+    {
+     "srodek": {
+      "x": 32073,
+      "y": 32154,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32057,
+      "y1": 32148,
+      "x2": 32093,
+      "y2": 32166
+     },
+     "potwory": {
+      "bug": 11,
+      "rat": 1
+     },
+     "potworow": 12,
+     "sufit_exp_h": 1488,
+     "exp_na_hp": 0.6,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 69
+    },
+    {
+     "srodek": {
+      "x": 32162,
+      "y": 32150,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32149,
+      "y1": 32148,
+      "x2": 32173,
+      "y2": 32152
+     },
+     "potwory": {
+      "rotworm": 5,
+      "spider": 2,
+      "poison spider": 1
+     },
+     "potworow": 8,
+     "sufit_exp_h": 1476,
+     "exp_na_hp": 0.63,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 95
+    },
+    {
+     "srodek": {
+      "x": 31993,
+      "y": 32225,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 31990,
+      "y1": 32220,
+      "x2": 31996,
+      "y2": 32229
+     },
+     "potwory": {
+      "goblin": 6,
+      "troll": 2,
+      "orc": 1
+     },
+     "potworow": 9,
+     "sufit_exp_h": 1290,
+     "exp_na_hp": 0.46,
+     "cios_max": 35,
+     "najgrozniejszy": "orc",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 104
+    },
+    {
+     "srodek": {
+      "x": 32162,
+      "y": 32185,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32145,
+      "y1": 32181,
+      "x2": 32177,
+      "y2": 32191
+     },
+     "potwory": {
+      "spider": 4,
+      "bug": 3,
+      "poison spider": 2,
+      "wolf": 2
+     },
+     "potworow": 11,
+     "sufit_exp_h": 1092,
+     "exp_na_hp": 0.68,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 73
+    },
+    {
+     "srodek": {
+      "x": 32059,
+      "y": 32097,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32046,
+      "y1": 32091,
+      "x2": 32077,
+      "y2": 32111
+     },
+     "potwory": {
+      "spider": 6,
+      "wolf": 3,
+      "troll": 1
+     },
+     "potworow": 10,
+     "sufit_exp_h": 1064,
+     "exp_na_hp": 0.6,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 128
+    },
+    {
+     "srodek": {
+      "x": 32138,
+      "y": 32104,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 32134,
+      "y1": 32098,
+      "x2": 32150,
+      "y2": 32108
+     },
+     "potwory": {
+      "orc": 4,
+      "bear": 1,
+      "minotaur": 1
+     },
+     "potworow": 6,
+     "sufit_exp_h": 1038,
+     "exp_na_hp": 0.38,
+     "cios_max": 45,
+     "najgrozniejszy": "minotaur",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 122
+    },
+    {
+     "srodek": {
+      "x": 32054,
+      "y": 32195,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 32049,
+      "y1": 32190,
+      "x2": 32060,
+      "y2": 32200
+     },
+     "potwory": {
+      "poison spider": 6,
+      "spider": 3
+     },
+     "potworow": 9,
+     "sufit_exp_h": 1008,
+     "exp_na_hp": 0.78,
+     "cios_max": 20,
+     "najgrozniejszy": "poison spider",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 49
+    },
+    {
+     "srodek": {
+      "x": 31978,
+      "y": 32183,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 31974,
+      "y1": 32180,
+      "x2": 31984,
+      "y2": 32187
+     },
+     "potwory": {
+      "bug": 3,
+      "rat": 3,
+      "spider": 3,
+      "poison spider": 1
+     },
+     "potworow": 10,
+     "sufit_exp_h": 969,
+     "exp_na_hp": 0.55,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 124
+    },
+    {
+     "srodek": {
+      "x": 32017,
+      "y": 32238,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 32013,
+      "y1": 32227,
+      "x2": 32024,
+      "y2": 32251
+     },
+     "potwory": {
+      "goblin": 5,
+      "cave rat": 3
+     },
+     "potworow": 8,
+     "sufit_exp_h": 930,
+     "exp_na_hp": 0.46,
+     "cios_max": 10,
+     "najgrozniejszy": "cave rat",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 82
+    },
+    {
+     "srodek": {
+      "x": 32004,
+      "y": 32224,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32000,
+      "y1": 32211,
+      "x2": 32010,
+      "y2": 32243
+     },
+     "potwory": {
+      "skeleton": 3,
+      "troll": 2
+     },
+     "potworow": 5,
+     "sufit_exp_h": 870,
+     "exp_na_hp": 0.58,
+     "cios_max": 17,
+     "najgrozniejszy": "skeleton",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 93
+    },
+    {
+     "srodek": {
+      "x": 32002,
+      "y": 32138,
+      "z": 3
+     },
+     "obszar": {
+      "x1": 32000,
+      "y1": 32136,
+      "x2": 32004,
+      "y2": 32140
+     },
+     "potwory": {
+      "wasp": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 864,
+     "exp_na_hp": 0.69,
+     "cios_max": 20,
+     "najgrozniejszy": "wasp",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 125
+    },
+    {
+     "srodek": {
+      "x": 32000,
+      "y": 32138,
+      "z": 4
+     },
+     "obszar": {
+      "x1": 32000,
+      "y1": 32138,
+      "x2": 32000,
+      "y2": 32138
+     },
+     "potwory": {
+      "wasp": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 864,
+     "exp_na_hp": 0.69,
+     "cios_max": 20,
+     "najgrozniejszy": "wasp",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 126
+    },
+    {
+     "srodek": {
+      "x": 31975,
+      "y": 32227,
+      "z": 13
+     },
+     "obszar": {
+      "x1": 31971,
+      "y1": 32223,
+      "x2": 31978,
+      "y2": 32231
+     },
+     "potwory": {
+      "goblin": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 750,
+     "exp_na_hp": 0.5,
+     "cios_max": 10,
+     "najgrozniejszy": "goblin",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 122
+    },
+    {
+     "srodek": {
+      "x": 32035,
+      "y": 32122,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32035,
+      "y1": 32122,
+      "x2": 32035,
+      "y2": 32122
+     },
+     "potwory": {
+      "wolf": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 741,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 115
+    },
+    {
+     "srodek": {
+      "x": 32016,
+      "y": 32135,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32010,
+      "y1": 32128,
+      "x2": 32020,
+      "y2": 32140
+     },
+     "potwory": {
+      "wolf": 3,
+      "bear": 2
+     },
+     "potworow": 5,
+     "sufit_exp_h": 720,
+     "exp_na_hp": 0.43,
+     "cios_max": 25,
+     "najgrozniejszy": "bear",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 117
+    },
+    {
+     "srodek": {
+      "x": 31981,
+      "y": 32213,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 31974,
+      "y1": 32205,
+      "x2": 31984,
+      "y2": 32217
+     },
+     "potwory": {
+      "troll": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 720,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 116
+    },
+    {
+     "srodek": {
+      "x": 32076,
+      "y": 32110,
+      "z": 5
+     },
+     "obszar": {
+      "x1": 32074,
+      "y1": 32107,
+      "x2": 32079,
+      "y2": 32115
+     },
+     "potwory": {
+      "troll": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 720,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 111
+    },
+    {
+     "srodek": {
+      "x": 31975,
+      "y": 32235,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 31969,
+      "y1": 32231,
+      "x2": 31986,
+      "y2": 32247
+     },
+     "potwory": {
+      "troll": 4,
+      "skeleton": 1
+     },
+     "potworow": 5,
+     "sufit_exp_h": 690,
+     "exp_na_hp": 0.46,
+     "cios_max": 17,
+     "najgrozniejszy": "skeleton",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 123
+    },
+    {
+     "srodek": {
+      "x": 32087,
+      "y": 32092,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32087,
+      "y1": 32092,
+      "x2": 32087,
+      "y2": 32092
+     },
+     "potwory": {
+      "wolf": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 648,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 127
+    },
+    {
+     "srodek": {
+      "x": 32091,
+      "y": 32148,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32088,
+      "y1": 32148,
+      "x2": 32094,
+      "y2": 32148
+     },
+     "potwory": {
+      "bug": 1,
+      "spider": 1,
+      "troll": 1,
+      "wolf": 1
+     },
+     "potworow": 4,
+     "sufit_exp_h": 612,
+     "exp_na_hp": 0.55,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 71
+    },
+    {
+     "srodek": {
+      "x": 32071,
+      "y": 32112,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32071,
+      "y1": 32112,
+      "x2": 32071,
+      "y2": 32112
+     },
+     "potwory": {
+      "orc": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 600,
+     "exp_na_hp": 0.36,
+     "cios_max": 35,
+     "najgrozniejszy": "orc",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 110
+    },
+    {
+     "srodek": {
+      "x": 32131,
+      "y": 32106,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32131,
+      "y1": 32106,
+      "x2": 32131,
+      "y2": 32106
+     },
+     "potwory": {
+      "orc": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 600,
+     "exp_na_hp": 0.36,
+     "cios_max": 35,
+     "najgrozniejszy": "orc",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 118
+    },
+    {
+     "srodek": {
+      "x": 31978,
+      "y": 32206,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 31974,
+      "y1": 32202,
+      "x2": 31985,
+      "y2": 32211
+     },
+     "potwory": {
+      "troll": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 600,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 120
+    },
+    {
+     "srodek": {
+      "x": 32025,
+      "y": 32243,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32016,
+      "y1": 32239,
+      "x2": 32032,
+      "y2": 32246
+     },
+     "potwory": {
+      "wolf": 4,
+      "spider": 2
+     },
+     "potworow": 6,
+     "sufit_exp_h": 576,
+     "exp_na_hp": 0.69,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 76
+    },
+    {
+     "srodek": {
+      "x": 32169,
+      "y": 32203,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32169,
+      "y1": 32203,
+      "x2": 32169,
+      "y2": 32203
+     },
+     "potwory": {
+      "bear": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 552,
+     "exp_na_hp": 0.29,
+     "cios_max": 25,
+     "najgrozniejszy": "bear",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 74
+    },
+    {
+     "srodek": {
+      "x": 31998,
+      "y": 32222,
+      "z": 6
+     },
+     "obszar": {
+      "x1": 31995,
+      "y1": 32213,
+      "x2": 32002,
+      "y2": 32226
+     },
+     "potwory": {
+      "wolf": 4,
+      "troll": 1
+     },
+     "potworow": 5,
+     "sufit_exp_h": 552,
+     "exp_na_hp": 0.61,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 99
+    },
+    {
+     "srodek": {
+      "x": 32074,
+      "y": 32106,
+      "z": 4
+     },
+     "obszar": {
+      "x1": 32073,
+      "y1": 32106,
+      "x2": 32074,
+      "y2": 32107
+     },
+     "potwory": {
+      "troll": 3,
+      "orc": 1
+     },
+     "potworow": 4,
+     "sufit_exp_h": 510,
+     "exp_na_hp": 0.39,
+     "cios_max": 35,
+     "najgrozniejszy": "orc",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 115
+    },
+    {
+     "srodek": {
+      "x": 32081,
+      "y": 32202,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32076,
+      "y1": 32199,
+      "x2": 32086,
+      "y2": 32204
+     },
+     "potwory": {
+      "troll": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 480,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 23
+    },
+    {
+     "srodek": {
+      "x": 32134,
+      "y": 32110,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32134,
+      "y1": 32110,
+      "x2": 32134,
+      "y2": 32110
+     },
+     "potwory": {
+      "troll": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 480,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 115
+    },
+    {
+     "srodek": {
+      "x": 31980,
+      "y": 32181,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 31973,
+      "y1": 32180,
+      "x2": 31987,
+      "y2": 32182
+     },
+     "potwory": {
+      "spider": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 432,
+     "exp_na_hp": 0.6,
+     "cios_max": 9,
+     "najgrozniejszy": "spider",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 123
+    },
+    {
+     "srodek": {
+      "x": 32156,
+      "y": 32214,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32156,
+      "y1": 32214,
+      "x2": 32156,
+      "y2": 32214
+     },
+     "potwory": {
+      "wolf": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 432,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 59
+    },
+    {
+     "srodek": {
+      "x": 32080,
+      "y": 32233,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32073,
+      "y1": 32232,
+      "x2": 32083,
+      "y2": 32236
+     },
+     "potwory": {
+      "cave rat": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 420,
+     "exp_na_hp": 0.33,
+     "cios_max": 10,
+     "najgrozniejszy": "cave rat",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 22
+    },
+    {
+     "srodek": {
+      "x": 32098,
+      "y": 32202,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32098,
+      "y1": 32202,
+      "x2": 32098,
+      "y2": 32202
+     },
+     "potwory": {
+      "rat": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 360,
+     "exp_na_hp": 0.25,
+     "cios_max": 8,
+     "najgrozniejszy": "rat",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 17
+    },
+    {
+     "srodek": {
+      "x": 32154,
+      "y": 32143,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32154,
+      "y1": 32143,
+      "x2": 32154,
+      "y2": 32143
+     },
+     "potwory": {
+      "spider": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 346,
+     "exp_na_hp": 0.6,
+     "cios_max": 9,
+     "najgrozniejszy": "spider",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 95
+    },
+    {
+     "srodek": {
+      "x": 32094,
+      "y": 32107,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32094,
+      "y1": 32107,
+      "x2": 32094,
+      "y2": 32107
+     },
+     "potwory": {
+      "spider": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 288,
+     "exp_na_hp": 0.6,
+     "cios_max": 9,
+     "najgrozniejszy": "spider",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 112
+    },
+    {
+     "srodek": {
+      "x": 32126,
+      "y": 32240,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32114,
+      "y1": 32235,
+      "x2": 32138,
+      "y2": 32249
+     },
+     "potwory": {
+      "rat": 4,
+      "cave rat": 1
+     },
+     "potworow": 5,
+     "sufit_exp_h": 255,
+     "exp_na_hp": 0.27,
+     "cios_max": 10,
+     "najgrozniejszy": "cave rat",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 36
+    },
+    {
+     "srodek": {
+      "x": 31978,
+      "y": 32227,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 31978,
+      "y1": 32227,
+      "x2": 31978,
+      "y2": 32227
+     },
+     "potwory": {
+      "snake": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 240,
+     "exp_na_hp": 0.67,
+     "cios_max": 8,
+     "najgrozniejszy": "snake",
+     "przedzial": "rook",
+     "odl_od_swiatyni": 119
+    }
+   ]
+  },
+  "Thais": {
+   "swiatynia": {
+    "x": 32369,
+    "y": 32241,
+    "z": 7
+   },
+   "spoty": [
+    {
+     "srodek": {
+      "x": 32415,
+      "y": 32170,
+      "z": 15
+     },
+     "obszar": {
+      "x1": 32410,
+      "y1": 32147,
+      "x2": 32420,
+      "y2": 32188
+     },
+     "potwory": {
+      "minotaur": 11,
+      "minotaur guard": 6,
+      "minotaur archer": 3
+     },
+     "potworow": 20,
+     "sufit_exp_h": 9037,
+     "exp_na_hp": 0.68,
+     "cios_max": 100,
+     "najgrozniejszy": "minotaur guard",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 85
+    },
+    {
+     "srodek": {
+      "x": 32361,
+      "y": 32113,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32347,
+      "y1": 32100,
+      "x2": 32369,
+      "y2": 32132
+     },
+     "potwory": {
+      "cyclops": 8,
+      "spider": 8,
+      "poison spider": 3,
+      "scorpion": 1
+     },
+     "potworow": 20,
+     "sufit_exp_h": 7992,
+     "exp_na_hp": 0.6,
+     "cios_max": 105,
+     "najgrozniejszy": "cyclops",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 128
+    },
+    {
+     "srodek": {
+      "x": 32428,
+      "y": 32134,
+      "z": 14
+     },
+     "obszar": {
+      "x1": 32417,
+      "y1": 32131,
+      "x2": 32431,
+      "y2": 32140
+     },
+     "potwory": {
+      "minotaur": 4,
+      "minotaur guard": 4,
+      "minotaur archer": 2,
+      "minotaur mage": 2
+     },
+     "potworow": 12,
+     "sufit_exp_h": 6771,
+     "exp_na_hp": 0.77,
+     "cios_max": 100,
+     "najgrozniejszy": "minotaur guard",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 122
+    },
+    {
+     "srodek": {
+      "x": 32323,
+      "y": 32131,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32323,
+      "y1": 32131,
+      "x2": 32323,
+      "y2": 32131
+     },
+     "potwory": {
+      "wolf": 8
+     },
+     "potworow": 8,
+     "sufit_exp_h": 5184,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 119
+    },
+    {
+     "srodek": {
+      "x": 32352,
+      "y": 32154,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 32349,
+      "y1": 32151,
+      "x2": 32354,
+      "y2": 32158
+     },
+     "potwory": {
+      "rotworm": 10
+     },
+     "potworow": 10,
+     "sufit_exp_h": 4160,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 89
+    },
+    {
+     "srodek": {
+      "x": 32415,
+      "y": 32127,
+      "z": 15
+     },
+     "obszar": {
+      "x1": 32415,
+      "y1": 32127,
+      "x2": 32415,
+      "y2": 32127
+     },
+     "potwory": {
+      "minotaur": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 3000,
+     "exp_na_hp": 0.5,
+     "cios_max": 45,
+     "najgrozniejszy": "minotaur",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 123
+    },
+    {
+     "srodek": {
+      "x": 32373,
+      "y": 32222,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 32370,
+      "y1": 32218,
+      "x2": 32376,
+      "y2": 32224
+     },
+     "potwory": {
+      "orc": 6,
+      "orc spearman": 3,
+      "orc warrior": 2
+     },
+     "potworow": 11,
+     "sufit_exp_h": 2893,
+     "exp_na_hp": 0.37,
+     "cios_max": 60,
+     "najgrozniejszy": "orc warrior",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 19
+    },
+    {
+     "srodek": {
+      "x": 32425,
+      "y": 32193,
+      "z": 14
+     },
+     "obszar": {
+      "x1": 32421,
+      "y1": 32192,
+      "x2": 32428,
+      "y2": 32195
+     },
+     "potwory": {
+      "minotaur": 4,
+      "minotaur guard": 2
+     },
+     "potworow": 6,
+     "sufit_exp_h": 2480,
+     "exp_na_hp": 0.68,
+     "cios_max": 100,
+     "najgrozniejszy": "minotaur guard",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 74
+    },
+    {
+     "srodek": {
+      "x": 32396,
+      "y": 32210,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 32393,
+      "y1": 32201,
+      "x2": 32399,
+      "y2": 32216
+     },
+     "potwory": {
+      "orc spearman": 6,
+      "orc": 3,
+      "orc warrior": 2
+     },
+     "potworow": 11,
+     "sufit_exp_h": 2418,
+     "exp_na_hp": 0.37,
+     "cios_max": 60,
+     "najgrozniejszy": "orc warrior",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 41
+    },
+    {
+     "srodek": {
+      "x": 32375,
+      "y": 32231,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32369,
+      "y1": 32229,
+      "x2": 32383,
+      "y2": 32234
+     },
+     "potwory": {
+      "orc": 12
+     },
+     "potworow": 12,
+     "sufit_exp_h": 2325,
+     "exp_na_hp": 0.36,
+     "cios_max": 35,
+     "najgrozniejszy": "orc",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 12
+    },
+    {
+     "srodek": {
+      "x": 32433,
+      "y": 32236,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32422,
+      "y1": 32230,
+      "x2": 32439,
+      "y2": 32241
+     },
+     "potwory": {
+      "beholder": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 2142,
+     "exp_na_hp": 0.65,
+     "cios_max": 42,
+     "najgrozniejszy": "beholder",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 64
+    },
+    {
+     "srodek": {
+      "x": 32342,
+      "y": 32145,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32322,
+      "y1": 32131,
+      "x2": 32357,
+      "y2": 32156
+     },
+     "potwory": {
+      "troll": 8,
+      "rat": 5,
+      "cave rat": 3,
+      "spider": 3,
+      "poison spider": 2
+     },
+     "potworow": 21,
+     "sufit_exp_h": 2129,
+     "exp_na_hp": 0.42,
+     "cios_max": 20,
+     "najgrozniejszy": "poison spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 100
+    },
+    {
+     "srodek": {
+      "x": 32394,
+      "y": 32174,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 32385,
+      "y1": 32160,
+      "x2": 32407,
+      "y2": 32186
+     },
+     "potwory": {
+      "poison spider": 11,
+      "slime": 3
+     },
+     "potworow": 14,
+     "sufit_exp_h": 2087,
+     "exp_na_hp": 0.55,
+     "cios_max": 110,
+     "najgrozniejszy": "slime",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 72
+    },
+    {
+     "srodek": {
+      "x": 32384,
+      "y": 32141,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 32373,
+      "y1": 32133,
+      "x2": 32392,
+      "y2": 32145
+     },
+     "potwory": {
+      "rotworm": 7
+     },
+     "potworow": 7,
+     "sufit_exp_h": 1908,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 101
+    },
+    {
+     "srodek": {
+      "x": 32470,
+      "y": 32280,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 32464,
+      "y1": 32276,
+      "x2": 32476,
+      "y2": 32282
+     },
+     "potwory": {
+      "rotworm": 7,
+      "skeleton": 3
+     },
+     "potworow": 10,
+     "sufit_exp_h": 1874,
+     "exp_na_hp": 0.64,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 108
+    },
+    {
+     "srodek": {
+      "x": 32419,
+      "y": 32215,
+      "z": 15
+     },
+     "obszar": {
+      "x1": 32417,
+      "y1": 32213,
+      "x2": 32419,
+      "y2": 32216
+     },
+     "potwory": {
+      "minotaur": 4,
+      "minotaur guard": 1
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1828,
+     "exp_na_hp": 0.62,
+     "cios_max": 100,
+     "najgrozniejszy": "minotaur guard",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 56
+    },
+    {
+     "srodek": {
+      "x": 32413,
+      "y": 32186,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 32409,
+      "y1": 32173,
+      "x2": 32420,
+      "y2": 32195
+     },
+     "potwory": {
+      "skeleton": 6,
+      "ghoul": 1
+     },
+     "potworow": 7,
+     "sufit_exp_h": 1770,
+     "exp_na_hp": 0.74,
+     "cios_max": 70,
+     "najgrozniejszy": "ghoul",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 70
+    },
+    {
+     "srodek": {
+      "x": 32370,
+      "y": 32217,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32369,
+      "y1": 32215,
+      "x2": 32373,
+      "y2": 32219
+     },
+     "potwory": {
+      "orc": 3,
+      "orc spearman": 2,
+      "orc warrior": 1
+     },
+     "potworow": 6,
+     "sufit_exp_h": 1656,
+     "exp_na_hp": 0.37,
+     "cios_max": 60,
+     "najgrozniejszy": "orc warrior",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 24
+    },
+    {
+     "srodek": {
+      "x": 32321,
+      "y": 32143,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32314,
+      "y1": 32130,
+      "x2": 32326,
+      "y2": 32155
+     },
+     "potwory": {
+      "troll": 14
+     },
+     "potworow": 14,
+     "sufit_exp_h": 1555,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 109
+    },
+    {
+     "srodek": {
+      "x": 32387,
+      "y": 32151,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32387,
+      "y1": 32151,
+      "x2": 32387,
+      "y2": 32151
+     },
+     "potwory": {
+      "rotworm": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1440,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 92
+    },
+    {
+     "srodek": {
+      "x": 32433,
+      "y": 32306,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32419,
+      "y1": 32297,
+      "x2": 32444,
+      "y2": 32317
+     },
+     "potwory": {
+      "wasp": 11
+     },
+     "potworow": 11,
+     "sufit_exp_h": 1358,
+     "exp_na_hp": 0.69,
+     "cios_max": 20,
+     "najgrozniejszy": "wasp",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 91
+    },
+    {
+     "srodek": {
+      "x": 32486,
+      "y": 32292,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32486,
+      "y1": 32292,
+      "x2": 32486,
+      "y2": 32292
+     },
+     "potwory": {
+      "rotworm": 7
+     },
+     "potworow": 7,
+     "sufit_exp_h": 1260,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 128
+    },
+    {
+     "srodek": {
+      "x": 32473,
+      "y": 32250,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32463,
+      "y1": 32242,
+      "x2": 32483,
+      "y2": 32258
+     },
+     "potwory": {
+      "troll": 8,
+      "wolf": 3
+     },
+     "potworow": 11,
+     "sufit_exp_h": 1176,
+     "exp_na_hp": 0.45,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 104
+    },
+    {
+     "srodek": {
+      "x": 32372,
+      "y": 32182,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32372,
+      "y1": 32182,
+      "x2": 32372,
+      "y2": 32182
+     },
+     "potwory": {
+      "rotworm": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 1152,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 59
+    },
+    {
+     "srodek": {
+      "x": 32346,
+      "y": 32323,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32342,
+      "y1": 32310,
+      "x2": 32356,
+      "y2": 32335
+     },
+     "potwory": {
+      "wolf": 11
+     },
+     "potworow": 11,
+     "sufit_exp_h": 1111,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 85
+    },
+    {
+     "srodek": {
+      "x": 32474,
+      "y": 32220,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32471,
+      "y1": 32217,
+      "x2": 32475,
+      "y2": 32225
+     },
+     "potwory": {
+      "snake": 10,
+      "poison spider": 5
+     },
+     "potworow": 15,
+     "sufit_exp_h": 1060,
+     "exp_na_hp": 0.75,
+     "cios_max": 20,
+     "najgrozniejszy": "poison spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 107
+    },
+    {
+     "srodek": {
+      "x": 32419,
+      "y": 32121,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32416,
+      "y1": 32115,
+      "x2": 32423,
+      "y2": 32130
+     },
+     "potwory": {
+      "wolf": 6,
+      "snake": 2
+     },
+     "potworow": 8,
+     "sufit_exp_h": 984,
+     "exp_na_hp": 0.71,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 130
+    },
+    {
+     "srodek": {
+      "x": 32270,
+      "y": 32285,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32270,
+      "y1": 32285,
+      "x2": 32270,
+      "y2": 32285
+     },
+     "potwory": {
+      "wolf": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 972,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 108
+    },
+    {
+     "srodek": {
+      "x": 32376,
+      "y": 32155,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32376,
+      "y1": 32155,
+      "x2": 32376,
+      "y2": 32155
+     },
+     "potwory": {
+      "troll": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 960,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 86
+    },
+    {
+     "srodek": {
+      "x": 32325,
+      "y": 32144,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32320,
+      "y1": 32140,
+      "x2": 32333,
+      "y2": 32151
+     },
+     "potwory": {
+      "bug": 3,
+      "rotworm": 2
+     },
+     "potworow": 5,
+     "sufit_exp_h": 900,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 107
+    },
+    {
+     "srodek": {
+      "x": 32438,
+      "y": 32193,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32438,
+      "y1": 32193,
+      "x2": 32438,
+      "y2": 32193
+     },
+     "potwory": {
+      "snake": 10
+     },
+     "potworow": 10,
+     "sufit_exp_h": 900,
+     "exp_na_hp": 0.67,
+     "cios_max": 8,
+     "najgrozniejszy": "snake",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 84
+    },
+    {
+     "srodek": {
+      "x": 32428,
+      "y": 32306,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32421,
+      "y1": 32302,
+      "x2": 32433,
+      "y2": 32312
+     },
+     "potwory": {
+      "wasp": 7
+     },
+     "potworow": 7,
+     "sufit_exp_h": 864,
+     "exp_na_hp": 0.69,
+     "cios_max": 20,
+     "najgrozniejszy": "wasp",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 88
+    },
+    {
+     "srodek": {
+      "x": 32380,
+      "y": 32352,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32380,
+      "y1": 32352,
+      "x2": 32380,
+      "y2": 32352
+     },
+     "potwory": {
+      "wolf": 8
+     },
+     "potworow": 8,
+     "sufit_exp_h": 864,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 112
+    },
+    {
+     "srodek": {
+      "x": 32471,
+      "y": 32254,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32471,
+      "y1": 32254,
+      "x2": 32471,
+      "y2": 32254
+     },
+     "potwory": {
+      "rotworm": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 800,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 103
+    },
+    {
+     "srodek": {
+      "x": 32385,
+      "y": 32143,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32385,
+      "y1": 32143,
+      "x2": 32385,
+      "y2": 32143
+     },
+     "potwory": {
+      "poison spider": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 699,
+     "exp_na_hp": 0.85,
+     "cios_max": 20,
+     "najgrozniejszy": "poison spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 99
+    },
+    {
+     "srodek": {
+      "x": 32446,
+      "y": 32176,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32446,
+      "y1": 32176,
+      "x2": 32446,
+      "y2": 32176
+     },
+     "potwory": {
+      "wolf": 7
+     },
+     "potworow": 7,
+     "sufit_exp_h": 698,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 101
+    },
+    {
+     "srodek": {
+      "x": 32297,
+      "y": 32344,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32290,
+      "y1": 32342,
+      "x2": 32304,
+      "y2": 32347
+     },
+     "potwory": {
+      "poison spider": 3,
+      "spider": 3
+     },
+     "potworow": 6,
+     "sufit_exp_h": 612,
+     "exp_na_hp": 0.74,
+     "cios_max": 20,
+     "najgrozniejszy": "poison spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 126
+    },
+    {
+     "srodek": {
+      "x": 32450,
+      "y": 32329,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32450,
+      "y1": 32329,
+      "x2": 32450,
+      "y2": 32329
+     },
+     "potwory": {
+      "spider": 8
+     },
+     "potworow": 8,
+     "sufit_exp_h": 576,
+     "exp_na_hp": 0.6,
+     "cios_max": 9,
+     "najgrozniejszy": "spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 120
+    },
+    {
+     "srodek": {
+      "x": 32340,
+      "y": 32132,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32340,
+      "y1": 32124,
+      "x2": 32341,
+      "y2": 32136
+     },
+     "potwory": {
+      "cave rat": 9
+     },
+     "potworow": 9,
+     "sufit_exp_h": 540,
+     "exp_na_hp": 0.33,
+     "cios_max": 10,
+     "najgrozniejszy": "cave rat",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 113
+    },
+    {
+     "srodek": {
+      "x": 32311,
+      "y": 32324,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32305,
+      "y1": 32324,
+      "x2": 32317,
+      "y2": 32325
+     },
+     "potwory": {
+      "spider": 3,
+      "wolf": 3
+     },
+     "potworow": 6,
+     "sufit_exp_h": 540,
+     "exp_na_hp": 0.67,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 101
+    },
+    {
+     "srodek": {
+      "x": 32371,
+      "y": 32213,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32367,
+      "y1": 32208,
+      "x2": 32377,
+      "y2": 32216
+     },
+     "potwory": {
+      "rat": 4,
+      "spider": 3
+     },
+     "potworow": 7,
+     "sufit_exp_h": 499,
+     "exp_na_hp": 0.4,
+     "cios_max": 9,
+     "najgrozniejszy": "spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 28
+    },
+    {
+     "srodek": {
+      "x": 32461,
+      "y": 32236,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32454,
+      "y1": 32235,
+      "x2": 32466,
+      "y2": 32238
+     },
+     "potwory": {
+      "troll": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 476,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 92
+    },
+    {
+     "srodek": {
+      "x": 32445,
+      "y": 32149,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32445,
+      "y1": 32149,
+      "x2": 32445,
+      "y2": 32149
+     },
+     "potwory": {
+      "wolf": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 471,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 119
+    },
+    {
+     "srodek": {
+      "x": 32474,
+      "y": 32271,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32471,
+      "y1": 32270,
+      "x2": 32485,
+      "y2": 32274
+     },
+     "potwory": {
+      "troll": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 420,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 109
+    },
+    {
+     "srodek": {
+      "x": 32343,
+      "y": 32189,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32338,
+      "y1": 32189,
+      "x2": 32351,
+      "y2": 32189
+     },
+     "potwory": {
+      "rat": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 360,
+     "exp_na_hp": 0.25,
+     "cios_max": 8,
+     "najgrozniejszy": "rat",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 58
+    },
+    {
+     "srodek": {
+      "x": 32423,
+      "y": 32224,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32421,
+      "y1": 32219,
+      "x2": 32425,
+      "y2": 32229
+     },
+     "potwory": {
+      "spider": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 324,
+     "exp_na_hp": 0.6,
+     "cios_max": 9,
+     "najgrozniejszy": "spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 57
+    },
+    {
+     "srodek": {
+      "x": 32484,
+      "y": 32292,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32478,
+      "y1": 32290,
+      "x2": 32491,
+      "y2": 32294
+     },
+     "potwory": {
+      "troll": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 300,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 126
+    },
+    {
+     "srodek": {
+      "x": 32389,
+      "y": 32118,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32389,
+      "y1": 32118,
+      "x2": 32389,
+      "y2": 32118
+     },
+     "potwory": {
+      "spider": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 288,
+     "exp_na_hp": 0.6,
+     "cios_max": 9,
+     "najgrozniejszy": "spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 125
+    },
+    {
+     "srodek": {
+      "x": 32313,
+      "y": 32130,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32313,
+      "y1": 32130,
+      "x2": 32313,
+      "y2": 32130
+     },
+     "potwory": {
+      "spider": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 270,
+     "exp_na_hp": 0.6,
+     "cios_max": 9,
+     "najgrozniejszy": "spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 124
+    },
+    {
+     "srodek": {
+      "x": 32304,
+      "y": 32257,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32304,
+      "y1": 32257,
+      "x2": 32304,
+      "y2": 32257
+     },
+     "potwory": {
+      "cave rat": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 240,
+     "exp_na_hp": 0.33,
+     "cios_max": 10,
+     "najgrozniejszy": "cave rat",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 67
+    },
+    {
+     "srodek": {
+      "x": 32329,
+      "y": 32214,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32329,
+      "y1": 32214,
+      "x2": 32329,
+      "y2": 32214
+     },
+     "potwory": {
+      "rat": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 240,
+     "exp_na_hp": 0.25,
+     "cios_max": 8,
+     "najgrozniejszy": "rat",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 48
+    },
+    {
+     "srodek": {
+      "x": 32339,
+      "y": 32238,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32339,
+      "y1": 32238,
+      "x2": 32339,
+      "y2": 32238
+     },
+     "potwory": {
+      "rat": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 240,
+     "exp_na_hp": 0.25,
+     "cios_max": 8,
+     "najgrozniejszy": "rat",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 30
+    },
+    {
+     "srodek": {
+      "x": 32414,
+      "y": 32214,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32414,
+      "y1": 32214,
+      "x2": 32414,
+      "y2": 32214
+     },
+     "potwory": {
+      "rat": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 240,
+     "exp_na_hp": 0.25,
+     "cios_max": 8,
+     "najgrozniejszy": "rat",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 52
+    },
+    {
+     "srodek": {
+      "x": 32291,
+      "y": 32285,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32291,
+      "y1": 32285,
+      "x2": 32291,
+      "y2": 32285
+     },
+     "potwory": {
+      "snake": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 200,
+     "exp_na_hp": 0.67,
+     "cios_max": 8,
+     "najgrozniejszy": "snake",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 90
+    },
+    {
+     "srodek": {
+      "x": 32359,
+      "y": 32286,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32359,
+      "y1": 32286,
+      "x2": 32359,
+      "y2": 32286
+     },
+     "potwory": {
+      "snake": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 200,
+     "exp_na_hp": 0.67,
+     "cios_max": 8,
+     "najgrozniejszy": "snake",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 46
+    }
+   ]
+  },
+  "Carlin": {
+   "swiatynia": {
+    "x": 32360,
+    "y": 31782,
+    "z": 7
+   },
+   "spoty": [
+    {
+     "srodek": {
+      "x": 32361,
+      "y": 31766,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32323,
+      "y1": 31751,
+      "x2": 32381,
+      "y2": 31785
+     },
+     "potwory": {
+      "bug": 21
+     },
+     "potworow": 21,
+     "sufit_exp_h": 2441,
+     "exp_na_hp": 0.62,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 16
+    },
+    {
+     "srodek": {
+      "x": 32267,
+      "y": 31838,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32267,
+      "y1": 31838,
+      "x2": 32267,
+      "y2": 31838
+     },
+     "potwory": {
+      "stalker": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 2160,
+     "exp_na_hp": 0.75,
+     "cios_max": 70,
+     "najgrozniejszy": "stalker",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 109
+    },
+    {
+     "srodek": {
+      "x": 32288,
+      "y": 31842,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32288,
+      "y1": 31842,
+      "x2": 32288,
+      "y2": 31842
+     },
+     "potwory": {
+      "ghoul": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 2040,
+     "exp_na_hp": 0.85,
+     "cios_max": 70,
+     "najgrozniejszy": "ghoul",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 94
+    },
+    {
+     "srodek": {
+      "x": 32472,
+      "y": 31781,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32472,
+      "y1": 31780,
+      "x2": 32474,
+      "y2": 31783
+     },
+     "potwory": {
+      "amazon": 4,
+      "valkyrie": 1
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1950,
+     "exp_na_hp": 0.52,
+     "cios_max": 70,
+     "najgrozniejszy": "valkyrie",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 112
+    },
+    {
+     "srodek": {
+      "x": 32397,
+      "y": 31802,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32391,
+      "y1": 31789,
+      "x2": 32410,
+      "y2": 31815
+     },
+     "potwory": {
+      "troll": 13
+     },
+     "potworow": 13,
+     "sufit_exp_h": 1718,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 42
+    },
+    {
+     "srodek": {
+      "x": 32443,
+      "y": 31880,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 32443,
+      "y1": 31880,
+      "x2": 32443,
+      "y2": 31880
+     },
+     "potwory": {
+      "dwarf soldier": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 1680,
+     "exp_na_hp": 0.52,
+     "cios_max": 70,
+     "najgrozniejszy": "dwarf soldier",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 128
+    },
+    {
+     "srodek": {
+      "x": 32379,
+      "y": 31811,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32368,
+      "y1": 31802,
+      "x2": 32386,
+      "y2": 31814
+     },
+     "potwory": {
+      "spider": 7,
+      "bug": 3,
+      "poison spider": 3
+     },
+     "potworow": 13,
+     "sufit_exp_h": 1224,
+     "exp_na_hp": 0.67,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 35
+    },
+    {
+     "srodek": {
+      "x": 32419,
+      "y": 31688,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 32418,
+      "y1": 31687,
+      "x2": 32420,
+      "y2": 31689
+     },
+     "potwory": {
+      "troll": 5,
+      "minotaur archer": 2
+     },
+     "potworow": 7,
+     "sufit_exp_h": 1224,
+     "exp_na_hp": 0.51,
+     "cios_max": 25,
+     "najgrozniejszy": "minotaur archer",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 111
+    },
+    {
+     "srodek": {
+      "x": 32443,
+      "y": 31877,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32443,
+      "y1": 31877,
+      "x2": 32443,
+      "y2": 31877
+     },
+     "potwory": {
+      "dwarf": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 1080,
+     "exp_na_hp": 0.5,
+     "cios_max": 30,
+     "najgrozniejszy": "dwarf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 126
+    },
+    {
+     "srodek": {
+      "x": 32454,
+      "y": 31798,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32444,
+      "y1": 31792,
+      "x2": 32467,
+      "y2": 31803
+     },
+     "potwory": {
+      "troll": 9
+     },
+     "potworow": 9,
+     "sufit_exp_h": 1080,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 95
+    },
+    {
+     "srodek": {
+      "x": 32325,
+      "y": 31705,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32325,
+      "y1": 31705,
+      "x2": 32325,
+      "y2": 31705
+     },
+     "potwory": {
+      "wolf": 8
+     },
+     "potworow": 8,
+     "sufit_exp_h": 741,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 85
+    },
+    {
+     "srodek": {
+      "x": 32323,
+      "y": 31824,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32315,
+      "y1": 31814,
+      "x2": 32327,
+      "y2": 31834
+     },
+     "potwory": {
+      "bug": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 648,
+     "exp_na_hp": 0.62,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 56
+    },
+    {
+     "srodek": {
+      "x": 32428,
+      "y": 31696,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32428,
+      "y1": 31696,
+      "x2": 32428,
+      "y2": 31696
+     },
+     "potwory": {
+      "troll": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 600,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 110
+    },
+    {
+     "srodek": {
+      "x": 32409,
+      "y": 31668,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32409,
+      "y1": 31668,
+      "x2": 32409,
+      "y2": 31668
+     },
+     "potwory": {
+      "poison spider": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 528,
+     "exp_na_hp": 0.85,
+     "cios_max": 20,
+     "najgrozniejszy": "poison spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 124
+    },
+    {
+     "srodek": {
+      "x": 32242,
+      "y": 31828,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32242,
+      "y1": 31824,
+      "x2": 32243,
+      "y2": 31833
+     },
+     "potwory": {
+      "poison spider": 3,
+      "cave rat": 2
+     },
+     "potworow": 5,
+     "sufit_exp_h": 516,
+     "exp_na_hp": 0.62,
+     "cios_max": 20,
+     "najgrozniejszy": "poison spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 127
+    },
+    {
+     "srodek": {
+      "x": 32394,
+      "y": 31774,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32394,
+      "y1": 31774,
+      "x2": 32394,
+      "y2": 31774
+     },
+     "potwory": {
+      "troll": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 480,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 35
+    },
+    {
+     "srodek": {
+      "x": 32302,
+      "y": 31787,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32301,
+      "y1": 31784,
+      "x2": 32303,
+      "y2": 31790
+     },
+     "potwory": {
+      "bug": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 432,
+     "exp_na_hp": 0.62,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 58
+    },
+    {
+     "srodek": {
+      "x": 32350,
+      "y": 31749,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32350,
+      "y1": 31749,
+      "x2": 32350,
+      "y2": 31749
+     },
+     "potwory": {
+      "bug": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 432,
+     "exp_na_hp": 0.62,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 34
+    },
+    {
+     "srodek": {
+      "x": 32431,
+      "y": 31701,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32431,
+      "y1": 31701,
+      "x2": 32431,
+      "y2": 31701
+     },
+     "potwory": {
+      "snake": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 360,
+     "exp_na_hp": 0.67,
+     "cios_max": 8,
+     "najgrozniejszy": "snake",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 108
+    },
+    {
+     "srodek": {
+      "x": 32397,
+      "y": 31705,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 32397,
+      "y1": 31705,
+      "x2": 32397,
+      "y2": 31705
+     },
+     "potwory": {
+      "snake": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 257,
+     "exp_na_hp": 0.67,
+     "cios_max": 8,
+     "najgrozniejszy": "snake",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 85
+    }
+   ]
+  },
+  "Ab'Dendriel": {
+   "swiatynia": {
+    "x": 32732,
+    "y": 31634,
+    "z": 7
+   },
+   "spoty": [
+    {
+     "srodek": {
+      "x": 32804,
+      "y": 31586,
+      "z": 6
+     },
+     "obszar": {
+      "x1": 32793,
+      "y1": 31576,
+      "x2": 32814,
+      "y2": 31596
+     },
+     "potwory": {
+      "ghoul": 17,
+      "skeleton": 13
+     },
+     "potworow": 30,
+     "sufit_exp_h": 11400,
+     "exp_na_hp": 0.81,
+     "cios_max": 70,
+     "najgrozniejszy": "ghoul",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 87
+    },
+    {
+     "srodek": {
+      "x": 32802,
+      "y": 31587,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32778,
+      "y1": 31573,
+      "x2": 32821,
+      "y2": 31607
+     },
+     "potwory": {
+      "scorpion": 18,
+      "skeleton": 17,
+      "rotworm": 7
+     },
+     "potworow": 42,
+     "sufit_exp_h": 10446,
+     "exp_na_hp": 0.8,
+     "cios_max": 50,
+     "najgrozniejszy": "scorpion",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 84
+    },
+    {
+     "srodek": {
+      "x": 32714,
+      "y": 31611,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32690,
+      "y1": 31591,
+      "x2": 32732,
+      "y2": 31638
+     },
+     "potwory": {
+      "skeleton": 13,
+      "rotworm": 7,
+      "poison spider": 4,
+      "ghoul": 2,
+      "slime": 2,
+      "snake": 2
+     },
+     "potworow": 30,
+     "sufit_exp_h": 8056,
+     "exp_na_hp": 0.65,
+     "cios_max": 110,
+     "najgrozniejszy": "slime",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 29
+    },
+    {
+     "srodek": {
+      "x": 32803,
+      "y": 31584,
+      "z": 3
+     },
+     "obszar": {
+      "x1": 32799,
+      "y1": 31581,
+      "x2": 32806,
+      "y2": 31586
+     },
+     "potwory": {
+      "mummy": 8,
+      "slime": 2
+     },
+     "potworow": 10,
+     "sufit_exp_h": 5460,
+     "exp_na_hp": 0.59,
+     "cios_max": 110,
+     "najgrozniejszy": "slime",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 87
+    },
+    {
+     "srodek": {
+      "x": 32811,
+      "y": 31578,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32811,
+      "y1": 31578,
+      "x2": 32811,
+      "y2": 31578
+     },
+     "potwory": {
+      "scorpion": 8
+     },
+     "potworow": 8,
+     "sufit_exp_h": 4320,
+     "exp_na_hp": 1.0,
+     "cios_max": 50,
+     "najgrozniejszy": "scorpion",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 97
+    },
+    {
+     "srodek": {
+      "x": 32740,
+      "y": 31702,
+      "z": 14
+     },
+     "obszar": {
+      "x1": 32736,
+      "y1": 31696,
+      "x2": 32744,
+      "y2": 31707
+     },
+     "potwory": {
+      "ghoul": 6,
+      "beholder": 1
+     },
+     "potworow": 7,
+     "sufit_exp_h": 4080,
+     "exp_na_hp": 0.79,
+     "cios_max": 70,
+     "najgrozniejszy": "ghoul",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 68
+    },
+    {
+     "srodek": {
+      "x": 32648,
+      "y": 31610,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32643,
+      "y1": 31606,
+      "x2": 32654,
+      "y2": 31613
+     },
+     "potwory": {
+      "elf": 6,
+      "elf scout": 2,
+      "elf arcanist": 1
+     },
+     "potworow": 9,
+     "sufit_exp_h": 3462,
+     "exp_na_hp": 0.51,
+     "cios_max": 35,
+     "najgrozniejszy": "elf arcanist",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 87
+    },
+    {
+     "srodek": {
+      "x": 32624,
+      "y": 31695,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32615,
+      "y1": 31687,
+      "x2": 32634,
+      "y2": 31705
+     },
+     "potwory": {
+      "wasp": 20
+     },
+     "potworow": 20,
+     "sufit_exp_h": 3283,
+     "exp_na_hp": 0.69,
+     "cios_max": 20,
+     "najgrozniejszy": "wasp",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 124
+    },
+    {
+     "srodek": {
+      "x": 32780,
+      "y": 31593,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 32771,
+      "y1": 31584,
+      "x2": 32786,
+      "y2": 31602
+     },
+     "potwory": {
+      "rotworm": 9
+     },
+     "potworow": 9,
+     "sufit_exp_h": 2592,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 63
+    },
+    {
+     "srodek": {
+      "x": 32801,
+      "y": 31612,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 32801,
+      "y1": 31610,
+      "x2": 32802,
+      "y2": 31613
+     },
+     "potwory": {
+      "ghoul": 3,
+      "rotworm": 2
+     },
+     "potworow": 5,
+     "sufit_exp_h": 2106,
+     "exp_na_hp": 0.78,
+     "cios_max": 70,
+     "najgrozniejszy": "ghoul",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 72
+    },
+    {
+     "srodek": {
+      "x": 32628,
+      "y": 31625,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32627,
+      "y1": 31625,
+      "x2": 32629,
+      "y2": 31626
+     },
+     "potwory": {
+      "elf": 4,
+      "elf scout": 2
+     },
+     "potworow": 6,
+     "sufit_exp_h": 1908,
+     "exp_na_hp": 0.44,
+     "cios_max": 30,
+     "najgrozniejszy": "elf scout",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 104
+    },
+    {
+     "srodek": {
+      "x": 32714,
+      "y": 31644,
+      "z": 13
+     },
+     "obszar": {
+      "x1": 32713,
+      "y1": 31643,
+      "x2": 32716,
+      "y2": 31644
+     },
+     "potwory": {
+      "ghoul": 3,
+      "skeleton": 2
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1845,
+     "exp_na_hp": 0.81,
+     "cios_max": 70,
+     "najgrozniejszy": "ghoul",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 21
+    },
+    {
+     "srodek": {
+      "x": 32617,
+      "y": 31688,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32596,
+      "y1": 31675,
+      "x2": 32631,
+      "y2": 31701
+     },
+     "potwory": {
+      "wasp": 12
+     },
+     "potworow": 12,
+     "sufit_exp_h": 1728,
+     "exp_na_hp": 0.69,
+     "cios_max": 20,
+     "najgrozniejszy": "wasp",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 127
+    },
+    {
+     "srodek": {
+      "x": 32648,
+      "y": 31630,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32636,
+      "y1": 31616,
+      "x2": 32661,
+      "y2": 31638
+     },
+     "potwory": {
+      "troll": 13
+     },
+     "potworow": 13,
+     "sufit_exp_h": 1704,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 84
+    },
+    {
+     "srodek": {
+      "x": 32636,
+      "y": 31621,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32627,
+      "y1": 31618,
+      "x2": 32646,
+      "y2": 31629
+     },
+     "potwory": {
+      "snake": 7,
+      "elf": 3
+     },
+     "potworow": 10,
+     "sufit_exp_h": 1554,
+     "exp_na_hp": 0.48,
+     "cios_max": 15,
+     "najgrozniejszy": "elf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 97
+    },
+    {
+     "srodek": {
+      "x": 32684,
+      "y": 31600,
+      "z": 14
+     },
+     "obszar": {
+      "x1": 32683,
+      "y1": 31598,
+      "x2": 32688,
+      "y2": 31601
+     },
+     "potwory": {
+      "elf": 4,
+      "elf scout": 1
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1458,
+     "exp_na_hp": 0.43,
+     "cios_max": 30,
+     "najgrozniejszy": "elf scout",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 59
+    },
+    {
+     "srodek": {
+      "x": 32764,
+      "y": 31604,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 32762,
+      "y1": 31600,
+      "x2": 32766,
+      "y2": 31611
+     },
+     "potwory": {
+      "rotworm": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1440,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 44
+    },
+    {
+     "srodek": {
+      "x": 32698,
+      "y": 31603,
+      "z": 15
+     },
+     "obszar": {
+      "x1": 32694,
+      "y1": 31596,
+      "x2": 32704,
+      "y2": 31611
+     },
+     "potwory": {
+      "bug": 13
+     },
+     "potworow": 13,
+     "sufit_exp_h": 1404,
+     "exp_na_hp": 0.62,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 46
+    },
+    {
+     "srodek": {
+      "x": 32800,
+      "y": 31701,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 32800,
+      "y1": 31701,
+      "x2": 32802,
+      "y2": 31703
+     },
+     "potwory": {
+      "poison spider": 6,
+      "ghoul": 1
+     },
+     "potworow": 7,
+     "sufit_exp_h": 1302,
+     "exp_na_hp": 0.85,
+     "cios_max": 70,
+     "najgrozniejszy": "ghoul",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 95
+    },
+    {
+     "srodek": {
+      "x": 32787,
+      "y": 31613,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32787,
+      "y1": 31613,
+      "x2": 32787,
+      "y2": 31613
+     },
+     "potwory": {
+      "rotworm": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 1152,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 59
+    },
+    {
+     "srodek": {
+      "x": 32824,
+      "y": 31598,
+      "z": 13
+     },
+     "obszar": {
+      "x1": 32821,
+      "y1": 31592,
+      "x2": 32829,
+      "y2": 31601
+     },
+     "potwory": {
+      "poison spider": 4,
+      "slime": 2
+     },
+     "potworow": 6,
+     "sufit_exp_h": 1094,
+     "exp_na_hp": 0.49,
+     "cios_max": 110,
+     "najgrozniejszy": "slime",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 99
+    },
+    {
+     "srodek": {
+      "x": 32681,
+      "y": 31630,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32678,
+      "y1": 31622,
+      "x2": 32683,
+      "y2": 31641
+     },
+     "potwory": {
+      "troll": 8
+     },
+     "potworow": 8,
+     "sufit_exp_h": 960,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 51
+    },
+    {
+     "srodek": {
+      "x": 32683,
+      "y": 31610,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 32672,
+      "y1": 31599,
+      "x2": 32695,
+      "y2": 31627
+     },
+     "potwory": {
+      "troll": 7
+     },
+     "potworow": 7,
+     "sufit_exp_h": 840,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 55
+    },
+    {
+     "srodek": {
+      "x": 32698,
+      "y": 31697,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32698,
+      "y1": 31697,
+      "x2": 32698,
+      "y2": 31697
+     },
+     "potwory": {
+      "bug": 10
+     },
+     "potworow": 10,
+     "sufit_exp_h": 834,
+     "exp_na_hp": 0.62,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 72
+    },
+    {
+     "srodek": {
+      "x": 32704,
+      "y": 31577,
+      "z": 14
+     },
+     "obszar": {
+      "x1": 32704,
+      "y1": 31577,
+      "x2": 32704,
+      "y2": 31577
+     },
+     "potwory": {
+      "poison spider": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 792,
+     "exp_na_hp": 0.85,
+     "cios_max": 20,
+     "najgrozniejszy": "poison spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 64
+    },
+    {
+     "srodek": {
+      "x": 32656,
+      "y": 31634,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32652,
+      "y1": 31633,
+      "x2": 32658,
+      "y2": 31636
+     },
+     "potwory": {
+      "rat": 5,
+      "rotworm": 2
+     },
+     "potworow": 7,
+     "sufit_exp_h": 726,
+     "exp_na_hp": 0.46,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 76
+    },
+    {
+     "srodek": {
+      "x": 32666,
+      "y": 31613,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32666,
+      "y1": 31613,
+      "x2": 32666,
+      "y2": 31613
+     },
+     "potwory": {
+      "troll": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 720,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 69
+    },
+    {
+     "srodek": {
+      "x": 32693,
+      "y": 31661,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 32690,
+      "y1": 31653,
+      "x2": 32698,
+      "y2": 31665
+     },
+     "potwory": {
+      "troll": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 720,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 47
+    },
+    {
+     "srodek": {
+      "x": 32628,
+      "y": 31620,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32626,
+      "y1": 31619,
+      "x2": 32632,
+      "y2": 31622
+     },
+     "potwory": {
+      "troll": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 600,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 105
+    },
+    {
+     "srodek": {
+      "x": 32708,
+      "y": 31580,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 32708,
+      "y1": 31580,
+      "x2": 32708,
+      "y2": 31580
+     },
+     "potwory": {
+      "poison spider": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 528,
+     "exp_na_hp": 0.85,
+     "cios_max": 20,
+     "najgrozniejszy": "poison spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 59
+    },
+    {
+     "srodek": {
+      "x": 32632,
+      "y": 31599,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32632,
+      "y1": 31599,
+      "x2": 32632,
+      "y2": 31599
+     },
+     "potwory": {
+      "troll": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 480,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 106
+    },
+    {
+     "srodek": {
+      "x": 32657,
+      "y": 31585,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32657,
+      "y1": 31585,
+      "x2": 32657,
+      "y2": 31585
+     },
+     "potwory": {
+      "troll": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 480,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 90
+    },
+    {
+     "srodek": {
+      "x": 32661,
+      "y": 31606,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32654,
+      "y1": 31601,
+      "x2": 32668,
+      "y2": 31612
+     },
+     "potwory": {
+      "troll": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 480,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 76
+    },
+    {
+     "srodek": {
+      "x": 32649,
+      "y": 31610,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 32645,
+      "y1": 31603,
+      "x2": 32653,
+      "y2": 31616
+     },
+     "potwory": {
+      "troll": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 480,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 86
+    },
+    {
+     "srodek": {
+      "x": 32677,
+      "y": 31590,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32677,
+      "y1": 31590,
+      "x2": 32677,
+      "y2": 31590
+     },
+     "potwory": {
+      "troll": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 480,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 70
+    },
+    {
+     "srodek": {
+      "x": 32718,
+      "y": 31654,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 32718,
+      "y1": 31654,
+      "x2": 32718,
+      "y2": 31654
+     },
+     "potwory": {
+      "troll": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 480,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 24
+    },
+    {
+     "srodek": {
+      "x": 32661,
+      "y": 31711,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32661,
+      "y1": 31711,
+      "x2": 32661,
+      "y2": 31711
+     },
+     "potwory": {
+      "wolf": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 432,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 105
+    },
+    {
+     "srodek": {
+      "x": 32664,
+      "y": 31702,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32659,
+      "y1": 31695,
+      "x2": 32671,
+      "y2": 31708
+     },
+     "potwory": {
+      "rat": 10
+     },
+     "potworow": 10,
+     "sufit_exp_h": 300,
+     "exp_na_hp": 0.25,
+     "cios_max": 8,
+     "najgrozniejszy": "rat",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 96
+    }
+   ]
+  },
+  "Kazordoon": {
+   "swiatynia": {
+    "x": 32649,
+    "y": 31925,
+    "z": 11
+   },
+   "spoty": [
+    {
+     "srodek": {
+      "x": 32608,
+      "y": 31902,
+      "z": 13
+     },
+     "obszar": {
+      "x1": 32600,
+      "y1": 31874,
+      "x2": 32621,
+      "y2": 31919
+     },
+     "potwory": {
+      "dwarf soldier": 11,
+      "dwarf": 6,
+      "rotworm": 5
+     },
+     "potworow": 22,
+     "sufit_exp_h": 7680,
+     "exp_na_hp": 0.53,
+     "cios_max": 70,
+     "najgrozniejszy": "dwarf soldier",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 47
+    },
+    {
+     "srodek": {
+      "x": 32579,
+      "y": 31898,
+      "z": 13
+     },
+     "obszar": {
+      "x1": 32574,
+      "y1": 31875,
+      "x2": 32584,
+      "y2": 31913
+     },
+     "potwory": {
+      "dwarf soldier": 10,
+      "dwarf": 7,
+      "rotworm": 2
+     },
+     "potworow": 19,
+     "sufit_exp_h": 6666,
+     "exp_na_hp": 0.52,
+     "cios_max": 70,
+     "najgrozniejszy": "dwarf soldier",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 75
+    },
+    {
+     "srodek": {
+      "x": 32618,
+      "y": 31942,
+      "z": 15
+     },
+     "obszar": {
+      "x1": 32617,
+      "y1": 31941,
+      "x2": 32619,
+      "y2": 31942
+     },
+     "potwory": {
+      "minotaur guard": 3,
+      "minotaur mage": 2
+     },
+     "potworow": 5,
+     "sufit_exp_h": 4680,
+     "exp_na_hp": 0.9,
+     "cios_max": 100,
+     "najgrozniejszy": "minotaur guard",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 35
+    },
+    {
+     "srodek": {
+      "x": 32659,
+      "y": 31979,
+      "z": 13
+     },
+     "obszar": {
+      "x1": 32648,
+      "y1": 31969,
+      "x2": 32665,
+      "y2": 31993
+     },
+     "potwory": {
+      "dwarf soldier": 6,
+      "dwarf": 4,
+      "rotworm": 4
+     },
+     "potworow": 14,
+     "sufit_exp_h": 4656,
+     "exp_na_hp": 0.53,
+     "cios_max": 70,
+     "najgrozniejszy": "dwarf soldier",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 55
+    },
+    {
+     "srodek": {
+      "x": 32665,
+      "y": 31945,
+      "z": 13
+     },
+     "obszar": {
+      "x1": 32663,
+      "y1": 31938,
+      "x2": 32669,
+      "y2": 31953
+     },
+     "potwory": {
+      "dwarf soldier": 7,
+      "dwarf": 3
+     },
+     "potworow": 10,
+     "sufit_exp_h": 3750,
+     "exp_na_hp": 0.51,
+     "cios_max": 70,
+     "najgrozniejszy": "dwarf soldier",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 26
+    },
+    {
+     "srodek": {
+      "x": 32619,
+      "y": 31990,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32614,
+      "y1": 31990,
+      "x2": 32622,
+      "y2": 31990
+     },
+     "potwory": {
+      "dwarf": 4,
+      "dwarf soldier": 4,
+      "rotworm": 3
+     },
+     "potworow": 11,
+     "sufit_exp_h": 3624,
+     "exp_na_hp": 0.53,
+     "cios_max": 70,
+     "najgrozniejszy": "dwarf soldier",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 72
+    },
+    {
+     "srodek": {
+      "x": 32712,
+      "y": 32007,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32700,
+      "y1": 31991,
+      "x2": 32721,
+      "y2": 32014
+     },
+     "potwory": {
+      "rotworm": 12
+     },
+     "potworow": 12,
+     "sufit_exp_h": 3578,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 103
+    },
+    {
+     "srodek": {
+      "x": 32643,
+      "y": 31995,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32624,
+      "y1": 31970,
+      "x2": 32660,
+      "y2": 32025
+     },
+     "potwory": {
+      "troll": 20,
+      "minotaur archer": 1,
+      "minotaur mage": 1,
+      "rotworm": 1,
+      "snake": 1
+     },
+     "potworow": 24,
+     "sufit_exp_h": 3164,
+     "exp_na_hp": 0.5,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 70
+    },
+    {
+     "srodek": {
+      "x": 32662,
+      "y": 31898,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32650,
+      "y1": 31887,
+      "x2": 32667,
+      "y2": 31920
+     },
+     "potwory": {
+      "poison spider": 8,
+      "spider": 6,
+      "rotworm": 3,
+      "dwarf": 2
+     },
+     "potworow": 19,
+     "sufit_exp_h": 2892,
+     "exp_na_hp": 0.65,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 30
+    },
+    {
+     "srodek": {
+      "x": 32657,
+      "y": 31967,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32633,
+      "y1": 31949,
+      "x2": 32668,
+      "y2": 31981
+     },
+     "potwory": {
+      "troll": 15,
+      "snake": 11
+     },
+     "potworow": 26,
+     "sufit_exp_h": 2774,
+     "exp_na_hp": 0.45,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 43
+    },
+    {
+     "srodek": {
+      "x": 32554,
+      "y": 31920,
+      "z": 13
+     },
+     "obszar": {
+      "x1": 32553,
+      "y1": 31919,
+      "x2": 32554,
+      "y2": 31920
+     },
+     "potwory": {
+      "dwarf soldier": 3,
+      "rotworm": 3
+     },
+     "potworow": 6,
+     "sufit_exp_h": 2124,
+     "exp_na_hp": 0.55,
+     "cios_max": 70,
+     "najgrozniejszy": "dwarf soldier",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 95
+    },
+    {
+     "srodek": {
+      "x": 32570,
+      "y": 31902,
+      "z": 4
+     },
+     "obszar": {
+      "x1": 32570,
+      "y1": 31902,
+      "x2": 32570,
+      "y2": 31902
+     },
+     "potwory": {
+      "dwarf": 7
+     },
+     "potworow": 7,
+     "sufit_exp_h": 1890,
+     "exp_na_hp": 0.5,
+     "cios_max": 30,
+     "najgrozniejszy": "dwarf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 82
+    },
+    {
+     "srodek": {
+      "x": 32591,
+      "y": 31984,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32584,
+      "y1": 31977,
+      "x2": 32605,
+      "y2": 31994
+     },
+     "potwory": {
+      "bug": 17,
+      "rat": 1
+     },
+     "potworow": 18,
+     "sufit_exp_h": 1862,
+     "exp_na_hp": 0.61,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 83
+    },
+    {
+     "srodek": {
+      "x": 32584,
+      "y": 31992,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32580,
+      "y1": 31991,
+      "x2": 32591,
+      "y2": 31993
+     },
+     "potwory": {
+      "dwarf soldier": 3,
+      "rotworm": 2
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1836,
+     "exp_na_hp": 0.54,
+     "cios_max": 70,
+     "najgrozniejszy": "dwarf soldier",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 93
+    },
+    {
+     "srodek": {
+      "x": 32669,
+      "y": 31895,
+      "z": 13
+     },
+     "obszar": {
+      "x1": 32668,
+      "y1": 31894,
+      "x2": 32669,
+      "y2": 31897
+     },
+     "potwory": {
+      "dwarf soldier": 3,
+      "rotworm": 2
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1836,
+     "exp_na_hp": 0.54,
+     "cios_max": 70,
+     "najgrozniejszy": "dwarf soldier",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 36
+    },
+    {
+     "srodek": {
+      "x": 32552,
+      "y": 31929,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32540,
+      "y1": 31925,
+      "x2": 32557,
+      "y2": 31935
+     },
+     "potwory": {
+      "dwarf": 4,
+      "rotworm": 2
+     },
+     "potworow": 6,
+     "sufit_exp_h": 1656,
+     "exp_na_hp": 0.53,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 97
+    },
+    {
+     "srodek": {
+      "x": 32617,
+      "y": 31964,
+      "z": 6
+     },
+     "obszar": {
+      "x1": 32616,
+      "y1": 31964,
+      "x2": 32618,
+      "y2": 31964
+     },
+     "potwory": {
+      "dwarf": 3,
+      "dwarf soldier": 2
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1650,
+     "exp_na_hp": 0.51,
+     "cios_max": 70,
+     "najgrozniejszy": "dwarf soldier",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 50
+    },
+    {
+     "srodek": {
+      "x": 32567,
+      "y": 31902,
+      "z": 5
+     },
+     "obszar": {
+      "x1": 32567,
+      "y1": 31902,
+      "x2": 32567,
+      "y2": 31902
+     },
+     "potwory": {
+      "dwarf": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 1620,
+     "exp_na_hp": 0.5,
+     "cios_max": 30,
+     "najgrozniejszy": "dwarf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 85
+    },
+    {
+     "srodek": {
+      "x": 32663,
+      "y": 31894,
+      "z": 15
+     },
+     "obszar": {
+      "x1": 32655,
+      "y1": 31877,
+      "x2": 32668,
+      "y2": 31901
+     },
+     "potwory": {
+      "poison spider": 4,
+      "slime": 3
+     },
+     "potworow": 7,
+     "sufit_exp_h": 1518,
+     "exp_na_hp": 0.46,
+     "cios_max": 110,
+     "najgrozniejszy": "slime",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 34
+    },
+    {
+     "srodek": {
+      "x": 32626,
+      "y": 31825,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32626,
+      "y1": 31820,
+      "x2": 32627,
+      "y2": 31828
+     },
+     "potwory": {
+      "rotworm": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1440,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 103
+    },
+    {
+     "srodek": {
+      "x": 32718,
+      "y": 31998,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32713,
+      "y1": 31994,
+      "x2": 32721,
+      "y2": 32001
+     },
+     "potwory": {
+      "rotworm": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1440,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 100
+    },
+    {
+     "srodek": {
+      "x": 32629,
+      "y": 31939,
+      "z": 13
+     },
+     "obszar": {
+      "x1": 32629,
+      "y1": 31939,
+      "x2": 32629,
+      "y2": 31939
+     },
+     "potwory": {
+      "dwarf": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1350,
+     "exp_na_hp": 0.5,
+     "cios_max": 30,
+     "najgrozniejszy": "dwarf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 24
+    },
+    {
+     "srodek": {
+      "x": 32742,
+      "y": 31976,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 32737,
+      "y1": 31972,
+      "x2": 32747,
+      "y2": 31982
+     },
+     "potwory": {
+      "wasp": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1253,
+     "exp_na_hp": 0.69,
+     "cios_max": 20,
+     "najgrozniejszy": "wasp",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 106
+    },
+    {
+     "srodek": {
+      "x": 32723,
+      "y": 32006,
+      "z": 6
+     },
+     "obszar": {
+      "x1": 32718,
+      "y1": 32006,
+      "x2": 32731,
+      "y2": 32006
+     },
+     "potwory": {
+      "poison spider": 3,
+      "slime": 2
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1188,
+     "exp_na_hp": 0.47,
+     "cios_max": 110,
+     "najgrozniejszy": "slime",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 110
+    },
+    {
+     "srodek": {
+      "x": 32579,
+      "y": 31958,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32579,
+      "y1": 31958,
+      "x2": 32579,
+      "y2": 31958
+     },
+     "potwory": {
+      "wolf": 9
+     },
+     "potworow": 9,
+     "sufit_exp_h": 1166,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 77
+    },
+    {
+     "srodek": {
+      "x": 32646,
+      "y": 31873,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32639,
+      "y1": 31867,
+      "x2": 32647,
+      "y2": 31874
+     },
+     "potwory": {
+      "wolf": 7,
+      "snake": 1
+     },
+     "potworow": 8,
+     "sufit_exp_h": 967,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 52
+    },
+    {
+     "srodek": {
+      "x": 32717,
+      "y": 31958,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32710,
+      "y1": 31954,
+      "x2": 32721,
+      "y2": 31964
+     },
+     "potwory": {
+      "scorpion": 3,
+      "snake": 2
+     },
+     "potworow": 5,
+     "sufit_exp_h": 930,
+     "exp_na_hp": 0.94,
+     "cios_max": 50,
+     "najgrozniejszy": "scorpion",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 76
+    },
+    {
+     "srodek": {
+      "x": 32666,
+      "y": 31929,
+      "z": 15
+     },
+     "obszar": {
+      "x1": 32666,
+      "y1": 31924,
+      "x2": 32666,
+      "y2": 31935
+     },
+     "potwory": {
+      "poison spider": 7
+     },
+     "potworow": 7,
+     "sufit_exp_h": 924,
+     "exp_na_hp": 0.85,
+     "cios_max": 20,
+     "najgrozniejszy": "poison spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 17
+    },
+    {
+     "srodek": {
+      "x": 32690,
+      "y": 31940,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32690,
+      "y1": 31933,
+      "x2": 32691,
+      "y2": 31946
+     },
+     "potwory": {
+      "poison spider": 7
+     },
+     "potworow": 7,
+     "sufit_exp_h": 924,
+     "exp_na_hp": 0.85,
+     "cios_max": 20,
+     "najgrozniejszy": "poison spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 44
+    },
+    {
+     "srodek": {
+      "x": 32654,
+      "y": 31969,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32645,
+      "y1": 31960,
+      "x2": 32658,
+      "y2": 31981
+     },
+     "potwory": {
+      "troll": 8
+     },
+     "potworow": 8,
+     "sufit_exp_h": 890,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 44
+    },
+    {
+     "srodek": {
+      "x": 32545,
+      "y": 31939,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32532,
+      "y1": 31931,
+      "x2": 32552,
+      "y2": 31952
+     },
+     "potwory": {
+      "poison spider": 4,
+      "bear": 2,
+      "snake": 2
+     },
+     "potworow": 8,
+     "sufit_exp_h": 885,
+     "exp_na_hp": 0.52,
+     "cios_max": 25,
+     "najgrozniejszy": "bear",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 105
+    },
+    {
+     "srodek": {
+      "x": 32635,
+      "y": 31988,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32627,
+      "y1": 31987,
+      "x2": 32641,
+      "y2": 31989
+     },
+     "potwory": {
+      "troll": 7
+     },
+     "potworow": 7,
+     "sufit_exp_h": 812,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 65
+    },
+    {
+     "srodek": {
+      "x": 32600,
+      "y": 31878,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 32600,
+      "y1": 31878,
+      "x2": 32600,
+      "y2": 31878
+     },
+     "potwory": {
+      "rotworm": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 800,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 68
+    },
+    {
+     "srodek": {
+      "x": 32741,
+      "y": 31877,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32741,
+      "y1": 31877,
+      "x2": 32741,
+      "y2": 31877
+     },
+     "potwory": {
+      "wolf": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 778,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 104
+    },
+    {
+     "srodek": {
+      "x": 32741,
+      "y": 31943,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32741,
+      "y1": 31943,
+      "x2": 32741,
+      "y2": 31943
+     },
+     "potwory": {
+      "wasp": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 720,
+     "exp_na_hp": 0.69,
+     "cios_max": 20,
+     "najgrozniejszy": "wasp",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 94
+    },
+    {
+     "srodek": {
+      "x": 32704,
+      "y": 31988,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32703,
+      "y1": 31986,
+      "x2": 32704,
+      "y2": 31991
+     },
+     "potwory": {
+      "poison spider": 4,
+      "spider": 2
+     },
+     "potworow": 6,
+     "sufit_exp_h": 672,
+     "exp_na_hp": 0.78,
+     "cios_max": 20,
+     "najgrozniejszy": "poison spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 84
+    },
+    {
+     "srodek": {
+      "x": 32597,
+      "y": 32011,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32597,
+      "y1": 32011,
+      "x2": 32597,
+      "y2": 32011
+     },
+     "potwory": {
+      "wolf": 7
+     },
+     "potworow": 7,
+     "sufit_exp_h": 648,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 100
+    },
+    {
+     "srodek": {
+      "x": 32609,
+      "y": 31828,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32609,
+      "y1": 31828,
+      "x2": 32609,
+      "y2": 31828
+     },
+     "potwory": {
+      "goblin": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 600,
+     "exp_na_hp": 0.5,
+     "cios_max": 10,
+     "najgrozniejszy": "goblin",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 105
+    },
+    {
+     "srodek": {
+      "x": 32714,
+      "y": 31966,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32713,
+      "y1": 31961,
+      "x2": 32714,
+      "y2": 31970
+     },
+     "potwory": {
+      "snake": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 300,
+     "exp_na_hp": 0.67,
+     "cios_max": 8,
+     "najgrozniejszy": "snake",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 77
+    },
+    {
+     "srodek": {
+      "x": 32640,
+      "y": 32011,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32640,
+      "y1": 32011,
+      "x2": 32640,
+      "y2": 32011
+     },
+     "potwory": {
+      "wolf": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 288,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 86
+    },
+    {
+     "srodek": {
+      "x": 32613,
+      "y": 31889,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32613,
+      "y1": 31889,
+      "x2": 32613,
+      "y2": 31889
+     },
+     "potwory": {
+      "snake": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 240,
+     "exp_na_hp": 0.67,
+     "cios_max": 8,
+     "najgrozniejszy": "snake",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 51
+    },
+    {
+     "srodek": {
+      "x": 32709,
+      "y": 31880,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32709,
+      "y1": 31880,
+      "x2": 32709,
+      "y2": 31880
+     },
+     "potwory": {
+      "snake": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 240,
+     "exp_na_hp": 0.67,
+     "cios_max": 8,
+     "najgrozniejszy": "snake",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 75
+    }
+   ]
+  },
+  "Venore": {
+   "swiatynia": {
+    "x": 32957,
+    "y": 32076,
+    "z": 7
+   },
+   "spoty": [
+    {
+     "srodek": {
+      "x": 33048,
+      "y": 32105,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33022,
+      "y1": 32073,
+      "x2": 33072,
+      "y2": 32141
+     },
+     "potwory": {
+      "rotworm": 37
+     },
+     "potworow": 37,
+     "sufit_exp_h": 9696,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 96
+    },
+    {
+     "srodek": {
+      "x": 32935,
+      "y": 32196,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32913,
+      "y1": 32172,
+      "x2": 32954,
+      "y2": 32223
+     },
+     "potwory": {
+      "swamp troll": 32
+     },
+     "potworow": 32,
+     "sufit_exp_h": 4800,
+     "exp_na_hp": 0.45,
+     "cios_max": 13,
+     "najgrozniejszy": "swamp troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 122
+    },
+    {
+     "srodek": {
+      "x": 33054,
+      "y": 32034,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33047,
+      "y1": 32018,
+      "x2": 33060,
+      "y2": 32047
+     },
+     "potwory": {
+      "snake": 13,
+      "orc": 8,
+      "orc spearman": 5
+     },
+     "potworow": 26,
+     "sufit_exp_h": 3120,
+     "exp_na_hp": 0.41,
+     "cios_max": 35,
+     "najgrozniejszy": "orc",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 106
+    },
+    {
+     "srodek": {
+      "x": 32944,
+      "y": 32187,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32935,
+      "y1": 32171,
+      "x2": 32952,
+      "y2": 32202
+     },
+     "potwory": {
+      "swamp troll": 17
+     },
+     "potworow": 17,
+     "sufit_exp_h": 2550,
+     "exp_na_hp": 0.45,
+     "cios_max": 13,
+     "najgrozniejszy": "swamp troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 112
+    },
+    {
+     "srodek": {
+      "x": 33061,
+      "y": 32021,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33044,
+      "y1": 32014,
+      "x2": 33073,
+      "y2": 32028
+     },
+     "potwory": {
+      "orc spearman": 6,
+      "snake": 6,
+      "orc": 5
+     },
+     "potworow": 17,
+     "sufit_exp_h": 2478,
+     "exp_na_hp": 0.39,
+     "cios_max": 35,
+     "najgrozniejszy": "orc",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 118
+    },
+    {
+     "srodek": {
+      "x": 33007,
+      "y": 32073,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33004,
+      "y1": 32072,
+      "x2": 33012,
+      "y2": 32074
+     },
+     "potwory": {
+      "rotworm": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1296,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 50
+    },
+    {
+     "srodek": {
+      "x": 33016,
+      "y": 32012,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33008,
+      "y1": 32004,
+      "x2": 33026,
+      "y2": 32022
+     },
+     "potwory": {
+      "rotworm": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 1152,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 87
+    },
+    {
+     "srodek": {
+      "x": 33013,
+      "y": 32080,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33008,
+      "y1": 32078,
+      "x2": 33018,
+      "y2": 32082
+     },
+     "potwory": {
+      "rotworm": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 1152,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 56
+    },
+    {
+     "srodek": {
+      "x": 33002,
+      "y": 32118,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33002,
+      "y1": 32118,
+      "x2": 33002,
+      "y2": 32118
+     },
+     "potwory": {
+      "rotworm": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 1152,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 62
+    },
+    {
+     "srodek": {
+      "x": 32893,
+      "y": 32017,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32891,
+      "y1": 32009,
+      "x2": 32898,
+      "y2": 32026
+     },
+     "potwory": {
+      "bug": 9
+     },
+     "potworow": 9,
+     "sufit_exp_h": 972,
+     "exp_na_hp": 0.62,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 87
+    },
+    {
+     "srodek": {
+      "x": 33058,
+      "y": 32029,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33053,
+      "y1": 32023,
+      "x2": 33061,
+      "y2": 32034
+     },
+     "potwory": {
+      "snake": 7,
+      "orc": 2,
+      "orc spearman": 1
+     },
+     "potworow": 10,
+     "sufit_exp_h": 948,
+     "exp_na_hp": 0.45,
+     "cios_max": 35,
+     "najgrozniejszy": "orc",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 111
+    },
+    {
+     "srodek": {
+      "x": 32853,
+      "y": 32081,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32845,
+      "y1": 32071,
+      "x2": 32861,
+      "y2": 32098
+     },
+     "potwory": {
+      "snake": 10,
+      "bug": 2
+     },
+     "potworow": 12,
+     "sufit_exp_h": 816,
+     "exp_na_hp": 0.65,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 104
+    },
+    {
+     "srodek": {
+      "x": 32850,
+      "y": 32028,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32850,
+      "y1": 32028,
+      "x2": 32850,
+      "y2": 32028
+     },
+     "potwory": {
+      "bug": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 648,
+     "exp_na_hp": 0.62,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 117
+    },
+    {
+     "srodek": {
+      "x": 32885,
+      "y": 32016,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32885,
+      "y1": 32016,
+      "x2": 32885,
+      "y2": 32016
+     },
+     "potwory": {
+      "bug": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 648,
+     "exp_na_hp": 0.62,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 94
+    },
+    {
+     "srodek": {
+      "x": 32916,
+      "y": 32173,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32916,
+      "y1": 32173,
+      "x2": 32916,
+      "y2": 32173
+     },
+     "potwory": {
+      "swamp troll": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 600,
+     "exp_na_hp": 0.45,
+     "cios_max": 13,
+     "najgrozniejszy": "swamp troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 105
+    },
+    {
+     "srodek": {
+      "x": 33050,
+      "y": 32121,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33040,
+      "y1": 32114,
+      "x2": 33062,
+      "y2": 32125
+     },
+     "potwory": {
+      "snake": 9
+     },
+     "potworow": 9,
+     "sufit_exp_h": 540,
+     "exp_na_hp": 0.67,
+     "cios_max": 8,
+     "najgrozniejszy": "snake",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 103
+    },
+    {
+     "srodek": {
+      "x": 32871,
+      "y": 32014,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 32863,
+      "y1": 32009,
+      "x2": 32876,
+      "y2": 32020
+     },
+     "potwory": {
+      "bug": 2,
+      "cave rat": 2,
+      "swamp troll": 1
+     },
+     "potworow": 5,
+     "sufit_exp_h": 486,
+     "exp_na_hp": 0.47,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 106
+    },
+    {
+     "srodek": {
+      "x": 33058,
+      "y": 32044,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33056,
+      "y1": 32043,
+      "x2": 33058,
+      "y2": 32046
+     },
+     "potwory": {
+      "snake": 3,
+      "orc spearman": 1
+     },
+     "potworow": 4,
+     "sufit_exp_h": 408,
+     "exp_na_hp": 0.45,
+     "cios_max": 25,
+     "najgrozniejszy": "orc spearman",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 106
+    },
+    {
+     "srodek": {
+      "x": 32903,
+      "y": 32192,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 32903,
+      "y1": 32192,
+      "x2": 32903,
+      "y2": 32192
+     },
+     "potwory": {
+      "cave rat": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 300,
+     "exp_na_hp": 0.33,
+     "cios_max": 10,
+     "najgrozniejszy": "cave rat",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 128
+    },
+    {
+     "srodek": {
+      "x": 33010,
+      "y": 32141,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33009,
+      "y1": 32137,
+      "x2": 33012,
+      "y2": 32148
+     },
+     "potwory": {
+      "snake": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 300,
+     "exp_na_hp": 0.67,
+     "cios_max": 8,
+     "najgrozniejszy": "snake",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 84
+    },
+    {
+     "srodek": {
+      "x": 32968,
+      "y": 32141,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 32968,
+      "y1": 32141,
+      "x2": 32968,
+      "y2": 32141
+     },
+     "potwory": {
+      "snake": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 240,
+     "exp_na_hp": 0.67,
+     "cios_max": 8,
+     "najgrozniejszy": "snake",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 66
+    },
+    {
+     "srodek": {
+      "x": 33011,
+      "y": 32008,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33011,
+      "y1": 32008,
+      "x2": 33011,
+      "y2": 32008
+     },
+     "potwory": {
+      "snake": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 240,
+     "exp_na_hp": 0.67,
+     "cios_max": 8,
+     "najgrozniejszy": "snake",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 87
+    },
+    {
+     "srodek": {
+      "x": 33006,
+      "y": 32175,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33006,
+      "y1": 32175,
+      "x2": 33006,
+      "y2": 32175
+     },
+     "potwory": {
+      "snake": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 240,
+     "exp_na_hp": 0.67,
+     "cios_max": 8,
+     "najgrozniejszy": "snake",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 110
+    },
+    {
+     "srodek": {
+      "x": 33050,
+      "y": 32079,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33050,
+      "y1": 32079,
+      "x2": 33050,
+      "y2": 32079
+     },
+     "potwory": {
+      "snake": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 240,
+     "exp_na_hp": 0.67,
+     "cios_max": 8,
+     "najgrozniejszy": "snake",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 93
+    }
+   ]
+  },
+  "Edron": {
+   "swiatynia": {
+    "x": 33217,
+    "y": 31814,
+    "z": 8
+   },
+   "spoty": [
+    {
+     "srodek": {
+      "x": 33239,
+      "y": 31872,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33207,
+      "y1": 31830,
+      "x2": 33266,
+      "y2": 31921
+     },
+     "potwory": {
+      "rotworm": 36
+     },
+     "potworow": 36,
+     "sufit_exp_h": 10368,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 62
+    },
+    {
+     "srodek": {
+      "x": 33154,
+      "y": 31913,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33140,
+      "y1": 31892,
+      "x2": 33168,
+      "y2": 31933
+     },
+     "potwory": {
+      "orc spearman": 17,
+      "orc": 15,
+      "poison spider": 11,
+      "orc warrior": 5
+     },
+     "potworow": 48,
+     "sufit_exp_h": 9078,
+     "exp_na_hp": 0.4,
+     "cios_max": 60,
+     "najgrozniejszy": "orc warrior",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 117
+    },
+    {
+     "srodek": {
+      "x": 33253,
+      "y": 31707,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33253,
+      "y1": 31698,
+      "x2": 33254,
+      "y2": 31712
+     },
+     "potwory": {
+      "cyclops": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 5400,
+     "exp_na_hp": 0.58,
+     "cios_max": 105,
+     "najgrozniejszy": "cyclops",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 113
+    },
+    {
+     "srodek": {
+      "x": 33264,
+      "y": 31868,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 33243,
+      "y1": 31854,
+      "x2": 33284,
+      "y2": 31883
+     },
+     "potwory": {
+      "rotworm": 14
+     },
+     "potworow": 14,
+     "sufit_exp_h": 4032,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 72
+    },
+    {
+     "srodek": {
+      "x": 33249,
+      "y": 31768,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33245,
+      "y1": 31765,
+      "x2": 33257,
+      "y2": 31771
+     },
+     "potwory": {
+      "ghoul": 5,
+      "skeleton": 4
+     },
+     "potworow": 9,
+     "sufit_exp_h": 3390,
+     "exp_na_hp": 0.81,
+     "cios_max": 70,
+     "najgrozniejszy": "ghoul",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 56
+    },
+    {
+     "srodek": {
+      "x": 33259,
+      "y": 31912,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33246,
+      "y1": 31891,
+      "x2": 33271,
+      "y2": 31931
+     },
+     "potwory": {
+      "rotworm": 11
+     },
+     "potworow": 11,
+     "sufit_exp_h": 3168,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 107
+    },
+    {
+     "srodek": {
+      "x": 33105,
+      "y": 31808,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 33092,
+      "y1": 31800,
+      "x2": 33115,
+      "y2": 31823
+     },
+     "potwory": {
+      "goblin": 19,
+      "wasp": 2
+     },
+     "potworow": 21,
+     "sufit_exp_h": 3138,
+     "exp_na_hp": 0.51,
+     "cios_max": 20,
+     "najgrozniejszy": "wasp",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 112
+    },
+    {
+     "srodek": {
+      "x": 33205,
+      "y": 31704,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33204,
+      "y1": 31698,
+      "x2": 33207,
+      "y2": 31708
+     },
+     "potwory": {
+      "wolf": 4,
+      "hunter": 3
+     },
+     "potworow": 7,
+     "sufit_exp_h": 3132,
+     "exp_na_hp": 0.95,
+     "cios_max": 20,
+     "najgrozniejszy": "hunter",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 111
+    },
+    {
+     "srodek": {
+      "x": 33105,
+      "y": 31849,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 33095,
+      "y1": 31836,
+      "x2": 33111,
+      "y2": 31867
+     },
+     "potwory": {
+      "bug": 18,
+      "goblin": 6
+     },
+     "potworow": 24,
+     "sufit_exp_h": 2844,
+     "exp_na_hp": 0.58,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 117
+    },
+    {
+     "srodek": {
+      "x": 33175,
+      "y": 31874,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33167,
+      "y1": 31869,
+      "x2": 33183,
+      "y2": 31879
+     },
+     "potwory": {
+      "poison spider": 6,
+      "orc": 4,
+      "orc spearman": 2,
+      "orc warrior": 2
+     },
+     "potworow": 14,
+     "sufit_exp_h": 2448,
+     "exp_na_hp": 0.46,
+     "cios_max": 60,
+     "najgrozniejszy": "orc warrior",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 73
+    },
+    {
+     "srodek": {
+      "x": 33330,
+      "y": 31806,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33326,
+      "y1": 31789,
+      "x2": 33336,
+      "y2": 31822
+     },
+     "potwory": {
+      "rotworm": 8
+     },
+     "potworow": 8,
+     "sufit_exp_h": 2304,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 113
+    },
+    {
+     "srodek": {
+      "x": 33242,
+      "y": 31919,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33235,
+      "y1": 31913,
+      "x2": 33248,
+      "y2": 31927
+     },
+     "potwory": {
+      "rotworm": 7
+     },
+     "potworow": 7,
+     "sufit_exp_h": 2016,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 108
+    },
+    {
+     "srodek": {
+      "x": 33147,
+      "y": 31880,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33140,
+      "y1": 31876,
+      "x2": 33151,
+      "y2": 31887
+     },
+     "potwory": {
+      "orc": 3,
+      "orc spearman": 3,
+      "poison spider": 3,
+      "orc warrior": 1
+     },
+     "potworow": 10,
+     "sufit_exp_h": 1830,
+     "exp_na_hp": 0.42,
+     "cios_max": 60,
+     "najgrozniejszy": "orc warrior",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 96
+    },
+    {
+     "srodek": {
+      "x": 33123,
+      "y": 31741,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33112,
+      "y1": 31726,
+      "x2": 33137,
+      "y2": 31753
+     },
+     "potwory": {
+      "troll": 15
+     },
+     "potworow": 15,
+     "sufit_exp_h": 1800,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 119
+    },
+    {
+     "srodek": {
+      "x": 33238,
+      "y": 31846,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 33233,
+      "y1": 31840,
+      "x2": 33242,
+      "y2": 31852
+     },
+     "potwory": {
+      "rotworm": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 1728,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 38
+    },
+    {
+     "srodek": {
+      "x": 33133,
+      "y": 31722,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 33129,
+      "y1": 31718,
+      "x2": 33138,
+      "y2": 31727
+     },
+     "potwory": {
+      "troll": 7,
+      "bear": 3,
+      "swamp troll": 2,
+      "frost troll": 1
+     },
+     "potworow": 13,
+     "sufit_exp_h": 1646,
+     "exp_na_hp": 0.37,
+     "cios_max": 25,
+     "najgrozniejszy": "bear",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 125
+    },
+    {
+     "srodek": {
+      "x": 33268,
+      "y": 31870,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 33264,
+      "y1": 31860,
+      "x2": 33270,
+      "y2": 31879
+     },
+     "potwory": {
+      "rotworm": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1440,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 76
+    },
+    {
+     "srodek": {
+      "x": 33265,
+      "y": 31904,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33257,
+      "y1": 31897,
+      "x2": 33270,
+      "y2": 31909
+     },
+     "potwory": {
+      "rotworm": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1440,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 102
+    },
+    {
+     "srodek": {
+      "x": 33323,
+      "y": 31771,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33317,
+      "y1": 31762,
+      "x2": 33327,
+      "y2": 31779
+     },
+     "potwory": {
+      "rotworm": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1440,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 114
+    },
+    {
+     "srodek": {
+      "x": 33181,
+      "y": 31899,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33181,
+      "y1": 31897,
+      "x2": 33182,
+      "y2": 31901
+     },
+     "potwory": {
+      "poison spider": 4,
+      "orc spearman": 3
+     },
+     "potworow": 7,
+     "sufit_exp_h": 1212,
+     "exp_na_hp": 0.48,
+     "cios_max": 25,
+     "najgrozniejszy": "orc spearman",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 92
+    },
+    {
+     "srodek": {
+      "x": 33108,
+      "y": 31846,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33107,
+      "y1": 31839,
+      "x2": 33108,
+      "y2": 31853
+     },
+     "potwory": {
+      "goblin": 8
+     },
+     "potworow": 8,
+     "sufit_exp_h": 1200,
+     "exp_na_hp": 0.5,
+     "cios_max": 10,
+     "najgrozniejszy": "goblin",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 114
+    },
+    {
+     "srodek": {
+      "x": 33091,
+      "y": 31844,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33091,
+      "y1": 31840,
+      "x2": 33091,
+      "y2": 31847
+     },
+     "potwory": {
+      "goblin": 7
+     },
+     "potworow": 7,
+     "sufit_exp_h": 1050,
+     "exp_na_hp": 0.5,
+     "cios_max": 10,
+     "najgrozniejszy": "goblin",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 130
+    },
+    {
+     "srodek": {
+      "x": 33272,
+      "y": 31700,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33268,
+      "y1": 31696,
+      "x2": 33274,
+      "y2": 31707
+     },
+     "potwory": {
+      "wolf": 7,
+      "snake": 4
+     },
+     "potworow": 11,
+     "sufit_exp_h": 996,
+     "exp_na_hp": 0.71,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 127
+    },
+    {
+     "srodek": {
+      "x": 33106,
+      "y": 31873,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33102,
+      "y1": 31868,
+      "x2": 33110,
+      "y2": 31878
+     },
+     "potwory": {
+      "goblin": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 900,
+     "exp_na_hp": 0.5,
+     "cios_max": 10,
+     "najgrozniejszy": "goblin",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 126
+    },
+    {
+     "srodek": {
+      "x": 33237,
+      "y": 31767,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33237,
+      "y1": 31767,
+      "x2": 33237,
+      "y2": 31767
+     },
+     "potwory": {
+      "skeleton": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 840,
+     "exp_na_hp": 0.7,
+     "cios_max": 17,
+     "najgrozniejszy": "skeleton",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 51
+    },
+    {
+     "srodek": {
+      "x": 33144,
+      "y": 31853,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33141,
+      "y1": 31851,
+      "x2": 33149,
+      "y2": 31855
+     },
+     "potwory": {
+      "snake": 4,
+      "poison spider": 3,
+      "orc": 1
+     },
+     "potworow": 8,
+     "sufit_exp_h": 786,
+     "exp_na_hp": 0.63,
+     "cios_max": 35,
+     "najgrozniejszy": "orc",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 83
+    },
+    {
+     "srodek": {
+      "x": 33158,
+      "y": 31717,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33158,
+      "y1": 31717,
+      "x2": 33158,
+      "y2": 31717
+     },
+     "potwory": {
+      "wolf": 7
+     },
+     "potworow": 7,
+     "sufit_exp_h": 756,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 114
+    },
+    {
+     "srodek": {
+      "x": 33103,
+      "y": 31849,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33100,
+      "y1": 31849,
+      "x2": 33108,
+      "y2": 31849
+     },
+     "potwory": {
+      "goblin": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 750,
+     "exp_na_hp": 0.5,
+     "cios_max": 10,
+     "najgrozniejszy": "goblin",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 119
+    },
+    {
+     "srodek": {
+      "x": 33122,
+      "y": 31776,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33117,
+      "y1": 31773,
+      "x2": 33128,
+      "y2": 31780
+     },
+     "potwory": {
+      "troll": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 720,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 102
+    },
+    {
+     "srodek": {
+      "x": 33115,
+      "y": 31773,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33115,
+      "y1": 31773,
+      "x2": 33115,
+      "y2": 31773
+     },
+     "potwory": {
+      "troll": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 600,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 110
+    },
+    {
+     "srodek": {
+      "x": 33113,
+      "y": 31744,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33113,
+      "y1": 31744,
+      "x2": 33113,
+      "y2": 31744
+     },
+     "potwory": {
+      "troll": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 480,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 125
+    },
+    {
+     "srodek": {
+      "x": 33130,
+      "y": 31751,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33130,
+      "y1": 31751,
+      "x2": 33130,
+      "y2": 31751
+     },
+     "potwory": {
+      "troll": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 480,
+     "exp_na_hp": 0.4,
+     "cios_max": 15,
+     "najgrozniejszy": "troll",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 107
+    },
+    {
+     "srodek": {
+      "x": 33131,
+      "y": 31835,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33131,
+      "y1": 31835,
+      "x2": 33131,
+      "y2": 31835
+     },
+     "potwory": {
+      "bug": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 432,
+     "exp_na_hp": 0.62,
+     "cios_max": 23,
+     "najgrozniejszy": "bug",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 89
+    },
+    {
+     "srodek": {
+      "x": 33096,
+      "y": 31815,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33096,
+      "y1": 31815,
+      "x2": 33096,
+      "y2": 31815
+     },
+     "potwory": {
+      "wolf": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 432,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 121
+    },
+    {
+     "srodek": {
+      "x": 33214,
+      "y": 31729,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33214,
+      "y1": 31729,
+      "x2": 33214,
+      "y2": 31729
+     },
+     "potwory": {
+      "wolf": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 432,
+     "exp_na_hp": 0.72,
+     "cios_max": 17,
+     "najgrozniejszy": "wolf",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 85
+    },
+    {
+     "srodek": {
+      "x": 33290,
+      "y": 31818,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33290,
+      "y1": 31818,
+      "x2": 33290,
+      "y2": 31818
+     },
+     "potwory": {
+      "spider": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 288,
+     "exp_na_hp": 0.6,
+     "cios_max": 9,
+     "najgrozniejszy": "spider",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 73
+    }
+   ]
+  },
+  "Darashia": {
+   "swiatynia": {
+    "x": 33213,
+    "y": 32454,
+    "z": 1
+   },
+   "spoty": [
+    {
+     "srodek": {
+      "x": 33147,
+      "y": 32509,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33119,
+      "y1": 32495,
+      "x2": 33172,
+      "y2": 32530
+     },
+     "potwory": {
+      "blue djinn": 12,
+      "scarab": 10,
+      "fire elemental": 8,
+      "marid": 3,
+      "lion": 2
+     },
+     "potworow": 35,
+     "sufit_exp_h": 37200,
+     "exp_na_hp": 0.55,
+     "cios_max": 110,
+     "najgrozniejszy": "blue djinn",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 86
+    },
+    {
+     "srodek": {
+      "x": 33127,
+      "y": 32526,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33096,
+      "y1": 32513,
+      "x2": 33153,
+      "y2": 32538
+     },
+     "potwory": {
+      "blue djinn": 15,
+      "lion": 10,
+      "stone golem": 10,
+      "scarab": 4
+     },
+     "potworow": 39,
+     "sufit_exp_h": 31380,
+     "exp_na_hp": 0.54,
+     "cios_max": 110,
+     "najgrozniejszy": "blue djinn",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 112
+    },
+    {
+     "srodek": {
+      "x": 33273,
+      "y": 32541,
+      "z": 13
+     },
+     "obszar": {
+      "x1": 33251,
+      "y1": 32507,
+      "x2": 33304,
+      "y2": 32577
+     },
+     "potwory": {
+      "mummy": 13,
+      "cobra": 8,
+      "ghoul": 8,
+      "stalker": 7,
+      "scarab": 4,
+      "skeleton": 4,
+      "slime": 3,
+      "ghost": 2
+     },
+     "potworow": 49,
+     "sufit_exp_h": 20046,
+     "exp_na_hp": 0.6,
+     "cios_max": 110,
+     "najgrozniejszy": "slime",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 106
+    },
+    {
+     "srodek": {
+      "x": 33099,
+      "y": 32511,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33096,
+      "y1": 32509,
+      "x2": 33102,
+      "y2": 32514
+     },
+     "potwory": {
+      "blue djinn": 3,
+      "fire elemental": 3,
+      "scarab": 3,
+      "marid": 2
+     },
+     "potworow": 11,
+     "sufit_exp_h": 13140,
+     "exp_na_hp": 0.56,
+     "cios_max": 110,
+     "najgrozniejszy": "blue djinn",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 127
+    },
+    {
+     "srodek": {
+      "x": 33145,
+      "y": 32553,
+      "z": 14
+     },
+     "obszar": {
+      "x1": 33145,
+      "y1": 32550,
+      "x2": 33147,
+      "y2": 32557
+     },
+     "potwory": {
+      "mummy": 4,
+      "stalker": 4,
+      "beholder": 3,
+      "priestess": 1
+     },
+     "potworow": 12,
+     "sufit_exp_h": 11340,
+     "exp_na_hp": 0.72,
+     "cios_max": 85,
+     "najgrozniejszy": "mummy",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 120
+    },
+    {
+     "srodek": {
+      "x": 33221,
+      "y": 32530,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 33210,
+      "y1": 32519,
+      "x2": 33228,
+      "y2": 32546
+     },
+     "potwory": {
+      "scarab": 10,
+      "larva": 5
+     },
+     "potworow": 15,
+     "sufit_exp_h": 8520,
+     "exp_na_hp": 0.4,
+     "cios_max": 75,
+     "najgrozniejszy": "scarab",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 76
+    },
+    {
+     "srodek": {
+      "x": 33129,
+      "y": 32426,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33112,
+      "y1": 32408,
+      "x2": 33144,
+      "y2": 32442
+     },
+     "potwory": {
+      "rotworm": 15
+     },
+     "potworow": 15,
+     "sufit_exp_h": 4320,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 89
+    },
+    {
+     "srodek": {
+      "x": 33246,
+      "y": 32529,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 33230,
+      "y1": 32528,
+      "x2": 33264,
+      "y2": 32530
+     },
+     "potwory": {
+      "skeleton": 6,
+      "cave rat": 4,
+      "poison spider": 4,
+      "ghoul": 3,
+      "beholder": 1,
+      "cobra": 1
+     },
+     "potworow": 19,
+     "sufit_exp_h": 4284,
+     "exp_na_hp": 0.69,
+     "cios_max": 70,
+     "najgrozniejszy": "ghoul",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 82
+    },
+    {
+     "srodek": {
+      "x": 33319,
+      "y": 32529,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 33311,
+      "y1": 32522,
+      "x2": 33329,
+      "y2": 32534
+     },
+     "potwory": {
+      "ghoul": 5,
+      "cave rat": 3,
+      "scorpion": 2,
+      "ghost": 1,
+      "mummy": 1
+     },
+     "potworow": 12,
+     "sufit_exp_h": 4080,
+     "exp_na_hp": 0.76,
+     "cios_max": 85,
+     "najgrozniejszy": "mummy",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 130
+    },
+    {
+     "srodek": {
+      "x": 33257,
+      "y": 32492,
+      "z": 14
+     },
+     "obszar": {
+      "x1": 33253,
+      "y1": 32492,
+      "x2": 33261,
+      "y2": 32493
+     },
+     "potwory": {
+      "stalker": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 3240,
+     "exp_na_hp": 0.75,
+     "cios_max": 70,
+     "najgrozniejszy": "stalker",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 58
+    },
+    {
+     "srodek": {
+      "x": 33220,
+      "y": 32567,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 33218,
+      "y1": 32566,
+      "x2": 33223,
+      "y2": 32567
+     },
+     "potwory": {
+      "larva": 4,
+      "scarab": 3
+     },
+     "potworow": 7,
+     "sufit_exp_h": 3216,
+     "exp_na_hp": 0.43,
+     "cios_max": 75,
+     "najgrozniejszy": "scarab",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 113
+    },
+    {
+     "srodek": {
+      "x": 33262,
+      "y": 32541,
+      "z": 11
+     },
+     "obszar": {
+      "x1": 33261,
+      "y1": 32538,
+      "x2": 33262,
+      "y2": 32544
+     },
+     "potwory": {
+      "larva": 3,
+      "scarab": 3
+     },
+     "potworow": 6,
+     "sufit_exp_h": 2952,
+     "exp_na_hp": 0.42,
+     "cios_max": 75,
+     "najgrozniejszy": "scarab",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 100
+    },
+    {
+     "srodek": {
+      "x": 33148,
+      "y": 32451,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33143,
+      "y1": 32440,
+      "x2": 33155,
+      "y2": 32461
+     },
+     "potwory": {
+      "rotworm": 9
+     },
+     "potworow": 9,
+     "sufit_exp_h": 2592,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 65
+    },
+    {
+     "srodek": {
+      "x": 33168,
+      "y": 32426,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33164,
+      "y1": 32422,
+      "x2": 33171,
+      "y2": 32429
+     },
+     "potwory": {
+      "rotworm": 8
+     },
+     "potworow": 8,
+     "sufit_exp_h": 2304,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 53
+    },
+    {
+     "srodek": {
+      "x": 33228,
+      "y": 32554,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 33228,
+      "y1": 32548,
+      "x2": 33229,
+      "y2": 32559
+     },
+     "potwory": {
+      "scarab": 2,
+      "slime": 2
+     },
+     "potworow": 4,
+     "sufit_exp_h": 1880,
+     "exp_na_hp": 0.37,
+     "cios_max": 110,
+     "najgrozniejszy": "slime",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 101
+    },
+    {
+     "srodek": {
+      "x": 33115,
+      "y": 32450,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33110,
+      "y1": 32449,
+      "x2": 33120,
+      "y2": 32452
+     },
+     "potwory": {
+      "rotworm": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 1728,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 98
+    },
+    {
+     "srodek": {
+      "x": 33131,
+      "y": 32380,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33125,
+      "y1": 32372,
+      "x2": 33139,
+      "y2": 32389
+     },
+     "potwory": {
+      "rotworm": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 1728,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 110
+    },
+    {
+     "srodek": {
+      "x": 33174,
+      "y": 32433,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33171,
+      "y1": 32427,
+      "x2": 33178,
+      "y2": 32439
+     },
+     "potwory": {
+      "rotworm": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 1728,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 44
+    },
+    {
+     "srodek": {
+      "x": 33176,
+      "y": 32466,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33174,
+      "y1": 32460,
+      "x2": 33177,
+      "y2": 32473
+     },
+     "potwory": {
+      "rotworm": 6
+     },
+     "potworow": 6,
+     "sufit_exp_h": 1584,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 39
+    },
+    {
+     "srodek": {
+      "x": 33240,
+      "y": 32513,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 33240,
+      "y1": 32511,
+      "x2": 33240,
+      "y2": 32513
+     },
+     "potwory": {
+      "skeleton": 4,
+      "mummy": 1
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1440,
+     "exp_na_hp": 0.66,
+     "cios_max": 85,
+     "najgrozniejszy": "mummy",
+     "przedzial": "15-30",
+     "odl_od_swiatyni": 65
+    },
+    {
+     "srodek": {
+      "x": 33132,
+      "y": 32468,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33128,
+      "y1": 32465,
+      "x2": 33138,
+      "y2": 32473
+     },
+     "potwory": {
+      "rotworm": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1440,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 82
+    },
+    {
+     "srodek": {
+      "x": 33231,
+      "y": 32330,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33227,
+      "y1": 32323,
+      "x2": 33236,
+      "y2": 32334
+     },
+     "potwory": {
+      "rotworm": 5
+     },
+     "potworow": 5,
+     "sufit_exp_h": 1440,
+     "exp_na_hp": 0.62,
+     "cios_max": 40,
+     "najgrozniejszy": "rotworm",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 125
+    },
+    {
+     "srodek": {
+      "x": 33210,
+      "y": 32385,
+      "z": 4
+     },
+     "obszar": {
+      "x1": 33205,
+      "y1": 32381,
+      "x2": 33215,
+      "y2": 32389
+     },
+     "potwory": {
+      "wasp": 9
+     },
+     "potworow": 9,
+     "sufit_exp_h": 1296,
+     "exp_na_hp": 0.69,
+     "cios_max": 20,
+     "najgrozniejszy": "wasp",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 69
+    },
+    {
+     "srodek": {
+      "x": 33247,
+      "y": 32554,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 33247,
+      "y1": 32554,
+      "x2": 33247,
+      "y2": 32554
+     },
+     "potwory": {
+      "larva": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 1056,
+     "exp_na_hp": 0.63,
+     "cios_max": 35,
+     "najgrozniejszy": "larva",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 106
+    },
+    {
+     "srodek": {
+      "x": 33208,
+      "y": 32383,
+      "z": 5
+     },
+     "obszar": {
+      "x1": 33205,
+      "y1": 32380,
+      "x2": 33212,
+      "y2": 32388
+     },
+     "potwory": {
+      "wasp": 7
+     },
+     "potworow": 7,
+     "sufit_exp_h": 1008,
+     "exp_na_hp": 0.69,
+     "cios_max": 20,
+     "najgrozniejszy": "wasp",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 71
+    },
+    {
+     "srodek": {
+      "x": 33209,
+      "y": 32383,
+      "z": 6
+     },
+     "obszar": {
+      "x1": 33206,
+      "y1": 32381,
+      "x2": 33214,
+      "y2": 32390
+     },
+     "potwory": {
+      "wasp": 7
+     },
+     "potworow": 7,
+     "sufit_exp_h": 1008,
+     "exp_na_hp": 0.69,
+     "cios_max": 20,
+     "najgrozniejszy": "wasp",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 71
+    },
+    {
+     "srodek": {
+      "x": 33262,
+      "y": 32554,
+      "z": 12
+     },
+     "obszar": {
+      "x1": 33262,
+      "y1": 32554,
+      "x2": 33262,
+      "y2": 32554
+     },
+     "potwory": {
+      "skeleton": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 840,
+     "exp_na_hp": 0.7,
+     "cios_max": 17,
+     "najgrozniejszy": "skeleton",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 111
+    },
+    {
+     "srodek": {
+      "x": 33116,
+      "y": 32410,
+      "z": 7
+     },
+     "obszar": {
+      "x1": 33112,
+      "y1": 32403,
+      "x2": 33119,
+      "y2": 32416
+     },
+     "potwory": {
+      "lion": 2,
+      "poison spider": 2
+     },
+     "potworow": 4,
+     "sufit_exp_h": 624,
+     "exp_na_hp": 0.49,
+     "cios_max": 40,
+     "najgrozniejszy": "lion",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 107
+    },
+    {
+     "srodek": {
+      "x": 33088,
+      "y": 32424,
+      "z": 10
+     },
+     "obszar": {
+      "x1": 33087,
+      "y1": 32423,
+      "x2": 33090,
+      "y2": 32426
+     },
+     "potwory": {
+      "snake": 3,
+      "skeleton": 2
+     },
+     "potworow": 5,
+     "sufit_exp_h": 600,
+     "exp_na_hp": 0.69,
+     "cios_max": 17,
+     "najgrozniejszy": "skeleton",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 129
+    },
+    {
+     "srodek": {
+      "x": 33124,
+      "y": 32451,
+      "z": 5
+     },
+     "obszar": {
+      "x1": 33124,
+      "y1": 32451,
+      "x2": 33124,
+      "y2": 32451
+     },
+     "potwory": {
+      "wasp": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 576,
+     "exp_na_hp": 0.69,
+     "cios_max": 20,
+     "najgrozniejszy": "wasp",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 89
+    },
+    {
+     "srodek": {
+      "x": 33090,
+      "y": 32492,
+      "z": 6
+     },
+     "obszar": {
+      "x1": 33090,
+      "y1": 32492,
+      "x2": 33090,
+      "y2": 32492
+     },
+     "potwory": {
+      "hyaena": 4
+     },
+     "potworow": 4,
+     "sufit_exp_h": 480,
+     "exp_na_hp": 0.33,
+     "cios_max": 20,
+     "najgrozniejszy": "hyaena",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 129
+    },
+    {
+     "srodek": {
+      "x": 33086,
+      "y": 32427,
+      "z": 9
+     },
+     "obszar": {
+      "x1": 33085,
+      "y1": 32427,
+      "x2": 33088,
+      "y2": 32427
+     },
+     "potwory": {
+      "snake": 3,
+      "skeleton": 1
+     },
+     "potworow": 4,
+     "sufit_exp_h": 390,
+     "exp_na_hp": 0.68,
+     "cios_max": 17,
+     "najgrozniejszy": "skeleton",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 130
+    },
+    {
+     "srodek": {
+      "x": 33280,
+      "y": 32450,
+      "z": 8
+     },
+     "obszar": {
+      "x1": 33273,
+      "y1": 32447,
+      "x2": 33283,
+      "y2": 32457
+     },
+     "potwory": {
+      "rat": 4,
+      "cave rat": 2
+     },
+     "potworow": 6,
+     "sufit_exp_h": 240,
+     "exp_na_hp": 0.29,
+     "cios_max": 10,
+     "najgrozniejszy": "cave rat",
+     "przedzial": "8-15",
+     "odl_od_swiatyni": 67
+    }
+   ]
+  }
+ }
+}
