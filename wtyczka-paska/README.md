@@ -37,6 +37,12 @@ Wtyczka jest cienka: nie ma własnej logiki bota, czyta JSON z `panel.py` i woł
   - Porażka = czerwona linia `błąd: <powód>` (do godziny, dopóki bot stoi), bez ponawiania; ponowny klik wznawia serwis.
   - Szary guzik pokazuje powód w linii pod wierszem, gdy mysz jest nad nim. W trakcie serwisu `▶ Start` jest zablokowany.
   - Te same zasady co Stop/Start: blokada ok. 1,5 s po kliknięciu, tylko mysz, zero niejawnych akcji.
+- **`▣ Otwórz okno` (jeden na cały panel, w nagłówku po prawej).** Otwiera okno zarządzania Retronic (`okno.sh` z katalogu
+  pomocnika; spec `specs/2026-10-19-retronic-okno.md`, Q1). Okno to osobny proces `quickshell -p okno/`, odpalany odłączonym
+  `setsid -f` (wyjście do `/dev/null`): żyje po zamknięciu popupu i po restarcie paska. Jedno okno naraz: ponowne kliknięcie (albo
+  skrót) tylko przenosi fokus na otwarte (`okno.sh` robi to sam). Guzik jest zawsze aktywny (nie zależy od stanu botów), działa tylko
+  myszą. Po powodzeniu popup się zamyka; gdy brak `okno.sh` w katalogu pomocnika albo `quickshell` w PATH, w nagłówku jest
+  czerwona linia z powodem (gaśnie po 8 s) i popup zostaje.
 - Panelu nie wolno wypełniać treścią logów ani „wnioskiem analityka” z tooltipu `panel.py`: z tooltipu
   czytane są wyłącznie czas działania i HP/mana.
 
@@ -52,6 +58,7 @@ Wtyczka jest cienka: nie ma własnej logiki bota, czyta JSON z `panel.py` i woł
 | Refill / Przerwij | `RETRONIC_ID=<id> ./refill.sh --tlo` / `./refill.sh --przerwij` (opakowanie `serwis.sh`, odłączone) |
 | Spot | `RETRONIC_ID=<id> ./refill.sh --spot` (jak Refill, ale tylko krok `wyjscie`; ten sam log i Przerwij) |
 | Stan guzików miasta | dodatkowe pola `panel.py --json`: `pozycja`, `w_miescie`, `w_depo`, `plan_depo_dostepny`, `wroc_oczekuje`, `wroc_w_marszu`, `serwis_*` (w tym `serwis_tryb`) (starszy `panel.py` bez nich: guziki miasta szare) |
+| Otwórz okno | `bash <helperDir>/okno.sh`, odłączone: `setsid -f`, bez RETRONIC_ID (okno samo czyta wszystkie instancje) |
 | Odświeżanie | co 5 s, jedno wywołanie na instancję, bez demona; także przy zamkniętym panelu (kolor ikony) |
 
 `Alarm` bez żywego bota (panel.py trzyma alarm do 60 s po wpisie w logu) pokazuje `▶ Start`, bo przycisk
@@ -69,7 +76,7 @@ Ustawienia siedzą we wpisie wtyczki w `~/.config/omarchy/shell.json` (jak u poz
 ## Pliki
 
 - `manifest.json` (rodzaj `bar-widget`, `activation: on-demand`), `Panel.qml` (ikona, odczyt co 5 s, popup),
-  `PanelContent.qml` (wiersze), `CityButton.qml` (guzik `⌂ Miasto` / `↻ Refill`),
+  `PanelContent.qml` (nagłówek z `▣ Otwórz okno` i wiersze), `CityButton.qml` (guzik `⌂ Miasto` / `↻ Refill` / `↗ Spot` / `▣ Otwórz okno`),
   `Instance.qml` (jedna instancja: odczyt statusu i jej akcje),
   `RetronicModel.js` (cała logika bez Quickshella: parsowanie, najgorszy stan, zdanie na hover,
   stany guzików miasta, polecenia, skrócenie błędu).
@@ -90,7 +97,8 @@ dlatego, że `qs.Commons` nie jest tu widoczny). Strona bota (`panel.py`, `refil
 
 ## Zależności po stronie bota
 
-Guziki miasta wymagają w katalogu pomocnika: `wroc.sh` (jest od 19.10), `refill.sh` i rozszerzonego `panel.py --json`
+`▣ Otwórz okno` wymaga w katalogu pomocnika `okno.sh` (i katalogu `okno/` z QML okna, F2 specu okna); bez nich guzik
+pokazuje błąd `brak okno.sh…`, reszta wtyczki działa bez zmian. Guziki miasta wymagają w katalogu pomocnika: `wroc.sh` (jest od 19.10), `refill.sh` i rozszerzonego `panel.py --json`
 (branch `feat/guziki-miasto` repo bota). Bez nich wtyczka dalej działa: Stop/Start jak dotąd, guziki miasta szare.
 
 ## Instalacja (poziom 2: zmiana w `~/.config`, osobna zgoda)
@@ -103,6 +111,20 @@ omarchy bar move charlie.retronic <sekcja>     # opcjonalnie; domyślnie środek
 ```
 
 Potem wpis w `.ai/system/omarchy-plugins/STATE.md` (jak pozostałe wtyczki).
+
+## Skrót klawiszowy do okna (opcjonalnie, poziom 2: zmiana w `~/.config/hypr`, osobna zgoda)
+
+Nie jest zainstalowany; gotowa linia do wklejenia na koniec `~/.config/hypr/bindings.lua` (Hyprland z konfiguracją w Lua,
+tak jak pozostałe osobiste bindy tam; `o.bind(klawisze, opis, polecenie)` z `/usr/share/omarchy/default/hypr/helpers.lua`):
+
+```lua
+o.bind("SUPER + SHIFT + R", "Retronic: okno zarządzania", "setsid -f /home/charlie/Games/Retronic/pomocnik/okno.sh")
+```
+
+Sprawdzone 20.10: `SUPER + SHIFT + R` jest **wolne**. Żywa lista (`hyprctl binds -j`) ma przy `R` tylko `SUPER + CTRL + R`
+(przypomnienie), `SUPER + CTRL + ALT + R` i `SUPER + SHIFT + CTRL + R`; w `bindings.lua` jest wyłącznie zakomentowany przykład
+z szablonu (`-- o.bind("SUPER + SHIFT + R", "SSH", …)`). Skrót i guzik wołają to samo `okno.sh`: drugie wywołanie nie otwiera drugiego
+okna, tylko przenosi fokus. Po wklejeniu: `hyprctl reload` (albo ponowne zalogowanie). Cofnięcie: usuń tę linię i przeładuj.
 
 ## Cofnięcie
 

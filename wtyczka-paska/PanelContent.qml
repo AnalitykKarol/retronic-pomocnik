@@ -2,7 +2,7 @@ import QtQuick
 import qs.Commons
 import "RetronicModel.js" as Model
 
-// Zawartość panelu: nagłówek i wiersz na instancję (kropka stanu, nazwa, stan, osobny Stop/Start,
+// Zawartość panelu: nagłówek (z guzikiem "▣ Otwórz okno") i wiersz na instancję (kropka stanu, nazwa, stan, osobny Stop/Start,
 // pod nim "⌂ Miasto", "↻ Refill" i "↗ Spot" z jedną linią o cyklu spot -> miasto -> refill -> spot, potem HP/mana,
 // ostatni start, proxy, krótki błąd). Bez logiki bota: dostaje obiekty Instance i je rysuje.
 Column {
@@ -15,6 +15,11 @@ Column {
   property color okColor: "#6fbf73"
   property color warnColor: "#d9a441"
   property string fontFamily: Style.font.family
+  // "Otwórz okno" jest jeden dla całego panelu (nie per instancja): stan i błąd trzyma Panel.qml.
+  property bool windowBusy: false
+  property string windowMessage: ""
+
+  signal openWindowRequested()
 
   readonly property color dim: Qt.darker(foreground, 1.55)
 
@@ -34,12 +39,36 @@ Column {
     width: parent.width
     spacing: Style.space(2)
 
-    Text {
-      text: "Retronic"
-      color: content.foreground
-      font.family: content.fontFamily
-      font.pixelSize: Style.font.title
-      font.bold: true
+    Item {
+      width: parent.width
+      height: Math.max(titleText.implicitHeight, windowButton.height)
+
+      Text {
+        id: titleText
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+        text: "Retronic"
+        color: content.foreground
+        font.family: content.fontFamily
+        font.pixelSize: Style.font.title
+        font.bold: true
+      }
+
+      // Otwiera osobne okno zarządzania (okno.sh); to samo CityButton co ⌂ ↻ ↗, tylko myszą.
+      CityButton {
+        id: windowButton
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        width: Style.space(112)
+        spec: Model.windowButton()
+        busy: content.windowBusy
+        foreground: content.foreground
+        urgent: content.urgent
+        okColor: content.okColor
+        warnColor: content.warnColor
+        fontFamily: content.fontFamily
+        onActivated: content.openWindowRequested()
+      }
     }
     Text {
       width: parent.width
@@ -47,6 +76,16 @@ Column {
       color: content.dim
       font.family: content.fontFamily
       font.pixelSize: Style.font.bodySmall
+      elide: Text.ElideRight
+    }
+    Text {
+      visible: text !== ""
+      width: parent.width
+      text: content.windowMessage
+      color: content.urgent
+      font.family: content.fontFamily
+      font.pixelSize: Style.font.caption
+      font.bold: true
       elide: Text.ElideRight
     }
   }

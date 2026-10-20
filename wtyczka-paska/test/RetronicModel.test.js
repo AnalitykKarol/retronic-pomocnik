@@ -393,6 +393,27 @@ describe("polecenia akcji miasta", () => {
   })
 })
 
+describe("guzik Otwórz okno (polecenie)", () => {
+  it("jeden guzik panelu: zawsze aktywny, bez zależności od stanu botów", () => {
+    const b = M.windowButton()
+    assert.equal(b.action, "okno")
+    assert.equal(b.enabled, true)
+    assert.equal(b.tone, "ok")
+    assert.ok(b.label.includes("Otwórz okno"))
+  })
+  it("katalog idzie jako osobny argument, nie w tekście skryptu; pusty katalog: null", () => {
+    const c = M.windowCommand("/d ir/z 'q'")
+    assert.deepEqual([c[0], c[1]], ["bash", "-c"])
+    assert.ok(!c[2].includes("/d ir"))
+    assert.deepEqual(c.slice(4), ["/d ir/z 'q'"])
+    assert.equal(M.windowCommand(""), null)
+    assert.equal(M.windowCommand(undefined), null)
+  })
+  it("okno.sh jest odłączone (setsid -f, wyjście do /dev/null), żeby żyło po zamknięciu popupu i restarcie paska", () => {
+    assert.match(M.WINDOW_SCRIPT, /setsid -f bash "\$DIR\/okno\.sh" > \/dev\/null 2>&1 < \/dev\/null/)
+  })
+})
+
 // ------------------------------------------------------------ atrapa katalogu pomocnika
 
 describe("polecenia na atrapie pomocnika", () => {
@@ -532,6 +553,25 @@ describe("polecenia na atrapie pomocnika", () => {
     } finally {
       fs.rmSync(path.join(dir, "bot_dziala"))
     }
+  })
+  it("Otwórz okno: okno.sh startuje odłączone, polecenie wraca od razu mimo długo żyjącego okna", () => {
+    // atrapa okna: zapisuje wywołanie i żyje 4 s trzymając stdout (jak quickshell), w osobnej sesji
+    sh("okno.sh", 'D="$(dirname "$0")"; echo "okno:$$:$(ps -o sid= -p $$ | tr -d " "):$*" >> "$D/okno.log"; sleep 4')
+    fs.writeFileSync(path.join(dir, "okno.log"), "")
+    const t0 = Date.now()
+    const r = run(M.windowCommand(dir))
+    assert.deepEqual(M.parseActionResult(r.stdout), { ok: true, message: "" })
+    assert.ok(Date.now() - t0 < 3000, "polecenie czekało na okno: " + (Date.now() - t0))
+    const wait = Date.now() + 1000
+    while (read("okno.log") === "" && Date.now() < wait) { /* daj odłączonemu procesowi wystartować */ }
+    const [, pid, sid] = read("okno.log").trim().split(":")
+    assert.ok(pid, "okno.sh nie wystartowało")
+    assert.equal(sid, pid, "okno.sh powinno być liderem własnej sesji (setsid)")
+  })
+  it("Otwórz okno: brak okno.sh w katalogu daje czytelny błąd, bez uruchamiania czegokolwiek", () => {
+    const r = M.parseActionResult(run(M.windowCommand(path.join(dir, "nie-ma"))).stdout)
+    assert.equal(r.ok, false)
+    assert.ok(r.message.length > 0 && r.message.length <= M.MAX_ERROR_LENGTH)
   })
   it("brak katalogu pomocnika przy akcji: czytelny błąd", () => {
     const r = M.parseActionResult(run(M.actionCommand(path.join(dir, "nie-ma"), "", "stop")).stdout)

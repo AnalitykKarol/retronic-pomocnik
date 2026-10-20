@@ -7,6 +7,7 @@
 //   miasto:  RETRONIC_ID=<id> ./wroc.sh [--anuluj]            ("Wróć do miasta": plik WROC, bot rusza w spokojnej chwili)
 //            RETRONIC_ID=<id> ./refill.sh --tlo | --spot | --przerwij  ("Refill": serwis w mieście odłączony, log refill.log;
 //                                  "Spot": to samo bez zakupów, tylko wyjście z miasta i start bota)
+//   okno:    <katalog>/okno.sh odłączone (setsid -f): okno zarządzania Retronic, jeden egzemplarz (drugi start = fokus)
 //            dodatkowe pola panel.py --json (opcjonalne): pozycja, w_miescie, w_depo, plan_depo_dostepny, wroc_*, serwis_*
 
 var DEFAULT_HELPER_DIR = "~/Games/Retronic/pomocnik"
@@ -96,6 +97,28 @@ var ACTION_SCRIPTS = {
   stop: ["zatrzymaj.sh", ""], start: ["uruchom.sh", ""],
   wroc: ["wroc.sh", ""], "wroc-anuluj": ["wroc.sh", "--anuluj"],
   refill: ["refill.sh", "--tlo"], spot: ["refill.sh", "--spot"], "refill-stop": ["refill.sh", "--przerwij"]
+}
+
+// "Otwórz okno": okno.sh to długo żyjący proces (quickshell), więc odpalamy go przez setsid -f, w osobnej sesji, z
+// wyjściem w /dev/null: okno przeżywa zamknięcie popupu i restart paska. Drugi start okno.sh sam tylko przenosi fokus.
+// Katalog idzie jako $1, nie w tekście skryptu. Zawsze exit 0: kod wyjścia niesie RC (jak ACTION_SCRIPT).
+var WINDOW_SCRIPT = [
+  'DIR="$1"',
+  '[ -n "$DIR" ] && [ -f "$DIR/okno.sh" ] || { echo "brak okno.sh w katalogu pomocnika"; echo "RC=1"; exit 0; }',
+  'command -v quickshell >/dev/null 2>&1 || { echo "brak quickshell w PATH"; echo "RC=1"; exit 0; }',
+  'setsid -f bash "$DIR/okno.sh" > /dev/null 2>&1 < /dev/null',
+  'echo "RC=$?"',
+  'exit 0'
+].join("\n")
+
+function windowCommand(helperDir) {
+  if (!helperDir) return null
+  return ["bash", "-c", WINDOW_SCRIPT, "retronic-okno", String(helperDir)]
+}
+
+// Jeden guzik dla całego panelu (nie per instancja): niezależny od stanu botów, zawsze aktywny.
+function windowButton() {
+  return { action: "okno", label: "▣ Otwórz okno", enabled: true, hint: "Okno zarządzania Retronic (osobny proces)", tone: "ok" }
 }
 
 function listCommand(helperDir) {
@@ -434,6 +457,9 @@ if (typeof module !== "undefined" && module.exports) {
     listCommand: listCommand,
     statusCommand: statusCommand,
     actionCommand: actionCommand,
+    WINDOW_SCRIPT: WINDOW_SCRIPT,
+    windowCommand: windowCommand,
+    windowButton: windowButton,
     unknownStatus: unknownStatus,
     parseStatus: parseStatus,
     stateLabel: stateLabel,

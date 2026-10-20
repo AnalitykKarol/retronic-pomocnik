@@ -29,6 +29,11 @@ Panel {
   property var rows: []
   property int statusRevision: 0
 
+  // "Otwórz okno": jeden proces na cały panel (nie na instancję). Błąd gaśnie sam jak komunikaty akcji instancji.
+  property bool windowBusy: false
+  property string windowMessage: ""
+  property bool windowPending: false
+
   readonly property var statuses: {
     root.statusRevision
     var out = []
@@ -59,6 +64,32 @@ Panel {
     if (JSON.stringify(ids) !== JSON.stringify(root.instanceIds)) root.instanceIds = ids
   }
 
+  function openWindow() {
+    if (windowBusy || windowProcess.running) return
+    var command = Model.windowCommand(root.helperDir)
+    if (!command) return
+    windowBusy = true
+    windowPending = true
+    windowMessage = ""
+    windowProcess.command = command
+    windowProcess.running = true
+    windowFallback.stop()
+    windowTimeout.restart()
+  }
+
+  // Wynik: RC=0 = okno wystartowało albo dostało fokus, popup można zamknąć; inaczej krótki błąd w nagłówku.
+  function finishWindow(text) {
+    if (!windowPending) return
+    windowPending = false
+    windowTimeout.stop()
+    windowFallback.stop()
+    var result = Model.parseActionResult(text)
+    windowMessage = result.ok ? "" : result.message
+    if (windowMessage !== "") windowMessageFade.restart()
+    windowCooldown.restart()
+    if (result.ok) root.close()
+  }
+
   function rebuildRows() {
     var result = []
     for (var i = 0; i < instances.count; i++) {
@@ -86,6 +117,43 @@ Panel {
       waitForEnd: true
       onStreamFinished: root.applyListing(text)
     }
+  }
+
+  Process {
+    id: windowProcess
+    stdout: StdioCollector {
+      id: windowOutput
+      waitForEnd: true
+      onStreamFinished: root.finishWindow(text)
+    }
+    onExited: windowFallback.restart()
+  }
+
+  Timer {
+    id: windowFallback
+    interval: 400
+    onTriggered: root.finishWindow(windowOutput.text)
+  }
+
+  Timer {
+    id: windowTimeout
+    interval: 10000
+    onTriggered: {
+      windowProcess.running = false
+      root.finishWindow("Przekroczono czas\nRC=124")
+    }
+  }
+
+  Timer {
+    id: windowCooldown
+    interval: 1500
+    onTriggered: root.windowBusy = false
+  }
+
+  Timer {
+    id: windowMessageFade
+    interval: 8000
+    onTriggered: root.windowMessage = ""
   }
 
   Instantiator {
@@ -165,6 +233,9 @@ Panel {
           okColor: root.okColor
           warnColor: root.warnColor
           fontFamily: root.fontFamily
+          windowBusy: root.windowBusy
+          windowMessage: root.windowMessage
+          onOpenWindowRequested: root.openWindow()
         }
       }
     }
