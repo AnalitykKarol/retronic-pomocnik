@@ -24,6 +24,7 @@ KATALOG = Path(__file__).resolve().parent
 TRASY = KATALOG / "trasy"
 KOSZT_LACZNIKA = 6.0                    # w "polach": przejście piętra
 
+import marsz_klik  # noqa: E402
 from serwis_blad import SerwisBlad, cheb  # noqa: E402
 
 
@@ -476,7 +477,7 @@ def idz_krokami(postac, tr, cel, tolerancja=0, maks_zlych=5, log=print):
     return poz[2] == cel[2] and _cheb(poz, cel) <= tolerancja
 
 
-KLIK_MAKS_POL = 5      # ile pól naprzód klikamy naraz (widok mapy ma ±7 x ±5 pól)
+KLIK_MAKS_POL = marsz_klik.KLIK_MAKS_POL      # ile pól naprzód klikamy naraz (widok mapy ma ±7 x ±5 pól)
 
 
 def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, unik=(), stan=None):
@@ -502,20 +503,7 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
 
     def koszt(x, y, z):
         """None = nie wchodzimy; 1 = zwykłe pole; 6 = pole z flagą 2 (na mapie to bywa szum, ale może być przejście pięter)."""
-        if (x, y) == (cel[0], cel[1]):
-            return 1.0
-        f = mp.flagi(x, y, z)
-        if not (f & 1) or (f & 4) or (x, y) in unik:
-            return None
-        if f & 2:
-            # schody/dziury mają odpowiednik z flagą 2 na piętrze nad lub pod; krzesła i meble go nie mają (wtedy chodzimy)
-            for zz in (z - 1, z + 1):
-                for ddx in (-1, 0, 1):
-                    for ddy in (-1, 0, 1):
-                        if mp.flagi(x + ddx, y + ddy, zz) & 2:
-                            return None
-            return 6.0
-        return 1.0
+        return marsz_klik.koszt_pola(mp, x, y, z, cel, unik)
 
     def koniec(wynik, powod=None):
         dt = time.monotonic() - t0
@@ -584,10 +572,7 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
         sciezka.reverse()
         # klik w mapę (klient sam idzie ciągiem, kilka razy szybciej niż krok po kroku): najdalsze pole ścieżki w zasięgu
         # widoku, do którego wszystkie pola są zwykłe (bez flagi 2) i wolne
-        dalej = 1
-        while (dalej < len(sciezka) - 1 and dalej < KLIK_MAKS_POL
-               and koszt(sciezka[dalej + 1][0], sciezka[dalej + 1][1], poz[2]) == 1.0):
-            dalej += 1
+        dalej = marsz_klik.dalej_klik(sciezka, koszt, poz[2], KLIK_MAKS_POL)
         if dalej >= 2:
             import ekran
             cel_kl = sciezka[dalej]
@@ -596,22 +581,10 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
             except ValueError:
                 dalej = 1
             else:
-                t1, ost, stoi = time.monotonic(), poz, 0
-                while time.monotonic() - t1 < 0.8 + 0.45 * dalej:
-                    time.sleep(0.12)
-                    teraz_poz = tuple(postac.pozycja())
-                    if teraz_poz[2] != poz[2]:
-                        log(f"serwis: klik na {cel_kl} zmienił piętro ({poz[2]} -> {teraz_poz[2]})")
-                        return False
-                    if teraz_poz[:2] == cel_kl[:2]:
-                        break
-                    stoi = stoi + 1 if teraz_poz == ost else 0
-                    ost = teraz_poz
-                    if stoi >= 4 and teraz_poz != poz:
-                        break
-                    if stoi >= 6:
-                        break
-                if tuple(postac.pozycja())[:2] != poz[:2]:
+                wynik_kl = marsz_klik.klik_i_czekaj(postac, poz, cel_kl, dalej, zegar=time, log=log, prefiks="serwis")
+                if wynik_kl == "pietro":
+                    return False
+                if wynik_kl == "ruch":
                     continue
                 dalej = 1                        # klik nic nie ruszył: ten krok strzałką
         nast = sciezka[1]
