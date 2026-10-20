@@ -236,6 +236,17 @@ class Wpadniecie:
             return False
         return self._wykryto(p0, p, teraz)
 
+    def w_petli(self, poz, teraz):
+        """20.10 (WPADNIECIE_POSCIG=1, SPEC_orbity_straznik_1020 A): pozycja odczytana w pętli poza obiegiem ticka
+        (pościg, loot). Odświeża ostatnią próbkę `obserwuj`, ale tylko na tym samym piętrze: pierwsza próbka na
+        innym piętrze zostaje dla `obserwuj` na początku następnego ticka, który porówna ją z ostatnim polem sprzed
+        upadku (przypadek K1: pościg 9 s, ostatnia próbka z ticka 8 pól dalej, więc `_cheb > WPADNIECIE_ODL` gubiło
+        wykrycie). Nie wykrywa niczego sam i nie zmienia stanu poza `_ost`."""
+        p = (int(poz[0]), int(poz[1]), int(poz[2]))
+        ost = self._ost
+        if ost is None or ost[0][2] == p[2]:
+            self._ost = (p, teraz)
+
     def _flaga_mapy(self, x, y, z):
         m = getattr(self.cb, "mapa", None)
         try:
