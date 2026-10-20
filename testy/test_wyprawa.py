@@ -1414,6 +1414,388 @@ finally:
         except OSError:
             pass
 
+# --- 20. WYPRAWA_MARSZ_KLIK i WROC_REFILL (20.10): marsz klikiem w drodze do depo i automatyczny refill po dojściu ---
+import marsz_klik
+import refill_auto
+from types import SimpleNamespace
+
+
+class MapaFlagi:
+    """Mapa do jednostkowych prób _marsz_klik: piętra 6..8 w całości chodliwe (flaga 1), `nad` nadpisuje pojedyncze pola."""
+
+    def __init__(self, nad=None):
+        self.nad = nad or {}
+
+    def flagi(self, x, y, z):
+        return self.nad.get((x, y, z), 1 if z in (6, 7, 8) else 0)
+
+
+class KL:
+    """Atrapa świata dla _marsz_klik: linia pól na z7 od (10,10); klik ustawia cel, a każdy odczyt pozycji przesuwa postać o pole.
+    tryb: idzie | stoi (klik nic nie rusza) | pietro (klik zmienia piętro) | zasieg (klik rzuca ValueError) | wolno (nigdy nie dochodzi)."""
+
+    def __init__(self, tryb="idzie", nad=None):
+        self.t, self.poz, self.cel = 0.0, [10, 10, 7], None
+        self.tryb, self.mapa = tryb, MapaFlagi(nad)
+        self.klikniecia, self.esc, self.odczyty, self.stw, self.hp, self.ogien = [], 0, 0, [], 100.0, set()
+        self.po_odczytach = None
+        self.ucieczka = self.ostrozny = False
+        self.postac = SimpleNamespace(nazwa="Ja", pozycja=self._pozycja, klawisz=self._klawisz)
+        self.klik = self._klik
+
+    ostatnie_stwory = property(lambda self: self.stw)
+
+    def zegar(self):
+        return self.t
+
+    def spij(self, d):
+        self.t += d
+
+    def _klik(self, dx, dy):
+        self.klikniecia.append((dx, dy))
+        if self.tryb == "zasieg":
+            raise ValueError("poza widokiem")
+        self.cel = (self.poz[0] + dx, self.poz[1] + dy)
+
+    def _pozycja(self):
+        self.odczyty += 1
+        if self.cel is not None and self.tryb == "idzie" and self.poz[:2] != list(self.cel):
+            self.poz[0] += (self.cel[0] > self.poz[0]) - (self.cel[0] < self.poz[0])
+            self.poz[1] += (self.cel[1] > self.poz[1]) - (self.cel[1] < self.poz[1])
+        if self.tryb == "wolno" and self.cel is not None:       # postać przestępuje między dwoma polami: marsz trwa do limitu czasu
+            self.poz[0] = 10 + (self.odczyty % 2)
+        if self.tryb == "pietro" and self.cel is not None:
+            self.poz[2], self.cel = 6, None
+        if self.po_odczytach and self.odczyty == self.po_odczytach[0]:
+            self.po_odczytach[1]()
+        return tuple(self.poz)
+
+    def _klawisz(self, k):
+        if k == "Escape":
+            self.esc += 1
+            self.cel = None
+
+    def gracz(self):
+        return {"hp": self.hp, "max_hp": 100, "proc": self.hp}
+
+    def stwory(self, maks_wiek=None):
+        return list(self.stw)
+
+    def _ogien_xy(self, z):
+        return set(self.ogien)
+
+    @staticmethod
+    def gracz_grozny(m):
+        return bool(m.get("czaszka"))
+
+
+def klik_swiat(**kw):
+    krok = kw.pop("krok", 1)                  # odstęp między punktami odcinka (nagrania bywają rzadkie: co 2+ pola)
+    kl = KL(**{k: kw.pop(k) for k in ("tryb", "nad") if k in kw})
+    s, cb0, w, k = nowy(konf=kw.pop("konf", None))
+    w.cb, w.faza, w.pi = kl, "do", 0
+    logi = []
+    w.log = logi.append
+    pkt = [(10 + krok * i, 10, 7) for i in range(12)]
+    return kl, w, pkt, logi
+
+
+def klikni(kl, w, pkt, poz=None):
+    return w._marsz_klik(tuple(poz or kl.poz), pkt, kl.t)
+
+
+def mob(x, y, **kw):
+    return dict({"x": x, "y": y, "z": 7, "nazwa": "Goblin", "gracz": False, "hp": 100}, **kw)
+
+
+schody = lambda x: {(x, 10, 7): 3, (x, 10, 6): 2}                # pole schodów na z7 z odpowiednikiem na z6
+
+kl, w, pkt, logi = klik_swiat()
+r = klikni(kl, w, pkt)
+sprawdz("20a zwykłe pola: jeden klik w pole nr 5 (KLIK_MAKS_POL), postać dochodzi, pi przesunięte, licznik", r is True
+        and kl.klikniecia == [(5, 0)] and tuple(kl.poz) == (15, 10, 7) and w.pi == 5 and w.klik_ile == 1, (r, kl.klikniecia, kl.poz, w.pi))
+kl, w, pkt, logi = klik_swiat(nad=schody(15))
+sprawdz("20b schody na polu nr 5: klik skrócony do pola nr 3 (prostokąt ścieżki z marginesem 1 nie może dotykać schodów)",
+        klikni(kl, w, pkt) is True and kl.klikniecia == [(3, 0)], kl.klikniecia)
+kl, w, pkt, logi = klik_swiat(nad=schody(13))
+sprawdz("20c schody na polu nr 3: bez kliku (po skróceniu do pól przed schodami margines wciąż je obejmuje, <2 pola)",
+        klikni(kl, w, pkt) is False and kl.klikniecia == [])
+kl, w, pkt, logi = klik_swiat(nad={(12, 11, 7): 3, (12, 11, 6): 2})
+sprawdz("20c2 schody tuż obok ścieżki (pole obok, nie na niej): bez kliku (margines 1)", klikni(kl, w, pkt) is False and kl.klikniecia == [])
+kl, w, pkt, logi = klik_swiat(nad={(15, 14, 7): 3, (15, 14, 6): 2})
+sprawdz("20c3 schody poza marginesem (4 pola od ścieżki): klik jak zwykle", klikni(kl, w, pkt) is True and kl.klikniecia == [(5, 0)], kl.klikniecia)
+kl, w, pkt, logi = klik_swiat(nad=schody(11))
+sprawdz("20d schody na polu nr 1: bez kliku", klikni(kl, w, pkt) is False and kl.klikniecia == [])
+kl, w, pkt, logi = klik_swiat(nad={(12, 10, 7): 3, (12, 10, 6): 2})
+pkt = [(10, 10, 7), (11, 9, 7), (12, 8, 7), (13, 9, 7), (14, 10, 7), (15, 10, 7)]       # nagranie omija dziurę (12,10), prosta przez nią prowadzi
+sprawdz("20d2 objazd dziury: ścieżka omija pole (12,10), ale prostokąt ścieżki je obejmuje: bez kliku (klient poszedłby prosto)",
+        klikni(kl, w, pkt) is False and kl.klikniecia == [])
+kl, w, pkt, logi = klik_swiat(krok=2)
+sprawdz("20d3 rzadkie punkty nagrania (co 2 pola): ścieżka zagęszczona, klik na 5 pól naprzód (nie na 5. punkt = 10 pól)",
+        klikni(kl, w, pkt) is True and kl.klikniecia == [(5, 0)] and tuple(kl.poz) == (15, 10, 7), (kl.klikniecia, kl.poz))
+kl, w, pkt, logi = klik_swiat(krok=2, nad={(13, 10, 7): 3, (13, 10, 6): 2})
+sprawdz("20d4 rzadkie punkty, schody w luce między punktami (pole pośrednie): bez kliku", klikni(kl, w, pkt) is False and kl.klikniecia == [])
+kl, w, pkt, logi = klik_swiat(krok=2, nad={(16, 10, 7): 3, (16, 10, 6): 2})
+sprawdz("20d5 rzadkie punkty, schody dalej w luce: klik skrócony przed marginesem (do pola nr 4)", klikni(kl, w, pkt) is True and kl.klikniecia == [(4, 0)], kl.klikniecia)
+kl, w, pkt, logi = klik_swiat(krok=3)
+sprawdz("20d6 punkty co 3 pola: nadal klik do 5 pól, nie dalej niż zasięg widoku", klikni(kl, w, pkt) is True and kl.klikniecia == [(5, 0)] and abs(kl.klikniecia[0][0]) <= 6, kl.klikniecia)
+kl, w, pkt, logi = klik_swiat(tryb="wolno")
+klikni(kl, w, pkt)
+sprawdz("20d7 limit czasu marszu liczony w polach: 5 pól = ok. 0,8 + 0,45 * 5 s (nie w punktach)", 3.0 <= kl.t <= 3.4, kl.t)
+kl, w, pkt, logi = klik_swiat(krok=2, tryb="wolno")
+klikni(kl, w, pkt)
+sprawdz("20d8 to samo przy rzadkich punktach (co 2 pola): wciąż 5 pól, ten sam limit", 3.0 <= kl.t <= 3.4, kl.t)
+kl, w, pkt, logi = klik_swiat()
+kl.dziura_nauczona = lambda p: p[:2] == (13, 11)
+sprawdz("20d9 dziura nauczona obok ścieżki (Cavebot ją zna, mapa nie): bez kliku", klikni(kl, w, pkt) is False and kl.klikniecia == [])
+kl, w, pkt, logi = klik_swiat(nad={(13, 10, 7): 1 | 4})
+sprawdz("20e pole zablokowane na mapie (flaga 4): klik do pola nr 2", klikni(kl, w, pkt) is True and kl.klikniecia == [(2, 0)], kl.klikniecia)
+kl, w, pkt, logi = klik_swiat()
+kl.ogien = {(14, 10)}
+sprawdz("20f ogień na polu nr 4: klik skrócony do pola nr 2 (ogień też w prostokącie z marginesem)", klikni(kl, w, pkt) is True and kl.klikniecia == [(2, 0)], kl.klikniecia)
+kl, w, pkt, logi = klik_swiat()
+kl.stw = [mob(14, 10, nazwa="Inny", gracz=True)]
+sprawdz("20g gracz stoi na polu nr 4: klik do pola nr 3", klikni(kl, w, pkt) is True and kl.klikniecia == [(3, 0)], kl.klikniecia)
+kl, w, pkt, logi = klik_swiat()
+kl.stw = [mob(14, 10, nazwa="Duch", gracz=True, widmo=True), mob(10, 10, nazwa="Ja", gracz=True)]
+sprawdz("20h widmo na polu nr 4 i wpis własny postaci są pomijane: klik do pola nr 5", klikni(kl, w, pkt) is True and kl.klikniecia == [(5, 0)], kl.klikniecia)
+kl, w, pkt, logi = klik_swiat()
+kl.stw = [mob(11, 12)]
+sprawdz("20i mob w 3 polach od postaci: bez kliku (Cavebot zajmie się nim jak dotąd)", klikni(kl, w, pkt) is False and kl.klikniecia == [])
+kl, w, pkt, logi = klik_swiat()
+kl.stw = [mob(18, 10)]
+sprawdz("20i2 mob daleko: klik jak zwykle", klikni(kl, w, pkt) is True and kl.klikniecia == [(5, 0)], kl.klikniecia)
+kl, w, pkt, logi = klik_swiat()
+kl.stw = [mob(16, 12)]
+sprawdz("20j mob 2 pola od ścieżki (nie od postaci): klik skrócony przed nim, do pola nr 3", klikni(kl, w, pkt) is True and kl.klikniecia == [(3, 0)], kl.klikniecia)
+kl, w, pkt, logi = klik_swiat()
+kl.stw = [mob(16, 14, nazwa="Zły", gracz=True, czaszka=True)]
+sprawdz("20k gracz z czaszką w widoku: bez kliku", klikni(kl, w, pkt) is False and kl.klikniecia == [])
+kl, w, pkt, logi = klik_swiat()
+kl.ucieczka = True
+sprawdz("20k2 trwa ucieczka: bez kliku", klikni(kl, w, pkt) is False and kl.klikniecia == [])
+kl, w, pkt, logi = klik_swiat(tryb="zasieg")
+r_ = klikni(kl, w, pkt)
+kl.t += 1.0
+r2_ = klikni(kl, w, pkt)
+sprawdz("20l odrzucony klik (ValueError): bez kliku i bez wyjątku, przez 3 s nie ponawiamy co obieg", r_ is False and r2_ is False and len(kl.klikniecia) == 1, kl.klikniecia)
+kl, w, pkt, logi = klik_swiat()
+kl.klik = None
+sprawdz("20l2 brak funkcji kliku (atak/test): bez kliku", klikni(kl, w, pkt) is False)
+kl, w, pkt, logi = klik_swiat()
+sprawdz("20m postać poza odcinkiem (inny rząd): bez kliku, wraca dotychczasowa maszyneria", klikni(kl, w, pkt, poz=(10, 11, 7)) is False and kl.klikniecia == [])
+kl, w, pkt, logi = klik_swiat(tryb="pietro")
+sprawdz("20n klik zmienia piętro: obieg zużyty (dalej _resync), wpis w logu, bez zaliczenia kliku", klikni(kl, w, pkt) is True
+        and any("zmienił piętro" in l for l in logi) and w.klik_ile == 0 and kl.poz[2] == 6, (logi, kl.poz))
+kl, w, pkt, logi = klik_swiat(tryb="stoi")
+r1 = klikni(kl, w, pkt)
+kl.t += 1.0
+r2 = klikni(kl, w, pkt)
+n_po = len(kl.klikniecia)
+kl.t += 9.0
+r3 = klikni(kl, w, pkt)
+sprawdz("20o klik bez ruchu: False (wracają kroki), log, przerwa na KLIK_BLAD_PAUZA_S; po niej próba wraca",
+        r1 is False and r2 is False and n_po == 1 and len(kl.klikniecia) == 2 and any("nic nie ruszył" in l for l in logi),
+        (r1, r2, n_po, len(kl.klikniecia), logi))
+kl, w, pkt, logi = klik_swiat()
+kl.po_odczytach = (2, lambda: kl.stw.append(mob(kl.poz[0] + 2, kl.poz[1])))
+r = klikni(kl, w, pkt)
+sprawdz("20p mob pojawia się w trakcie marszu: przerwanie, Escape, obieg zużyty, krótka przerwa kliku",
+        r is True and kl.esc == 1 and tuple(kl.poz) != (15, 10, 7) and any("przerwany" in l for l in logi)
+        and w._klik_zakaz_do > kl.t, (r, kl.esc, kl.poz, logi))
+kl, w, pkt, logi = klik_swiat()
+kl.po_odczytach = (2, lambda: setattr(kl, "hp", 85.0))
+r = klikni(kl, w, pkt)
+sprawdz("20q spadek HP w trakcie marszu (o > 5 pp): przerwanie i Escape", r is True and kl.esc == 1 and tuple(kl.poz) != (15, 10, 7), (r, kl.esc, kl.poz))
+kl, w, pkt, logi = klik_swiat()
+kl.po_odczytach = (2, lambda: setattr(kl, "hp", 97.0))
+r = klikni(kl, w, pkt)
+sprawdz("20q2 mały spadek HP (3 pp) nie przerywa marszu", r is True and kl.esc == 0 and tuple(kl.poz) == (15, 10, 7), (r, kl.esc, kl.poz))
+
+# --- integracja: ręczne „Wróć do miasta” w drodze do depo Edron (prawdziwa mapa i plan gobliny_edron) ---
+def klik_integracja(konf, pre_tick=None, ruch=True):
+    """Wróć-do-miasta z GOB_BLISKO: atrapa CB dostaje cb.klik, który przenosi postać na pole kliku, gdy leży ono na bieżącym odcinku."""
+    s, cb, w, k, plik = wroc_swiat(poz=GOB_BLISKO, konf=konf)
+    wyw = {"klik": [], "odc": 0, "fazy": set(), "etapy": []}
+    stare_odc = cb._idz_odcinek
+
+    def odc(punkty, idx):
+        wyw["odc"] += 1
+        return stare_odc(punkty, idx)
+    cb._idz_odcinek = odc
+
+    def klik(dx, dy):
+        cel = (s.poz[0] + dx, s.poz[1] + dy, s.poz[2])
+        e = w.etapy[w.ei]
+        pts = [tuple(q) for q in (e.get("punkty") or [])]
+        wyw["klik"].append((tuple(s.poz), cel, pts))
+        wyw["fazy"].add(w.faza)
+        s.t += 0.3
+        if ruch:
+            s.poz[:] = list(cel)
+    cb.klik = klik
+    tyk(s, cb, w)
+    n, wyst = bieg(s, cb, w, maks=12000, fn=pre_tick)
+    return s, cb, w, k, wyw, wyst
+
+
+pw20 = []
+_pw.powiadom = lambda *a, **kw: pw20.append(a)
+try:
+    s, cb, w, k, wyw0, wyst = klik_integracja(konf_wroc())
+    sprawdz("20r WYPRAWA_MARSZ_KLIK=0: dojście do depo jak dotąd, żadnego kliku, tylko kroki (bit w bit)",
+            wyst and tuple(s.poz) == GOB_DEPO and wyw0["klik"] == [] and wyw0["odc"] > 5, (s.poz, len(wyw0["klik"]), wyw0["odc"]))
+    s, cb, w, k, wyw1, wyst = klik_integracja(konf_wroc(WYPRAWA_MARSZ_KLIK=1))
+    sprawdz("20s WYPRAWA_MARSZ_KLIK=1: dojście do depo, kliki w fazie 'do', mniej obiegów kroków niż przy 0",
+            wyst and tuple(s.poz) == GOB_DEPO and len(wyw1["klik"]) >= 2 and wyw1["fazy"] == {"do"} and wyw1["odc"] < wyw0["odc"],
+            (s.poz, len(wyw1["klik"]), wyw1["fazy"], wyw1["odc"], wyw0["odc"]))
+    zle = []
+    for z0, cel, pts in wyw1["klik"]:
+        if z0 not in pts:
+            zle.append(("postać poza odcinkiem", z0, cel))
+            continue
+        pola = marsz_klik.gesta_sciezka(z0, pts[pts.index(z0) + 1:])          # gęsta ścieżka planu od pola postaci
+        if cel[:2] not in pola:
+            zle.append(("cel kliku poza gęstą ścieżką planu", z0, cel))
+            continue
+        trasa = pola[:pola.index(cel[:2]) + 1]
+        d = len(trasa)
+        x0, x1 = min([z0[0]] + [p[0] for p in trasa]) - 1, max([z0[0]] + [p[0] for p in trasa]) + 1
+        y0, y1 = min([z0[1]] + [p[1] for p in trasa]) - 1, max([z0[1]] + [p[1] for p in trasa]) + 1
+        if not 2 <= d <= marsz_klik.KLIK_MAKS_POL or any(
+                marsz_klik.koszt_pola(MAPA, q[0], q[1], z0[2]) != marsz_klik.ZWYKLE for q in trasa) or any(
+                int(MAPA.flagi(x, y, z0[2])) & 2 for x in range(x0, x1 + 1) for y in range(y0, y1 + 1)):
+            zle.append(("niezwykłe pole, schody w prostokącie albo długość", z0, cel, trasa))
+    sprawdz("20t każdy klik: 2..5 pól naprzód, wszystkie pola linii zwykłe, w prostokącie z marginesem 1 zero pól z flagą 2 (schody/dziury)",
+            wyw1["klik"] and not zle, zle[:2])
+    sprawdz("20u po marszu klikiem nadal koniec 'depo', STOP, brak zakupów i alarmów",
+            w.plik_stop.exists() and s.mowa == [] and not s.alarmy and w.zablokowany, (w.plik_stop.exists(), s.mowa, s.alarmy))
+    # klik, który nic nie rusza: kroki przejmują, dojście bez utknięcia, kliki rzadkie (przerwa KLIK_BLAD_PAUZA_S)
+    s, cb, w, k, wyw2, wyst = klik_integracja(konf_wroc(WYPRAWA_MARSZ_KLIK=1), ruch=False)
+    sprawdz("20v klik bez ruchu: dojście do depo mimo to (kroki), kliki rzadkie, log o braku ruchu",
+            wyst and tuple(s.poz) == GOB_DEPO and 0 < len(wyw2["klik"]) < 12 and any("nic nie ruszył" in l for l in w.logi),
+            (s.poz, len(wyw2["klik"])))
+    # mob blisko postaci: w tym czasie bez kliku (rządzi dotychczasowa logika)
+    s, cb, w, k, plik = wroc_swiat(poz=GOB_BLISKO, konf=konf_wroc(WYPRAWA_MARSZ_KLIK=1))
+    klik_log = []
+
+    def klik3(dx, dy):
+        klik_log.append((i3[0], tuple(s.poz)))
+        cel = (s.poz[0] + dx, s.poz[1] + dy, s.poz[2])
+        s.poz[:] = list(cel)
+    cb.klik = klik3
+    i3 = [0]
+    tyk(s, cb, w)
+
+    def fn3(i):
+        i3[0] = i
+        cb.ostatnie_stwory = [mob(s.poz[0] + 1, s.poz[1], z=s.poz[2])] if i < 1 else []     # fn biegnie po skopiowaniu listy stworów w bieg()
+    n, wyst = bieg(s, cb, w, maks=12000, fn=fn3)
+    sprawdz("20w mob przy postaci w pierwszym obiegu: bez kliku (kroki jak dotąd), gdy mob znika, kliki wracają; dojście do depo",
+            wyst and tuple(s.poz) == GOB_DEPO and not [k_ for k_ in klik_log if k_[0] < 1]
+            and any(k_[0] >= 1 for k_ in klik_log), (s.poz, klik_log[:8], len(klik_log)))
+    # zwykła wyprawa po zapasy (nie depo): klik tylko w fazie "do", w "z" (powrót na łowisko) kroki jak dotąd
+    s, cb, w, k = nowy(jedzenie=2)
+    k.WYPRAWA_MARSZ_KLIK = 1
+    fazy = []
+
+    def klik4(dx, dy):
+        fazy.append(w.faza)
+        s.poz[:] = [s.poz[0] + dx, s.poz[1] + dy, s.poz[2]]
+    cb.klik = klik4
+    pre(s, cb, w)
+    n, wyst = bieg(s, cb, w, maks=9000)
+    sprawdz("20x zwykła wyprawa z kliknięciami: klik wyłącznie w fazie 'do' (w 'z' i w sklepie bez), wyprawa kończy się",
+            wyst and fazy and set(fazy) == {"do"}, (wyst, set(fazy), len(fazy)))
+finally:
+    _pw.powiadom = _stare
+
+# --- WROC_REFILL: decyzja przy STOP w depo (czekacz podmieniony; prawdziwy refill.sh/serwis nie biegną) ---
+def refill_bieg(konf, poz=GOB_BLISKO, przed=None, procesy=None, start=None, plan=None, domysl_start=True):
+    s, cb, w, k, plik = wroc_swiat(poz=poz, konf=konf, plan=plan)
+    (w.plik_stop.parent / refill_auto.PLIK).unlink(missing_ok=True)       # katalog TMP jest wspólny dla prób: czysta decyzja
+    starty = []
+    w.refill_start = start or (lambda: starty.append(1))
+    w.refill_procesy = procesy or (lambda wzor, **kw: [])
+    if przed:
+        przed(s, cb, w)
+    pw20.clear()
+    tyk(s, cb, w)
+    n, wyst = bieg(s, cb, w, maks=12000)
+    stan = refill_auto.czytaj_stan(w.plik_stop.parent)
+    return s, cb, w, starty, stan, wyst
+
+
+pw20.clear()
+_pw.powiadom = lambda *a, **kw: pw20.append(a)
+try:
+    s, cb, w, st, stan, wyst = refill_bieg(konf_wroc())
+    sprawdz("20y WROC_REFILL=0 (domyślnie): bot staje w depo jak dotąd, czekacz nie rusza, brak pliku decyzji, komunikat 'potrzebny człowiek'",
+            wyst and tuple(s.poz) == GOB_DEPO and w.plik_stop.exists() and st == [] and stan == {}
+            and any(a[0] == "Wyprawa: jestem w depo" and "potrzebny człowiek" in a[1] and "refill" not in a[1] for a in pw20), (st, stan, pw20))
+    w.plik_stop.unlink()
+    s, cb, w, st, stan, wyst = refill_bieg(konf_wroc(WROC_REFILL=1))
+    sprawdz("20z WROC_REFILL=1, depo Edron: STOP zapisany, czekacz uruchomiony RAZ, decyzja 'czeka', komunikat 'refill startuje sam'",
+            wyst and tuple(s.poz) == GOB_DEPO and w.plik_stop.exists() and st == [1] and stan.get("stan") == "czeka"
+            and any(a[0] == "Wyprawa: jestem w depo" and "refill startuje sam" in a[1] for a in pw20), (st, stan, pw20))
+    for _ in range(40):                        # dalsze ticki po dojściu nie uruchamiają drugiego czekacza
+        tyk(s, cb, w, 5.0)
+        w.tick()
+    sprawdz("20z2 po dojściu czekacz nie rusza drugi raz (wyprawa zablokowana, zlecenie zużyte)", st == [1] and w.zablokowany, st)
+    w.plik_stop.unlink()
+
+    def stop_reczny(s, cb, w):
+        w.plik_stop.with_name("STOP_RECZNY").write_text("")
+    s, cb, w, st, stan, wyst = refill_bieg(konf_wroc(WROC_REFILL=1), przed=stop_reczny)
+    sprawdz("20za STOP_RECZNY: ręczny stop ma pierwszeństwo, czekacz nie rusza, powód w pliku decyzji, bot i tak stoi w depo",
+            wyst and st == [] and stan.get("stan") == "pominiety" and "ręczny" in stan.get("powod", "") and w.plik_stop.exists(), (st, stan))
+    w.plik_stop.with_name("STOP_RECZNY").unlink()
+    w.plik_stop.unlink()
+    s, cb, w, st, stan, wyst = refill_bieg(konf_wroc(WROC_REFILL=1),
+                                           procesy=lambda wzor, **kw: [4242] if "serwis" in wzor else [])
+    sprawdz("20zb serwis już działa: czekacz nie rusza, decyzja 'pominiety: serwis już trwa'",
+            wyst and st == [] and stan.get("stan") == "pominiety" and "serwis" in stan.get("powod", ""), (st, stan))
+    w.plik_stop.unlink()
+    s, cb, w, st, stan, wyst = refill_bieg(konf_wroc(WROC_REFILL=1), start=lambda: (_ for _ in ()).throw(OSError("brak bash")))
+    sprawdz("20zc czekacz nie wystartował: wyjątek nie psuje zatrzymania w depo, decyzja 'pominiety', STOP jest",
+            wyst and stan.get("stan") == "pominiety" and "nie udało się" in stan.get("powod", "") and w.plik_stop.exists()
+            and tuple(s.poz) == GOB_DEPO, stan)
+    w.plik_stop.unlink()
+    # miasto bez planu serwisu: Thais (plan troll z jaskini trolli); trasa i atrapa jak w 12.
+    s, cb, w, k, plik = wroc_swiat(poz=START, konf=konf_wroc(WROC_REFILL=1))
+    (w.plik_stop.parent / refill_auto.PLIK).unlink(missing_ok=True)
+    st = []
+    w.refill_start = lambda: st.append(1)
+    w.refill_procesy = lambda wzor, **kw: []
+    pw20.clear()
+    tyk(s, cb, w)
+    n, wyst = bieg(s, cb, w, maks=12000)
+    stan = refill_auto.czytaj_stan(w.plik_stop.parent)
+    sprawdz("20zd Thais (plan 'troll', depo Thais): bez planu serwisu = brak auto-refillu, STOP w depo, wpis w logu, dymek i pliku decyzji",
+            wyst and tuple(s.poz) == DEPO and st == [] and stan.get("stan") == "brak_planu" and "brak planu serwisu" in stan.get("powod", "")
+            and w.plik_stop.exists() and any("auto-refill pominięty" in l for l in w.logi)
+            and any(a[0] == "Wróć do miasta: bez auto-refillu" for a in pw20), (s.poz, st, stan, pw20))
+    w.plik_stop.unlink()
+    # nieudane dojście (blokada marszu): alarm + STOP bez auto-refillu
+    s, cb, w, k, plik = wroc_swiat(poz=GOB_BLISKO, konf=konf_wroc(WROC_REFILL=1))
+    (w.plik_stop.parent / refill_auto.PLIK).unlink(missing_ok=True)
+    st = []
+    w.refill_start = lambda: st.append(1)
+    tyk(s, cb, w)
+    s.blokada_marszu = True
+    n, wyst = bieg(s, cb, w, maks=12000)
+    sprawdz("20ze dojście nie udało się (utknięcie): alarm i STOP jak dotąd, auto-refill NIE rusza", st == [] and w.plik_stop.exists()
+            and refill_auto.czytaj_stan(w.plik_stop.parent) == {}, (st, wyst, w.plik_stop.exists(), refill_auto.czytaj_stan(w.plik_stop.parent), w.logi[-3:]))
+    w.plik_stop.unlink()
+finally:
+    _pw.powiadom = _stare
+
+okr, blr = pokretla.waliduj({"WYPRAWA_MARSZ_KLIK": 1, "WROC_REFILL": 1}, {"WYPRAWA_MARSZ_KLIK": 0, "WROC_REFILL": 0})
+ok1, bl1 = pokretla.waliduj({"WYPRAWA_MARSZ_KLIK": 1, "WROC_REFILL": 1})
+sprawdz("20zf pokrętła: cavebot ma stałe = 0, na_zywo.json je przyjmuje (0/1), analityk nie włączy",
+        cavebot.WYPRAWA_MARSZ_KLIK == 0 and cavebot.WROC_REFILL == 0 and ok1 == {"WYPRAWA_MARSZ_KLIK": 1, "WROC_REFILL": 1}
+        and not okr and len(blr) == 2, (ok1, okr, blr))
+
 if _os.environ.get("DBG"):
     print(DBGLOG)
 print()

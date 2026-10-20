@@ -226,6 +226,8 @@ ZAKRESY = {
     "WYPRAWA_CZEKAJ_NA_GLOD": (0, 1),   # 1 = powody zapas/glod dopiero po potwierdzonym głodzie (nieudana próba jedzenia)
     "WYPRAWA_DOJSCIE_PATROLEM": (0, 1),  # 1 = start/utknięcie wyprawy poza częścią jaskini połączoną z planem: najpierw dojście drogą patrolu (schody z pliku miejsc), nie od razu alarm
     "WYPRAWA_TYLKO_DEPO": (0, 1),       # 1 = wyprawa kończy się w depo (bez zakupów, bez powrotu): alarm + STOP (tryb wyprawa_depo)
+    "WYPRAWA_MARSZ_KLIK": (0, 1),       # 1 = w drodze do miasta/depo klik w mapę zamiast kroków (wypad.py, marsz_klik.py); 0 = jak dotąd
+    "WROC_REFILL": (0, 1),              # 1 = po dojściu do depo (wroc.sh / wyprawa tylko-do-depo) automatyczny refill (refill_auto.py)
     "JEDZENIE_ZAPAS_MIN": (1, 20),      # poniżej tylu sztuk jedzenia w plecaku rzucamy exevo pan (przy JEDZENIE_CZAR_AKTYWNY=1)
     "OGIEN_UNIKAJ": (0, 1),             # 1 = omijaj pola ognia (wykrywane ze zrzutu), schodź z nich i nie lootuj z ognia (domyślnie 1)
     "RUCH_OKNO": (0, 1),                # 1 = rekord telemetrii ruch_okno co 30 s (R0b, bez wpływu na zachowanie)
@@ -406,7 +408,7 @@ KIERUNEK = {
     "WYPRAWA_AKTYWNA": "nie_wyzej", "WYPRAWA_BLANKI": "nie_wyzej", "WYPRAWA_BLANKI_MAX_KOSZT": "nie_wyzej",
     "WYPRAWA_JEDZENIE_CEL": "nie_wyzej", "WYPRAWA_JEDZENIE_DOKUP": "nie_wyzej", "WYPRAWA_MIN_HP": "nie_nizej",
     "WYPRAWA_CO_MIN": "nie_nizej", "WYPRAWA_MAX_CZAS_S": "nie_wyzej", "WYPRAWA_MAX_KROKOW": "nie_wyzej",
-    "WYPRAWA_STOP_PRZY_UTKNIECIU": "nie_nizej", "WYPRAWA_CZEKAJ_NA_GLOD": "nie_wyzej", "JEDZENIE_BRAK_WALIDUJ": "nie_nizej", "JEDZENIE_BRAK_PROBY": "nie_nizej", "GLOD_ZAPAS_WAZNY_S": "nie_wyzej", "WYPRAWA_WZNOW_WALIDUJ": "nie_nizej", "WYPAD_BIEGNIJ": "nie_nizej", "DOJSCIE_BIEGNIJ": "nie_nizej", "WPADNIECIE": "nie_nizej", "WPADNIECIE_WALIDACJA": "nie_wyzej", "WPADNIECIE_LINA": "nie_nizej", "WPADNIECIE_PLAN": "nie_nizej", "DZIURY_NAUCZONE": "nie_nizej", "DZIURA_PRZY_CELU": "nie_nizej", "WPADNIECIE_LINA_PROB": "nie_nizej", "PIETRA_LOPATA": "nie_nizej", "PIETRA_TRYBY_Z_DANYCH": "nie_nizej", "PIETRA_STARTY_DOMYSLNE": "nie_nizej", "WYPRAWA_DEPO_POWROT": "nie_wyzej", "WYPRAWA_DEPO_POSTOJ_S": "nie_wyzej", "WYPRAWA_TYLKO_DEPO": "nie_wyzej", "WYPRAWA_ZLOTO_MIN": "nie_nizej", "WYPRAWA_CAP_REZERWA": "nie_nizej",
+    "WYPRAWA_STOP_PRZY_UTKNIECIU": "nie_nizej", "WYPRAWA_CZEKAJ_NA_GLOD": "nie_wyzej", "JEDZENIE_BRAK_WALIDUJ": "nie_nizej", "JEDZENIE_BRAK_PROBY": "nie_nizej", "GLOD_ZAPAS_WAZNY_S": "nie_wyzej", "WYPRAWA_WZNOW_WALIDUJ": "nie_nizej", "WYPAD_BIEGNIJ": "nie_nizej", "DOJSCIE_BIEGNIJ": "nie_nizej", "WPADNIECIE": "nie_nizej", "WPADNIECIE_WALIDACJA": "nie_wyzej", "WPADNIECIE_LINA": "nie_nizej", "WPADNIECIE_PLAN": "nie_nizej", "DZIURY_NAUCZONE": "nie_nizej", "DZIURA_PRZY_CELU": "nie_nizej", "WPADNIECIE_LINA_PROB": "nie_nizej", "PIETRA_LOPATA": "nie_nizej", "PIETRA_TRYBY_Z_DANYCH": "nie_nizej", "PIETRA_STARTY_DOMYSLNE": "nie_nizej", "WYPRAWA_DEPO_POWROT": "nie_wyzej", "WYPRAWA_DEPO_POSTOJ_S": "nie_wyzej", "WYPRAWA_TYLKO_DEPO": "nie_wyzej", "WYPRAWA_MARSZ_KLIK": "nie_wyzej", "WROC_REFILL": "nie_wyzej", "WYPRAWA_ZLOTO_MIN": "nie_nizej", "WYPRAWA_CAP_REZERWA": "nie_nizej",
     # ogłoszenia Trade: analityk nie może ich włączyć ani skrócić odstępów (tylko Karol w na_zywo.json)
     "MODEL_TRASA_MIASTA": "nie_wyzej", "MODEL_TRASA_ZAMROZENIE_S": "nie_wyzej", "MODEL_TRASA_MAX_ODL": "nie_wyzej",
     "TRADE_OGLOSZENIA": "nie_wyzej", "TRADE_PRIV_ODPOWIEDZI": "nie_wyzej", "TRADE_MIN_S": "nie_nizej", "TRADE_MAX_S": "nie_nizej", "TRADE_MIN_UH": "nie_nizej",

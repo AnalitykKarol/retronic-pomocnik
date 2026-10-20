@@ -2139,6 +2139,39 @@ class Wyprawa(Wypad):
         self._stan_trasy()
         return True
 
+    # --- auto-refill po dojściu do depo (WROC_REFILL, 20.10; refill_auto.py) ---
+
+    refill_start = None            # testy: podmieniają start czekacza (None = refill_auto.start_czekacza, prawdziwy proces)
+    refill_procesy = None          # testy: podmieniają listę procesów (None = instancja.procesy, /proc tej instancji)
+
+    def _auto_refill(self, poz):
+        """Decyzja o auto-refillu przy STOP w depo: (stan, powód) z refill_auto.zlec albo None przy błędzie. Czekacz rusza dopiero
+        po zapisie STOP (`_auto_refill_start`), bo bot musi wyjść z procesu, zanim refill.sh pozwoli startować."""
+        stan_dir = Path(self.plik_stop or bot.STOP).parent
+        try:
+            import refill_auto  # noqa: PLC0415
+            return refill_auto.zlec(tuple(poz), stan_dir, katalog=TRASY, start=lambda: None, procesy=self.refill_procesy)
+        except Exception as e:                    # noqa: BLE001  (błąd pomocnika nie może zepsuć zatrzymania w depo)
+            self.log(f"Wyprawa: auto-refill: błąd decyzji {e!r}, bot staje jak dotąd")
+            return None
+
+    def _auto_refill_start(self, refill):
+        stan, powod = refill
+        self._tele("wroc_refill", stan=stan, powod=powod)
+        if stan != "czeka":
+            self.log(f"Wyprawa: auto-refill pominięty: {powod}")
+            self._powiadom("Wróć do miasta: bez auto-refillu", powod, "normal", "wroc_refill")
+            return
+        import refill_auto  # noqa: PLC0415
+        try:
+            (self.refill_start or refill_auto.start_czekacza)()
+        except Exception as e:                    # noqa: BLE001
+            stan_dir = Path(self.plik_stop or bot.STOP).parent
+            refill_auto.zapisz_stan(stan_dir, "pominiety", f"nie udało się uruchomić czekacza: {e!r}")
+            self.log(f"Wyprawa: auto-refill: czekacz nie wystartował ({e!r}), bot staje jak dotąd")
+            return
+        self.log(f"Wyprawa: auto-refill: {powod}")
+
     def _zakoncz_depo(self, wynik, opis):
         """Koniec wyprawy do depo: sukces (dotarcie) albo awaria. Zawsze plik STOP, stan wyczyszczony, bez
         powrotu na trasę łowiska i bez zakupów."""
@@ -2154,9 +2187,13 @@ class Wyprawa(Wypad):
             return self._depo_powrot(poz)
         if wynik == "depo":
             self.log(f"Wyprawa: DEPO osiągnięte w {poz}, koniec wyprawy, zatrzymuję bota")
+            refill = self._auto_refill(poz) if int(self._k("WROC_REFILL", 0)) else None     # 20.10: tylko przy WROC_REFILL=1
             self._powiadom("Wyprawa: jestem w depo", f"Bot stoi w depo {poz}{'' if reczny else ' (brak jedzenia)'}. "
-                           "Bot zatrzymany, potrzebny człowiek.", "critical", "wyprawa_depo")
+                           + ("Bot zatrzymany, refill startuje sam." if refill and refill[0] == "czeka"
+                              else "Bot zatrzymany, potrzebny człowiek."), "critical", "wyprawa_depo")
             self._zapisz_stop(f"dotarłem do depo {poz}")
+            if refill is not None:
+                self._auto_refill_start(refill)
         else:
             if opis != "teleport":          # teleport: alarm i STOP poszły już z _teleport
                 self._alarm_utknieciu(f"{opis} (poz {poz})", stop=True, wymus_stop=True)

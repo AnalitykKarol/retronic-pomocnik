@@ -27,6 +27,7 @@ pidy() { python3 -I "$DIR/instancja.py" pidy '(mozg|cavebot)\.py'; }            
 pidy_serwis() { python3 -I "$DIR/instancja.py" pidy '(^|[ /])serwis\.py '; }                    # serwis.py tej instancji
 pidy_serwis_sh() { python3 -I "$DIR/instancja.py" pidy-skrypt '^(\S*/)?bash (\S*/)?serwis\.sh( .*)?$'; }   # serwis.sh tej instancji
 pidy_refill() { python3 -I "$DIR/instancja.py" pidy-skrypt '^(\S*/)?bash (\S*/)?refill\.sh *$'; }   # praca refill.sh tej instancji
+pidy_czekacz() { python3 -I "$DIR/instancja.py" pidy '(^|[ /])refill_auto\.py czekaj'; }          # czekacz auto-refillu (WROC_REFILL=1) tej instancji
 
 case "${1:-}" in
   "") ;;
@@ -47,6 +48,7 @@ case "${1:-}" in
     ubito=0
     for p in $(pidy_refill) $(pidy_serwis_sh); do kill -TERM "$p" 2>/dev/null && ubito=1; done
     [ -n "$(pidy_serwis)" ] && ubito=1
+    if [ -n "$(pidy_czekacz)" ]; then ubito=1; python3 -I "$DIR/refill_auto.py" anuluj > /dev/null 2>&1; fi   # oczekujący auto-refill po dojściu do depo
     if [ "$ubito" = 0 ]; then echo "nic do przerwania"; exit 0; fi   # bez STOP i bez zatrzymaj.sh: nie ubijamy świeżo wystartowanego bota
     # (2) STOP: każda akcja myszy w serwis.py woła sprawdz_stop(), więc serwis sam wychodzi, a jego `finally` puszcza wejście
     touch "$INST_STOP" "$INST_STOP_RECZNY"

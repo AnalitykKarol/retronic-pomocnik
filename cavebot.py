@@ -250,6 +250,8 @@ WYPRAWA_DEPO_W_WALCE = 1           # 1 = wyprawa do depo (po potwierdzonym głod
 WYPRAWA_DEPO_ZLOZ = 0                # 1 = zwykła wyprawa zaczyna od depo: składa UH w skrzyni, potem Frodo/Xodet
 WYPRAWA_DOJSCIE_PATROLEM = 1       # 15.10: 1 = wyprawa/wypad startujący w części jaskini niepołączonej z planem (inna strona schodów, kieszeń) najpierw dochodzi do planu drogą patrolu (graf przejść pięter z pliku miejsc + pietra.py), zamiast kończyć utknięciem; 0 = dawne zachowanie; pokrętło 0-1
 WYPRAWA_TYLKO_DEPO = 0              # 1 = wyprawa idzie tylko do depo (troll_do_miasta + A* do pola depo), tam STOP + powiadomienie; bez zakupów i powrotu
+WYPRAWA_MARSZ_KLIK = 0             # 20.10 pokrętło 0/1: 1 = w drodze do miasta/depo (wypad.py, faza "do": wyprawa i "Wróć do miasta") klik w najdalsze zwykłe pole odcinka (marsz_klik.py, jak serwis); 0 = dotychczasowe chodzenie bit w bit
+WROC_REFILL = 0                    # 20.10 pokrętło 0/1: 1 = po dojściu do depo Edron (STOP w depo: wroc.sh i wyprawa tylko-do-depo) sam startuje refill (refill_auto.py -> refill.sh --tlo); 0 = bot staje i czeka na człowieka
 RUCH_OKNO = 1                      # pokrętło 0/1 (R0b): rekord telemetrii ruch_okno co 30 s (czas marszu/stania, przyczyny, luki)
 RUCH_PROBKA_WCZESNA = 1            # pokrętło 0/1 (R0b): próbka telemetrii także przy wczesnym zakończeniu obiegu (bez A*, bez RPC)
 TICK_WOLNY = 1.0                   # s: tick wolniejszy loguje podział czasu na fazy (debug)

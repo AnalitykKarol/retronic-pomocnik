@@ -1,7 +1,8 @@
 #!/bin/bash
 # Ręczne "Wróć do miasta": bot tej instancji idzie do depo i tam staje (plik STOP, powiadomienie), bez zakupów i powrotu na spot.
 # Zostawia plik WROC w katalogu stanu instancji; bot zabiera go sam w najbliższej spokojnej chwili (po walce i locie,
-# wyprawa.py). --anuluj usuwa plik, o ile wyprawa jeszcze nie ruszyła (w marszu: ./zatrzymaj.sh). Nie rusza gry.
+# wyprawa.py). --anuluj usuwa plik, o ile wyprawa jeszcze nie ruszyła (w marszu: ./zatrzymaj.sh), i oczekujący auto-refill
+# (pokrętło WROC_REFILL=1: po dojściu do depo refill startuje sam, patrz refill_auto.py). Nie rusza gry.
 # Odmawia, gdy bot (mozg|cavebot) tej instancji nie działa. RETRONIC_ID wybiera instancję.
 DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 INST=$(python3 -I "$DIR/instancja.py" powloka) || exit 1; eval "$INST"   # RETRONIC_ID -> INST_* (bez ID: dzisiejsze ścieżki)
@@ -11,11 +12,15 @@ WROC="$INST_STAN/WROC"
 case "${1:-}" in
   "") ;;
   --anuluj)
+    # oczekujący auto-refill po dojściu do depo (WROC_REFILL=1, refill_auto.py): też anulujemy; refill, który już trwa: ./refill.sh --przerwij
+    wyn=$(python3 -I "$DIR/refill_auto.py" anuluj 2>/dev/null); ar=0
+    case "$wyn" in *anulowany*) ar=1 ;; *"już ruszył"*) notify-send "$TYTUL" "Refill już ruszył (anuluj: ./refill.sh --przerwij)"; echo "$wyn"; ar=2 ;; esac
     if [ -e "$WROC" ]; then
       rm -f "$WROC"; notify-send "$TYTUL" "Zlecenie anulowane"; echo "zlecenie anulowane"
-    else
+    elif [ "$ar" = 0 ]; then
       notify-send "$TYTUL" "Brak zlecenia do anulowania (wyprawa mogła już ruszyć: ./zatrzymaj.sh)"; echo "brak zlecenia (w marszu: ./zatrzymaj.sh)"
     fi
+    [ "$ar" = 1 ] && { notify-send "$TYTUL" "Auto-refill anulowany (bot stoi w depo)"; echo "auto-refill anulowany"; }
     exit 0 ;;
   *) echo "użycie: ./wroc.sh [--anuluj]" >&2; exit 2 ;;
 esac
