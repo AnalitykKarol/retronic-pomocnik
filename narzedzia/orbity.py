@@ -18,7 +18,8 @@ Dla każdego epizodu: instancja, data i czas, piętro, róg obszaru, liczba pól
 Wahadło: ta sama sekwencja >= `--min-cykl` (4) pól (kolejne powtórzenia tego samego pola zwinięte) powtórzona >= `--powt` (3)
 razy z rzędu -> flaga `wahadlo` + długość cyklu. Cykl musi być pierwotny (ABAB to nie cykl 4). Cykl z dokładnie tych samych pól;
 sekwencja pól pochodzi z próbek ~1/s, więc bardzo szybki marsz może gubić pola pośrednie.
-Czas: lokalny strefy komputera. Nic nie zapisuje, nic nie uruchamia.
+Kolumna `zamierzone_proc` = udział próbek w stanach PAUZA/PRZERWA/JEDZENIE itp. (stanie z zamiaru — to nie orbita; tabela
+oznacza epizody >= 50%). Czas: lokalny strefy komputera. Nic nie zapisuje, nic nie uruchamia.
 """
 import argparse
 import bisect
@@ -32,6 +33,8 @@ from pathlib import Path
 PRZERWA_S = 20.0
 MAX_CYKL = 80
 STANY_WALKI = ("WALKA", "LOOT")
+# kopia ratunek.STANY_ZAMIERZONE (stoi z zamiaru, nie orbita) — tylko do kolumny „zamierzone”, nie wpływa na wykrywanie
+STANY_ZAMIERZONE = ("PRZERWA", "PAUZA", "PAUZA_PK", "GRACZ", "JEDZENIE", "ML")
 RE_DATA = re.compile(r"telemetria-(\d{8})")
 
 
@@ -175,6 +178,7 @@ def skanuj_plik(plik, korzen, a):
             "rozmiar": [max(p[0] for p in pola) - min(p[0] for p in pola) + 1, max(p[1] for p in pola) - min(p[1] for p in pola) + 1],
             "pola": len(pola), "ruchy": sum(1 for k in range(1, len(poz)) if poz[k] != poz[k - 1]),
             "probki": len(seg), "stany": dict(stany),
+            "zamierzone_proc": round(100 * sum(1 for p in seg if p[2] in STANY_ZAMIERZONE) / len(seg)),
             "wahadlo": bool(w), "cykl": w[0] if w else None, "powtorzen": w[1] if w else None,
             "przed": tuz_przed(pr, zd, zd_t, i, a.przed_s),
         })
@@ -215,7 +219,8 @@ def tabela(wiersze):
         stany = " ".join(f"{k}:{v}" for k, v in sorted(w["stany"].items(), key=lambda kv: -kv[1]))
         wah = f" WAHADŁO cykl {w['cykl']} x{w['powtorzen']}" if w["wahadlo"] else ""
         print(f"{w['instancja']:<10} {w['start'].replace('T', ' ')} {w['czas_s'] / 60:5.1f} min  z{w['pietro']}  "
-              f"od ({w['rog'][0]},{w['rog'][1]}) {w['rozmiar'][0]}x{w['rozmiar'][1]}  {w['pola']} pól  ruchów {w['ruchy']}{wah}")
+              f"od ({w['rog'][0]},{w['rog'][1]}) {w['rozmiar'][0]}x{w['rozmiar'][1]}  {w['pola']} pól  ruchów {w['ruchy']}{wah}"
+              f"{'  [' + str(w['zamierzone_proc']) + '% stanów zamierzonych]' if w['zamierzone_proc'] >= 50 else ''}")
         print(f"    stany: {stany}")
         print(f"    tuż przed: {opis_przed(w['przed'])}")
     razem = sum(w["czas_s"] for w in wiersze) / 60
