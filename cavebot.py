@@ -5389,6 +5389,7 @@ class Cavebot:
     # zero losowania. Wynik trafia tylko do telemetrii (patrol_cel, decyzja D4); ruch bota się nie zmienia.
     _obecnosc = None             # None = jeszcze nie tworzona, False = nie da się (brak miejsc / błąd), inaczej MapaObecnosci
     _cien_wybor = None           # wynik cienia dla bieżącego _patrol_wybierz (None = brak)
+    _wybor_meta = {}             # 20.10: metoda wyboru bieżącego _patrol_wybierz dla telemetrii/logu (patrz _patrol_nowy); {} = "inna"
 
     @staticmethod
     def _respawn_liczy():
@@ -5566,7 +5567,8 @@ class Cavebot:
             cel = cw["cel"]
             zgodny = None if cel is None else cel == m["id"]     # None: nowa metoda bez zdania (nie zawyża zgodności)
             d4 = self._decyzja_zapisz("D4", poz, cw["opcje"], m["id"], regula=m["id"], cien=cel, zgodny=zgodny,
-                                      pewnosc=cw["pewnosc"], w_opcjach=any(o["id"] == m["id"] for o in cw["opcje"]))
+                                      pewnosc=cw["pewnosc"], w_opcjach=any(o["id"] == m["id"] for o in cw["opcje"]),
+                                      metoda=self._wybor_meta.get("metoda", "inna"))     # 20.10: przy "respawn" regula == wybrana (nie wagi)
             return {"cel_respawn": cel, "wartosci": cw["wartosci"], "zgodny": zgodny, "pewnosc_respawn": cw["pewnosc"],
                     "d4_id": d4}
         except Exception as e:
@@ -8781,10 +8783,13 @@ class Cavebot:
             log(f"Patrol: koordynator miejsc: błąd rezerwacji {e!r}, jadę bez niego.")
             return True
 
-    def _patrol_nowy(self, poz, m, powod, waga=None, metoda="inna", wartosc=None, pewnosc=None):
+    def _patrol_nowy(self, poz, m, powod, waga=None):
         """Wizyta w miejscu m: droga A* z bieżącej pozycji; None (i blokada miejsca), gdy drogi nie ma.
-        `metoda` (20.10, do telemetrii patrol_cel): kto wybrał cel: "respawn" (mapa obecności, PATROL_RESPAWN=1; `wartosc`
-        i `pewnosc` z tej metody do logu), "waga" (losowanie wg wag), "najblizsze" (pierwszy wybór), "inna" (reszta)."""
+        Metoda wyboru (20.10, pole `metoda` telemetrii patrol_cel) z self._wybor_meta, ustawianego tylko w _patrol_wybierz:
+        "respawn" (mapa obecności, PATROL_RESPAWN=1; wartość i pewność do logu), "waga" (losowanie wg wag), "najblizsze"
+        (pierwszy wybór); poza _patrol_wybierz (np. po walce, tuż obok) "inna"."""
+        meta = self._wybor_meta
+        metoda, wartosc, pewnosc = meta.get("metoda", "inna"), meta.get("wartosc"), meta.get("pewnosc")
         teraz = self.zegar()
         tgt = (m["x"], m["y"])
         uzyte = []
@@ -8923,10 +8928,12 @@ class Cavebot:
         """Wybór następnego miejsca (dzisiejsza metoda: _patrol_wybierz_dzis). Opakowanie tylko pilnuje, by wynik cienia
         (_cien_wybor, liczony w środku na tych samych kandydatach) nie przeżył tego wywołania."""
         self._cien_wybor = None
+        self._wybor_meta = {}
         try:
             return self._patrol_wybierz_dzis(poz, pomin)
         finally:
             self._cien_wybor = None
+            self._wybor_meta = {}
 
     def _patrol_wybierz_dzis(self, poz, pomin=None):
         """Losuje następne miejsce (waga: udział zabić z dolnym progiem, odległość, kara za niedawne wizyty);
@@ -8938,7 +8945,8 @@ class Cavebot:
             self.patrol_pierwszy = False
             self._patrol_cien_licz(kand, poz)      # tryb cienia: tylko odczyt, bez losowania i bez A*
             for m, d in sorted(kand, key=lambda md: md[1])[:6]:
-                p = self._patrol_nowy(poz, m, "najbliższe", metoda="najblizsze")
+                self._wybor_meta = {"metoda": "najblizsze"}
+                p = self._patrol_nowy(poz, m, "najbliższe")
                 if p is not None:
                     return p
             return None
@@ -8978,7 +8986,8 @@ class Cavebot:
                     i = j
                     break
             m, d = pula[i]
-            p = self._patrol_nowy(poz, m, "losowo", waga=wagi[i] / (sum(wagi) or 1.0), metoda="waga")
+            self._wybor_meta = {"metoda": "waga"}
+            p = self._patrol_nowy(poz, m, "losowo", waga=wagi[i] / (sum(wagi) or 1.0))
             if p is not None:
                 return p
             pula = [(mm, dd) for mm, dd in pula if mm["id"] != m["id"]]
@@ -9007,7 +9016,8 @@ class Cavebot:
             m = next((mm for mm, _d in kand if mm["id"] == cel), None)
             if m is None:
                 return None, pula
-            p = self._patrol_nowy(poz, m, "respawn", metoda="respawn", wartosc=cw["wartosci"].get(cel), pewnosc=cw["pewnosc"])
+            self._wybor_meta = {"metoda": "respawn", "wartosc": cw["wartosci"].get(cel), "pewnosc": cw["pewnosc"]}
+            p = self._patrol_nowy(poz, m, "respawn")
             if p is not None:
                 return p, pula
             pula = [(mm, dd) for mm, dd in pula if mm["id"] != cel]     # brak drogi / rezerwacja: miejsce zablokowane, następna próba
