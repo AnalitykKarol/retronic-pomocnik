@@ -68,3 +68,65 @@ a akcja modelu `wroc_do_miasta` jest atrapą (`mozg.py` ~2673: loguje i woła cz
 
 - F1: `wyprawa.py` + `wroc.sh` + testy (poziom 1, repo bota). F2: test na żywo (zgoda). F3: guzik w pasku (repo) i jego
   instalacja (poziom 2, zgoda).
+
+## Rozszerzenie 20.10: marsz klikiem i auto-refill (polecenie Karola 20.10; DWA POKRĘTŁA, domyślnie 0 = zachowanie sprzed zmiany)
+
+Cel: powrót do miasta ma być płynny. (A) w drodze do depo postać idzie klikiem w mapę (klient prowadzi ją ciągiem), (B) po dojściu do
+depo bot sam startuje refill, zamiast stawać i czekać na ręczne `refill.sh` / guzik. Kod: `marsz_klik.py` (wspólne klocki), `wypad.py`
+(`_marsz_klik`), `refill_auto.py` (decyzja + czekacz), `wyprawa.py` (`_zakoncz_depo`), `panel.py` (pole), `wroc.sh`/`refill.sh` (anulowanie).
+Stałe w `cavebot.py`, zakres i kierunek (analityk nie włączy) w `pokretla.py`.
+
+### A. `WYPRAWA_MARSZ_KLIK` (0/1, `na_zywo.json`)
+
+- **Gdzie:** `Wypad._idz_faza`, TYLKO faza `do` (droga do miasta/depo: „Wróć do miasta” i każda wyprawa), przed `cb._idz_odcinek`. Klik dotyczy
+  jednego odcinka (etapu IDZ) na jednym piętrze; postać musi stać na punkcie odcinka (inaczej zostają dotychczasowe kroki).
+- **Reguła kliku (jak w serwisie, `marsz_klik.py`; serwis używa teraz tych samych funkcji i działa jak dotąd):** najdalsze pole odcinka, do 5 pól
+  naprzód (`KLIK_MAKS_POL`), do którego WSZYSTKIE pola są zwykłe wg mapy (bez blokady, bez schodów/dziur: pole z flagą 2 z odpowiednikiem flagi 2 na
+  piętrze obok; pole z flagą 2 bez odpowiednika, np. krzesło, nie jest „zwykłe”), bez ognia (`cb._ogien_xy`), bez pól zajętych przez stwory i graczy
+  (widma pomijane, wpis własny postaci pomijany); pierwsze pole też musi być zwykłe; min. 2 pola, inaczej krok jak dotąd. Mob (nie gracz) w 3 polach
+  od postaci albo w 2 polach od pola ścieżki kliku = bez kliku albo klik skrócony; groźny gracz (GM/czaszka) w widoku, `ucieczka`, `ostrozny` = bez kliku.
+- **Po kliku:** czekanie na ruch jak w serwisie (do 0,8 s + 0,45 s na pole); co 3. odczyt kontrola: mob w 3 polach, groźny gracz albo spadek HP o
+  > 5 pp = przerwanie (Escape, obieg oddany; walka/ucieczka/PK idą dotychczasową logiką w następnym obiegu, kolejny klik najwcześniej po 3 s).
+  Zmiana piętra = przerwanie obiegu (dalej `_resync` / etap przejścia). Klik bez ruchu = powrót do kroków i 8 s przerwy w klikach.
+- **Cofnięcie:** `WYPRAWA_MARSZ_KLIK=0` (albo usunięcie z `na_zywo.json`). Przy 0 ścieżka jest identyczna jak przed zmianą (test 20r).
+- **Czego nie obejmuje:** faza `z` (powrót na spot), dojście do planu drogą patrolu (`WYPRAWA_DOJSCIE_PATROLEM`), przejścia pięter (lina, dziura,
+  drzwi), sklepy, patrol i walka w `cavebot.py` (osobna gałąź `feat/marsz-klik-patrol`, pokrętło `MARSZ_KLIK`: tam `not self.wypad_aktywny`, więc
+  oba pokrętła się nie nakładają).
+
+### B. `WROC_REFILL` (0/1, `na_zywo.json`)
+
+- **Które powroty obejmuje:** każdy powrót, który kończy się w `Wyprawa._zakoncz_depo(wynik="depo")`, czyli STOP w depo: ręczne `./wroc.sh` ORAZ
+  automatyczna wyprawa w trybie `WYPRAWA_TYLKO_DEPO=1` (głód, brak blanków). Powód: to jedno miejsce, w którym bot staje w depo i dziś czeka na
+  człowieka; refill kupuje dokładnie to, czego te wyprawy brakuje (jedzenie, blanki). Nie obejmuje: ucieczki PK, awarii (utknięcie, limit czasu,
+  teleport), `WYPRAWA_DEPO_POWROT=1` (tam bot sam wraca na spot, bez STOP).
+- **Mechanizm:** `refill_auto.zlec()` (decyzja przy STOP) → odłączony czekacz `refill_auto.py czekaj` → czeka, aż proces bota tej instancji zniknie
+  (`refill.sh` odmawia przy działającym bocie; bot sam wychodzi po STOP, na żywo ta sama sekunda) → ponownie sprawdza STOP_RECZNY i serwis →
+  `zwolnij_wejscie.py` → `refill.sh --tlo` (jedzenie, backpack, blanki, wyjście, `STARTUJ=1` startuje bota na spot; log `refill.log`).
+  Limit czekania na zatrzymanie bota 60 s (potem rezygnacja z wpisem, nic nie jest ubijane).
+- **Pierwszeństwo człowieka i warunki odmowy** (wszystko ląduje w `wroc_refill.json` instancji z powodem; bot i tak stoi w depo jak dotąd):
+  `STOP_RECZNY` (guzik Stop, `zatrzymaj.sh`, `refill.sh --przerwij`) = bez auto-refillu; serwis / praca `refill.sh` / czekacz już działa = bez drugiego;
+  postać nie stoi przy depo = bez; błąd startu czekacza = bez (STOP zostaje).
+- **Anulowanie:** `./wroc.sh --anuluj` (usuwa zlecenie ORAZ oczekującego czekacza: „auto-refill anulowany”), `./refill.sh --przerwij` (ubija czekacza, potem
+  jak dotąd). Anulowanie ręcznego zlecenia przed ruszeniem (plik WROC) nic nie uruchamia, bo wyprawa nie doszła do depo.
+- **Miasto bez planu serwisu:** plan serwisu ma tylko Edron (`trasy/serwis_edron.json`, `serwis.py` przyjmuje wyłącznie `edron`). Miasto ocenia się po
+  położeniu postaci tak jak pole panelu `w_miescie`. Poza Edronem: `stan: brak_planu`, wpis w logu bota („auto-refill pominięty: brak planu serwisu…”), dymek
+  „Wróć do miasta: bez auto-refillu”, pole `wroc_refill: "brak_planu"` w panelu; nic innego nie jest zatrzymywane ani zmieniane.
+  **Johny Dang** (instancja `test`, trolle przy x≈32480, y≈32290) ma plan wyprawy `troll` → depo Thais (początek `depo_troll_cave.json`, (32348,32225,z7)),
+  a Thais NIE ma planu serwisu (zmierzone: `panel.miasto_pozycji` → brak miasta, test 20zd i 2d): jego powrót kończy się STOP-em w depo jak dotąd,
+  z wpisem „brak planu”. Auto-refill dla Thais wymaga osobnej specyfikacji serwisu (NPC, depo, trasy).
+- **Cofnięcie:** `WROC_REFILL=0`. Pliki: `wroc_refill.json` w katalogu stanu (kasowany ręcznie, panel pokazuje go tylko do następnego startu bota).
+- **Ryzyko:** po refillu bot rusza na spot (`STARTUJ=1`); jeśli zakupy się nie powiodły, wyprawa po `WYPRAWA_PO_DEPO_S` (900 s) może znów wrócić do depo i
+  refill ruszy znowu (pętla co ok. 15 min); `REFILL: BLAD` zostawia STOP, wtedy pętli nie ma.
+
+### C. `panel.py --json` (addytywnie)
+
+`wroc_refill`: `null` | `"czeka"` (czekacz żyje, bot się zatrzymuje) | `"trwa"` (refill ruszył, serwis działa) | `"pominiety"` | `"brak_planu"`;
+`wroc_refill_komunikat`: powód (do 200 znaków). Wynik samego refillu zostaje w `serwis_wynik` / `serwis_komunikat`. Pominięty/brak planu znikają po następnym
+starcie bota.
+
+### Testy i weryfikacja
+
+`testy/test_wyprawa.py` sekcja 20 (marsz klikiem: tylko zwykłe pola, przerwania, brak ruchu, faza `do`; decyzje auto-refillu: raz po dojściu, nie przy
+STOP_RECZNY / działającym serwisie / mieście bez planu / nieudanym dojściu / błędzie startu), `testy/test_wroc_refill_auto.py` (klocki, czekacz, panel,
+`refill.sh --przerwij` i `wroc.sh --anuluj` w atrapie). **Niezweryfikowane na żywo** (wymaga zgody i obserwacji): klik w mapę w drodze do depo (zachowanie
+klienta na schodach/liniach, skuteczność kliku po ręcznym zatrzymaniu), pełny łańcuch STOP → czekacz → `refill.sh` → refill z prawdziwym serwisem.
