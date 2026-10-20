@@ -83,6 +83,13 @@
     "prog_hp": 30,
     "dojscie": "rook_raty_z9_dojscie"
   },
+  "rook_raty_z9_do_smierci": {
+    "opis": "BEZ UCIECZKI (decyzja Karola 20.10, Bober lvl 1: walczy do śmierci): Rookgaard, jaskinia szczurów z9 (432 pola, 27 szczurów, pętla 283 pola): pętla rook_raty_z9_petla z mapy klienta (20.10, generuj_trasy_rook_raty2.py). Dojście z depo w mieście (z7): schody w depo (32027,32197), kieszeń z8, kratka (32029,32195,z8), trasą rook_raty_z9_dojscie; drogę wskazał Karol, bot jeszcze jej sam nie przeszedł; na z9 start na miejscu",
+    "trasa": "rook_raty_z9_petla",
+    "potwory": "Rat",
+    "prog_hp": -100,
+    "dojscie": "rook_raty_z9_dojscie"
+  },
   "rook_raty_z10": {
     "opis": "Rookgaard, jaskinia z10 pod z9 (332 pola, 19 szczurów + 3 jaskiniowe, pętla 122 pola): pętla rook_raty_z10_petla z mapy klienta (20.10, drugie piętro tego samego spota co rook_raty_z9). Dojście jak do z9 plus zejście (32038,32212,z9) trasą rook_raty_z10_dojscie; bot jeszcze jej sam nie przeszedł; na z10 start na miejscu",
     "trasa": "rook_raty_z10_petla",
@@ -115,5 +122,26 @@
     "potwory": "Goblin",
     "prog_hp": 30,
     "dojscie": "gobliny_edron_z9_dojscie"
+  },
+  "rook_bugi_z8": {
+    "opis": "Rookgaard, jaskinia bugów z8 za pocztą (144 pola, 11 bugów w 5 spawnach, pętla 93 pola): pętla rook_bugi_z8_petla z mapy klienta (20.10, generuj_trasy_rook_bugi.py). Bez dojścia: postać wchodzi ręcznie schodami w dół z7 (32077,32151) lub (32056,32146) i bot startuje na miejscu; wejścia z mapy, niezweryfikowane botem",
+    "trasa": "rook_bugi_z8_petla",
+    "potwory": "Bug",
+    "prog_hp": 30
+  },
+  "rook_bugi_z10": {
+    "opis": "Rookgaard, jaskinia bugów z10 pod środkiem miasta (165 pól, 9 bugów w 4 przystankach, pętla 85 pól): pętla rook_bugi_z10_petla z mapy klienta (20.10, generuj_trasy_rook_bugi_z10.py). Dojście rook_bugi_z10_dojscie z depo (z7) przez schody (32050,32187,z7), kieszeń z8, schody (32061,32197,z8) i (32056,32199,z9); od najbliższego punktu także z kieszeni z8 / z9 (start z z8 wymaga dojscie_z_dowolnego_pietra). Przejścia z mapy, niezweryfikowane botem",
+    "trasa": "rook_bugi_z10_petla",
+    "potwory": "Bug",
+    "prog_hp": 30,
+    "dojscie": "rook_bugi_z10_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "rook_raty_z8_do_smierci": {
+    "opis": "BEZ UCIECZKI (decyzja Karola 20.10, Bober lvl 1: walczy do śmierci), jaskinia szczurów z8 tuż pod miastem - Bober stoi już w tej jaskini (872 pola, 34 szczury); Rookgaard, jaskinia szczurów z8 tuż pod miastem (872 pola, 34 szczury): pętla rook_raty_z8_petla z mapy klienta (20.10, generuj_trasy_rook.py). Dojście z miasta (z7) trasą rook_raty_z8_dojscie do wejścia (32046,32221,z7): wejście wywnioskowane z mapy, typ przejścia niezweryfikowany w grze; na z8 start na miejscu",
+    "trasa": "rook_raty_z8_petla",
+    "potwory": "Rat",
+    "prog_hp": -100,
+    "dojscie": "rook_raty_z8_dojscie"
   }
 }

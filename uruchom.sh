@@ -33,7 +33,8 @@ if [ -n "$MAPA$TRYB" ]; then
   WYN=$(python3 -I "$DIR/tryb.py" --mapa "${MAPA:-raty}" --tryb "${TRYB:-}") || { notify-send "$TYTUL" "Błąd mapy/trybu (patrz terminal)"; exit 1; }
   eval "$WYN"
 fi
-[ "$Z" = "7" ] && [ -n "$MAPA_DOJSCIE" ] && DOJSCIE=(--dojscie "$MAPA_DOJSCIE")
+# mapa z "dojscie_z_dowolnego_pietra" (np. rook_bugi_z10) przechodzi dojście od najbliższego punktu także ze z8/z9/z10
+{ [ "$Z" = "7" ] || [ -n "${MAPA_DOJSCIE_WSZEDZIE:-}" ]; } && [ -n "$MAPA_DOJSCIE" ] && DOJSCIE=(--dojscie "$MAPA_DOJSCIE")
 # P4 (13.10): telemetria pisze tylko z tą zmienną (testy i skrypty pomocnicze jej nie mają)
 export RETRONIC_TELEMETRIA=1
 setsid nohup python3 -I -u mozg.py --tryb "${MOZG_TRYB:-skrypt}" --model haiku --trasa "$MAPA_TRASA" "${DOJSCIE[@]}" --potwory "$MAPA_POTWORY" --prog-hp "$MAPA_PROG_HP" ${MOZG_BEZ_RUCHU:+--bez-ruchu} > "$LOG" 2>&1 < /dev/null &

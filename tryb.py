@@ -86,7 +86,8 @@ def main(argv=None):
             for k, (s, n) in zmiany.items():
                 log(f"na_zywo.json: {k}: {s} -> {n}", a.log)
     for k, v in (("MAPA_TRASA", m["trasa"]), ("MAPA_POTWORY", m["potwory"]), ("MAPA_PROG_HP", m["prog_hp"]),
-                 ("MAPA_DOJSCIE", m.get("dojscie", "")), ("MAPA_OPIS", m.get("opis", ""))):
+                 ("MAPA_DOJSCIE", m.get("dojscie", "")),
+                 ("MAPA_DOJSCIE_WSZEDZIE", "1" if m.get("dojscie_z_dowolnego_pietra") else ""), ("MAPA_OPIS", m.get("opis", ""))):
         print(f"{k}={shlex.quote(str(v))}")
     return 0
 

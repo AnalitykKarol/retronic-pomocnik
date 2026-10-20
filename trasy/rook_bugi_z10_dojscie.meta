@@ -1,0 +1,34 @@
+{
+ "specjalne": [
+  {
+   "idx": 27,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody z7 (32050,32187), kolor 210 + flaga 2 w mapie; niezweryfikowane botem"
+  },
+  {
+   "idx": 28,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z8 (32050, 32187) w kieszeni z8"
+  },
+  {
+   "idx": 50,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody z8 (32061,32197), kolor 210 + flaga 2"
+  },
+  {
+   "idx": 51,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z9 (32061, 32197) (50 pól)"
+  },
+  {
+   "idx": 57,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody z9 (32056,32199), kolor 210 + flaga 2"
+  },
+  {
+   "idx": 58,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z10 (32056, 32199); po zejściu wejdź w pętlę rook_bugi_z10_petla"
+  }
+ ]
+}
