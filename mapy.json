@@ -77,16 +77,18 @@
     "dojscie": "rook_kanaly_z11_dojscie"
   },
   "rook_raty_z9": {
-    "opis": "UWAGA 20.10: wejście z miasta do tej jaskini NIEZNANE (dojście szybem (32046,32188) było błędne: to jedne schody z7-z8, na z8 są schody w górę, w kieszeni węże i pająki). Startuj tylko z postacią już stojącą w jaskini. Rookgaard, jaskinia szczurów z9 pod środkiem miasta (432 pola, 27 szczurów): pętla rook_raty_z9_petla z mapy klienta (20.10, generuj_trasy_rook_raty2.py). na z9 start na miejscu",
+    "opis": "Rookgaard, jaskinia szczurów z9 (432 pola, 27 szczurów, pętla 283 pola): pętla rook_raty_z9_petla z mapy klienta (20.10, generuj_trasy_rook_raty2.py). Dojście z depo w mieście (z7): schody w depo (32027,32197), kieszeń z8, kratka (32029,32195,z8), trasą rook_raty_z9_dojscie; drogę wskazał Karol, bot jeszcze jej sam nie przeszedł; na z9 start na miejscu",
     "trasa": "rook_raty_z9_petla",
     "potwory": "Rat",
-    "prog_hp": 30
+    "prog_hp": 30,
+    "dojscie": "rook_raty_z9_dojscie"
   },
   "rook_raty_z10": {
-    "opis": "UWAGA 20.10: wejście z miasta do tej jaskini NIEZNANE (dojście szybem (32046,32188) było błędne: to jedne schody z7-z8, na z8 są schody w górę, w kieszeni węże i pająki). Startuj tylko z postacią już stojącą w jaskini. Rookgaard, jaskinia z10 pod z9 (332 pola, 19 szczurów + 3 jaskiniowe, pętla 124 pola): pętla rook_raty_z10_petla z mapy klienta (20.10, drugie piętro tego samego spota co rook_raty_z9). na z10 start na miejscu",
+    "opis": "Rookgaard, jaskinia z10 pod z9 (332 pola, 19 szczurów + 3 jaskiniowe, pętla 122 pola): pętla rook_raty_z10_petla z mapy klienta (20.10, drugie piętro tego samego spota co rook_raty_z9). Dojście jak do z9 plus zejście (32038,32212,z9) trasą rook_raty_z10_dojscie; bot jeszcze jej sam nie przeszedł; na z10 start na miejscu",
     "trasa": "rook_raty_z10_petla",
     "potwory": "Rat,Cave Rat",
-    "prog_hp": 30
+    "prog_hp": 30,
+    "dojscie": "rook_raty_z10_dojscie"
   },
   "wilki": {
     "opis": "Thais, wilki przy mieście (z7): pętla wilki_thais wokół (32480,32166), bez dojścia",
