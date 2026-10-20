@@ -6,13 +6,13 @@ Metoda jak generuj_trasy_rook.py (jego funkcje: składowa, przystanki, pętla, o
 
 Powstają (przy --zapisz), w trasy/ i dane_tibia/mapy/:
   rook_raty_z9_petla    pętla po jaskini z9 (432 pola, 27 szczurów)
-  rook_raty_z9_dojscie  z depo w mieście (z7) szybem (32046,188): z7 -> z8 -> z9
+  (dojść NIE zapisuje: patrz UWAGA niżej)
   rook_raty_z10_petla   pętla po jaskini z10 (332 pola, 19 szczurów + 3 jaskiniowe)
-  rook_raty_z10_dojscie to samo co z9 + zejście z z9 przez (32038,32212) na z10
   rook_raty_z9.png, rook_raty_z10.png  podgląd trasy (czerwona), przystanki (różowe, numer = kolejność)
 
-WSZYSTKIE PRZEJŚCIA PIĘTER SĄ WYWNIOSKOWANE Z MAPY (kolor 210 + flaga 2) i NIEZWERYFIKOWANE W GRZE; lądowanie = pole składowej
-najbliższe (T.x, T.y+1), jak w rook_raty_z8_dojscie. Pierwsze zejście sprawdzić na żywo z Karolem (jedno wywołanie).
+UWAGA (20.10, po próbie na żywo): kod dojścia poniżej (szyb (32046,32188) z7-z8-z9) jest BŁĘDNY i nie jest zapisywany. To pole z kolorem 210 na z7 i z8
+to jedne schody (na z8 prowadzą w górę), pod nimi na z9 jest ściana; w kieszeni z8 żyją węże i pająki. Jaskinie z8 (247 pól), z9 i z10 tego spota
+nie mają w mapie wejścia z miasta (reguła: schody = para pól 210 w tym samym x,y na sąsiednich piętrach). Wejście trzeba znaleźć w grze.
 """
 import argparse
 import json
@@ -154,8 +154,7 @@ def main(argv=None):
             "przystanki": [{"kolejnosc": k, "x": nodes[o][0], "y": nodes[o][1], "z": z,
                             **({} if o == 0 else {"potworow": st[o - 1]["n"], "spawnow": st[o - 1]["spawny"]})}
                            for k, o in enumerate(order)]}, ensure_ascii=False, indent=1))
-        trasa_io.zapisz(f"{nazwa}_dojscie", doj, meta)
-    print("zapisano trasy/ i dane_tibia/mapy/ (wpisy mapy.json dodaj osobno)")
+    print("zapisano pętle w trasy/ i dane_tibia/mapy/ (dojść brak: wejście nieznane)")
 
 
 if __name__ == "__main__":
