@@ -142,6 +142,23 @@ def procesy(wzor, id_=None, proc="/proc", comm=("python", "python3")):
     return sorted(wynik)
 
 
+# --- podgląd VNC: czy ktoś jest podłączony do wayvnc sesji ------------------------------------------
+
+def podglad_polaczony(port, proc="/proc"):
+    """Czy jest NAWIĄZANE połączenie TCP z 127.0.0.1:<port> (wayvnc sesji). Działa dla każdej przeglądarki VNC
+    (Remmina, vncviewer), bez szukania procesu: /proc/net/tcp, stan 01 = ESTABLISHED, port lokalny = port wayvnc."""
+    cel = f"0100007F:{int(port):04X}"
+    try:
+        linie = Path(f"{proc}/net/tcp").read_text().splitlines()[1:]
+    except (OSError, ValueError):
+        return False
+    for l in linie:
+        p = l.split()
+        if len(p) > 3 and p[1] == cel and p[3] == "01":
+            return True
+    return False
+
+
 # --- CLI dla skryptów powłoki ---------------------------------------------------------------------
 
 def _powloka(s):

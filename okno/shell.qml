@@ -6,7 +6,7 @@ import "RetronicModel.js" as Rules
 
 // Okno zarządzania Retronic (spec wtyczka-paska/specs/2026-10-19-retronic-okno.md, faza F2, F3): osobny proces Quickshella
 // (`quickshell -p <repo>/okno/`, patrz ../okno.sh), niezależny od paska i powłoki Omarchy. Okno tylko czyta JSON z ../okno_api.py
-// i woła skrypty bota; własnej logiki bota nie ma. Układ: pasek boczny 260 px + sekcja (Ratunek, Mapa i tryb, Ustawienia) + stopka;
+// i woła skrypty bota; własnej logiki bota nie ma. Układ: pasek boczny 260 px + sekcja (Sesja gry, Ratunek, Mapa i tryb, Ustawienia) + stopka;
 // Ctrl+K otwiera wyszukiwarkę pokręteł, map i trybów (F3).
 ShellRoot {
   id: shell
@@ -118,6 +118,12 @@ ShellRoot {
               font.pixelSize: Theme.body
             }
 
+            SesjaView {
+              objectName: "widok-sesja"
+              anchors.fill: parent
+              visible: ctl.loaded && ctl.section === "sesja"
+              ctl: ctl
+            }
             RatunekView {
               objectName: "widok-ratunek"
               anchors.fill: parent

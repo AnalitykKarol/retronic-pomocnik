@@ -356,7 +356,7 @@ Item {
           label: "▶ Start z tym"
           tone: "ok"
           active: view.startState.enabled
-          busy: view.ctl.actionBusy
+          busy: view.ctl.isBusy(view.ctl.selectedId)
           onActivated: view.confirming = true
         }
         Btn {
@@ -365,7 +365,7 @@ Item {
           label: "Tak, uruchom"
           tone: "ok"
           active: view.startState.enabled
-          busy: view.ctl.actionBusy
+          busy: view.ctl.isBusy(view.ctl.selectedId)
           onActivated: { view.confirming = false; view.ctl.startWithChoice() }
         }
         Btn {

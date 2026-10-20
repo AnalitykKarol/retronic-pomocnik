@@ -29,7 +29,11 @@ if tryb == "garbage":
     print("to nie jest json"); sys.exit(0)
 if tryb.startswith("sleep:"):
     time.sleep(float(tryb[6:]))
-print(json.dumps({"text": "RT", "tooltip": "Retronic: działa\\nHP 100/200  mana 30/60", "class": "dziala", "alt": "dziala", "id": i}))
+wynik = {"text": "RT", "tooltip": "Retronic: działa\\nHP 100/200  mana 30/60", "class": "dziala", "alt": "dziala", "id": i}
+dodatek = os.path.join(os.path.dirname(os.path.abspath(__file__)), "panel_dodatek." + (i or "glowna"))
+if os.path.exists(dodatek):
+    wynik.update(json.load(open(dodatek)))
+print(json.dumps(wynik))
 '''
 FAKE_CAVEBOT = "POGON_ZASIEG = 10     # stała\nPOGON_LIMIT = 14.0\nPOSCIG_TRZYMAJ = True\nUH_KLAWISZ = 'F6'\nRATUNEK_LIMIT_H = 20\nRATUNEK_HAIKU = 0\nKROKI_DO_ZWLOK = 30\nOGIEN_IGNORUJ_S = 0.0\nLIMIT_WALKI = 90\n"
 NA_ZYWO = {"POGON_ZASIEG": 12, "UH_KLAWISZ": "F7", "_opis": "ręczna notatka", "STARY_KLUCZ": 5, "POGON_LIMIT": 20.0}
@@ -418,11 +422,13 @@ with tempfile.TemporaryDirectory() as tmp:
 
 # ================= stan =================
 with tempfile.TemporaryDirectory() as tmp:
-    r = zrob_korzen(tmp, instancje=("dwa", "trzy", "cztery"))
+    r = zrob_korzen(tmp, instancje=("dwa", "trzy", "cztery", "piec"))
     (r / "instancje/dwa/logi/ratunek-20261019.jsonl").write_text("\n".join(wpis_sygnalu("S3", "stoi", czas(11, i)) for i in range(3)) + "\n")
     (r / "instancje/trzy/logi/ratunek-20261018.jsonl").write_text(wpis_sygnalu("S3", "stoi", czas(11, 0, 0, 18)) + "\n")     # wczoraj: nie liczy się
     (r / "panel_tryb.trzy").write_text("crash")
     (r / "panel_tryb.cztery").write_text("garbage")
+    (r / "panel_dodatek.dwa").write_text(json.dumps({"level": 37, "level_procent": 42.5, "podglad": {"port": 5950, "otwarty": True, "pid": 4321}}))
+    (r / "panel_dodatek.piec").write_text(json.dumps({"level": "x", "level_procent": [1], "podglad": "zly"}))    # śmieci w polach dodatkowych
     (Path(tmp) / "rt" / "retronic-dwa.sock").write_text("")
     (Path(tmp) / "rt" / "retronic-pomocnik.sock").write_text("")
     proces(tmp, 101, ["python3", "-I", "mozg.py", "skrypt", "--tryb", "ml"], {"RETRONIC_ID": "dwa", "RETRONIC_POSTAC": "Johny"})
@@ -434,11 +440,24 @@ with tempfile.TemporaryDirectory() as tmp:
     proces(tmp, 107, ["python3", "-I", "inny_skrypt.py"], {"RETRONIC_ID": "cztery"})     # nie bot
     t0 = time.monotonic(); kod, d = uruchom(tmp, "stan"); dt = time.monotonic() - t0
     ins = {x["id"]: x for x in d["instancje"]}
-    sprawdz("stan: ok, instancje: główna + katalogi z poprawnym id (bez _wspolne, bez złych nazw i plików)", kod == 0 and d["ok"] and [x["id"] for x in d["instancje"]] == ["", "cztery", "dwa", "trzy"], list(ins))
+    sprawdz("stan: ok, instancje: główna + katalogi z poprawnym id (bez _wspolne, bez złych nazw i plików)", kod == 0 and d["ok"] and [x["id"] for x in d["instancje"]] == ["", "cztery", "dwa", "piec", "trzy"], list(ins))
     sprawdz("stan: główna nazywa się 'główna'", ins[""]["nazwa"] == "główna" and ins["dwa"]["nazwa"] == "dwa")
     w = ins["dwa"]
     sprawdz("stan: wynik panel.py --json dołączony i uruchomiony z RETRONIC_ID instancji", w["panel"]["id"] == "dwa" and ins[""]["panel"]["id"] == "" and w["klasa"] == "dziala", w["panel"])
-    sprawdz("stan: HP/mana z panelu", w["gracz"] == {"hp": 100, "max_hp": 200, "mana": 30, "max_mana": 60}, w["gracz"])
+    sprawdz("stan: HP/mana z panelu, level i procent w gracz (null bez pól w panelu)", w["gracz"] == {"hp": 100, "max_hp": 200, "mana": 30, "max_mana": 60, "level": 37, "level_procent": 42.5}
+            and ins[""]["gracz"] == {"hp": 100, "max_hp": 200, "mana": 30, "max_mana": 60, "level": None, "level_procent": None}, (w["gracz"], ins[""]["gracz"]))
+    sprawdz("stan: level, level_procent i podglad także na wierzchu instancji (kopia z panelu)", (w["level"], w["level_procent"]) == (37, 42.5)
+            and w["podglad"] == {"port": 5950, "otwarty": True, "pid": 4321}, (w["level"], w["podglad"]))
+    PUSTY_POD = {"port": None, "otwarty": False, "pid": None}
+    sprawdz("stan: panel bez nowych pól = domyślne null / pusty podgląd (kształt stały)", ins[""]["level"] is None and ins[""]["level_procent"] is None
+            and ins[""]["podglad"] == PUSTY_POD, (ins[""]["level"], ins[""]["podglad"]))
+    sprawdz("stan: awaria panelu (crash / śmieci) = te same klucze z domyślnymi wartościami", all(ins[i]["level"] is None and ins[i]["level_procent"] is None
+            and ins[i]["podglad"] == PUSTY_POD and "gracz" in ins[i] and ins[i]["gracz"] is None for i in ("trzy", "cztery")), (ins["trzy"], ins["cztery"]))
+    sprawdz("stan: śmieciowe pola level/podglad w panelu nie psują instancji (null, pusty podgląd, gracz z null-levelem, brak błędu)",
+            ins["piec"]["level"] is None and ins["piec"]["level_procent"] is None and ins["piec"]["podglad"] == PUSTY_POD
+            and ins["piec"]["gracz"] == {"hp": 100, "max_hp": 200, "mana": 30, "max_mana": 60, "level": None, "level_procent": None}
+            and ins["piec"]["blad"] is None, ins["piec"])
+    sprawdz("stan: ten sam zestaw kluczy w każdej instancji", len({tuple(sorted(x)) for x in d["instancje"]}) == 1, [sorted(x) for x in d["instancje"]][:2])
     sprawdz("stan: gra (gniazdo), sesja (sway), klient, bot, nick instancji dwa", w["gra"] is True and w["sesja"] is True and w["klient_pids"] == [102]
             and w["bot"] is True and w["bot_procesy"] == [{"pid": 101, "tryb": "mozg.py ml"}] and w["nick"] == "Johny", w)
     sprawdz("stan: procesy innych instancji nie przeciekają (trzy: cavebot.py, brak gniazda/sesji; główna: własny mozg i sway)",

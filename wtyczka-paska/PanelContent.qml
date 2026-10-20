@@ -3,8 +3,9 @@ import qs.Commons
 import "RetronicModel.js" as Model
 
 // Zawartość panelu: nagłówek (z guzikiem "▣ Otwórz okno") i wiersz na instancję (kropka stanu, nazwa, stan, osobny Stop/Start,
-// pod nim "⌂ Miasto", "↻ Refill" i "↗ Spot" z jedną linią o cyklu spot -> miasto -> refill -> spot, potem HP/mana,
-// ostatni start, proxy, krótki błąd). Bez logiki bota: dostaje obiekty Instance i je rysuje.
+// pod nim "⌂ Miasto", "↻ Refill" i "↗ Spot" z jedną linią o cyklu spot -> miasto -> refill -> spot, potem HP/mana/lvl,
+// ostatni start, proxy, krótki błąd). Klik w nick instancji = "Zobacz postać" (podgląd VNC), znacznik obok nicku pokazuje,
+// czy podgląd jest otwarty. Bez logiki bota: dostaje obiekty Instance i je rysuje.
 Column {
   id: content
 
@@ -14,6 +15,11 @@ Column {
   property color urgent: Color.urgent
   property color okColor: "#6fbf73"
   property color warnColor: "#d9a441"
+  // Znacznik "podgląd otwarty" przy nicku: akcent motywu (inny niż zieleń kropki stanu bota).
+  property color previewColor: Color.accent
+  // HP i mana w kolorach pasków z gry (czerwony / niebieski), czytelne na ciemnym tle
+  property color hpColor: "#f7768e"
+  property color manaColor: "#7aa2f7"
   property string fontFamily: Style.font.family
   // "Otwórz okno" jest jeden dla całego panelu (nie per instancja): stan i błąd trzyma Panel.qml.
   property bool windowBusy: false
@@ -109,7 +115,11 @@ Column {
       readonly property var refillSpec: Model.refillButton(st)
       readonly property var spotSpec: Model.spotButton(st)
       readonly property var info: Model.cityInfo(st)
-      readonly property string hoverHint: returnButton.hovered ? returnSpec.hint : (refillButton.hovered ? refillSpec.hint : (spotButton.hovered ? spotSpec.hint : ""))
+      // "Zobacz postać": stan znacznika i klikalność wylicza Model.previewState (główna instancja: bez klikania).
+      readonly property var preview: Model.previewState(st, inst.instanceId)
+      readonly property bool previewClickable: preview.enabled && !inst.busy
+      readonly property bool previewMarker: preview.state === "open" || preview.state === "closed"
+      readonly property string hoverHint: nickMouse.containsMouse ? preview.hint : (returnButton.hovered ? returnSpec.hint : (refillButton.hovered ? refillSpec.hint : (spotButton.hovered ? spotSpec.hint : "")))
 
       width: content.width
       spacing: Style.space(3)
@@ -135,20 +145,75 @@ Column {
           color: content.stateColor(card.klasa)
         }
 
-        Text {
-          id: nameText
+        // Nick + znacznik podglądu: cały ten rząd jest guzikiem "Zobacz postać" (tylko mysz, jak pozostałe guziki).
+        Row {
+          id: nickRow
           anchors.left: dot.right
           anchors.leftMargin: Style.space(8)
           anchors.verticalCenter: parent.verticalCenter
-          text: Model.displayName(card.inst.instanceId)
-          color: content.foreground
-          font.family: content.fontFamily
-          font.pixelSize: Style.font.body
-          font.bold: true
+          spacing: Style.space(6)
+
+          Text {
+            id: nameText
+            anchors.verticalCenter: parent.verticalCenter
+            text: Model.displayName(card.inst.instanceId)
+            color: card.previewClickable && nickMouse.containsMouse ? content.previewColor : content.foreground
+            opacity: card.preview.state === "none" ? 0.55 : 1
+            font.family: content.fontFamily
+            font.pixelSize: Style.font.body
+            font.bold: true
+            font.underline: card.previewClickable && nickMouse.containsMouse
+          }
+
+          // Oko: pierścień z kropką = podgląd otwarty (akcent), sam pierścień = zamknięty (przygaszony). Brak gry / główna: bez znacznika.
+          Rectangle {
+            id: previewMarker
+            objectName: "znacznik-podgladu"
+            visible: card.previewMarker
+            anchors.verticalCenter: parent.verticalCenter
+            width: Style.space(12)
+            height: width
+            radius: width / 2
+            color: "transparent"
+            border.width: 1
+            border.color: card.preview.state === "open" ? content.previewColor : content.alpha(content.foreground, 0.4)
+
+            Rectangle {
+              anchors.centerIn: parent
+              width: Style.space(6)
+              height: width
+              radius: width / 2
+              color: content.previewColor
+              visible: card.preview.state === "open"
+            }
+          }
+
+          // Level przy nicku (Karol 20.10): wyraźny kolor i pogrubienie; część rzędu nicku, więc klik też otwiera podgląd.
+          Text {
+            objectName: "level-przy-nicku"
+            visible: text !== ""
+            anchors.verticalCenter: parent.verticalCenter
+            text: Model.levelLabel(card.st)
+            color: content.warnColor
+            font.family: content.fontFamily
+            font.pixelSize: Style.font.bodySmall
+            font.bold: true
+          }
+        }
+
+        MouseArea {
+          id: nickMouse
+          objectName: "nick-podglad"
+          anchors.fill: nickRow
+          anchors.margins: -Style.space(3)
+          enabled: card.preview.state !== "main"
+          hoverEnabled: true
+          cursorShape: card.previewClickable ? Qt.PointingHandCursor : Qt.ArrowCursor
+          onClicked: if (card.previewClickable) card.inst.run("podglad")
         }
 
         Text {
-          anchors.left: nameText.right
+          anchors.left: nickRow.right
           anchors.leftMargin: Style.space(8)
           anchors.right: actionButton.left
           anchors.rightMargin: Style.space(8)
@@ -247,15 +312,31 @@ Column {
         elide: Text.ElideRight
       }
 
-      Text {
-        visible: text !== ""
-        width: parent.width
+      // HP i mana pogrubione, w kolorach jak w grze (czerwone HP, niebieska mana); level stoi przy nicku.
+      Row {
+        visible: hpText.text !== "" || manaText.text !== ""
         leftPadding: Style.space(18)
-        text: Model.resourcesLabel(card.st)
-        color: content.dim
-        font.family: content.fontFamily
-        font.pixelSize: Style.font.caption
-        elide: Text.ElideRight
+        spacing: Style.space(12)
+
+        Text {
+          id: hpText
+          objectName: "hp"
+          text: Model.hpLabel(card.st)
+          color: content.hpColor
+          font.family: content.fontFamily
+          font.pixelSize: Style.font.bodySmall
+          font.bold: true
+        }
+
+        Text {
+          id: manaText
+          objectName: "mana"
+          text: Model.manaLabel(card.st)
+          color: content.manaColor
+          font.family: content.fontFamily
+          font.pixelSize: Style.font.bodySmall
+          font.bold: true
+        }
       }
 
       Text {

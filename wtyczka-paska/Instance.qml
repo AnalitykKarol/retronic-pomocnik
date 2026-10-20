@@ -33,7 +33,7 @@ QtObject {
     statusProcess.running = true
   }
 
-  // kind: "stop" | "start" | "wroc" | "wroc-anuluj" | "refill" | "spot" | "refill-stop" (patrz ACTION_SCRIPTS w modelu).
+  // kind: "stop" | "start" | "wroc" | "wroc-anuluj" | "refill" | "spot" | "refill-stop" | "podglad" (patrz ACTION_SCRIPTS w modelu).
   // Skrypty bota dostają tylko RETRONIC_ID tej instancji. "refill" i "spot" odpalają serwis ODŁĄCZONY (refill.sh --tlo/--spot wraca od razu),
   // więc ten sam timeout 25 s co przy Start wystarcza; postęp widać w statusie (serwis_*), nie w wyniku akcji.
   function run(kind) {

@@ -3,7 +3,8 @@
 
   panel.py            panel TUI (curses): s start, x stop, l pełny log w less, q wyjście
   panel.py --raz      jednorazowo wypisuje ekran (bez curses) i kończy
-  panel.py --json     JSON dla paska (używa go status.sh); od 19.10 także pola guzików „Wróć do miasta” i „Refill” (niżej)
+  panel.py --json     JSON dla paska (używa go status.sh); od 19.10 także pola guzików „Wróć do miasta” i „Refill” (niżej),
+                      od 20.10 pola level / level_procent / podglad (niżej, spec retronic-lvl-i-podglad)
 """
 import json
 import os
@@ -132,9 +133,37 @@ def stan(z_graczem=True):
                     s["alarm"] = l[:200]
         s["ostatnie"] = [l for l in ogon(log, 400) if WAZNE.search(l) and "debug:" not in l][-3:]
     s["klasa"] = ("alarm" if s["alarm"] else "dziala" if s["dziala"] else "stop") if s["gra"] else "brak"
-    if z_graczem and s["gra"] and (s["dziala"] or s.get("pelny")):
+    if z_graczem and s["gra"] and (s["dziala"] or s.get("pelny") or not gracz_niedawno_brak()):
+        # 20.10 (Q3): lvl i HP także przy zatrzymanym bocie, byle gra miała gniazdo. Przy zatrzymanym bocie nieudany odczyt
+        # (np. postać niezalogowana: strażnik robi pełny skan pamięci ~1-2 s) wstrzymuje kolejne próby na GRACZ_BRAK_S,
+        # żeby pasek (co 5 s) i okno (co 2 s) nie trzymały jednowątkowego strażnika w ciągłym skanie.
         s["gracz"] = gracz(0.3)
+        zapamietaj_gracza(s["gracz"] is not None)
     return s
+
+
+GRACZ_BRAK_S = 30.0
+
+
+def _plik_gracz_brak():
+    return Path(instancja.S.stan) / "gracz_brak"
+
+
+def gracz_niedawno_brak(teraz=None):
+    try:
+        return ((teraz or time.time()) - _plik_gracz_brak().stat().st_mtime) < GRACZ_BRAK_S
+    except OSError:
+        return False
+
+
+def zapamietaj_gracza(udany):
+    try:
+        if udany:
+            _plik_gracz_brak().unlink(missing_ok=True)
+        else:
+            _plik_gracz_brak().touch()
+    except OSError:
+        pass
 
 
 def statystyki(s):
@@ -172,8 +201,12 @@ def json_paska():
     if s["tryb"]:
         t.append(f"Tryb: {s['tryb']}, działa {fmt_czas(s['czas'])}")
     g = s["gracz"]
+    lvl, lvl_proc = poziom_gracza(g)
     if g:
-        t.append(f"HP {int(g['hp'])}/{int(g['max_hp'])}  mana {int(g['mana'])}/{int(g['max_mana'])}")
+        linia_hp = f"HP {int(g['hp'])}/{int(g['max_hp'])}  mana {int(g['mana'])}/{int(g['max_mana'])}"
+        if lvl is not None:
+            linia_hp += f"  lvl {lvl}" + (f" ({lvl_proc:g}%)" if lvl_proc is not None else "")
+        t.append(linia_hp)
     if s["alarm"]:
         t.append("! " + s["alarm"])
     t += [l[:110] for l in s["ostatnie"]]
@@ -201,6 +234,64 @@ def json_paska():
         wynik.update(pola_guzikow(s))
     except Exception as e:                  # pola guzików są dodatkiem: ich awaria nie psuje dotychczasowego kontraktu
         print(f"panel: pola guzików pominięte: {e!r}", file=sys.stderr)
+    wynik.update({"level": lvl, "level_procent": lvl_proc, "podglad": dict(PODGLAD_PUSTY)})
+    try:                                    # j.w.: podgląd to dodatek, jego awaria zostawia pusty podgląd, nie psuje reszty
+        wynik["podglad"] = podglad_instancji()
+    except Exception as e:
+        print(f"panel: pole podglad pominięte: {e!r}", file=sys.stderr)
+    return wynik
+
+
+# ---------- poziom postaci i podgląd VNC (20.10) ----------
+# Dodatkowe pola --json: level, level_procent (z `gracz`: g['level'], g['procent']) i podglad {port, otwarty, pid}.
+# Spec: wtyczka-paska/specs/2026-10-20-retronic-lvl-i-podglad.md. Wszystkie OPCJONALNE, dotychczasowe pola bez zmian.
+PODGLAD_PUSTY = {"port": None, "otwarty": False, "pid": None}
+VNC_WZOR = re.compile(r"127\.0\.0\.1::(\d+)(?!\d)")
+
+
+def poziom_gracza(g):
+    """(level, procent) z odpowiedzi `gracz` albo (None, None). Błąd odczytu nie wychodzi poza funkcję."""
+    try:
+        lvl, proc = g.get("level"), g.get("procent")
+        lvl = int(lvl) if isinstance(lvl, (int, float)) and not isinstance(lvl, bool) else None
+        proc = proc if lvl is not None and isinstance(proc, (int, float)) and not isinstance(proc, bool) else None
+        return lvl, proc
+    except Exception:
+        return None, None
+
+
+def podglad_instancji(sesja=None, proc=None):
+    """{"port", "otwarty", "pid"}: port z <sesja instancji>/vnc_port, otwarty/pid = żywy vncviewer na 127.0.0.1::<port>
+    (jak okno_api.skan_sesji; przy kilku najniższy pid). Brak pliku portu = {port: None, otwarty: False, pid: None}.
+    Katalog /proc można podmienić zmienną RETRONIC_PANEL_PROC (testy)."""
+    sesja = Path(sesja) if sesja is not None else Path(instancja.S.sesja)
+    proc = proc or os.environ.get("RETRONIC_PANEL_PROC") or "/proc"
+    wynik = dict(PODGLAD_PUSTY)
+    try:
+        port = int((sesja / "vnc_port").read_text().strip())
+    except (OSError, ValueError):
+        return wynik
+    wynik["port"] = port
+    pidy = []
+    try:
+        wpisy = os.listdir(proc)
+    except OSError:
+        return wynik
+    for w in wpisy:
+        if not w.isdigit():
+            continue
+        try:
+            argv = [x.decode(errors="replace") for x in Path(f"{proc}/{w}/cmdline").read_bytes().split(b"\0") if x]
+        except OSError:
+            continue
+        if argv and os.path.basename(argv[0]) == "vncviewer":
+            m = VNC_WZOR.search(" ".join(argv))
+            if m and int(m[1]) == port:
+                pidy.append(int(w))
+    if pidy:
+        wynik["otwarty"], wynik["pid"] = True, min(pidy)
+    elif instancja.podglad_polaczony(port, proc):      # Remmina (20.10): jeden proces na wszystkie okna, więc po połączeniu
+        wynik["otwarty"] = True
     return wynik
 
 

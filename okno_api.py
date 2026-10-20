@@ -19,6 +19,9 @@ Wynik: JSON na stdout; sukces `{"ok": true, ...}` i kod 0; błąd `{"ok": false,
                                                (domyślnie ostatnie 7 dni), nie z całej historii
   ratunek-oznacz --instancja ID --id X --falszywy|--prawdziwy   etykieta w logi/ratunek-etykiety.jsonl
   mapy-tryby [--instancja ID]                  mapy.json, tryby.json, ostatnia mapa/tryb instancji
+  sesja --instancja ID                         sesja gry (F4): procesy, podgląd VNC, profil bez hasła (tylko odczyt, D-F4-1),
+                                               tożsamość, czy start możliwy, ostatnie linie logu startu i wynik sprawdzenia IP.
+                                               Uruchamianie i zamykanie gry robi sesja_gry.py, nie to CLI.
 
 Instancja: "" albo "główna" = główna; inaczej id z instancje/<id>/ (instancja.sprawdz_id).
 Zmienne tylko do testów: RETRONIC_OKNO_KATALOG (katalog DANYCH zamiast katalogu skryptu), RETRONIC_OKNO_PROC
@@ -48,6 +51,7 @@ sys.path.insert(0, str(WLASNY))
 os.environ.pop("RETRONIC_ID", None)        # okno obsługuje wszystkie instancje; id zawsze jawnie
 import instancja  # noqa: E402
 import pokretla  # noqa: E402
+import profil  # noqa: E402
 import ratunek as modul_ratunek  # noqa: E402
 
 PANEL_LIMIT_S = 1.5        # twardy limit jednego `panel.py --json`
@@ -768,8 +772,12 @@ def pola_z_procesow(w, procesy):
     w["nick"] = next((b["postac"] for b in procesy["bot"] if b["postac"]), None)
 
 
+PODGLAD_PUSTY = {"port": None, "otwarty": False, "pid": None}
+
+
 def pusty_stan(id_):
     return {"id": id_, "nazwa": id_ or NAZWA_GLOWNEJ, "blad": None, "panel": None, "klasa": None, "gracz": None,
+            "level": None, "level_procent": None, "podglad": dict(PODGLAD_PUSTY),
             "gra": None, "sesja": None, "bot": None, "bot_procesy": [], "klient_pids": [], "nick": None,
             "mapa": None, "tryb": [], "ratunek_dzis": None}
 
@@ -790,7 +798,22 @@ def stan_instancji(id_, procesy):
         w["panel"], w["klasa"] = p, p.get("class")
         m = HP_WZOR.search(str(p.get("tooltip") or ""))
         if m:
-            w["gracz"] = {"hp": int(m[1]), "max_hp": int(m[2]), "mana": int(m[3]), "max_mana": int(m[4])}
+            w["gracz"] = {"hp": int(m[1]), "max_hp": int(m[2]), "mana": int(m[3]), "max_mana": int(m[4]),
+                          "level": None, "level_procent": None}
+        try:                                         # pola level/podglad są dodatkiem panelu: ich brak lub zły kształt nie psuje reszty
+            lvl, proc = p.get("level"), p.get("level_procent")
+            lvl = int(lvl) if isinstance(lvl, (int, float)) and not isinstance(lvl, bool) else None
+            proc = proc if isinstance(proc, (int, float)) and not isinstance(proc, bool) else None
+            w["level"], w["level_procent"] = lvl, proc
+            if w["gracz"]:
+                w["gracz"]["level"], w["gracz"]["level_procent"] = lvl, proc
+            pg = p.get("podglad")
+            if isinstance(pg, dict):
+                w["podglad"] = {"port": pg.get("port") if isinstance(pg.get("port"), int) else None,
+                                "otwarty": pg.get("otwarty") is True,
+                                "pid": pg.get("pid") if isinstance(pg.get("pid"), int) else None}
+        except (TypeError, ValueError):
+            pass
 
     def procesy_i_pliki():
         w["gra"] = Path(sc.gniazdo).exists()
@@ -840,6 +863,129 @@ def cmd_stan(id_=None):
     return {"czas": teraz(), "czas_odczytu_s": round(time.monotonic() - t0, 3), "instancje": wynik}
 
 
+# ---------- sesja gry (F4) ----------
+VNC_WZOR = re.compile(r"127\.0\.0\.1::(\d+)\b")
+IP_WZOR = re.compile(r'siec_proxy: IP wyjściowe "?([^\s"]*)"? (\(zgodne z profilem\)|spoza profilu)')
+# linie startu warte pokazania z sway.log sesji (reszta to szum Xwayland/sway)
+LOG_STARTU_WZOR = re.compile(r"^(siec_proxy|profil|uruchom_gre\.sh|machine-id|passwd|hostname|eth0|tun0|brak )")
+LOG_LINII = 12
+
+
+def skan_sesji(id_, proc=None):
+    """-> ({port: pid} otwartych vncviewerów (przy kilku na jednym porcie najniższy pid), pidy siec_proxy.sh tej instancji,
+    pidy sesja.sh tej instancji). Tylko odczyt /proc.
+    Skrypty powłoki rozpoznawane po argv[1] (bash <ścieżka>) i RETRONIC_ID w środowisku."""
+    proc = proc or os.environ.get("RETRONIC_OKNO_PROC") or "/proc"
+    porty, proxy, skrypty_sesji = {}, [], []
+    try:
+        wpisy = os.listdir(proc)
+    except OSError:
+        return porty, proxy, skrypty_sesji
+    for w in wpisy:
+        if not w.isdigit():
+            continue
+        try:
+            argv = [x.decode(errors="replace") for x in Path(f"{proc}/{w}/cmdline").read_bytes().split(b"\0") if x]
+        except OSError:
+            continue
+        if not argv:
+            continue
+        if os.path.basename(argv[0]) == "vncviewer":
+            m = VNC_WZOR.search(" ".join(argv))
+            if m:
+                port = int(m[1])
+                porty[port] = min(int(w), porty.get(port, int(w)))
+        elif len(argv) > 1 and (argv[1].endswith("/siec_proxy.sh") or argv[1].endswith("/sesja.sh")):
+            try:
+                if instancja.id_z_environ(Path(f"{proc}/{w}/environ").read_bytes()) == id_:
+                    (proxy if argv[1].endswith("/siec_proxy.sh") else skrypty_sesji).append(int(w))
+            except OSError:
+                continue
+    return porty, proxy, skrypty_sesji
+
+
+def ogon(sciezka, ile, wzor=None, maks=65536, poczatek=False):
+    """Ostatnie `ile` niepustych linii pliku (opcjonalnie tylko pasujące do wzoru); brak pliku = [].
+    poczatek=True: z pierwszych `maks` bajtów (linie startu sesji są na początku sway.log, który potem rośnie)."""
+    try:
+        with open(sciezka, "rb") as f:
+            if not poczatek:
+                f.seek(0, 2)
+                f.seek(max(0, f.tell() - maks))
+            linie = f.read().decode(errors="replace").splitlines()
+    except OSError:
+        return []
+    linie = [l.rstrip() for l in linie if l.strip() and (wzor is None or wzor.search(l))]
+    return linie[-ile:]
+
+
+def profil_instancji(sc):
+    """Profil bez hasła (D-F4-1: tylko odczyt) + czy start przejdzie kontrolę profil.py (kolizje proxy/IP/konta)."""
+    w = {"jest": False, "blad": None, "ostrzezenie": None, "proxy": None, "user": None, "ip_oczekiwane": [],
+         "postac": None, "konto_przypisane": False, "uwagi": None, "start_mozliwy": False}
+    if not (Path(sc.stan) / "profil.json").exists():
+        w["blad"] = "brak profil.json: instancja bez stałego profilu (proxy, IP, konto) nie startuje"
+        return w
+    try:
+        p = profil.wczytaj(sc.stan)
+    except (profil.BladProfilu, ValueError, AttributeError, TypeError, KeyError) as e:   # zły kształt pliku = blad, nie traceback
+        w["blad"] = f"profil.json: {e}"
+        return w
+    x = p["proxy"]
+    w.update(jest=True, proxy=f"{x['host']}:{x['port']}", user=x["user"], ip_oczekiwane=list(p["ip_oczekiwane"]),
+             postac=p.get("postac") or None, konto_przypisane=bool(p.get("konto")), uwagi=p.get("uwagi") or None)
+    bufor = io.StringIO()
+    try:
+        with contextlib.redirect_stderr(bufor):
+            profil.sprawdz_unikalnosc(sc.stan)
+        w["start_mozliwy"] = True
+    except (profil.BladProfilu, ValueError, AttributeError, TypeError, KeyError) as e:
+        w["blad"] = str(e)
+    w["ostrzezenie"] = bufor.getvalue().strip() or None
+    return w
+
+
+def cmd_sesja(id_):
+    sc = sciezki(id_)
+    procesy = skan_procesow().get(id_, {"bot": [], "straznik": [], "sway": []})
+    porty, proxy, skrypty_sesji = skan_sesji(id_)
+    sesja_kat = Path(sc.sesja)
+    try:
+        port = int((sesja_kat / "vnc_port").read_text().strip())
+    except (OSError, ValueError):
+        port = None
+    try:
+        od = (sesja_kat / "sway.conf").stat().st_mtime if procesy["sway"] else None
+    except OSError:
+        od = None
+    sway_log = sesja_kat / "sway.log"
+    try:
+        log_czas = sway_log.stat().st_mtime
+    except OSError:
+        log_czas = None
+    ip = None                    # z ostatniego startu (też nieudanego: wtedy sesja=false, a powód jest tutaj)
+    for linia in ogon(sway_log, 50, IP_WZOR, poczatek=True):
+        m = IP_WZOR.search(linia)
+        ip = {"adres": m[1] or None, "zgodne": m[2].startswith("(")}
+    logi_sesji = sorted(Path(sc.logi).glob("sesja-*.log"))
+    w = {"instancja": id_, "nazwa": id_ or NAZWA_GLOWNEJ, "glowna": id_ == "",
+         "sesja": bool(procesy["sway"]), "sway_pids": list(procesy["sway"]),
+         "gra": Path(sc.gniazdo).exists(), "klient_pids": list(procesy["straznik"]),
+         "bot": bool(procesy["bot"]), "proxy": bool(proxy), "proxy_pids": proxy, "sesja_sh_pids": skrypty_sesji, "od": od,
+         "podglad": {"port": port, "otwarty": port is not None and (port in porty or instancja.podglad_polaczony(port, os.environ.get("RETRONIC_OKNO_PROC") or "/proc")),
+                     "pid": porty.get(port)},
+         "profil": None, "tozsamosc": (Path(sc.stan) / "tozsamosc.json").exists(),
+         "ip": ip, "log_startu": ogon(sway_log, LOG_LINII, LOG_STARTU_WZOR, poczatek=True), "log_startu_czas": log_czas,
+         "log_akcji": ogon(logi_sesji[-1], LOG_LINII) if logi_sesji else [],
+         "log_akcji_plik": str(logi_sesji[-1]) if logi_sesji else None}
+    if id_:
+        w["profil"] = profil_instancji(sc)
+    zyje = w["sesja"] or bool(w["klient_pids"] or proxy or skrypty_sesji)     # cokolwiek z sesji tej instancji
+    w["mozna_uruchomic"] = bool(id_) and not zyje and bool(w["profil"] and w["profil"]["start_mozliwy"])
+    w["mozna_zamknac"] = bool(id_) and zyje
+    return w
+
+
 # ---------- CLI ----------
 class Parser(argparse.ArgumentParser):
     def error(self, message):
@@ -861,6 +1007,7 @@ def zbuduj_parser():
     g = sp.add_mutually_exclusive_group(required=True)
     g.add_argument("--falszywy", action="store_true"); g.add_argument("--prawdziwy", action="store_true")
     sp = sub.add_parser("mapy-tryby"); inst(sp, False)
+    sp = sub.add_parser("sesja"); inst(sp, True)
     return p
 
 
@@ -883,6 +1030,8 @@ def wykonaj(a):
         return cmd_ratunek_oznacz(id_, a.sygnal, "falszywy" if a.falszywy else "prawdziwy")
     if c == "mapy-tryby":
         return cmd_mapy_tryby(id_)
+    if c == "sesja":
+        return cmd_sesja(id_)
     raise Blad(f"nieznane polecenie {c}", kod=2)
 
 

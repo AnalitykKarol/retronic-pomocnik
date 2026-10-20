@@ -9,6 +9,9 @@
 //                                  "Spot": to samo bez zakupów, tylko wyjście z miasta i start bota)
 //   okno:    <katalog>/okno.sh odłączone (setsid -f): okno zarządzania Retronic, jeden egzemplarz (drugi start = fokus)
 //            dodatkowe pola panel.py --json (opcjonalne): pozycja, w_miescie, w_depo, plan_depo_dostepny, wroc_*, serwis_*
+//   level:   opcjonalne pola panel.py --json: level (int|null), level_procent (liczba|null); brak = wiersz HP/mana bez "lvl"
+//   podglad: opcjonalne pole panel.py --json: podglad {port, otwarty, pid}; klik w nick = RETRONIC_ID=<id> sesja_gry.py podglad
+//            (odłączony podgląd VNC albo fokus na otwarty; główna instancja nie ma podglądu)
 
 var DEFAULT_HELPER_DIR = "~/Games/Retronic/pomocnik"
 
@@ -101,7 +104,9 @@ var ACTION_SCRIPT = [
 var ACTION_SCRIPTS = {
   stop: ["zatrzymaj.sh", ""], start: ["uruchom.sh", ""],
   wroc: ["wroc.sh", ""], "wroc-anuluj": ["wroc.sh", "--anuluj"],
-  refill: ["refill.sh", "--tlo"], spot: ["refill.sh", "--spot"], "refill-stop": ["refill.sh", "--przerwij"]
+  refill: ["refill.sh", "--tlo"], spot: ["refill.sh", "--spot"], "refill-stop": ["refill.sh", "--przerwij"],
+  // sesja gry jednej instancji (sesja_gry.py, spec okna F4a + spec 2026-10-20-retronic-lvl-i-podglad.md); główna = odmowa
+  podglad: ["sesja_gry.py", "podglad"], "gra-start": ["sesja_gry.py", "start"], "gra-zamknij": ["sesja_gry.py", "zamknij"]
 }
 
 // "Otwórz okno": okno.sh to długo żyjący proces (quickshell), więc odpalamy go przez setsid -f, w osobnej sesji, z
@@ -135,8 +140,12 @@ function statusCommand(helperDir, id) {
   return ["bash", "-c", STATUS_SCRIPT, "retronic-status", String(id), helperDir]
 }
 
+var SESSION_KINDS = { podglad: true, "gra-start": true, "gra-zamknij": true }
+
 function actionCommand(helperDir, id, kind) {
   if (!validId(id) || !helperDir || !Object.prototype.hasOwnProperty.call(ACTION_SCRIPTS, kind)) return null
+  // Sesja gry (podgląd, start, zamknięcie) istnieje tylko dla instancji z ID: główna (ID pusty) jej nie ma, backend odmawia.
+  if (id === "" && SESSION_KINDS[kind]) return null
   var spec = ACTION_SCRIPTS[kind]
   var command = ["bash", "-c", ACTION_SCRIPT, "retronic-" + kind, String(id), helperDir, spec[0]]
   if (spec[1] !== "") command.push(spec[1])
@@ -147,7 +156,8 @@ function actionCommand(helperDir, id, kind) {
 
 function unknownStatus(reason) {
   return { ok: false, klasa: "brak", running: false, czas: "", hp: null, mana: null, proxy: null,
-           lastMap: "", lastMode: "", error: reason || "brak odczytu", cityData: false }
+           lastMap: "", lastMode: "", error: reason || "brak odczytu", cityData: false,
+           level: null, levelProcent: null, podglad: null }
 }
 
 function cleanEnvValue(value) {
@@ -192,6 +202,7 @@ function parseStatus(output) {
   var hp = /^HP (\d+)\/(\d+)\s+mana (\d+)\/(\d+)/m.exec(tooltip)
   var env = parseEnv(envLines)
   var city = parseCity(data)
+  var lvl = parseLevel(data, tooltip)
   return {
     ok: true,
     klasa: klasa,
@@ -205,9 +216,41 @@ function parseStatus(output) {
     lastMode: env.mode,
     error: "",
     cityData: city.cityData,
+    level: lvl.level,
+    levelProcent: lvl.procent,
+    podglad: parsePreview(data),
     miasto: city.miasto,
     wroc: city.wroc,
     serwis: city.serwis
+  }
+}
+
+// Level z pól `level` / `level_procent`; zapasowo z linii tooltipu "lvl N (P%)" (starszy układ), gdy pól nie ma.
+// -> {level: int|null, procent: liczba|null}. Procent bez levelu nie ma sensu: wtedy oba null.
+function parseLevel(data, tooltip) {
+  var level = null
+  var procent = null
+  if (typeof data.level === "number" && isFinite(data.level) && data.level >= 1) {
+    level = Math.floor(data.level)
+    if (typeof data.level_procent === "number" && isFinite(data.level_procent)) procent = data.level_procent
+  } else if (data.level === undefined) {
+    var m = /\blvl (\d+)(?: \((\d+(?:[.,]\d+)?)%\))?/.exec(tooltip)
+    if (m) {
+      level = Number(m[1])
+      if (m[2] !== undefined) procent = Number(m[2].replace(",", "."))
+    }
+  }
+  return { level: level, procent: procent }
+}
+
+// Pole `podglad` {port, otwarty, pid}; brak albo zły kształt = null ("nie wiadomo", stary panel.py).
+function parsePreview(data) {
+  var p = data && data.podglad
+  if (!p || typeof p !== "object") return null
+  return {
+    port: typeof p.port === "number" && p.port > 0 ? p.port : null,
+    otwarty: p.otwarty === true,
+    pid: typeof p.pid === "number" && p.pid > 0 ? p.pid : null
   }
 }
 
@@ -247,6 +290,52 @@ function stateLabel(status) {
 function resourcesLabel(status) {
   if (!status || !status.hp) return ""
   return "HP " + status.hp.cur + "/" + status.hp.max + "  mana " + status.mana.cur + "/" + status.mana.max
+}
+
+// Wiersz zasobów: "HP 170/170  mana 20/20  lvl 8 (35%)". Bez levelu dokładnie stary wiersz (resourcesLabel);
+// bez HP, ale z levelem (zatrzymany bot, gdy panel.py czyta gracza) samo "lvl 8 (35%)".
+function levelLabel(status) {
+  if (!status || typeof status.level !== "number") return ""
+  var p = status.levelProcent
+  return "lvl " + status.level + (typeof p === "number" && isFinite(p) ? " (" + Math.round(p) + "%)" : "")
+}
+
+// Osobne kawałki do pogrubionego, kolorowego wiersza w popupie (Karol 20.10: „słabo widać”): HP, mana; level stoi przy nicku.
+function hpLabel(status) {
+  return status && status.hp ? "HP " + status.hp.cur + "/" + status.hp.max : ""
+}
+
+function manaLabel(status) {
+  return status && status.mana ? "mana " + status.mana.cur + "/" + status.mana.max : ""
+}
+
+function statsLine(status) {
+  var base = resourcesLabel(status)
+  var lvl = levelLabel(status)
+  if (lvl === "") return base
+  return base === "" ? lvl : base + "  " + lvl
+}
+
+// ---------------------------------------------------------------- "Zobacz postać": klik w nick = podgląd VNC
+//
+// Stan znacznika przy nicku. state: main (bez podglądu, bez znacznika) | none (gra nie działa) | closed | open | unknown
+// (panel.py bez pola `podglad`: znacznika nie ma, klik wolno, o ile gra działa). enabled = czy klik wywołuje akcję `podglad`.
+// Sesja stoi, gdy działa podgląd-port (`podglad.port != null`, zapisuje go sesja.sh zaraz po starcie wayvnc), NIE gdy jest
+// socket strażnika (klasa `brak` trwa jeszcze podczas startu gry: nick ma już być klikalny). Bez portu = stan none, także
+// przy otwartym podglądzie (backend i tak odmawia podglądu bez sesji). Wyjątek: brak pola `podglad` (stary panel.py) =
+// dawna reguła po klasie. id: opcjonalny; pusty = główna instancja.
+var PREVIEW_HINT = "Zobacz postać (podgląd)"
+
+function previewState(status, id) {
+  if (id === "") return { state: "main", label: "", enabled: false, hint: "" }
+  var none = { state: "none", label: "gra nie działa", enabled: false, hint: "gra nie działa" }
+  if (!status || !status.ok) return none
+  var p = status.podglad
+  if (!p) return status.klasa === "brak" ? none : { state: "unknown", label: "", enabled: true, hint: PREVIEW_HINT }
+  if (p.port === null || p.port === undefined) return none
+  if (p.otwarty) return { state: "open", label: "podgląd otwarty", enabled: true,
+                          hint: "Podgląd otwarty: klik przenosi na niego fokus" }
+  return { state: "closed", label: "podgląd zamknięty", enabled: true, hint: PREVIEW_HINT }
 }
 
 function lastStartLabel(status) {
@@ -469,6 +558,12 @@ if (typeof module !== "undefined" && module.exports) {
     parseStatus: parseStatus,
     stateLabel: stateLabel,
     resourcesLabel: resourcesLabel,
+    levelLabel: levelLabel,
+    hpLabel: hpLabel,
+    manaLabel: manaLabel,
+    statsLine: statsLine,
+    previewState: previewState,
+    PREVIEW_HINT: PREVIEW_HINT,
     lastStartLabel: lastStartLabel,
     proxyLabel: proxyLabel,
     buttonKind: buttonKind,

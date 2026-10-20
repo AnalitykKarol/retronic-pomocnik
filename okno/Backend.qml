@@ -27,12 +27,19 @@ QtObject {
   property string stanError: ""
   property var refreshedAt: null
   property string selectedId: ""
-  property string section: "ratunek"   // mapa | ustawienia | ratunek (sesja gry: F4)
+  property string section: "ratunek"   // sesja | mapa | ustawienia | ratunek
 
   property var ratunekData: null
   property string ratunekError: ""
   property var mapyData: null
   property string mapyError: ""
+
+  // ---- Sesja gry (F4b): odczyt `okno_api sesja` wybranej instancji (co 2 s przy otwartej sekcji) i wynik ostatniej akcji
+  property var sesjaData: null
+  property string sesjaRaw: ""             // surowa odpowiedź: identyczna nie przebudowuje widoku
+  property string sesjaError: ""
+  property var sesjaNote: ({ id: "", text: "", tone: "" })     // wynik ostatniej akcji: tone ok | bad
+  property string sesjaStarted: ""         // id instancji, której start właśnie się udał (podpowiedź "zaloguj postać w podglądzie")
 
   // ---- Ustawienia (F3): pokrętła wybranej instancji
   property var pokretlaData: null
@@ -54,7 +61,10 @@ QtObject {
   // wybór mapy/trybów per instancja: id -> {mapa, tryby, touched}
   property var choices: ({})
 
-  property bool actionBusy: false
+  // Akcje na botach i sesjach: zajętość jest PER INSTANCJA (busyIds: id -> true; Model.busyBegin/busyEnd). Jedna akcja naraz na instancję,
+  // ale długie `Zamknij grę` jednej postaci nie szarzy Stop/⌂ Miasto innych. Każda instancja ma własny przebieg (Job + cooldown), patrz runFor.
+  property var busyIds: ({})
+  property var runs: ({})              // id -> przebieg akcji (obiekt z runFactory)
   property var messages: ({})          // id -> krótki błąd ostatniej akcji (gaśnie sam)
   property string markNote: ""         // wynik "To fałszywy alarm"
   property string startNote: ""        // wynik "Start z tym"
@@ -93,6 +103,10 @@ QtObject {
     ratunekError = ""
     mapyData = null
     mapyError = ""
+    sesjaData = null
+    sesjaRaw = ""
+    sesjaError = ""
+    // sesjaNote i sesjaStarted niosą id instancji i widok pokazuje je tylko jej: akcja zakończona po przełączeniu postaci nie ginie
     pokretlaData = null
     pokretlaRaw = ""
     pokretlaError = ""
@@ -104,19 +118,64 @@ QtObject {
   }
 
   function setSection(name) {
-    if (name !== "mapa" && name !== "ratunek" && name !== "ustawienia") return      // sesja gry (F4) jeszcze nie działa
+    if (name !== "sesja" && name !== "mapa" && name !== "ratunek" && name !== "ustawienia") return
     section = name
     refreshSection()
   }
 
   function refreshSection() {
-    if (section === "ratunek") loadRatunek()
+    if (section === "sesja") loadSesja()
+    else if (section === "ratunek") loadRatunek()
     else if (section === "mapa") loadMapy()
     else if (section === "ustawienia") { loadPokretla(); loadMapy() }       // mapy-tryby: ostrzeżenie o trybie z ostatniego startu
   }
 
   function loadRatunek() { ratunekJob.start(Model.ratunekCommand(repoDir, selectedId), selectedId) }
   function loadMapy() { mapyJob.start(Model.mapyCommand(repoDir, selectedId), selectedId) }
+
+  function loadSesja() { sesjaJob.start(Model.sesjaCommand(repoDir, selectedId), selectedId) }
+
+  function onSesja(text, id) {
+    if (id !== selectedId) { loadSesja(); return }          // odpowiedź dla poprzednio wybranej postaci
+    var r = Model.parseApi(text)
+    if (!r.ok) { sesjaError = r.blad; return }
+    sesjaError = ""
+    if (text === sesjaRaw) return
+    sesjaRaw = text
+    sesjaData = r.data
+    if (!r.data.sesja && sesjaStarted === id && !r.data.mozna_zamknac) sesjaStarted = ""     // sesja już nie żyje: podpowiedź nieaktualna
+  }
+
+  function setSesjaNote(id, text, tone) {
+    sesjaNote = { id: id, text: text, tone: tone }
+    if (text !== "") sesjaNoteFade.restart()
+  }
+
+  // gra-start | gra-zamknij | podglad dla wybranej instancji; bramka jak guzik: szary nie wystartuje (Model.sessionButtons).
+  function sessionAction(kind) {
+    if (!Model.isSessionAction(kind) || !sesjaData) return false
+    if (!Model.sessionButtons(sesjaData)[kind].enabled) return false
+    setSesjaNote(selectedId, "", "")
+    return beginAction(Rules.actionCommand(helperDir, selectedId, kind), selectedId, kind)
+  }
+
+  // Klik w nick na karcie postaci: podgląd tej instancji (te same stany co znacznik: Rules.previewState).
+  function previewFor(id) {
+    var ps = Rules.previewState(statuses[id] || null, id)
+    if (!ps.enabled) return false
+    return beginAction(Rules.actionCommand(helperDir, id, "podglad"), id, "podglad")        // null (np. pusty id) -> beginAction odmawia
+  }
+
+  function onSessionAction(text, id, kind) {
+    var r = Model.parseSessionAction(text, kind)
+    setSesjaNote(id, Model.sessionActionLabel(kind) + ": " + r.message, r.ok ? "ok" : "bad")
+    if (kind === "gra-start") sesjaStarted = r.ok ? id : (sesjaStarted === id ? "" : sesjaStarted)
+    else if (kind === "gra-zamknij" && r.ok && sesjaStarted === id) sesjaStarted = ""
+    if (!r.ok && kind === "podglad") setMessage(id, r.message)       // także w pasku bocznym (klik w nick nie otwiera sekcji)
+    pollSelected()
+    pollAll()
+    if (id === selectedId) loadSesja()
+  }
 
   function onRatunek(text, id) {
     var r = Model.parseApi(text)
@@ -299,17 +358,34 @@ QtObject {
     if (text !== "") messageFade.restart()
   }
 
-  function beginAction(command, id, kind) {
-    if (!command || actionBusy || actionJob.pending) return false
-    actionBusy = true
-    setMessage(id, "")
-    if (kind === "start-z-tym") startNote = ""
-    actionKind = kind
-    actionJob.start(command, id)
-    return true
+  function isBusy(id) { return Model.isBusy(busyIds, id) }
+
+  // Przebieg akcji instancji `id` (Job + cooldown), tworzony przy pierwszej akcji i używany ponownie.
+  function runFor(id) {
+    if (!runs[id]) {
+      var copy = {}
+      for (var k in runs) copy[k] = runs[k]
+      copy[id] = runFactory.createObject(ctl, { runId: id, owner: ctl })
+      runs = copy
+    }
+    return runs[id]
   }
 
-  property string actionKind: ""
+  function endBusy(id) { busyIds = Model.busyEnd(busyIds, id) }
+
+  // Jedna akcja naraz NA INSTANCJĘ (id); akcje innych instancji idą równolegle. Zamknięcie gry ma limit 120 s (Model.actionTimeoutMs).
+  function beginAction(command, id, kind) {
+    if (!command || isBusy(id)) return false
+    var run = runFor(id)
+    if (run.job.pending) return false
+    busyIds = Model.busyBegin(busyIds, id)
+    setMessage(id, "")
+    if (kind === "start-z-tym" && id === selectedId) startNote = ""
+    run.kind = kind
+    run.job.timeoutMs = Model.actionTimeoutMs(kind)
+    if (!run.job.start(command, id)) { endBusy(id); return false }
+    return true
+  }
 
   // kind: stop | start | wroc | wroc-anuluj | refill | spot | refill-stop (Rules.ACTION_SCRIPTS: dokładnie to, co robi pasek)
   function runAction(kind) {
@@ -323,13 +399,16 @@ QtObject {
     beginAction(Model.startCommand(helperDir, selectedId, c.mapa, c.tryby, selected ? selected.nick : ""), selectedId, "start-z-tym")
   }
 
-  function onActionFinished(text, id) {
+  // Wynik akcji instancji `id` (rodzaj niesie jej własny przebieg: równoległe akcje innych instancji go nie nadpisują).
+  function onActionFinished(text, id, kind) {
+    runFor(id).cooldown.restart()                                  // blokada tej instancji ok. 1,5 s po akcji
+    if (Model.isSessionAction(kind)) { onSessionAction(text, id, kind); return }
     var result = Rules.parseActionResult(text)
     setMessage(id, result.ok ? "" : result.message)
-    if (actionKind === "start-z-tym") startNote = result.ok ? "Start wysłany: " + Model.chosenText(choiceOf(id).mapa, choiceOf(id).tryby) : ""
-    cooldown.restart()
+    if (kind === "start-z-tym" && id === selectedId) startNote = result.ok ? "Start wysłany: " + Model.chosenText(choiceOf(id).mapa, choiceOf(id).tryby) : ""
     pollSelected()
-    loadMapy()
+    pollAll()
+    if (id === selectedId) loadMapy()
   }
 
   function markFalse(signalId) {
@@ -359,6 +438,10 @@ QtObject {
     timeoutMs: 5000
     onFinished: function(text, tag) { ctl.onStan(text, tag) }
   }
+  property Job sesjaJob: Job {
+    timeoutMs: 8000
+    onFinished: function(text, tag) { ctl.onSesja(text, tag) }
+  }
   property Job ratunekJob: Job {
     timeoutMs: 8000
     onFinished: function(text, tag) { ctl.onRatunek(text, tag) }
@@ -384,17 +467,12 @@ QtObject {
     onFinished: function(text, tag) { ctl.onMarked(text, tag) }
   }
   property Job openJob: Job { timeoutMs: 8000 }
-  // Skrypt, który wisi dłużej niż 25 s, jest przerywany i zgłasza błąd (jak na pasku).
-  property Job actionJob: Job {
-    timeoutMs: 25000
-    timeoutText: "Przekroczono czas\nRC=124"
-    onFinished: function(text, tag) { ctl.onActionFinished(text, tag) }
-  }
+  // Przebieg akcji jednej instancji: ActionRun.qml (Job + cooldown), patrz runFor.
+  property Component runFactory: Component { ActionRun {} }
 
-  // Blokada ok. 1,5 s po akcji (jak na pasku): drugi klik nie trafi w przycisk, który zdążył zmienić się w przeciwny.
-  property Timer cooldown: Timer {
-    interval: 1500
-    onTriggered: ctl.actionBusy = false
+  property Timer sesjaNoteFade: Timer {
+    interval: 20000
+    onTriggered: ctl.sesjaNote = ({ id: "", text: "", tone: "" })
   }
   property Timer noteFade: Timer {
     interval: 12000
@@ -410,6 +488,13 @@ QtObject {
     running: true
     repeat: true
     onTriggered: ctl.pollSelected()
+  }
+  // Sesja gry odświeża się co 2 s tylko przy otwartej sekcji (jedno wywołanie naraz: Job odrzuca następne, gdy poprzednie trwa)
+  property Timer sesjaTimer: Timer {
+    interval: 2000
+    running: ctl.section === "sesja" && ctl.loaded
+    repeat: true
+    onTriggered: ctl.loadSesja()
   }
   property Timer allTimer: Timer {
     interval: 5000

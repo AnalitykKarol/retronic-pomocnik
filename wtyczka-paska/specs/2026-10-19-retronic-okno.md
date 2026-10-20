@@ -79,9 +79,39 @@ Osobny proces `quickshell -p <repo>/okno/` (żeby restart paska/shella nie zamyk
 - **F1 zaplecze:** `okno_api.py` + testy (atrapy katalogów instancji; zapis tylko przez walidację; błędne wartości odrzucone).
 - **F2 szkielet okna + Ratunek + Mapa i tryb:** pasek boczny, karty postaci, akcje jak pasek, sekcje tylko do odczytu + start z mapą/trybem.
 - **F3 Ustawienia + Ctrl+K:** grupy, edycja, Zapisz/Cofnij, wyszukiwarka.
-- **F4 Sesja gry:** start/zamknięcie gry, podgląd, proxy.
+- **F4 Sesja gry:** start/zamknięcie gry, podgląd, proxy. Rozpisana 20.10 (niżej, „F4: rozpiska”).
 - QA każdej fazy: QML w Quickshell offscreen na atrapie (jak wtyczka 19.10) + zrzut z prawdziwymi danymi obu postaci; akcje
   zmieniające grę/bota tylko na atrapie, na żywo jedna próba za zgodą Karola.
+
+## F4: rozpiska (20.10)
+
+Zmiana od 19.10: proxy nie jest polem do wyboru, tylko stałym profilem instancji (`instancje/<id>/profil.json`: proxy, oczekiwane
+IP, konto, postać, plus `tozsamosc.json`; `dane_tibia/SPEC_tozsamosc_sprzetu_1020.md`). Start bez profilu albo z IP spoza profilu
+jest blokowany. `zamknij_sesje.sh` zamyka WSZYSTKIE sesje (`pkill -x sway`, `wineserver -k`), więc okno go nie używa.
+
+Decyzje Karola 20.10: **D-F4-1** proxy i profil w oknie **tylko do odczytu**, ustawione na stałe (zmiana poza oknem).
+**D-F4-2** próba na żywo na **nowej instancji** (działających postaci nie przerywamy).
+
+- **F4a zaplecze:** `okno_api.py sesja --instancja ID` (tylko odczyt: sesja, gra, bot, proxy, od kiedy, port VNC i czy podgląd
+  otwarty, profil bez hasła, tożsamość, czy start możliwy, ostatnie linie logu startu, wynik sprawdzenia IP).
+  `sesja_gry.py start|zamknij|podglad` (akcja dla `RETRONIC_ID`, jak inne skrypty akcji okna):
+  start = sprawdzenie profilu (`profil.sprawdz_unikalnosc`), odmowa przy działającej sesji, `sesja.sh` odłączony z `RETRONIC_POSTAC`
+  z profilu, log `logi/sesja-RRRRMMDD.log`; zamknij = tylko ta instancja: `zatrzymaj.sh` (bot), `swaymsg -s <swaysock tej sesji> exit`,
+  czekanie, awaryjnie TERM strażnika tej instancji i `wineserver -k` z jej `WINEPREFIX`; podgląd = `podglad.sh` odłączony.
+  Główna instancja: bez akcji z okna.
+  **Wykonane 20.10 (bez commita):** `okno_api.py sesja`, `sesja_gry.py`, `testy/test_sesja_gry.py` 48/48 (atrapy: m.in. `dwa` vs `dwa2`
+  i główna nietknięte przy zamknięciu `dwa`, prawdziwe `subprocess`/`setsid` na nieszkodliwym poleceniu), `test_okno_api` 136/136,
+  checker NITS (wszystkie poprawione). Na żywo tylko odczyt `sesja` dla 4 instancji (IP zgodne) i odmowy dla głównej/nieznanej.
+  **NIEZWERYFIKOWANE do F4c:** czy `swaymsg exit` faktycznie kończy grę wine, strażnika i `siec_proxy.sh` (jest ścieżka awaryjna TERM).
+- **F4b okno:** sekcja odblokowana w menu, karta stanu, blok profilu tylko do odczytu (IP zgodne/niezgodne), Uruchom grę / Zamknij grę
+  (potwierdzenie; przy działającym bocie dodatkowe ostrzeżenie) / Otwórz podgląd, ostatnie linie logu startu, podpowiedź
+  „zaloguj postać w podglądzie”.
+  **Wykonane 20.10 (agenci fe-dev, bez commita):** `okno/SesjaView.qml` (stan, profil tylko do odczytu z odznaką IP, Uruchom / Zamknij z
+  potwierdzeniem i ostrzeżeniem o bocie / podgląd), level i klik w nick na kartach, blokada akcji per instancja (`ActionRun.qml`; zamykanie
+  jednej postaci nie blokuje Stop innych), limit akcji sesji 120 s. Testy: node 203/203, `qml-atrapa`/`qml-ustawienia`/`qml-sesja` WSZYSTKO OK
+  (scenariusz G: wolne zamykanie `ipzle`, Stop `dzial` klikalny), checker NITS poprawione. Na żywo tylko zrzut odczytu (invincible).
+- **F4c QA:** Quickshell offscreen na atrapie, zrzut z prawdziwymi danymi (odczyt), jedna próba start → zamknij na żywo na nowej
+  instancji (za zgodą Karola), README okna, `STAN.md`; Q6 (usunięcie panelu Tkinter) osobna zgoda.
 
 ## Pytania otwarte (decyzja Karola)
 

@@ -581,3 +581,173 @@ describe("polecenia na atrapie pomocnika", () => {
     assert.ok(r.message.length > 0 && r.message.length <= M.MAX_ERROR_LENGTH)
   })
 })
+
+// ---------------------------------------------------------------- level i "Zobacz postać" (spec 2026-10-20-retronic-lvl-i-podglad.md)
+
+const panelJson = (extra, tooltip) => JSON.stringify(Object.assign({
+  text: "RT", class: "dziala", alt: "dziala",
+  tooltip: tooltip || "Retronic: działa\nTryb: mozg.py hybryda, działa 8m 26s\nHP 170/170  mana 20/20"
+}, extra)) + "\nPROXY=1\n"
+
+describe("kawałki wiersza zasobów (pogrubione w popupie)", () => {
+  it("HP, mana i lvl osobno", () => {
+    const s = M.parseStatus(panelJson({ level: 8, level_procent: 35 }))
+    assert.equal(M.hpLabel(s), "HP 170/170")
+    assert.equal(M.manaLabel(s), "mana 20/20")
+    assert.equal(M.levelLabel(s), "lvl 8 (35%)")
+  })
+  it("bez odczytu gracza: puste napisy", () => {
+    const s = M.unknownStatus()
+    assert.equal(M.hpLabel(s), "")
+    assert.equal(M.manaLabel(s), "")
+    assert.equal(M.levelLabel(s), "")
+  })
+})
+
+describe("level w wierszu zasobów", () => {
+  it("pola level i level_procent: HP 170/170  mana 20/20  lvl 8 (35%)", () => {
+    const s = M.parseStatus(panelJson({ level: 8, level_procent: 35 }))
+    assert.equal(s.level, 8)
+    assert.equal(s.levelProcent, 35)
+    assert.equal(M.statsLine(s), "HP 170/170  mana 20/20  lvl 8 (35%)")
+    assert.deepEqual(s.hp, { cur: 170, max: 170 })
+  })
+  it("bez pól levelu wiersz jest dokładnie stary", () => {
+    const s = M.parseStatus(panelJson({}))
+    assert.equal(s.level, null)
+    assert.equal(s.levelProcent, null)
+    assert.equal(M.statsLine(s), "HP 170/170  mana 20/20")
+    assert.equal(M.statsLine(s), M.resourcesLabel(s))
+  })
+  it("level: null i level_procent: null (panel nie odczytał gracza) = stary wiersz, bez zgadywania z tooltipu", () => {
+    const s = M.parseStatus(panelJson({ level: null, level_procent: null }, "Retronic: działa\nHP 170/170  mana 20/20  lvl 9 (1%)"))
+    assert.equal(s.level, null)
+    assert.equal(M.statsLine(s), "HP 170/170  mana 20/20")
+  })
+  it("procent ułamkowy zaokrąglony; brak procentu = samo lvl N", () => {
+    assert.equal(M.statsLine(M.parseStatus(panelJson({ level: 12, level_procent: 34.6 }))), "HP 170/170  mana 20/20  lvl 12 (35%)")
+    assert.equal(M.statsLine(M.parseStatus(panelJson({ level: 12 }))), "HP 170/170  mana 20/20  lvl 12")
+    assert.equal(M.statsLine(M.parseStatus(panelJson({ level: 12, level_procent: null }))), "HP 170/170  mana 20/20  lvl 12")
+  })
+  it("zły typ levelu (tekst, 0, ujemny) jest ignorowany", () => {
+    for (const bad of ["8", 0, -3, true, {}]) {
+      const s = M.parseStatus(panelJson({ level: bad, level_procent: 10 }))
+      assert.equal(s.level, null, JSON.stringify(bad))
+      assert.equal(s.levelProcent, null)
+      assert.equal(M.statsLine(s), "HP 170/170  mana 20/20")
+    }
+  })
+  it("zapas: lvl z tooltipu, gdy pól nie ma (tooltip nie jest drukowany drugi raz)", () => {
+    const s = M.parseStatus(panelJson({}, "Retronic: działa\nHP 170/170  mana 20/20  lvl 8 (35%)"))
+    assert.equal(s.level, 8)
+    assert.equal(M.statsLine(s), "HP 170/170  mana 20/20  lvl 8 (35%)")
+  })
+  it("zatrzymany bot z levelem, ale bez HP: samo lvl; bez niczego: pusto", () => {
+    const stop = M.parseStatus(JSON.stringify({ tooltip: "Retronic: zatrzymany", class: "stop", level: 5, level_procent: 70 }))
+    assert.equal(M.statsLine(stop), "lvl 5 (70%)")
+    assert.equal(M.statsLine(M.parseStatus(JSON.stringify({ tooltip: "x", class: "stop" }))), "")
+    assert.equal(M.statsLine(null), "")
+    assert.equal(M.statsLine(M.unknownStatus("x")), "")
+  })
+  it("resourcesLabel (używany też przez inne okna) się nie zmienia: bez levelu", () => {
+    assert.equal(M.resourcesLabel(M.parseStatus(panelJson({ level: 8, level_procent: 35 }))), "HP 170/170  mana 20/20")
+  })
+})
+
+describe("parseStatus: pole podglad", () => {
+  it("czyta port, otwarty i pid", () => {
+    const s = M.parseStatus(panelJson({ podglad: { port: 5901, otwarty: true, pid: 4242 } }))
+    assert.deepEqual(s.podglad, { port: 5901, otwarty: true, pid: 4242 })
+  })
+  it("port i pid null, otwarty false", () => {
+    const s = M.parseStatus(panelJson({ podglad: { port: null, otwarty: false, pid: null } }))
+    assert.deepEqual(s.podglad, { port: null, otwarty: false, pid: null })
+  })
+  it("brak pola albo zły kształt = null (nie wiadomo)", () => {
+    assert.equal(M.parseStatus(panelJson({})).podglad, null)
+    assert.equal(M.parseStatus(panelJson({ podglad: "tak" })).podglad, null)
+    assert.equal(M.parseStatus(panelJson({ podglad: null })).podglad, null)
+    assert.equal(M.unknownStatus("x").podglad, null)
+  })
+  it("pola o złym typie są czyszczone (otwarty tylko dla true)", () => {
+    const s = M.parseStatus(panelJson({ podglad: { port: "5901", otwarty: "tak", pid: -1 } }))
+    assert.deepEqual(s.podglad, { port: null, otwarty: false, pid: null })
+  })
+})
+
+describe("previewState: klik w nick = podgląd", () => {
+  const st = (klasa, podglad) => M.parseStatus(panelJson(podglad === undefined ? { class: klasa } : { class: klasa, podglad }))
+  const otwarty = { port: 5901, otwarty: true, pid: 77 }
+  const zamkniety = { port: 5901, otwarty: false, pid: null }
+  const brakGry = { port: null, otwarty: false, pid: null }
+
+  it("otwarty: znacznik, klik wolno (fokus), podpowiedź o fokusie", () => {
+    const p = M.previewState(st("dziala", otwarty), "test")
+    assert.equal(p.state, "open")
+    assert.equal(p.enabled, true)
+    assert.equal(p.label, "podgląd otwarty")
+    assert.match(p.hint, /fokus/)
+  })
+  it("zamknięty: klik wolno, podpowiedź 'Zobacz postać (podgląd)'", () => {
+    const p = M.previewState(st("stop", zamkniety), "test")
+    assert.equal(p.state, "closed")
+    assert.equal(p.enabled, true)
+    assert.equal(p.hint, "Zobacz postać (podgląd)")
+    assert.equal(p.label, "podgląd zamknięty")
+  })
+  it("brak sesji gry (port null): wyszarzony, klik wyłączony, 'gra nie działa'", () => {
+    const p = M.previewState(st("stop", brakGry), "test")
+    assert.deepEqual(p, { state: "none", label: "gra nie działa", enabled: false, hint: "gra nie działa" })
+  })
+  it("start gry: port jest, socketu strażnika jeszcze nie (klasa brak): klikalny, znacznik zamknięty/otwarty", () => {
+    const c = M.previewState(st("brak", zamkniety), "test")
+    assert.deepEqual([c.state, c.enabled, c.label], ["closed", true, "podgląd zamknięty"])
+    const o = M.previewState(st("brak", otwarty), "test")
+    assert.deepEqual([o.state, o.enabled, o.label], ["open", true, "podgląd otwarty"])
+  })
+  it("klasa brak bez pola podglad (stary panel.py) wyłącza klik", () => {
+    assert.equal(M.previewState(st("brak"), "test").enabled, false)
+    assert.equal(M.previewState(st("brak"), "test").state, "none")
+  })
+  it("brak odczytu / null: wyłączony", () => {
+    assert.equal(M.previewState(null, "test").enabled, false)
+    assert.equal(M.previewState(M.unknownStatus("brak odczytu"), "test").enabled, false)
+  })
+  it("stary panel.py bez pola podglad, gra działa: bez znacznika, klik wolno", () => {
+    const p = M.previewState(st("dziala"), "test")
+    assert.equal(p.state, "unknown")
+    assert.equal(p.enabled, true)
+    assert.equal(p.hint, "Zobacz postać (podgląd)")
+  })
+  it("główna instancja (pusty ID): bez klikania, bez znacznika, nawet gdy pole by istniało", () => {
+    const p = M.previewState(st("dziala", otwarty), "")
+    assert.equal(p.state, "main")
+    assert.equal(p.enabled, false)
+    assert.equal(p.hint, "")
+  })
+  it("bez portu (brak sesji) nawet 'otwarty' podgląd nie jest klikalny: backend odmawia bez sesji", () => {
+    const p = M.previewState(st("brak", { port: null, otwarty: true, pid: 9 }), "test")
+    assert.deepEqual(p, { state: "none", label: "gra nie działa", enabled: false, hint: "gra nie działa" })
+  })
+})
+
+describe("akcja podglad", () => {
+  it("polecenie: sesja_gry.py podglad z ID instancji jako argument pozycyjny, bez ID w tekście skryptu", () => {
+    const c = M.actionCommand("/d", "test", "podglad")
+    assert.deepEqual(c.slice(3), ["retronic-podglad", "test", "/d", "sesja_gry.py", "podglad"])
+    assert.ok(!c[2].includes("test"))
+  })
+  it("odrzuca złe ID", () => {
+    assert.equal(M.actionCommand("/d", "a;b", "podglad"), null)
+  })
+  it("główna instancja (ID pusty): podglad, gra-start, gra-zamknij zwracają null; inne akcje bez zmian", () => {
+    for (const k of ["podglad", "gra-start", "gra-zamknij"]) assert.equal(M.actionCommand("/d", "", k), null)
+    assert.notEqual(M.actionCommand("/d", "", "stop"), null)
+    assert.notEqual(M.actionCommand("/d", "x", "gra-start"), null)
+  })
+  it("wynik: odmowa skryptu ('brak socketu') to 'Gra nie działa', inne błędy krótko", () => {
+    assert.deepEqual(M.parseActionResult("podgląd już otwarty (fokus)\nRC=0\n"), { ok: true, message: "" })
+    assert.equal(M.parseActionResult("brak socketu gry\nRC=1\n").message, "Gra nie działa")
+    assert.equal(M.parseActionResult("główna instancja nie ma podglądu\nRC=1\n").ok, false)
+  })
+})

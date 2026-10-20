@@ -1,11 +1,14 @@
 import QtQuick
 import Quickshell
+import "OknoModel.js" as Model
 
 // Tylko do testów (QA offscreen): wykonuje kroki z RETRONIC_OKNO_SCENARIUSZ, np.
 //   "sekcja:mapa;mapa:raty;tryb:ml;klik:start-z-tym;klik:start-potwierdz;czekaj:2500;zrzut:/tmp/a.png;koniec"
 // Bez zmiennej nic nie robi. Kliknięcia idą przez Btn.tryClick() (ta sama bramka co mysz: szary przycisk nie zadziała).
-// Kroki: sekcja:<mapa|ratunek> · wybierz:<id|glowna> · klik:<objectName> · mapa:<nazwa> · tryb:<nazwa> · sygnal:<indeks>
+// Kroki: sekcja:<sesja|mapa|ratunek|ustawienia> · wybierz:<id|glowna> · klik:<objectName> · mapa:<nazwa> · tryb:<nazwa> · sygnal:<indeks>
 //        czekaj:<ms> · zrzut:<plik.png> · zamknij (zamyka okno: proces ma wyjść sam) · koniec
+// F4 (Sesja gry): sekcja:sesja · wybierz:<id|glowna> · klik:sesja-uruchom|sesja-zamknij|sesja-zamknij-potwierdz|sesja-zamknij-anuluj|sesja-podglad
+//        akcje-stan:<id,id..> (loguje zajętość akcji per instancja i klikalność Stop/Zamknij wybranej) · klik:nick-<id> (klik w nick na karcie = podgląd) · sesja-stan (loguje dostępność guzików, potwierdzenie i wynik akcji)
 // F3 (Ustawienia): sekcja:ustawienia · grupa:<nazwa> · filtr:<tekst> · zmienione (przełącza "tylko zmienione") · ustaw:KLUCZ=WART (jak z widoku:
 //        ctl.setKnob) · suwak:KLUCZ=WART (puszczenie suwaka) · wpisz:KLUCZ=WART (Enter w polu liczby) · pokaz:KLUCZ (jak Enter w Ctrl+K)
 //        kolejka:K1=V1,K2=V2>id (kilka zapisów i od razu zmiana postaci w tym samym kroku: zapisy w kolejce muszą dojść do swojej instancji)
@@ -32,7 +35,8 @@ Item {
     return null
   }
 
-  readonly property bool dataReady: ctl.loaded && (ctl.section === "ratunek" ? ctl.ratunekData !== null
+  readonly property bool dataReady: ctl.loaded && (ctl.section === "sesja" ? ctl.sesjaData !== null
+                                     : ctl.section === "ratunek" ? ctl.ratunekData !== null
                                      : (ctl.section === "ustawienia" ? ctl.pokretlaData !== null && ctl.mapyData !== null : ctl.mapyData !== null))
 
   function parseValue(text) {
@@ -58,6 +62,23 @@ Item {
       if (cmd === "ustaw") ctl.setKnob(key, parseValue(val))
       else if (cmd === "suwak") { var s = find(target, "suwak-" + key); if (s) s.committed(Number(val)); else console.log("[scenariusz] BRAK suwaka " + key) }
       else { var f = find(target, "pole-" + key); if (f) f.commit(val); else console.log("[scenariusz] BRAK pola " + key) }
+    }
+    else if (cmd === "sesja-stan") {
+      var bt = ctl.sesjaData ? Model.sessionButtons(ctl.sesjaData) : null
+      var cf = find(target, "sesja-potwierdzenie")
+      console.log("[scenariusz] SESJA id=" + ctl.selectedId + " uruchom=" + (bt ? bt["gra-start"].enabled : "?") + " zamknij=" + (bt ? bt["gra-zamknij"].enabled : "?")
+                  + " podglad=" + (bt ? bt["podglad"].enabled + ":" + bt["podglad"].label : "?") + " potwierdzenie=" + (cf ? cf.visible : "?")
+                  + " wynik=" + ctl.sesjaNote.tone + ":" + ctl.sesjaNote.text)
+    }
+    else if (cmd === "akcje-stan") {
+      // zajętość akcji per instancja: busy=<id>:<bool>,... dla argumentu (lista id po przecinku, "glowna" = główna) oraz klikalność guzików wybranej
+      var ids = arg === "" ? [] : arg.split(",")
+      var parts = []
+      for (var bi = 0; bi < ids.length; bi++) parts.push(ids[bi] + ":" + ctl.isBusy(ids[bi] === "glowna" ? "" : ids[bi]))
+      var gl = find(target, "akcja-glowna")
+      var zm = find(target, "sesja-zamknij")
+      console.log("[scenariusz] AKCJE wybrana=" + ctl.selectedId + " busy=" + parts.join(",") + " stop-klikalny=" + (gl ? gl.canClick : "?")
+                  + " zamknij-klikalny=" + (zm ? zm.canClick : "?"))
     }
     else if (cmd === "stan") console.log("[scenariusz] STAN section=" + ctl.section + " grupa=" + ctl.settingsGroup + " filtr=" + ctl.settingsText + " fokus=" + ctl.focusKey
                                          + " paleta=" + ctl.paletteOpen + " notka=" + ctl.knobNote.tone + ":" + ctl.knobNote.text)

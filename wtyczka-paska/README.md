@@ -12,7 +12,7 @@ Wtyczka jest cienka: nie ma własnej logiki bota, czyta JSON z `panel.py` i woł
   szarą ikonę tylko wtedy, gdy wszystkie instancje to `brak`. Hover to jedno zdanie, np.
   `2 instancje: 1 działa, 1 stop`.
 - **Panel po kliknięciu ikony** (prawy klik na ikonie = odśwież od razu). Jeden wiersz na instancję:
-  kropka stanu, nazwa (pusty ID = `główna`), krótki stan z czasem działania, HP/mana (gdy bot działa),
+  kropka stanu, nazwa (pusty ID = `główna`) ze znacznikiem podglądu, krótki stan z czasem działania, HP/mana i level (`HP 170/170  mana 20/20  lvl 8 (35%)`),
   `ostatni: <mapa>, <tryb>` z `ostatni_start[.<id>].env`, `proxy włączone/wyłączone`
   (czy proces `siec_proxy.sh` tej instancji żyje, bez pomiaru IP) i krótki błąd ostatniej akcji
   (np. `Gra nie działa`, gaśnie po 8 s).
@@ -21,6 +21,20 @@ Wtyczka jest cienka: nie ma własnej logiki bota, czyta JSON z `panel.py` i woł
   żeby drugi klik nie trafił w przycisk, który zdążył zmienić się w przeciwny. Start jest zablokowany
   przy `brak gry` i `brak odczytu`. Przyciski są tylko pod myszą: Enter i Spacja ich nie wciskają.
   Nie ma „zatrzymaj wszystkie”.
+- **Level w wierszu zasobów.** Pola `level` i `level_procent` z `panel.py --json` (spec `specs/2026-10-20-retronic-lvl-i-podglad.md`):
+  `HP 170/170  mana 20/20  lvl 8 (35%)`. Brak levelu (stary `panel.py`, strażnik nie odpowiada) = wiersz bez części `lvl`, dokładnie jak
+  dotąd; przy zatrzymanym bocie, gdy panel zna tylko level, wiersz to samo `lvl 8 (35%)`. Procent zaokrąglany do całości.
+- **Klik w nick = „Zobacz postać” (Q1 specu).** Nick instancji jest guzikiem (kursor „rączka”, podkreślenie i kolor akcentu pod myszą;
+  pod myszą w linii pod wierszem podpowiedź `Zobacz postać (podgląd)`). Woła `RETRONIC_ID=<id> sesja_gry.py podglad`: otwiera
+  podgląd VNC postaci (odłączony) albo, gdy już jest otwarty, przenosi na niego fokus. Obok nicku znacznik stanu podglądu
+  (pole `podglad` `{port, otwarty, pid}` z `panel.py --json`): pierścień z kropką w kolorze akcentu = podgląd otwarty, sam
+  przygaszony pierścień = zamknięty. O tym, czy sesja stoi, decyduje port podglądu (`podglad.port != null`, zapisuje go `sesja.sh` zaraz po starcie wayvnc),
+  nie socket strażnika: podczas startu gry (port jest, klasa jeszcze `brak`) nick jest już klikalny i ma znacznik. Bez portu
+  (brak sesji, `port: null`) znacznika nie ma, nick jest przygaszony i nieklikalny, a pod myszą podpowiedź `gra nie działa`;
+  dotyczy to też otwartego podglądu przy martwej grze (backend i tak odmawia podglądu bez sesji). Główna instancja nie ma
+  podglądu: nick bez klikania i bez znacznika, a model nie buduje dla niej poleceń `podglad`, `gra-start`, `gra-zamknij`
+  (`actionCommand` zwraca `null`). Starszy `panel.py` bez pola `podglad`: bez znacznika, klik działa, gdy klasa nie jest `brak`. Ta sama blokada
+  ok. 1,5 s po kliknięciu co przy pozostałych guzikach; błąd skryptu (np. `Gra nie działa`) pokazuje się jak przy Stop/Start.
 - **Guziki miasta (osobne dla każdej instancji), w rzędzie pod wierszem:** `⌂ Miasto`, `↻ Refill` i `↗ Spot`, cykl
   spot → miasto → refill → spot bez terminala. Pełna tabela stanów w specu guzików; w skrócie:
   - `⌂ Miasto` (zielony) działa, gdy bot instancji działa, jest plan depo dla pozycji i postać nie jest jeszcze w mieście;
@@ -58,6 +72,8 @@ Wtyczka jest cienka: nie ma własnej logiki bota, czyta JSON z `panel.py` i woł
 | Refill / Przerwij | `RETRONIC_ID=<id> ./refill.sh --tlo` / `./refill.sh --przerwij` (opakowanie `serwis.sh`, odłączone) |
 | Spot | `RETRONIC_ID=<id> ./refill.sh --spot` (jak Refill, ale tylko krok `wyjscie`; ten sam log i Przerwij) |
 | Stan guzików miasta | dodatkowe pola `panel.py --json`: `pozycja`, `w_miescie`, `w_depo`, `plan_depo_dostepny`, `wroc_oczekuje`, `wroc_w_marszu`, `serwis_*` (w tym `serwis_tryb`) (starszy `panel.py` bez nich: guziki miasta szare) |
+| Level | pola `panel.py --json`: `level`, `level_procent` (opcjonalne; zapas: `lvl N (P%)` z tooltipu, gdy pól nie ma) |
+| Zobacz postać / znacznik podglądu | `RETRONIC_ID=<id> ./sesja_gry.py podglad` (odłączony podgląd VNC albo fokus); stan z pola `podglad` `{port, otwarty, pid}` |
 | Otwórz okno | `bash <helperDir>/okno.sh`, odłączone: `setsid -f`, bez RETRONIC_ID (okno samo czyta wszystkie instancje) |
 | Odświeżanie | co 5 s, jedno wywołanie na instancję, bez demona; także przy zamkniętym panelu (kolor ikony) |
 
@@ -79,8 +95,9 @@ Ustawienia siedzą we wpisie wtyczki w `~/.config/omarchy/shell.json` (jak u poz
   `PanelContent.qml` (nagłówek z `▣ Otwórz okno` i wiersze), `CityButton.qml` (guzik `⌂ Miasto` / `↻ Refill` / `↗ Spot` / `▣ Otwórz okno`),
   `Instance.qml` (jedna instancja: odczyt statusu i jej akcje),
   `RetronicModel.js` (cała logika bez Quickshella: parsowanie, najgorszy stan, zdanie na hover,
-  stany guzików miasta, polecenia, skrócenie błędu).
+  stany guzików miasta, wiersz z levelem, stan znacznika podglądu, polecenia, skrócenie błędu).
 - `test/RetronicModel.test.js`: testy modelu oraz poleceń na atrapie katalogu pomocnika.
+- `test/qml-podglad.sh` + `test/qml-harness/shell.qml`: popup offscreen na atrapie statusów (zrzut PNG, klik w nick).
 
 ## Testy
 
@@ -91,13 +108,16 @@ cd wtyczka-paska && node --test test/*.test.js
 Testy poleceń uruchamiają się na atrapie (`mktemp`) z własnymi stubami `panel.py`, `zatrzymaj.sh`,
 `uruchom.sh`, `wroc.sh`, `refill.sh` i `instancje/`; prawdziwych skryptów bota nie dotykają. Bez `Process`/Quickshella nie da się
 sprawdzić samego popupu: wygląd w prawdziwym pasku trzeba obejrzeć po instalacji.
+Popup offscreen (nic nie uruchamia, motyw z zainstalowanego Omarchy tylko do odczytu): `bash test/qml-podglad.sh KATALOG_WYNIKOW`
+zapisuje `pasek-popup.png` i sprawdza, że klik w nick woła akcję `podglad` tylko dla instancji z sesją (port podglądu), także w trakcie startu gry.
 Składnia QML: `/usr/lib/qt6/bin/qmllint wtyczka-paska/*.qml` (0 błędów; ostrzeżenia `unqualified` są
 dlatego, że `qs.Commons` nie jest tu widoczny). Strona bota (`panel.py`, `refill.sh`): w repo pomocnika
 `python3 testy/test_refill.py` i `python3 testy/test_instancja.py`.
 
 ## Zależności po stronie bota
 
-`▣ Otwórz okno` wymaga w katalogu pomocnika `okno.sh` (i katalogu `okno/` z QML okna, F2 specu okna); bez nich guzik
+Level i „Zobacz postać” wymagają `panel.py --json` z polami `level`, `level_procent`, `podglad` i `sesja_gry.py podglad`
+(F4a specu okna); bez nich wiersz jest stary, a klik w nick kończy się błędem skryptu albo nic nie robi. `▣ Otwórz okno` wymaga w katalogu pomocnika `okno.sh` (i katalogu `okno/` z QML okna, F2 specu okna); bez nich guzik
 pokazuje błąd `brak okno.sh…`, reszta wtyczki działa bez zmian. Guziki miasta wymagają w katalogu pomocnika: `wroc.sh` (jest od 19.10), `refill.sh` i rozszerzonego `panel.py --json`
 (branch `feat/guziki-miasto` repo bota). Bez nich wtyczka dalej działa: Stop/Start jak dotąd, guziki miasta szare.
 

@@ -75,7 +75,10 @@ Rectangle {
             inst: modelData
             klasa: (side.ctl.statuses[modelData.id] && side.ctl.statuses[modelData.id].ok) ? side.ctl.statuses[modelData.id].klasa : "brak"
             selected: modelData.id === side.ctl.selectedId
+            preview: Rules.previewState(side.ctl.statuses[modelData.id] || null, modelData.id)
+            busy: side.ctl.isBusy(modelData.id)
             onChosen: side.ctl.select(modelData.id)
+            onPreviewRequested: { side.ctl.select(modelData.id); side.ctl.previewFor(modelData.id) }
           }
         }
       }
@@ -99,7 +102,12 @@ Rectangle {
         font.pixelSize: Theme.tiny
         font.letterSpacing: 1
       }
-      NavItem { width: parent.width; icon: "▶"; label: "Sesja gry"; soon: "F4" }
+      NavItem {
+        width: parent.width; icon: "▶"; label: "Sesja gry"
+        objectName: "nav-sesja"
+        current: side.ctl.section === "sesja"
+        onChosen: side.ctl.setSection("sesja")
+      }
       NavItem {
         width: parent.width; icon: "⌖"; label: "Mapa i tryb"
         objectName: "nav-mapa"
@@ -146,7 +154,7 @@ Rectangle {
         label: side.kind === "stop" ? "■ Stop" : "▶ Start"
         tone: side.kind === "stop" ? "stop" : "ok"
         active: Rules.buttonEnabled(side.st)
-        busy: side.ctl.actionBusy
+        busy: side.ctl.isBusy(side.ctl.selectedId)
         onActivated: side.ctl.runAction(side.kind)
       }
 
@@ -162,7 +170,7 @@ Rectangle {
           label: side.returnSpec.label
           tone: side.returnSpec.tone === "off" ? "neutral" : side.returnSpec.tone
           active: side.returnSpec.enabled
-          busy: side.ctl.actionBusy
+          busy: side.ctl.isBusy(side.ctl.selectedId)
           onActivated: side.ctl.runAction(side.returnSpec.action)
         }
         Btn {
@@ -173,7 +181,7 @@ Rectangle {
           label: side.refillSpec.label
           tone: side.refillSpec.tone === "off" ? "neutral" : side.refillSpec.tone
           active: side.refillSpec.enabled
-          busy: side.ctl.actionBusy
+          busy: side.ctl.isBusy(side.ctl.selectedId)
           onActivated: side.ctl.runAction(side.refillSpec.action)
         }
         Btn {
@@ -184,7 +192,7 @@ Rectangle {
           label: side.spotSpec.label
           tone: side.spotSpec.tone === "off" ? "neutral" : side.spotSpec.tone
           active: side.spotSpec.enabled
-          busy: side.ctl.actionBusy
+          busy: side.ctl.isBusy(side.ctl.selectedId)
           onActivated: side.ctl.runAction(side.spotSpec.action)
         }
       }

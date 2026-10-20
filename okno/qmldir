@@ -1,4 +1,5 @@
 singleton Theme 1.0 Theme.qml
+ActionRun 1.0 ActionRun.qml
 Backend 1.0 Backend.qml
 Btn 1.0 Btn.qml
 Chip 1.0 Chip.qml
@@ -11,6 +12,7 @@ Paleta 1.0 Paleta.qml
 Przelacznik 1.0 Przelacznik.qml
 RatunekView 1.0 RatunekView.qml
 Scenariusz 1.0 Scenariusz.qml
+SesjaView 1.0 SesjaView.qml
 SectionHeader 1.0 SectionHeader.qml
 Sidebar 1.0 Sidebar.qml
 StatBlock 1.0 StatBlock.qml
