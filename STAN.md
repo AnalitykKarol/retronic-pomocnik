@@ -9,6 +9,7 @@ Specyfikacje i decyzje: `dane_tibia/SPEC_*.md`. Ten plik streszcza i linkuje.
 
 ## Gdzie jesteśmy
 
+- **20.10 UH: tarcza zdjęta i niezałożona (08:09, Mastafian) — poprawka gotowa na branchu `fix/uh-tarcza-ratunek` (2 przeglądy, niewdrożona, czeka na merge+restart):** `dane_tibia/ruch/DIAGNOZA_tarcza_nie_wrocila_1020.md` (dowody, przyczyny, 7 kroków naprawy). Doraźnie naprawione ręcznie; lokalnie `UH_PRZERWA_PO_PORAZKACH_S`=60 (`cavebot.py`, bez commita), `UH_W_WALCE_MANA_MARGINES`=50 (`na_zywo.json`).
 - **19.10 ratunek Haiku — F1 WDROŻONE w cieniu (merge `b089fc8`, bez push):** `RATUNEK_HAIKU=1` w `na_zywo.json` i `instancje/test/na_zywo.json` (kopie `.bak-20261019-ratunek`), boty zrestartowane 20:52 (Johny) i 20:54 (Mastafian). Sygnały: `logi/ratunek-<data>.jsonl` (+ instancje/test/logi). Pomiar offline 3,3/h, szczyt 14/h. Następnie: przegląd sygnałów na żywo z Karolem, potem F2 (Haiku wykonuje ruchy). Spec `dane_tibia/SPEC_ratunek_haiku_1019.md`. Czerwone sprzed merge: `test_serwis_akcje` (Slot.wnetrze), `test_serwis_marsz` 30/31.
 
 - **Do zrobienia (zgłosił Karol 18.10, wymaga specyfikacji):** lina/drabina/dziura zajęte przez przedmioty (np. zwłoki szczura na polu liny) — nie da się skorzystać z przejścia. Bot ma nauczyć się zdejmować śmieci z pola przejścia (przesunąć/zabrać przedmiot) przed użyciem liny; dziś próba 18.10 11:30 na z9->z8 (33131,31806) skończyła się `Przejście pięter NIEUDANE` i dojście przerwane. Przyczyna zajętego pola niepotwierdzona zrzutem.
@@ -71,6 +72,7 @@ Detektor PK na 70 h telemetrii 3 botów: 15.10 20:35:08 (prawdziwy atak, Breznie
 - test_wpadniecie "2 zasiany dziury_nauczone.json ma jedno pole" - test zakłada 1 dziurę, w danych są 3 prawdziwe (poprawić test).
 - test_rdzen_widmo 3 FAIL (stary, nieaktualny wobec logiki w bot.py), test_ruch_okno, test_grim, test_ogien 1a - czerwone sprzed zmian.
 - Brak jedzenia w plecaku Mastafiana (HP/mana bez regeneracji) - kupić przy wizycie w mieście.
+- 20.10 10:07: `cavebot.alarm_dzwiekowy` (paplay) omijał plik `cisza` - teraz respektuje `cisza` i `RETRONIC_POWIADOMIENIA=0` (sprawdzone: 0 wywołań paplay przy pliku). Działa od następnego startu `mozg.py`; proces 620346 (start 09:41) ma stary kod.
 
 
 ## 2026-10-17 — rozpoznanie nakładu UI i pełnego AI OFF (bez implementacji)
