@@ -413,16 +413,16 @@ function conflictText(c, p) {
   return "tryb „" + c.tryb + "” przy następnym starcie ustawi " + c.klucz + " = " + valueLabel(p, c.wartosc) + " (teraz " + valueLabel(p) + ")"
 }
 
-// Linia ostrzeżenia nad listą: które tryby z ostatniego startu nadpisują ile pokręteł. "" gdy nic.
+// Linia ostrzeżenia nad listą: które tryby z ostatniego startu ustawią które pokrętła przy następnym starcie. "" gdy nic.
 function conflictSummary(conflicts, lastModes) {
   if (!conflicts.length) return ""
   var modes = {}
   for (var i = 0; i < conflicts.length; i++) modes[conflicts[i].tryb] = true
   var names = Object.keys(modes)
   var keys = conflicts.slice(0, 4).map(function (c) { return c.klucz }).join(", ")
-  var more = conflicts.length > 4 ? " i " + (conflicts.length - 4) + " więcej" : ""
-  return "Ostatni start użył trybu " + names.join(", ") + ": przy następnym starcie (uruchom.sh) nadpisze " + conflicts.length + " pokręteł z tej listy ("
-         + keys + more + "). Zmiana tutaj działa teraz w locie, ale po restarcie tryb ją przywróci."
+  var more = conflicts.length > 4 ? " (+" + (conflicts.length - 4) + ")" : ""
+  return "Ostatni start użył " + (names.length > 1 ? "trybów " : "trybu ") + names.join(", ") + ". Przy następnym starcie (uruchom.sh) ustawi on: " + keys + more
+         + ". Zmiana tych pokręteł tutaj działa teraz w locie, ale start z tym trybem ją przywróci."
 }
 
 // ---------------------------------------------------------------- zestawy run (z trybów)

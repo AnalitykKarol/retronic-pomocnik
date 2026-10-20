@@ -1,11 +1,13 @@
 import QtQuick
 import Quickshell
 import "OknoModel.js" as Model
+import "UstawieniaModel.js" as Ust
 import "RetronicModel.js" as Rules
 
 // Stan i procesy okna: odczyty z okno_api.py (stan wybranej postaci co 2 s, pełny stan co 5 s, ratunek i mapy-tryby dla
 // otwartej sekcji) i akcje na botach. Akcje woła tymi samymi poleceniami co pasek (Rules.actionCommand z RetronicModel.js),
-// "Start z tym" to uruchom.sh z MAPA/TRYB. Każdy rodzaj wywołania to osobny Job: jedno naraz, nic nie blokuje UI.
+// "Start z tym" to uruchom.sh z MAPA/TRYB. Ustawienia (F3): odczyt `pokretla`, zapis `ustaw` (od razu po puszczeniu suwaka / kliknięciu,
+// kolejka po jednym wywołaniu naraz) i `cofnij` — walidacja, kopia .bak i dziennik są w okno_api.py. Każdy rodzaj wywołania to osobny Job.
 QtObject {
   id: ctl
 
@@ -25,12 +27,29 @@ QtObject {
   property string stanError: ""
   property var refreshedAt: null
   property string selectedId: ""
-  property string section: "ratunek"   // mapa | ratunek (sesja gry i ustawienia: F4 i F3)
+  property string section: "ratunek"   // mapa | ustawienia | ratunek (sesja gry: F4)
 
   property var ratunekData: null
   property string ratunekError: ""
   property var mapyData: null
   property string mapyError: ""
+
+  // ---- Ustawienia (F3): pokrętła wybranej instancji
+  property var pokretlaData: null
+  property string pokretlaRaw: ""          // surowa odpowiedź: identyczna nie przebudowuje widoku (nie gubi fokusu pola ani suwaka)
+  property string pokretlaError: ""
+  property bool pokretlaStale: false       // odczyt w toku jest już nieaktualny (zapis w międzyczasie): po nim czytamy jeszcze raz
+  property var writeQueue: []
+  property var knobNote: ({ text: "", tone: "" })      // wynik ostatniego zapisu/cofnięcia: tone ok | bad
+  property string settingsGroup: ""
+  property string settingsText: ""
+  property bool settingsOnlyChanged: false
+  property string focusKey: ""             // pokrętło do pokazania w widoku (Ctrl+K Enter)
+  property int focusSerial: 0
+  property bool paletteOpen: false
+  readonly property var knobs: Ust.allKnobs(pokretlaData)
+  readonly property var knobsByKey: Ust.byKeyMap(knobs)
+  readonly property bool knobBusy: ustawJob.pending || cofnijJob.pending || writeQueue.length > 0
 
   // wybór mapy/trybów per instancja: id -> {mapa, tryby, touched}
   property var choices: ({})
@@ -74,6 +93,11 @@ QtObject {
     ratunekError = ""
     mapyData = null
     mapyError = ""
+    pokretlaData = null
+    pokretlaRaw = ""
+    pokretlaError = ""
+    writeQueue = []
+    setKnobNote("", "")
     markNote = ""
     startNote = ""
     pollSelected()
@@ -81,7 +105,7 @@ QtObject {
   }
 
   function setSection(name) {
-    if (name !== "mapa" && name !== "ratunek") return      // sesja gry (F4) i ustawienia (F3) jeszcze nie działają
+    if (name !== "mapa" && name !== "ratunek" && name !== "ustawienia") return      // sesja gry (F4) jeszcze nie działa
     section = name
     refreshSection()
   }
@@ -89,6 +113,7 @@ QtObject {
   function refreshSection() {
     if (section === "ratunek") loadRatunek()
     else if (section === "mapa") loadMapy()
+    else if (section === "ustawienia") { loadPokretla(); loadMapy() }       // mapy-tryby: ostrzeżenie o trybie z ostatniego startu
   }
 
   function loadRatunek() { ratunekJob.start(Model.ratunekCommand(repoDir, selectedId), selectedId) }
@@ -117,6 +142,114 @@ QtObject {
       setChoice(id, o.mapa || "", lastTryb.slice(), false)
     }
   }
+
+  // ------------------------------------------------------------ ustawienia: odczyt, zapis, cofnięcie
+
+  function loadPokretla() {
+    if (pokretlaJob.pending) { pokretlaStale = true; return }
+    pokretlaJob.start(Ust.pokretlaCommand(repoDir, selectedId), selectedId)
+  }
+
+  function onPokretla(text, id) {
+    if (id !== selectedId) { loadPokretla(); return }      // odpowiedź dla poprzednio wybranej postaci
+    if (pokretlaStale || writeBusyNow()) { pokretlaStale = false; loadPokretla(); return }    // odczyt sprzed zapisu: nie nadpisuj, czytaj od nowa
+    var r = Model.parseApi(text)
+    if (!r.ok) { pokretlaError = r.blad; return }
+    pokretlaError = ""
+    if (text === pokretlaRaw) return
+    pokretlaRaw = text
+    pokretlaData = r.data
+    var groups = Ust.buildGroups(r.data, Ust.allKnobs(r.data))
+    var known = false
+    for (var i = 0; i < groups.length; i++) if (groups[i].nazwa === settingsGroup) known = true
+    if (!known && groups.length) settingsGroup = groups[0].nazwa      // pierwsza = Runy (UH)
+  }
+
+  function writeBusyNow() { return ustawJob.pending || writeQueue.length > 0 }
+
+  function setKnobNote(text, tone) {
+    knobNote = { text: text, tone: tone }
+    if (text !== "") noteFade.restart()
+  }
+
+  // Jedno pokrętło (suwak, przełącznik, wybór, pole). Zapis idzie od razu (Q3); wartość spoza zakresu odrzuca już okno.
+  function setKnob(klucz, wartosc) {
+    var changes = {}
+    changes[klucz] = wartosc
+    queueWrite(changes)
+  }
+
+  // Zestaw (kilka pokręteł) = jedno wywołanie `ustaw` = jeden wpis dziennika = jedno "Cofnij ostatnią".
+  function queueWrite(changes) {
+    var cmd = Ust.ustawCommand(repoDir, selectedId, changes, knobsByKey)
+    if (!cmd) { setKnobNote("nie zapisano: wartość poza zakresem lub spoza listy", "bad"); return false }
+    var copy = writeQueue.slice()
+    copy.push({ cmd: cmd, changes: changes, id: selectedId })
+    writeQueue = copy
+    pumpWrites()
+    return true
+  }
+
+  function pumpWrites() {
+    if (ustawJob.pending || cofnijJob.pending || writeQueue.length === 0) return
+    var item = writeQueue[0]
+    writeQueue = writeQueue.slice(1)
+    ustawJob.start(item.cmd, item.id)
+  }
+
+  function onUstaw(text, id) {
+    var r = Model.parseApi(text)
+    if (id === selectedId) {
+      if (!r.ok) setKnobNote("nie zapisano: " + r.blad, "bad")
+      else if (Object.keys(r.data.zmienione || {}).length === 0) setKnobNote("bez zmian: wartość już jest ustawiona", "ok")
+      else {
+        pokretlaData = Ust.applyChanges(pokretlaData, r.data.zmienione)      // od razu widać; prawdę dociąga odczyt poniżej
+        pokretlaRaw = ""
+        setKnobNote("zapisano " + Ust.describeChange(r.data.zmienione, r.data.poprzednie, knobsByKey) + " · bot czyta na_zywo.json w locie", "ok")
+      }
+    }
+    loadPokretla()
+    pumpWrites()
+  }
+
+  function undo() {
+    if (knobBusy || !Ust.cofnijCommand(repoDir, selectedId)) return
+    cofnijJob.start(Ust.cofnijCommand(repoDir, selectedId), selectedId)
+  }
+
+  function onCofnij(text, id) {
+    var r = Model.parseApi(text)
+    if (id === selectedId) {
+      if (!r.ok) setKnobNote("nie cofnięto: " + r.blad, "bad")
+      else setKnobNote("cofnięto " + Ust.describeUndo(r.data, knobsByKey) + (r.data.pominiete && r.data.pominiete.length ? " (pominięto: " + r.data.pominiete.length + ")" : ""), "ok")
+    }
+    pokretlaRaw = ""
+    loadPokretla()
+  }
+
+  function applyPreset(preset) {
+    return queueWrite(preset.pary)
+  }
+
+  // Ctrl+K Enter: pokrętło w widoku Ustawień (filtr wyczyszczony, grupa pokrętła, przewinięcie i mignięcie wiersza).
+  function openKnob(klucz) {
+    var p = knobsByKey[klucz]
+    settingsText = ""
+    settingsOnlyChanged = false
+    if (p) settingsGroup = p.grupaUI
+    focusKey = klucz
+    focusSerial++
+    setSection("ustawienia")
+  }
+
+  function openPalette() {
+    if (!loaded) return
+    paletteOpen = true
+    loadPokretla()
+    loadMapy()
+  }
+
+  function closePalette() { paletteOpen = false }
 
   // ------------------------------------------------------------ wybór mapy i trybów
 
@@ -225,6 +358,18 @@ QtObject {
     timeoutMs: 8000
     onFinished: function(text, tag) { ctl.onMapy(text, tag) }
   }
+  property Job pokretlaJob: Job {
+    timeoutMs: 8000
+    onFinished: function(text, tag) { ctl.onPokretla(text, tag) }
+  }
+  property Job ustawJob: Job {
+    timeoutMs: 8000
+    onFinished: function(text, tag) { ctl.onUstaw(text, tag) }
+  }
+  property Job cofnijJob: Job {
+    timeoutMs: 8000
+    onFinished: function(text, tag) { ctl.onCofnij(text, tag) }
+  }
   property Job markJob: Job {
     timeoutMs: 8000
     onFinished: function(text, tag) { ctl.onMarked(text, tag) }
@@ -241,6 +386,10 @@ QtObject {
   property Timer cooldown: Timer {
     interval: 1500
     onTriggered: ctl.actionBusy = false
+  }
+  property Timer noteFade: Timer {
+    interval: 12000
+    onTriggered: ctl.knobNote = ({ text: "", tone: "" })
   }
   property Timer messageFade: Timer {
     interval: 8000

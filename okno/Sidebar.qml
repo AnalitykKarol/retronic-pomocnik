@@ -106,7 +106,12 @@ Rectangle {
         current: side.ctl.section === "mapa"
         onChosen: side.ctl.setSection("mapa")
       }
-      NavItem { width: parent.width; icon: "≡"; label: "Ustawienia"; soon: "F3" }
+      NavItem {
+        width: parent.width; icon: "≡"; label: "Ustawienia"
+        objectName: "nav-ustawienia"
+        current: side.ctl.section === "ustawienia"
+        onChosen: side.ctl.setSection("ustawienia")
+      }
       NavItem {
         width: parent.width; icon: "✚"; label: "Ratunek"
         objectName: "nav-ratunek"

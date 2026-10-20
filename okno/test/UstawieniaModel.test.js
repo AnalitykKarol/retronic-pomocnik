@@ -220,7 +220,7 @@ describe("ostrzeżenie: tryb nadpisze pokrętło przy następnym starcie", () =>
   it("teksty ostrzeżeń: wiersz i podsumowanie", () => {
     const c = U.modeConflicts(U.modeSettings(tryby, ["ostrozny"]), by)
     assert.match(U.conflictText(c[0], by.RUNA_AKTYWNA), /tryb „ostrozny” przy następnym starcie ustawi RUNA_AKTYWNA = wyłączone \(teraz włączone\)/)
-    assert.match(U.conflictSummary(c, ["ostrozny"]), /trybu ostrozny.*nadpisze 1 pokręteł.*RUNA_AKTYWNA/)
+    assert.match(U.conflictSummary(c, ["ostrozny"]), /trybu ostrozny\. Przy następnym starcie \(uruchom\.sh\) ustawi on: RUNA_AKTYWNA\./)
     assert.equal(U.conflictSummary([], ["ostrozny"]), "")
   })
 })

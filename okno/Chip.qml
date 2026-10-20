@@ -7,6 +7,7 @@ Rectangle {
   property string label: ""
   property bool clickable: false
   property bool small: false
+  property bool on: false                // wybrany filtr (np. "tylko zmienione")
   property color textColor: Theme.fg2
 
   signal activated()
@@ -14,9 +15,9 @@ Rectangle {
   implicitWidth: text.implicitWidth + (small ? 14 : 18)
   implicitHeight: small ? 18 : 22
   radius: height / 2
-  color: Theme.sur2
+  color: on ? Theme.alpha(Theme.blue, 0.16) : Theme.sur2
   border.width: 1
-  border.color: clickable && mouse.containsMouse ? Theme.dim : Theme.line
+  border.color: on ? Theme.blue : (clickable && mouse.containsMouse ? Theme.dim : Theme.line)
 
   Text {
     id: text
