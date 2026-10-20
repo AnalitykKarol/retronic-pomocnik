@@ -112,6 +112,12 @@ Decyzje Karola 20.10: **D-F4-1** proxy i profil w oknie **tylko do odczytu**, us
   (scenariusz G: wolne zamykanie `ipzle`, Stop `dzial` klikalny), checker NITS poprawione. Na żywo tylko zrzut odczytu (invincible).
 - **F4c QA:** Quickshell offscreen na atrapie, zrzut z prawdziwymi danymi (odczyt), jedna próba start → zamknij na żywo na nowej
   instancji (za zgodą Karola), README okna, `STAN.md`; Q6 (usunięcie panelu Tkinter) osobna zgoda.
+  **Wykonane 20.10 ~19:17 na żywo (zgoda Karola „zrób to jeszcze”):** nowa instancja testowa `proba` (świeży prefiks, Webshare nr 3
+  92.119.182.109, bez konta), polecenie przycisków okna: `sesja_gry.py start` → IP zgodne, klient do ekranu aktualizacji, Remmina otwarta
+  sama; `zamknij` → najpierw awaryjny TERM (swaymsg exit zwraca „Unable to receive IPC response”, bo sway kończy się przed odpowiedzią),
+  poprawione: drugi przebieg `sway: exit` w 3 s, bez TERM, okno Remmina zamknięte, pozostałe 4 sesje i boty nietknięte.
+  `proba` w `instancje/_archiwum/proba-f4c-20261020`, profil Remmina w `~/.local/share/remmina/archiwum/`. Klikanie w samym oknie QML:
+  sprawdzone tylko na atrapie (`qml-sesja.sh`), na żywo wołane to samo polecenie.
 
 ## Pytania otwarte (decyzja Karola)
 
