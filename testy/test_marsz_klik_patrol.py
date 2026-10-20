@@ -245,6 +245,7 @@ for _ in range(60):
     b._idz_trasa()
 sprawdz("1a przy 0 hak _marsz_klik nie jest wołany, marsz niezaczęty", not wolany and b.marsz is None, wolany)
 sprawdz("1b przy 0 brak linii [MARSZ] w logu", not any("[MARSZ]" in l for l in LOGI), LOGI[:3])
+sprawdz("1c2 przy 0 zero Escape i zero [MARSZ]", "Escape" not in s.klawisze() and not any("[MARSZ]" in l for l in LOGI), s.klawisze()[:5])
 sprawdz("1c przy 0 postać idzie jak dotąd (klikiem po punktach trasy, dochodzi dalej niż 8 pól)", s.poz[0] >= 108 and s.kliki(), (s.poz, len(s.kliki())))
 cavebot.Cavebot._marsz_klik = oryginal
 # dozwolony tylko w patrolu/dojściu i tylko z włączonym pokrętłem
@@ -331,12 +332,12 @@ sprawdz("3f pole nieznane (flaga 0) na 104: klik do 103", s.kliki() == [(103, 50
 s, b = nowy((100, 50, Z))
 b.ogien_pola = {(104, 50, Z): 1}
 marsz(b)
-sprawdz("3g bieżący ogień na 104: klik do 103", s.kliki() == [(103, 50)], s.kliki())
+sprawdz("3g bieżący ogień na 104: klik do 102 (prostokąt z marginesem 1 obejmuje 104)", s.kliki() == [(102, 50)], s.kliki())
 # 3h maska stała ognia (ogien_stale) na 104, bez bieżącego ognia
 s, b = nowy((100, 50, Z))
 b.ogien_stale = {(104, 50, Z)}
 marsz(b)
-sprawdz("3h maska stała ognia na 104: klik do 103", s.kliki() == [(103, 50)], s.kliki())
+sprawdz("3h maska stała ognia na 104: klik do 102 (prostokąt z marginesem 1 obejmuje 104)", s.kliki() == [(102, 50)], s.kliki())
 # 3i ogień w prostokącie, obok drogi (klient mógłby iść przez niego)
 s, b = nowy((100, 50, Z), seg_luk[1:])
 b.ogien_pola = {(102, 50, Z): 1}
@@ -364,12 +365,12 @@ sprawdz("3l wpis-widmo na 103 nie blokuje: klik 5 pól", s.kliki() == [(105, 50)
 s, b = nowy((100, 50, Z))
 b.wpadniecie.dziury = {(104, 50, Z)}
 marsz(b)
-sprawdz("3m nauczona dziura na 104: klik do 103", s.kliki() == [(103, 50)], s.kliki())
+sprawdz("3m nauczona dziura na 104: klik do 102 (prostokąt z marginesem 1 obejmuje 104)", s.kliki() == [(102, 50)], s.kliki())
 # 3n drzwi na 104
 s, b = nowy((100, 50, Z))
 b.drzwi_def = [{"pole": (104, 50, Z), "id": "d", "strony": []}]
 marsz(b)
-sprawdz("3n drzwi na 104: klik do 103", s.kliki() == [(103, 50)], s.kliki())
+sprawdz("3n drzwi na 104: klik do 102 (prostokąt z marginesem 1 obejmuje 104)", s.kliki() == [(102, 50)], s.kliki())
 # 3o ściana nauczona (krok się nie udał)
 s, b = nowy((100, 50, Z))
 b.sciany[(104, 50, Z)] = 0.0
@@ -537,16 +538,19 @@ marsz(b)
 w = b.zatrzymaj_klik(b.postac.pozycja())
 sprawdz("5f zatrzymaj_klik w trakcie marszu: Escape, marsz wyczyszczony", w is True and b.marsz is None and s.klawisze() == ["Escape"],
         (w, s.klawisze()))
-# 5g po dojściu zatrzymaj_klik nie wysyła zbędnego Escape
-s, b = nowy((100, 50, Z))
+# 5g po dojściu na koniec odcinka marsz sam się kończy (marsz=None, klik_cel=None) i zatrzymaj_klik nie wysyła zbędnego Escape
+s, b = nowy((100, 50, Z), [(100 + i, 50, Z) for i in range(1, 6)])
+LOGI.clear()
 marsz(b)
 for _ in range(20):
     marsz(b)
     if tuple(s.poz[:2]) == (105, 50):
+        marsz(b)                          # obieg, w którym marsz widzi dojście
         break
-marsz(b)                              # obserwacja dojścia
-b.marsz = None
-sprawdz("5g po dojściu nie ma Escape", "Escape" not in s.klawisze())
+sprawdz("5g po dojściu: log 'doszedł', marsz i klik_cel wyczyszczone", any("[MARSZ] doszedł na (105, 50)" in l for l in LOGI)
+        and b.marsz is None and b.klik_cel is None, (LOGI, b.marsz, b.klik_cel))
+w = b.zatrzymaj_klik(b.postac.pozycja())
+sprawdz("5g2 zatrzymaj_klik po dojściu nie wysyła Escape", w is False and "Escape" not in s.klawisze(), (w, s.klawisze()))
 # 5h gracz w zasięgu unikania/mijania: bez marszu, klawisze zostają
 s, b = nowy((100, 50, Z))
 b.unikanie = SimpleNamespace(gracze=[{"nazwa": "Obcy"}], duchy=[], mijanie_trzyma=lambda: False)
@@ -586,6 +590,48 @@ s.cel = None
 marsz(b)
 sprawdz("5l porzucony marsz nie daje Escape i jest zastąpiony nowym klikiem", "Escape" not in s.klawisze() and s.kliki()[-1] == (108, 50),
         (s.klawisze(), s.kliki()))
+
+# 5m GM/groźny gracz (pauza GRACZ w tick): trwający marsz kończy się Escape
+s, b = nowy((100, 50, Z))
+marsz(b)
+marsz(b)
+b.stop_przy_graczach = True
+s.stwory = [{"id": 50, "nazwa": "Obcy", "gracz": True, "x": 108, "y": 52, "z": Z, "hp": 100}]
+b.tick()
+sprawdz("5m pauza przy groźnym graczu (tick): Escape i marsz wyczyszczony", s.klawisze() == ["Escape"] and b.marsz is None
+        and b.stan == "GRACZ", (s.klawisze(), b.marsz, b.stan))
+# 5n mijanie: akcja "stoj" kończy marsz Escape
+s, b = nowy((100, 50, Z))
+marsz(b)
+marsz(b)
+r = b._mijanie_zastosuj(b.postac.pozycja(), SimpleNamespace(akcja="stoj", idx=None))
+sprawdz("5n mijanie 'stoj': Escape i marsz wyczyszczony", r is True and s.klawisze() == ["Escape"] and b.marsz is None, (r, s.klawisze()))
+# 5o klik_pola rzuca ValueError (pole poza widokiem): bez marszu, bez stanu
+s, b = nowy((100, 50, Z))
+def _zly_klik(dx, dy):
+    raise ValueError("poza widokiem")
+b.klik = _zly_klik
+r = marsz(b)
+sprawdz("5o ValueError z klik: hak oddaje sterowanie, brak stanu marszu i kliknięć", r is None and b.marsz is None and b.klik_cel is None and not s.kliki(), (r, b.marsz))
+
+# ---------- 3t. objazd ściany: ścieżka wychodzi poza prostokąt poz-cel, ogień obok objazdu ----------
+# ściana (102,50),(103,50), droga A* przez y=51, ogień (102,49),(103,49): klient miałby równorzędny objazd górą (przez ogień)
+objazd = [(101, 50, Z), (101, 51, Z), (102, 51, Z), (103, 51, Z), (104, 51, Z)]
+mapa_ob = Mapa({(102, 50, Z): 5, (103, 50, Z): 5})
+s, b = nowy((100, 50, Z), mapa=mapa_ob)
+b.ogien_pola = {(102, 49, Z): 1, (103, 49, Z): 1}
+r = b._marsz_klik((100, 50, Z), objazd)
+sprawdz("3t objazd ściany z ogniem po drugiej stronie: bez kliku (prostokąt obejmuje całą ścieżkę z marginesem)", r is None and not s.kliki(),
+        (r, s.kliki()))
+# ten sam objazd bez ognia: klik na końcu ścieżki
+s, b = nowy((100, 50, Z), mapa=mapa_ob)
+r = b._marsz_klik((100, 50, Z), objazd)
+sprawdz("3u objazd ściany bez zagrożeń: klik (104,51)", r is True and s.kliki() == [(104, 51)], (r, s.kliki()))
+# ogień daleko (poza marginesem): nie przeszkadza
+s, b = nowy((100, 50, Z), mapa=mapa_ob)
+b.ogien_pola = {(102, 47, Z): 1}
+r = b._marsz_klik((100, 50, Z), objazd)
+sprawdz("3v ogień poza marginesem objazdu nie skraca odcinka", r is True and s.kliki() == [(104, 51)], (r, s.kliki()))
 
 # ---------- 6. pełny obieg przez _idz_segment (patrol) ----------
 LOGI.clear()

@@ -1395,6 +1395,8 @@ class Cavebot:
             self.krok_do(r.krok)
             return True
         if r.akcja == "stoj":
+            if getattr(self, "marsz", None) is not None:      # getattr: testy mijania wołają tę metodę na atrapie bez stanu marszu
+                self._marsz_stop(poz, "mijanie: stoimy")          # MARSZ_KLIK: stoimy, więc klient nie może iść dalej sam
             self.pauza(0.2, 0.45)
             return True
         return False
@@ -3689,13 +3691,15 @@ class Cavebot:
             return False
         return not any(self.mapa.flagi(xy[0] + dx, xy[1] + dy, z) & 2 for dx in (-1, 0, 1) for dy in (-1, 0, 1))
 
-    def _marsz_prostokat_czysty(self, poz, cel, zakaz):
-        """Klient wybiera własną drogę do kliknięcia, więc w prostokącie poz-cel nie może być niczego z `zakaz` ani pola z flagą 2."""
+    def _marsz_prostokat_czysty(self, poz, pola, zakaz):
+        """Klient wybiera własną drogę do kliknięcia i przy obejściu ściany ma równorzędne objazdy po obu stronach, więc sprawdzamy
+        prostokąt obejmujący postać i WSZYSTKIE pola odcinka `pola` (nie tylko poz-cel) z marginesem 1: nic z `zakaz` (ogień, drzwi,
+        dziury) ani pola z flagą 2."""
         z = poz[2]
-        x0, x1 = sorted((poz[0], cel[0]))
-        y0, y1 = sorted((poz[1], cel[1]))
-        for x in range(x0, x1 + 1):
-            for y in range(y0, y1 + 1):
+        xs = [poz[0]] + [p[0] for p in pola]
+        ys = [poz[1]] + [p[1] for p in pola]
+        for x in range(min(xs) - 1, max(xs) + 2):
+            for y in range(min(ys) - 1, max(ys) + 2):
                 if (x, y) == tuple(poz[:2]):
                     continue
                 if any((x, y) in s for s in zakaz) or self.mapa.flagi(x, y, z) & 2:
@@ -3836,7 +3840,7 @@ class Cavebot:
         k = 0
         while k < len(pola) and self._marsz_pole_ok(pola[k], z, zajete, zakaz):
             k += 1
-        while k >= 2 and not self._marsz_prostokat_czysty(poz, pola[k - 1], zakaz):
+        while k >= 2 and not self._marsz_prostokat_czysty(poz, pola[:k], zakaz):
             k -= 1
         if k < 2:
             return None
@@ -4446,6 +4450,8 @@ class Cavebot:
                 if teraz - self.ostatni_alarm > 15:
                     self.ostatni_alarm = teraz
                     self.alarm("gracz na ekranie: " + nazwy)
+                if self.marsz is not None:
+                    self._marsz_stop(poz, "gracz groźny w widoku")    # MARSZ_KLIK: pauza ma stać, a klient idzie sam
                 self.pauza(0.5, 1.0)
                 return True
             # zwykły gracz: gramy dalej; tylko wpis informacyjny (bez [GRACZ], bez alarmu).
