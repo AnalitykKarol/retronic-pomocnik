@@ -18,6 +18,8 @@ Rectangle {
 
   readonly property string kind: Ust.controlKind(p)
   readonly property bool changed: Ust.isChanged(p)
+  // kolumna kontrolki: 300 px, w wąskim oknie (1000 px) węższa, żeby opis nie zwijał się do kilku znaków
+  readonly property int controlW: Math.max(230, Math.min(300, Math.floor(width * 0.4)))
   readonly property bool hasDefault: !p.readonly && p.domyslna !== null && p.domyslna !== undefined
 
   implicitHeight: Math.max(textCol.implicitHeight, controlCol.implicitHeight) + 24
@@ -92,15 +94,15 @@ Rectangle {
 
     Column {
       id: controlCol
-      Layout.preferredWidth: 300
-      Layout.maximumWidth: 300
+      Layout.preferredWidth: row.controlW
+      Layout.maximumWidth: row.controlW
       Layout.alignment: Qt.AlignTop
       spacing: 6
 
       // ---- przełącznik 0/1
       Item {
         visible: row.kind === "przelacznik"
-        width: 300
+        width: row.controlW
         height: 24
         Row {
           anchors.right: parent.right
@@ -131,7 +133,7 @@ Rectangle {
           id: slider
           objectName: "suwak-" + row.p.klucz
           anchors.verticalCenter: parent.verticalCenter
-          width: 212
+          width: row.controlW - 88
           knob: row.p
           value: Number(row.p.biezaca)
           onCommitted: function(v) { row.ctl.setKnob(row.p.klucz, v) }
@@ -186,7 +188,7 @@ Rectangle {
       // ---- wybór z dozwolonych wartości (pokrętła tekstowe)
       Flow {
         visible: row.kind === "wybor"
-        width: 300
+        width: row.controlW
         spacing: 6
         Repeater {
           model: row.p.opcje ? row.p.opcje : []
@@ -226,7 +228,7 @@ Rectangle {
       // ---- tylko odczyt (klucz spoza listy)
       Item {
         visible: row.kind === "odczyt"
-        width: 300
+        width: row.controlW
         height: 24
         Row {
           anchors.right: parent.right
@@ -248,7 +250,7 @@ Rectangle {
         id: resetLink
         objectName: "domyslna-" + row.p.klucz
         visible: row.changed && row.hasDefault && row.kind !== "odczyt"
-        width: 300
+        width: row.controlW
         height: 16
         function tryClick() { if (row.hasDefault) row.ctl.setKnob(row.p.klucz, row.p.domyslna) }
         Text {

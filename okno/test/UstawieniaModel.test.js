@@ -273,9 +273,11 @@ describe("wyniki zapisu i podpisy", () => {
   })
   it("podpis Cofnij ostatnią: klucze, wartość przed, godzina; null gdy brak dziennika", () => {
     assert.equal(U.undoLabel(null, by), null)
-    assert.equal(U.undoLabel({ czas: "2026-10-20 10:12:05", po: { UH_CZAR: "adori gran" }, przed: { UH_CZAR: "adura vita" }, brak: [] }, by),
+    const dzis = new Date(2026, 9, 20, 12, 0, 0)
+    assert.equal(U.undoLabel({ czas: "2026-10-20 10:12:05", po: { UH_CZAR: "adori gran" }, przed: { UH_CZAR: "adura vita" }, brak: [] }, by, dzis),
       "UH_CZAR adura vita ← adori gran · 10:12")
-    assert.equal(U.undoLabel({ czas: "2026-10-20 10:12:05", po: { POGON_ZASIEG: 12 }, przed: {}, brak: ["POGON_ZASIEG"] }, by), "POGON_ZASIEG domyślna ← 12 · 10:12")
+    assert.equal(U.undoLabel({ czas: "2026-10-20 10:12:05", po: { POGON_ZASIEG: 12 }, przed: {}, brak: ["POGON_ZASIEG"] }, by, dzis), "POGON_ZASIEG domyślna ← 12 · 10:12")
+    assert.equal(U.undoLabel({ czas: "2026-10-19 21:14:00", po: { POGON_ZASIEG: 12 }, przed: {}, brak: [] }, by, dzis), "POGON_ZASIEG domyślna ← 12 · 19.10 21:14")
   })
 })
 
@@ -321,7 +323,7 @@ describe("zapis i cofnięcie na atrapie (okno_api z prawdziwą walidacją pokret
     assert.equal(JSON.parse(fs.readFileSync(plik(), "utf8")).UH_CZAR, "adori gran")
     const r = read("")
     assert.equal(U.byKeyMap(U.allKnobs(r.data)).UH_CZAR.biezaca, "adori gran")
-    assert.match(U.undoLabel(r.data.ostatnia_zmiana, by), /^UH_CZAR adura vita ← adori gran · \d\d:\d\d$/)
+    assert.match(U.undoLabel(r.data.ostatnia_zmiana, by, new Date()), /^UH_CZAR adura vita ← adori gran · \d\d:\d\d$/)
     const c = M.parseApi(run(U.cofnijCommand(REPO, "")).stdout)
     assert.equal(c.ok, true, JSON.stringify(c))
     assert.deepEqual(c.data.przywrocone, { UH_CZAR: "adura vita" })

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Okno zarządzania Retronic (QML, Quickshell): osobny proces od paska (restart paska/powłoki go nie zamyka i odwrotnie).
-# Spec: wtyczka-paska/specs/2026-10-19-retronic-okno.md (F2). Jeden egzemplarz: drugi start nie otwiera drugiego okna,
+# Spec: wtyczka-paska/specs/2026-10-19-retronic-okno.md (F2, F3). Jeden egzemplarz: drugi start nie otwiera drugiego okna,
 # tylko (w Hyprlandzie) przenosi fokus na istniejące. Okno czyta okno_api.py i woła skrypty bota; samo nic w grze nie robi.
 #   ./okno.sh            otwórz okno (albo wyróżnij już otwarte)
 # Zmienne (tylko testy/atrapa): RETRONIC_OKNO_KATALOG (dane i skrypty akcji zamiast tego repo), RETRONIC_OKNO_OTWIERACZ.

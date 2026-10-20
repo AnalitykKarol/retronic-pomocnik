@@ -8,7 +8,7 @@ import Quickshell
 //        czekaj:<ms> · zrzut:<plik.png> · zamknij (zamyka okno: proces ma wyjść sam) · koniec
 // F3 (Ustawienia): sekcja:ustawienia · grupa:<nazwa> · filtr:<tekst> · zmienione (przełącza "tylko zmienione") · ustaw:KLUCZ=WART (jak z widoku:
 //        ctl.setKnob) · suwak:KLUCZ=WART (puszczenie suwaka) · wpisz:KLUCZ=WART (Enter w polu liczby) · pokaz:KLUCZ (jak Enter w Ctrl+K)
-//        paleta · paleta-wpisz:<tekst> · paleta-ruch:<n> · paleta-enter · paleta-esc  (Ctrl+K sprawdza się osobno, prawdziwym klawiszem)
+//        stan (loguje sekcję, grupę, filtr, pokrętło do pokazania, czy paleta otwarta i notkę zapisu) · paleta · paleta-wpisz:<tekst> · paleta-ruch:<n> · paleta-enter · paleta-esc  (skrót Ctrl+K i klawisze palety sprawdza osobno test/klawisze-sway.sh)
 Item {
   id: sc
 
@@ -58,6 +58,8 @@ Item {
       else if (cmd === "suwak") { var s = find(target, "suwak-" + key); if (s) s.committed(Number(val)); else console.log("[scenariusz] BRAK suwaka " + key) }
       else { var f = find(target, "pole-" + key); if (f) f.commit(val); else console.log("[scenariusz] BRAK pola " + key) }
     }
+    else if (cmd === "stan") console.log("[scenariusz] STAN section=" + ctl.section + " grupa=" + ctl.settingsGroup + " filtr=" + ctl.settingsText + " fokus=" + ctl.focusKey
+                                         + " paleta=" + ctl.paletteOpen + " notka=" + ctl.knobNote.tone + ":" + ctl.knobNote.text)
     else if (cmd === "pokaz") ctl.openKnob(arg)
     else if (cmd === "paleta") ctl.openPalette()
     else if (cmd === "paleta-wpisz") { var pf = find(target, "paleta-pole"); if (pf) pf.text = arg; else console.log("[scenariusz] BRAK palety") }

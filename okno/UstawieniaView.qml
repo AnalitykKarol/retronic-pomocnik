@@ -81,32 +81,6 @@ Item {
       }
     }
 
-    // ---------- ostrzeżenia: tryb z ostatniego startu nadpisze pokrętła; uszkodzony na_zywo.json
-    Rectangle {
-      objectName: "ostrzezenie-trybu"
-      Layout.fillWidth: true
-      Layout.leftMargin: 22
-      Layout.rightMargin: 22
-      Layout.topMargin: 10
-      visible: view.conflictLine !== "" || view.fileError !== ""
-      implicitHeight: warnText.implicitHeight + 18
-      radius: 8
-      color: Theme.alpha(Theme.warn, 0.08)
-      border.width: 1
-      border.color: Theme.alpha(Theme.warn, 0.5)
-      Text {
-        id: warnText
-        anchors.fill: parent
-        anchors.margins: 9
-        text: (view.fileError !== "" ? "⚠ " + view.fileError + ": zapis zostanie odrzucony, dopóki plik jest uszkodzony. " : "")
-              + (view.conflictLine !== "" ? "⚠ " + view.conflictLine : "")
-        color: Theme.warn
-        font.family: Theme.font
-        font.pixelSize: Theme.small
-        wrapMode: Text.Wrap
-      }
-    }
-
     RowLayout {
       Layout.fillWidth: true
       Layout.fillHeight: true
@@ -114,7 +88,7 @@ Item {
 
       // ---------- grupy + wyszukiwarka
       ColumnLayout {
-        Layout.preferredWidth: 230
+        Layout.preferredWidth: Math.max(196, Math.min(230, view.width * 0.26))
         Layout.maximumWidth: 230
         Layout.fillHeight: true
         spacing: 0
@@ -274,9 +248,45 @@ Item {
           ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
           // zestawy run z tryby.json: UH_CZAR + hotkey + koszt + mana jednym kliknięciem (jeden wpis dziennika = jedno Cofnij); przewijają się z listą
-          header: Item {
+          header: Column {
+            id: headCol
+            width: list.width
+
+            // ostrzeżenia: tryb z ostatniego startu nadpisze pokrętła; uszkodzony na_zywo.json (przewijają się z listą; przy wierszu stoi to samo)
+            Item {
+              objectName: "ostrzezenie-trybu"
+              visible: view.conflictLine !== "" || view.fileError !== ""
+              width: parent.width
+              height: visible ? warnBox.height + 10 : 0
+              Rectangle {
+                id: warnBox
+                x: 22
+                y: 0
+                width: parent.width - 44
+                height: warnText.implicitHeight + 18
+                radius: 8
+                color: Theme.alpha(Theme.warn, 0.08)
+                border.width: 1
+                border.color: Theme.alpha(Theme.warn, 0.5)
+                Text {
+                  id: warnText
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.top: parent.top
+                  anchors.margins: 9
+                  text: (view.fileError !== "" ? "⚠ " + view.fileError + ": zapis zostanie odrzucony, dopóki plik jest uszkodzony. " : "")
+                        + (view.conflictLine !== "" ? "⚠ " + view.conflictLine : "")
+                  color: Theme.warn
+                  font.family: Theme.font
+                  font.pixelSize: Theme.small
+                  wrapMode: Text.Wrap
+                }
+              }
+            }
+
+            Item {
               objectName: "zestawy-run"
-              width: list.width
+              width: parent.width
               visible: view.showPresets
               height: visible ? presetCol.implicitHeight + 28 : 0
               Rectangle {
@@ -366,6 +376,7 @@ Item {
                   }
                 }
               }
+            }
           }
 
           delegate: KnobRow {

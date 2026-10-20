@@ -505,13 +505,18 @@ function describeUndo(wynik, byKey) {
   return parts.join(" · ") + (more > 0 ? " · +" + more : "")
 }
 
-function timeOf(czas) {
+// "10:12" dla dzisiejszej zmiany, "19.10 21:14" dla starszej (Cofnij ostatnią może dotyczyć wczorajszej zmiany: ma być widać).
+function timeOf(czas, now) {
   var c = String(czas || "")
-  return c.length >= 19 ? c.substring(11, 16) : c
+  if (c.length < 19) return c
+  var d = now || new Date()
+  var today = d.getFullYear() + "-" + (d.getMonth() < 9 ? "0" : "") + (d.getMonth() + 1) + "-" + (d.getDate() < 10 ? "0" : "") + d.getDate()
+  if (c.substring(0, 10) === today) return c.substring(11, 16)
+  return c.substring(8, 10) + "." + c.substring(5, 7) + " " + c.substring(11, 16)
 }
 
 // Podpis przycisku "Cofnij ostatnią": co dokładnie cofnie (z dziennika zaplecza). null = nie ma co cofać.
-function undoLabel(ostatnia, byKey) {
+function undoLabel(ostatnia, byKey, now) {
   if (!ostatnia || !ostatnia.po) return null
   var keys = Object.keys(ostatnia.po)
   if (!keys.length) return null
@@ -520,7 +525,7 @@ function undoLabel(ostatnia, byKey) {
   for (var i = 0; i < keys.length && i < 2; i++) {
     parts.push(keys[i] + " " + shortValue(byKey[keys[i]], przed[keys[i]]) + " ← " + shortValue(byKey[keys[i]], ostatnia.po[keys[i]]))
   }
-  return parts.join(", ") + (keys.length > 2 ? " +" + (keys.length - 2) : "") + " · " + timeOf(ostatnia.czas)
+  return parts.join(", ") + (keys.length > 2 ? " +" + (keys.length - 2) : "") + " · " + timeOf(ostatnia.czas, now)
 }
 
 if (typeof module !== "undefined" && module.exports) {

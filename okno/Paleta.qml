@@ -161,7 +161,7 @@ Item {
             readonly property var p: modelData.p
             width: list.width
             height: 54
-            color: on ? Theme.sur2 : "transparent"
+            color: on ? Theme.alpha(Theme.blue, 0.16) : "transparent"
 
             Rectangle {
               visible: res.on
