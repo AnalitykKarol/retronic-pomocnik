@@ -3645,8 +3645,11 @@ class Cavebot:
         try:
             lista = self.stwory(0.3)
             surowa = getattr(self, "stwory_surowe", None) or lista
+            nick = getattr(self.postac, "nazwa", None)
+            # własny wpis pomijamy (przy marszu odczyt listy bywa o krok dalej niż `poz`: bez tego pole przed nami wygląda na zajęte)
             zajete = {(s["x"], s["y"]) for s in surowa
-                      if s.get("z") == poz[2] and not s.get("widmo") and (s["x"], s["y"]) != tuple(poz[:2])}
+                      if s.get("z") == poz[2] and not s.get("widmo") and (s["x"], s["y"]) != tuple(poz[:2])
+                      and not (nick and s.get("gracz") and s.get("nazwa") == nick)}
             moby = [] if (self.dojscie_aktywne and DOJSCIE_BIEGNIJ) else \
                 self._unikanie_filtr(self.kandydaci(lista, poz), poz)
         except bot.Zatrzymano:
@@ -3835,6 +3838,9 @@ class Cavebot:
         if k < 2:
             return None
         cel = pola[k - 1]
+        if tuple(self.postac.pozycja()[:3]) != poz:
+            self.pauza(0.04, 0.09)             # klik liczymy względem pola postaci: ruszyła się w trakcie planowania, planujemy od nowa
+            return True
         try:
             self.klik(cel[0] - poz[0], cel[1] - poz[1])
         except ValueError:
