@@ -3715,26 +3715,55 @@ class Cavebot:
         """Planowane pola przed nami (bez pola, na którym stoimy): kolejno sąsiadujące, to samo piętro, w widoku (z zapasem 1 pola),
         najwyżej MARSZ_KLIK_MAKS_POL. Źródło: droga A* (`prowadz`) albo kolejne punkty trasy/odcinka patrolu od self.idx."""
         z = poz[2]
-        zrodlo = prowadz if prowadz else self.punkty[self.idx:self.idx + 12]
+        if prowadz:
+            zrodlo = prowadz                      # A* z bieżącej pozycji: zaczyna się przy nas
+        else:
+            i0 = self._marsz_start_planu(poz)
+            if i0 is None:
+                return []
+            zrodlo = self.punkty[i0:i0 + 12]       # punkty od najbliższej postaci do przodu (nigdy punkty za nami)
         maks = max(2, int(MARSZ_KLIK_MAKS_POL))
         wynik, prev = [], (poz[0], poz[1])
+        byly = {prev}
         for q in zrodlo:
             if len(q) > 2 and q[2] != z:
                 break
             xy = (q[0], q[1])
-            if xy == prev:
-                if wynik:
-                    break                     # dopełnienie odcinka powtórzonym ostatnim polem
-                continue
+            if xy == prev and not wynik:
+                continue                          # punkt = pole postaci (jeszcze nie ruszyliśmy dalej)
+            if xy in byly:
+                break                             # zawrót / odbicie / dopełnienie powtórzonym polem: klik nie może prowadzić z powrotem
             if max(abs(xy[0] - prev[0]), abs(xy[1] - prev[1])) != 1:
                 break
             if abs(xy[0] - poz[0]) > ZASIEG_X - 1 or abs(xy[1] - poz[1]) > ZASIEG_Y - 1:
                 break
             wynik.append(xy)
+            byly.add(xy)
             prev = xy
             if len(wynik) >= maks:
                 break
         return wynik
+
+    @staticmethod
+    def _marsz_opis(m):
+        """Początek każdej linii wyniku marszu: ten sam opis co przy kliku, żeby dało się sparować klik z wynikiem i zmierzyć czas dojścia."""
+        return f"[MARSZ] klik na {m['cel']} {m['n']} pól z {tuple(m['poz0'][:2])}"
+
+    def _marsz_start_planu(self, poz):
+        """Indeks punktu planu (self.punkty), od którego liczymy ścieżkę marszu: punkt najbliższy postaci w oknie wokół self.idx
+        (to samo piętro, Chebyshev <= 1; remis -> bliżej self.idx, potem późniejszy). self.idx bywa w tyle (klik mija kilka punktów
+        między obiegami), a start od niego dawałby klik ZA SIEBIE. Zwraca indeks PIERWSZEGO punktu, który wolno wziąć do ścieżki: ten
+        najbliższy, gdy sąsiaduje z postacią i leży w planie przed nami (i >= self.idx), inaczej następny. None = postać poza planem.
+        Nie zmienia self.idx."""
+        pkt, idx = self.punkty, self.idx
+        kand = [(max(abs(pkt[i][0] - poz[0]), abs(pkt[i][1] - poz[1])), abs(i - idx), -i)
+                for i in range(max(0, idx - 4), min(len(pkt), idx + 12))
+                if pkt[i][2] == poz[2] and max(abs(pkt[i][0] - poz[0]), abs(pkt[i][1] - poz[1])) <= 1]
+        if not kand:
+            return None
+        d, _, ni = min(kand)
+        i0 = -ni
+        return i0 if (d == 1 and i0 >= idx) else i0 + 1
 
     def _marsz_czysc(self):
         self.marsz = None
@@ -3768,7 +3797,7 @@ class Cavebot:
         if tuple(poz[:2]) != m["ost"]:
             m["ost"], m["ruch"] = tuple(poz[:2]), teraz
         if tuple(poz[:2]) == m["cel"]:
-            log(f"[MARSZ] doszedł na {m['cel']} ({m['n']} pól) w {dt:.1f} s")
+            log(f"{self._marsz_opis(m)}: doszedł w {dt:.1f} s")
             self._patrol_tele("marsz_wynik", wynik="doszedl", n=m["n"], dt=round(dt, 2), cel=list(m["cel"]))
             self._marsz_czysc()
             return "koniec"
@@ -3788,16 +3817,16 @@ class Cavebot:
         if teraz - m["ruch"] > MARSZ_BEZ_RUCHU_S:
             if tuple(poz[:2]) == tuple(m["poz0"][:2]):
                 self.marsz_blok = (tuple(poz[:2]), teraz + MARSZ_BLOK_S)
-                log(f"[MARSZ] brak ruchu {dt:.1f} s po kliku na {m['cel']}: krokami klawiszem przez {MARSZ_BLOK_S:.0f} s")
+                log(f"{self._marsz_opis(m)}: brak ruchu {dt:.1f} s, krokami klawiszem przez {MARSZ_BLOK_S:.0f} s")
                 self._patrol_tele("marsz_wynik", wynik="bez_ruchu", n=m["n"], dt=round(dt, 2), cel=list(m["cel"]))
                 self._marsz_czysc()
                 return "blok"
-            log(f"[MARSZ] stanął w {tuple(poz[:2])} przed celem {m['cel']} po {dt:.1f} s")
+            log(f"{self._marsz_opis(m)}: stanął w {tuple(poz[:2])} po {dt:.1f} s")
             self._patrol_tele("marsz_wynik", wynik="stanal", n=m["n"], dt=round(dt, 2), cel=list(m["cel"]))
             self._marsz_czysc()
             return "koniec"
         if dt > m["limit"]:
-            log(f"[MARSZ] limit czasu {m['limit']:.1f} s, jestem w {tuple(poz[:2])}, cel {m['cel']}")
+            log(f"{self._marsz_opis(m)}: limit czasu {m['limit']:.1f} s, jestem w {tuple(poz[:2])}")
             self._patrol_tele("marsz_wynik", wynik="limit", n=m["n"], dt=round(dt, 2), cel=list(m["cel"]))
             self._marsz_czysc()
             return "koniec"
@@ -3850,6 +3879,8 @@ class Cavebot:
         if k < 2:
             return None
         cel = pola[k - 1]
+        if cel == poz[:2]:
+            return None                        # klik w pole postaci nigdzie nie prowadzi
         if tuple(self.postac.pozycja()[:3]) != poz:
             self.pauza(0.04, 0.09)             # klik liczymy względem pola postaci: ruszyła się w trakcie planowania, planujemy od nowa
             return True
@@ -3862,7 +3893,7 @@ class Cavebot:
         self.klik_j = None
         self.marsz = {"cel": cel, "poz0": poz, "z": z, "n": k, "t0": teraz, "ost": poz[:2], "ruch": teraz, "hook": teraz,
                       "limit": MARSZ_LIMIT_BAZA_S + MARSZ_LIMIT_POLE_S * k, "sciezka": pola[:k]}
-        log(f"[MARSZ] klik na {cel} {k} pól")
+        log(f"[MARSZ] klik na {cel} {k} pól z {poz[:2]}")
         self._patrol_tele("marsz_klik", poz=list(poz), cel=list(cel), n=k)
         self.pauza(0.1, 0.2)
         return True
