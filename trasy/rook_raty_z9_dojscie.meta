@@ -1,0 +1,24 @@
+{
+ "specjalne": [
+  {
+   "idx": 31,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "szyb w mieście z7 (kolor 210, flaga 2), typ przejścia NIEZWERYFIKOWANY w grze"
+  },
+  {
+   "idx": 32,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z8 (32046, 32189) z mapy"
+  },
+  {
+   "idx": 33,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ten sam szyb z8 (kolor 210, flaga 2), NIEZWERYFIKOWANY w grze"
+  },
+  {
+   "idx": 34,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z9 (32045, 32188) z mapy; po zejściu wejdź w pętlę rook_raty_z9_petla"
+  }
+ ]
+}

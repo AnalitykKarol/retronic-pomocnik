@@ -11,6 +11,7 @@ obraz, trasa dojścia i pętla patrolowa po spawnach. Specyfikacja: `../SPEC_map
 | `patrol_gobliny_z8.png/.json`, `patrol.py` | Edron, jaskinia goblinów z8: 12 przystanków, ok. 39 goblinów, pętla 273 pola, start przy linie |
 | `rook_raty_z8.png/.json`, `../../generuj_trasy_rook.py` | Rookgaard, jaskinia szczurów z8 tuż pod miastem (20.10): składowa 872 pola, 25 przystanków, 34 szczury, pętla 491 pól; dojście z7 do wejścia (32046,32221) |
 | `rook_kanaly_z11.png/.json`, tamże | Rookgaard, kanały z11 (20.10): składowa 774 pola, 17 przystanków, 35 szczurów, pętla 479 pól; dojście = odwrócone `do_miasta` |
+| `rook_raty_z9.png/.json`, `rook_raty_z10.png/.json`, `../../generuj_trasy_rook_raty2.py` | Rookgaard, drugi spot szczurów, dwa piętra (20.10): z9 składowa 432 pola, 16 przystanków, 27 szczurów, pętla 279 pól; z10 składowa 332 pola, 11 przystanków, 19 szczurów + 3 jaskiniowe, pętla 124 pola; dojście z depo szybem (32046,32188) z7-z8-z9, na z10 dalej przez (32038,32212,z9) |
 
 Skrypty to prototypy (stałe współrzędne w kodzie). Skrypt wymaga `skladowa_z8.json` (wynik flood-fill z pozycji gracza), więc `patrol.py`
 nie uruchomi się sam bez kroku 2 poniżej (przykładowy wynik jest obok: `skladowa_z8.json`); docelowo F3 ma to zamknąć w jednym poleceniu.
@@ -49,3 +50,12 @@ Uruchomienie: `MAPA=rook_raty_z8 TRYB=ostrozny ./uruchom.sh` (na z7 bot najpierw
 - **z8 pod miastem:** wejście z miasta to (32046,32221,z7). Wniosek z mapy: to jedyne pole z kolorem 210 i flagą 2 po obu stronach (z7 i z8 w tym samym polu) przy składowej 872 pól; pozostałe pola z flagą 2 przy tej składowej na z7 mają zwykły kolor (blokujące przedmioty). **Typ przejścia (dziura, schody, kratka) i pole lądowania niezweryfikowane w grze**: w dojściu przyjęto lądowanie (32046,32222,z8). Pierwsze przejście sprawdzić na żywo (jedno wywołanie) i poprawić `rook_raty_z8_dojscie`, jeśli lądowanie jest inne.
 - **z11 kanały:** dojście to odwrócone nagranie `do_miasta` (z7 -> z8 -> z9 -> z10 -> z11, przejścia sprawdzone w grze). Dziura nauczona (31979,32153,z11) jest ścianą dla A*.
 - Obie składowe zawierają tylko szczury (z listy 114 potworów serwera 7.4); pozostałe składowe z8 pod miastem (np. 159 pól z robakiem i pająkiem) pominięte.
+
+## Rookgaard, drugi spot szczurów: z9 i z10 (20.10)
+
+`python3 -I generuj_trasy_rook_raty2.py [--zapisz]` (z `pomocnik/`; używa funkcji z `generuj_trasy_rook.py`) liczy z mapy i spawnów dwie trasy (`mapy.json`: `rook_raty_z9`, `rook_raty_z10`; test `testy/test_trasy_rook_raty2.py` 36/36).
+Uruchomienie: `MAPA=rook_raty_z9 TRYB=ostrozny ./uruchom.sh` albo `MAPA=rook_raty_z10 ...` (na z7 bot idzie dojściem z depo, potem schodzi; z10 ma `potwory` `Rat,Cave Rat`).
+
+- **Spot:** dwie jaskinie pod środkiem miasta, jedna nad drugą (x 32005-32053, y 32163-32222), połączone przejściem (32038,32212,z9) -> z10. Sufit exp/h z respawnu (model, nie pomiar): z9 ok. 810, z10 ok. 750 (dla porównania `rook_raty_z8` ok. 1410, `rook_kanaly_z11` ok. 2260).
+- **Dojście:** szyb (32046,32188) w mieście ma kolor 210 i flagę 2 na z7 i na z8 (z8 -> z9 ląduje przy (32045,32188)). `pietra.kandydaci` zwraca te pola jako „pewne” dla wszystkich trzech przejść. **Typ przejść (dziura/schody) i pola lądowania niezweryfikowane w grze**: pierwszy zjazd sprawdzić na żywo z Karolem (jedno wywołanie) i poprawić `rook_raty_z9_dojscie`/`rook_raty_z10_dojscie`, jeśli lądowanie jest inne. Lina/drabina tu nie występuje (nic z nich w tej ścieżce nie jest potrzebne).
+- **Pominięte składowe (jeśli trzeba kolejnych tras, to w tej kolejności):** bugi z10 (32033-32065, 32187-32207): 9 bugów, sufit ok. 970, 165 pól, dojście 3 przejścia (z7 (32050,32187) -> z8 -> (32061,32197,z8) -> (32056,32199,z9)); daleko na południu z9 (32021-32086, 32207-32249): 9 jaskiniowych + 6 szczurów, sufit ok. 1160, ale 15 potworów na 533 polach (rzadko), dojście przez `rook_raty_z8` i (32023,32209,z8); z10 północ (32009-32031, 32166-32192): 11 szczurów + 5 jaskiniowych, wejście z z9 przez (32021,32180).
