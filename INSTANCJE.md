@@ -118,3 +118,18 @@ nie po zamknięciu klienta testowego.
   Wyjątek: `zatrzymaj.sh` w razie błędu zawsze ustawia STOP domyślnej instancji (awaryjnie).
 - **Proces domyślnej instancji** to ten bez `RETRONIC_ID` w środowisku; bot uruchomiony przed wprowadzeniem zmiennej
   jest rozpoznawany jako domyślny.
+
+## Stały profil instancji: jedno IP, jeden sprzęt, jedno konto (20.10)
+Spec: `dane_tibia/SPEC_tozsamosc_sprzetu_1020.md` (z rozszerzeniem (b)). Każda instancja (`RETRONIC_ID`) ma:
+- `instancje/<id>/profil.json`: proxy (host, port, login), `ip_oczekiwane`, `konto`, `postac`; hasło proxy w keyringu
+  (`./haslo_proxy.sh <id>`, okienko). Bez profilu instancja nie startuje; ten sam endpoint albo IP w dwóch instancjach = brak startu.
+- `instancje/<id>/tozsamosc.json`: wolumen C:, MAC (Realtek/Intel), machine-id; generowane raz, stałe.
+- start zawsze przez proxy (`RETRONIC_PROXY=0` tylko jawnie, z ostrzeżeniem); przed startem gry `siec_proxy.sh` sprawdza IP wyjściowe.
+Nowa instancja: świeży prefiks (`WINEPREFIX=instancje/<id>/prefix wineboot -i`, potem `./nowa_instancja.sh <id>`; NIE kopia
+prefiksu Mastafiana: MachineGuid, uuid klienta, konto z autoReconnect), `profil.json`, hasło proxy, pierwszy start i zamknięcie
+klienta (własny uuid), potem `python3 -I kopiuj_ustawienia.py ../prefix instancje/<id>/prefix` przy zamkniętej grze.
+Stan 20.10 ~13:20: jedyna aktywna instancja `invincible`. `test` (Johny) zarchiwizowana w `instancje/_archiwum/test-johny-20261020`;
+główna gra (Mastafian) zamknięta, prefiks zostaje jako źródło ustawień, bez zapisanego konta. Proxy Railway usunięte.
+Stan 20.10 ~15:00: druga instancja `kutangen` (Webshare nr 2, Londyn 45.38.107.97, zmierzone 5/5; własny prefiks, uuid, sprzęt), ustawienia od Mastafiana; podgląd Remmina VNC 5928. Webshare 20.10: nr 8 = DE Kelsterbach 64.137.10.153, nr 10 = ES Madryt, reszta US (1,3,4,6,7,9).
+Stan 20.10 ~15:35: trzy instancje: `invincible` (nr 5 PT, Michal), `kutangen` (nr 2 GB, Pawel), `dawajkesh` (nr 8 DE 64.137.10.153, Kuba, VNC 5952). Wolne proxy Webshare: nr 10 ES, reszta US. Nowa instancja: po `wineboot -i` i `nowa_instancja.sh` uruchom `python3 -I tozsamosc.py powloka instancje/<id>` i `zmien_uzytkownika.py instancje/<id>/prefix <uzytkownik>`; konto po zalogowaniu `profil.py przypisz instancje/<id>`.
+Stan 20.10 ~16:25: cztery instancje, czwarta `kolanoth` (nr 10 ES 64.137.96.74, Admin, DESKTOP-SY2EGQM, VNC 5920). Hasło proxy: bez okienka, `siec_proxy.sh` bierze wpis instancji z tym samym serwerem proxy (`RETRONIC_PROXY_HASLO_Z` z `profil.py`; poprawka wykonana przez Karola, `narzedzia_jednorazowe/haslo_wspolne_1020.py`). Wszystkie europejskie proxy Webshare zajęte; zostały US (1, 3, 4, 6, 7, 9).
