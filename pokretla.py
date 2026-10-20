@@ -73,6 +73,9 @@ ZAKRESY = {
     "PATROL_GRACZ_PAM_S": (30.0, 3600.0),  # s: jak długo ostatnia pozycja gracza zniechęca do miejsc w pobliżu
     "PATROL_GRACZ_PAM_R": (4, 40),      # pola: miejsce tak blisko ostatniej pozycji gracza dostaje karę
     "PATROL_GRACZ_PAM_KARA": (0.0, 1.0),  # mnożnik wagi takiego miejsca (0 = blokada)
+    "MARSZ_KLIK": (0, 1),               # 20.10: 1 = marsz klikiem w patrolu/dojściu (klik w najdalsze pole drogi ze zwykłych pól, do MARSZ_KLIK_MAKS_POL; obserwacja ruchu, Escape przy walce); 0 = dotychczasowe chodzenie
+    "KROK_BEZ_SCIAN": (0, 1),           # 20.10: 1 = krok_do po nieudanym pierwszym kierunku ponawia go raz i pomija zapasowe kierunki w pola, które mapa uznaje za ścianę; 0 = dotychczasowe
+    "MARSZ_KLIK_MAKS_POL": (2, 7),      # pola: ile pól naprzód klikamy naraz w marszu klikiem
     "STWORY_WIDMA": (0, 1),             # 19.10: 1 = wpisy-widma (obcy gracz na polu bota, kilku graczy na jednym polu) nie liczą się do zajętości pól i oceny graczy; PK/GM widzą wszystko; 0 = stare zachowanie
     "POSCIG_BEZ_ZMIANY_PIETRA": (0, 1), # 1 = pościg nigdy nie wchodzi na schody/dziury (poza wypadem do miasta)
     "PET_WLACZONY": (0, 1),             # 17.10: 1 = przywołuj peta (utevo res) poza walką; domyślnie 0, tylko Karol
@@ -342,6 +345,7 @@ KIERUNEK = {
     "POSCIG_OKNO": "nie_nizej", "POSCIG_OKNO_DOBRY": "nie_nizej",
     "POSCIG_VKROK_SCIANA": "nie_nizej", "POSCIG_OSTATNI_DOCISKAJ": "nie_nizej",
     "POSCIG_SKOS_AWARYJNY": "nie_nizej", "JEDZENIE_ZAPAS_W_WALCE": "nie_nizej",
+    "MARSZ_KLIK": "nie_wyzej", "MARSZ_KLIK_MAKS_POL": "nie_wyzej", "KROK_BEZ_SCIAN": "nie_wyzej",   # analityk nie może włączyć marszu klikiem ani go wydłużyć (tylko Karol w na_zywo.json)
     "STWORY_WIDMA": "nie_nizej",        # analityk nie wyłącza filtra widm (wyłącza go tylko Karol w na_zywo.json)
     "POSCIG_PAMIEC": "nie_nizej", "POSCIG_PAMIEC_S": "nie_nizej", "POSCIG_PAMIEC_POL": "nie_nizej",
     "POSCIG_PAMIEC_MAKS_ODL": "nie_nizej",

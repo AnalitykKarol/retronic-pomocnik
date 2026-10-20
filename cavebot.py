@@ -560,6 +560,17 @@ CZUJNOSC = 15                      # pp nad progiem ucieczki: od tego HP celu sp
 KLIK_PONOW = 1.5                   # s: ponów klik w ten sam cel, jeśli jeszcze nie doszliśmy
 KLIK_BEZ_RUCHU = 1.2               # s bez zmiany pozycji po kliku -> klik nie działa, idziemy strzałkami
 KLIK_ODSTEP = 0.4                  # s: min. odstęp między kliknięciami w mapę (maks. ~2,5 kliku/s)
+# marsz klikiem w patrolu i dojściu (20.10, wzór: serwis.idz_pewnie): jeden klik w najdalsze pole drogi w widoku, do którego WSZYSTKIE
+# pola po drodze są zwykłe (bez schodów/dziur i ich sąsiedztwa, ognia, dziur nauczonych, drzwi, zajęte przez stwory/graczy), klient idzie ciągiem
+MARSZ_KLIK = 0                     # pokrętło 0/1 (nie_wyzej): 1 = marsz klikiem w patrolu/dojściu; 0 = dotychczasowe chodzenie bit w bit
+MARSZ_KLIK_MAKS_POL = 5            # pokrętło 2-7: ile pól naprzód klikamy naraz (widok ma ±7 x ±5, klikamy z 1 polem zapasu od krawędzi)
+KROK_BEZ_SCIAN = 0                 # pokrętło 0/1 (nie_wyzej): 1 = krok_do po nieudanym pierwszym kierunku ponawia go raz i nie wciska zapasowych kierunków w pola, które mapa jednoznacznie uznaje za ścianę (przechodnie False / flaga 4); pole nieznane (None) nadal próbujemy; 0 = dotychczasowe
+MARSZ_BEZ_RUCHU_S = 1.2            # s bez zmiany pozycji po kliku = klient nie idzie: ten odcinek wraca do kroków klawiszem
+MARSZ_BLOK_S = 8.0                 # s: tyle (i w promieniu MARSZ_BLOK_R pól) po braku ruchu nie klikamy, tylko krok klawiszem
+MARSZ_BLOK_R = 3
+MARSZ_LIMIT_BAZA_S = 0.8           # limit czasu jednego marszu: baza + na pole (jak serwis)
+MARSZ_LIMIT_POLE_S = 0.45
+MARSZ_PORZUCONY_S = 1.5            # s bez obiegu marszu = inny priorytet przejął pętlę, marsz uznajemy za skończony
 NAUKA_KROK = 5                     # pp: o tyle maks. przesuwa próg uciekania jedna obserwacja
 PROG_UCIEKANIA_MIN = 25            # % HP: niżej progu nie uczymy (ucieczkę widzimy z opóźnieniem, przy niższym HP)
 UTKNIECIE_TRASA = 27.0             # s w IDZ bez zmiany punktu i na <= UTKNIECIE_POLA polach = utknięcie na trasie
@@ -835,6 +846,8 @@ def kierunki_do(x, y, cx, cy):
 
 class Cavebot:
     dojscie_aktywne = False            # True tylko w CavebotDojscie (bieg zamiast walki, bez lootu i przerw)
+    marsz = None                       # MARSZ_KLIK: trwający marsz klikiem (stan w __init__; None także w atrapach testowych)
+    marsz_blok = None
 
     def __init__(self, postac, punkty, okrazenia=None, czas_s=None, prog_hp=40, jedzenie=None,
                  potwory=None, zatrzymaj_przy_graczu=True, zapytaj=None, atak=None,
@@ -892,7 +905,9 @@ class Cavebot:
         self.klik_poz = None           # pozycja gracza przy ostatnim ruchu po kliku
         self.klik_ruch = float("-inf") # kiedy po kliku ostatnio zmieniła się pozycja
         self.klik_j = None             # indeks punktu trasy, w który ostatnio kliknęliśmy
-        self.czekanie_do = None        # do kiedy stoimy i czekamy na podejście celu
+        self.marsz = None              # MARSZ_KLIK: trwający marsz klikiem {"cel","poz0","z","n","t0","limit","ost","ruch","hook"}
+        self.marsz_blok = None         # (pole, do): brak ruchu po marszu, w pobliżu pola krok klawiszem do czasu `do`
+        self.czekanie_do = None       # do kiedy stoimy i czekamy na podejście celu
         self.reakcja_do = 0            # do kiedy "zauważamy" nowy cel, zanim go zaatakujemy
         self.pogon_odl = 0             # najmniejszy dystans do celu w tej pogoni
         self.tele = self.pokretla = None   # telemetria.py + pokretla.py (tylko na żywo, patrz _hak_telemetrii)
@@ -1383,6 +1398,8 @@ class Cavebot:
             self.krok_do(r.krok)
             return True
         if r.akcja == "stoj":
+            if getattr(self, "marsz", None) is not None:      # getattr: testy mijania wołają tę metodę na atrapie bez stanu marszu
+                self._marsz_stop(poz, "mijanie: stoimy")          # MARSZ_KLIK: stoimy, więc klient nie może iść dalej sam
             self.pauza(0.2, 0.45)
             return True
         return False
@@ -3607,8 +3624,251 @@ class Cavebot:
         self.pauza(0.15, 0.3)
         return True
 
+    # --- marsz klikiem w patrolu i dojściu (MARSZ_KLIK, 20.10) ---
+    # Wzór: serwis.idz_pewnie (klik w najdalsze pole drogi z samych zwykłych pól, obserwacja pozycji, zmiana piętra = koniec).
+    # Tu bez blokującej pętli: stan w self.marsz, obserwacja co obieg tick(), więc ucieczka, leczenie, PK i walka mają ten sam
+    # priorytet co dotąd. Marsz przechodzi tylko przez _idz_trasa (patrol/dojście); walka, pościg, loot, ucieczka i przejście
+    # pięter tam nie wchodzą, więc zostają przy własnych klawiszach i klikach. Klient po kliku idzie sam, dlatego każde
+    # wejście innego priorytetu w jego marsz kończy się Escape (zatrzymaj_klik / walcz / zbierz_loot -> _marsz_stop).
+
+    def _marsz_dozwolony(self):
+        return bool(MARSZ_KLIK) and self.klik is not None and self.mapa is not None and not self.wypad_aktywny \
+            and bool(self.__dict__.get("_w_segmencie") or self.dojscie_aktywne)
+
+    def _marsz_gracz(self):
+        """Gracz w zasięgu unikania/mijania: tam zostają kroki klawiszem (klik poprowadziłby klienta własną drogą)."""
+        u = self.unikanie
+        if u is None:
+            return False
+        try:
+            if getattr(u, "gracze", None) or getattr(u, "duchy", None):
+                return True
+            return bool(MIJANIE) and bool(u.mijanie_trzyma())
+        except Exception:
+            return True
+
+    def _marsz_otoczenie(self, poz):
+        """(zajęte pola (x, y) włącznie z petem, bez widm; czy w widoku jest cel do walki) albo None, gdy odczyt zawiódł.
+        W dojściu (bez walki po drodze, DOJSCIE_BIEGNIJ) cele nie przerywają marszu: zostają tylko zajęte pola."""
+        try:
+            lista = self.stwory(0.3)
+            surowa = getattr(self, "stwory_surowe", None) or lista
+            nick = getattr(self.postac, "nazwa", None)
+            # własny wpis pomijamy (przy marszu odczyt listy bywa o krok dalej niż `poz`: bez tego pole przed nami wygląda na zajęte)
+            zajete = {(s["x"], s["y"]) for s in surowa
+                      if s.get("z") == poz[2] and not s.get("widmo") and (s["x"], s["y"]) != tuple(poz[:2])
+                      and not (nick and s.get("gracz") and s.get("nazwa") == nick)}
+            moby = [] if (self.dojscie_aktywne and DOJSCIE_BIEGNIJ) else \
+                self._unikanie_filtr(self.kandydaci(lista, poz), poz)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"debug: marsz: odczyt stworów nie wyszedł ({e!r}), bez marszu klikiem")
+            return None
+        return zajete, bool(moby)
+
+    def _marsz_zakazane(self, z):
+        """Zbiory (x, y) piętra z, przez które klient nie może nas poprowadzić: ogień (bieżący, maska stała, pola parzące),
+        drzwi, dziury nauczone."""
+        ogien = set(self._ogien_xy(z)) | {(x, y) for (x, y, pz) in self._ogien_stale_ef() if pz == z} \
+            | set(self._ogien_parzy_dane(z))
+        drzwi = {tuple(e["pole"][:2]) for e in self._drzwi_lista() if e["pole"][2] == z}
+        dziury = set()
+        if DZIURY_NAUCZONE:
+            w = self._wp()
+            if w and w.dziury:
+                dziury = {(h[0], h[1]) for h in w.dziury if h[2] == z}
+        return ogien, drzwi, dziury
+
+    def _marsz_pole_ok(self, xy, z, zajete, zakaz):
+        """Zwykłe pole do marszu: przechodnie wg mapy (flaga 1, bez 4), bez flagi 2 (schody/dziury) i bez schodów/dziur w polach
+        obok, nie ściana nauczona, nie zmiana piętra, nie ogień/drzwi/dziura nauczona, niezajęte."""
+        ogien, drzwi, dziury = zakaz
+        if xy in zajete or xy in ogien or xy in drzwi or xy in dziury:
+            return False
+        f = self.mapa.flagi(xy[0], xy[1], z)
+        if not f & 1 or f & 4 or f & 2:
+            return False
+        p3 = (xy[0], xy[1], z)
+        if self.sciana(p3) or self.pole_zmiany_pietra(p3) or self.dziura_nauczona(p3):
+            return False
+        return not any(self.mapa.flagi(xy[0] + dx, xy[1] + dy, z) & 2 for dx in (-1, 0, 1) for dy in (-1, 0, 1))
+
+    def _marsz_prostokat_czysty(self, poz, pola, zakaz):
+        """Klient wybiera własną drogę do kliknięcia i przy obejściu ściany ma równorzędne objazdy po obu stronach, więc sprawdzamy
+        prostokąt obejmujący postać i WSZYSTKIE pola odcinka `pola` (nie tylko poz-cel) z marginesem 1: nic z `zakaz` (ogień, drzwi,
+        dziury) ani pola z flagą 2."""
+        z = poz[2]
+        xs = [poz[0]] + [p[0] for p in pola]
+        ys = [poz[1]] + [p[1] for p in pola]
+        for x in range(min(xs) - 1, max(xs) + 2):
+            for y in range(min(ys) - 1, max(ys) + 2):
+                if (x, y) == tuple(poz[:2]):
+                    continue
+                if any((x, y) in s for s in zakaz) or self.mapa.flagi(x, y, z) & 2:
+                    return False
+        return True
+
+    def _marsz_sciezka(self, poz, prowadz):
+        """Planowane pola przed nami (bez pola, na którym stoimy): kolejno sąsiadujące, to samo piętro, w widoku (z zapasem 1 pola),
+        najwyżej MARSZ_KLIK_MAKS_POL. Źródło: droga A* (`prowadz`) albo kolejne punkty trasy/odcinka patrolu od self.idx."""
+        z = poz[2]
+        zrodlo = prowadz if prowadz else self.punkty[self.idx:self.idx + 12]
+        maks = max(2, int(MARSZ_KLIK_MAKS_POL))
+        wynik, prev = [], (poz[0], poz[1])
+        for q in zrodlo:
+            if len(q) > 2 and q[2] != z:
+                break
+            xy = (q[0], q[1])
+            if xy == prev:
+                if wynik:
+                    break                     # dopełnienie odcinka powtórzonym ostatnim polem
+                continue
+            if max(abs(xy[0] - prev[0]), abs(xy[1] - prev[1])) != 1:
+                break
+            if abs(xy[0] - poz[0]) > ZASIEG_X - 1 or abs(xy[1] - poz[1]) > ZASIEG_Y - 1:
+                break
+            wynik.append(xy)
+            prev = xy
+            if len(wynik) >= maks:
+                break
+        return wynik
+
+    def _marsz_czysc(self):
+        self.marsz = None
+        self.klik_cel = None
+
+    def _marsz_stop(self, poz, powod):
+        """Ktoś inny przejmuje sterowanie (walka, ucieczka, PK, ogień, loot, pauza): jeśli klient jeszcze idzie, Escape.
+        True = wysłano Escape (jak zatrzymaj_klik: Escape zdejmuje też atak, więc wołamy to ZANIM zaczniemy atakować)."""
+        m = self.marsz
+        if m is None:
+            return False
+        self._marsz_czysc()
+        idzie = tuple(poz[:2]) != m["cel"] and self.zegar() - m["ruch"] < MARSZ_BEZ_RUCHU_S
+        if idzie:
+            self.postac.klawisz("Escape")
+        log(f"[MARSZ] przerwany ({powod}) w {tuple(poz[:2])}, klik na {m['cel']}{', Escape' if idzie else ''}")
+        self._patrol_tele("marsz_przerwany", powod=powod, poz=list(poz[:3]), cel=list(m["cel"]), escape=bool(idzie))
+        return idzie
+
+    def _marsz_obserwuj(self, m, poz, teraz):
+        """Kontrola trwającego marszu (wzór: pętla obserwacji serwisu). "idzie" = klient maszeruje; "koniec" = marsz skończony
+        (doszedł, limit, stanął, pole zajęte), można planować następny; "przerwij" = oddajemy sterowanie zwykłej ścieżce
+        (zmiana piętra, gracz, cel do walki); "blok" = klik nic nie ruszył, odcinek krokami klawiszem."""
+        m["hook"] = teraz
+        dt = teraz - m["t0"]
+        if poz[2] != m["z"]:
+            log(f"[MARSZ] zmiana piętra ({m['z']} -> {poz[2]}) po kliku na {m['cel']}, przerywam")
+            self._patrol_tele("marsz_przerwany", powod="zmiana piętra", poz=list(poz[:3]), cel=list(m["cel"]), escape=False)
+            self._marsz_czysc()
+            return "przerwij"
+        if tuple(poz[:2]) != m["ost"]:
+            m["ost"], m["ruch"] = tuple(poz[:2]), teraz
+        if tuple(poz[:2]) == m["cel"]:
+            log(f"[MARSZ] doszedł na {m['cel']} ({m['n']} pól) w {dt:.1f} s")
+            self._patrol_tele("marsz_wynik", wynik="doszedl", n=m["n"], dt=round(dt, 2), cel=list(m["cel"]))
+            self._marsz_czysc()
+            return "koniec"
+        if self._marsz_gracz():
+            self._marsz_stop(poz, "gracz w zasięgu unikania")
+            return "przerwij"
+        ot = self._marsz_otoczenie(poz)
+        if ot is not None:
+            zajete, cel_walki = ot
+            if cel_walki:
+                self._marsz_stop(poz, "cel do walki w widoku")
+                return "przerwij"
+            reszta = m["sciezka"][m["sciezka"].index(tuple(poz[:2])) + 1:] if tuple(poz[:2]) in m["sciezka"] else m["sciezka"]
+            if any(p in zajete for p in reszta):
+                self._marsz_stop(poz, "pole na drodze zajęte")
+                return "koniec"
+        if teraz - m["ruch"] > MARSZ_BEZ_RUCHU_S:
+            if tuple(poz[:2]) == tuple(m["poz0"][:2]):
+                self.marsz_blok = (tuple(poz[:2]), teraz + MARSZ_BLOK_S)
+                log(f"[MARSZ] brak ruchu {dt:.1f} s po kliku na {m['cel']}: krokami klawiszem przez {MARSZ_BLOK_S:.0f} s")
+                self._patrol_tele("marsz_wynik", wynik="bez_ruchu", n=m["n"], dt=round(dt, 2), cel=list(m["cel"]))
+                self._marsz_czysc()
+                return "blok"
+            log(f"[MARSZ] stanął w {tuple(poz[:2])} przed celem {m['cel']} po {dt:.1f} s")
+            self._patrol_tele("marsz_wynik", wynik="stanal", n=m["n"], dt=round(dt, 2), cel=list(m["cel"]))
+            self._marsz_czysc()
+            return "koniec"
+        if dt > m["limit"]:
+            log(f"[MARSZ] limit czasu {m['limit']:.1f} s, jestem w {tuple(poz[:2])}, cel {m['cel']}")
+            self._patrol_tele("marsz_wynik", wynik="limit", n=m["n"], dt=round(dt, 2), cel=list(m["cel"]))
+            self._marsz_czysc()
+            return "koniec"
+        return "idzie"
+
+    def _marsz_klik(self, poz, prowadz=None):
+        """Hak w _idz_trasa przy MARSZ_KLIK=1 (patrol/dojście). True = obieg zużyty (klik, czekanie na marsz klienta albo krok
+        klawiszem po braku ruchu); None = idź zwykłą ścieżką (też wtedy, gdy odcinek zwykłych pól ma < 2 pola)."""
+        teraz = self.zegar()
+        poz = tuple(poz[:3])
+        z = poz[2]
+        m = self.marsz
+        wynik = None
+        if m is not None:
+            if teraz - m["hook"] > MARSZ_PORZUCONY_S:
+                log(f"debug: marsz na {m['cel']} porzucony (obieg poszedł gdzie indziej)")
+                self._marsz_czysc()
+            else:
+                wynik = self._marsz_obserwuj(m, poz, teraz)
+                if wynik == "idzie":
+                    self.pauza(0.08, 0.18)             # postać idzie sama
+                    return True
+                if wynik == "przerwij":
+                    return None
+        b = self.marsz_blok
+        if b is not None and (teraz >= b[1] or max(abs(poz[0] - b[0][0]), abs(poz[1] - b[0][1])) > MARSZ_BLOK_R):
+            b = self.marsz_blok = None
+        if b is not None:
+            # klik nic nie ruszył: ten odcinek idzie krokami klawiszem (nieudany krok -> dalej zwykła ścieżka z pomijaniem punktów)
+            kroki = self._marsz_sciezka(poz, prowadz)
+            self.klik_j = None
+            if kroki and self.krok_do((kroki[0][0], kroki[0][1], z)):
+                return True
+            return None
+        if self._marsz_gracz():
+            return None
+        ot = self._marsz_otoczenie(poz)
+        if ot is None or ot[1]:
+            return None
+        zajete = ot[0]
+        pola = self._marsz_sciezka(poz, prowadz)
+        if len(pola) < 2:
+            return None
+        zakaz = self._marsz_zakazane(z)
+        k = 0
+        while k < len(pola) and self._marsz_pole_ok(pola[k], z, zajete, zakaz):
+            k += 1
+        while k >= 2 and not self._marsz_prostokat_czysty(poz, pola[:k], zakaz):
+            k -= 1
+        if k < 2:
+            return None
+        cel = pola[k - 1]
+        if tuple(self.postac.pozycja()[:3]) != poz:
+            self.pauza(0.04, 0.09)             # klik liczymy względem pola postaci: ruszyła się w trakcie planowania, planujemy od nowa
+            return True
+        try:
+            self.klik(cel[0] - poz[0], cel[1] - poz[1])
+        except ValueError:
+            return None
+        self.ruch_kliki += 1
+        self.klik_cel, self.klik_czas, self.klik_poz, self.klik_ruch = cel, teraz, poz, teraz
+        self.klik_j = None
+        self.marsz = {"cel": cel, "poz0": poz, "z": z, "n": k, "t0": teraz, "ost": poz[:2], "ruch": teraz, "hook": teraz,
+                      "limit": MARSZ_LIMIT_BAZA_S + MARSZ_LIMIT_POLE_S * k, "sciezka": pola[:k]}
+        log(f"[MARSZ] klik na {cel} {k} pól")
+        self._patrol_tele("marsz_klik", poz=list(poz), cel=list(cel), n=k)
+        self.pauza(0.1, 0.2)
+        return True
+
     def zatrzymaj_klik(self, poz):
         """Postać idzie jeszcze po starym kliku: Escape przerywa marsz (i atak - ponowimy go)."""
+        if self.marsz is not None:
+            return self._marsz_stop(poz, "inny priorytet")
         if self.klik is None or self.klik_cel is None:
             return False
         idzie = poz[:2] != self.klik_cel and self.zegar() - self.klik_czas < 2 * KLIK_PONOW
@@ -3644,6 +3904,7 @@ class Cavebot:
             if wynik:
                 return True
             sk = None
+        pierwszy = None                        # KROK_BEZ_SCIAN: pierwszy kierunek, w który faktycznie wcisnęliśmy strzałkę
         for k in kier:
             if self.zablokowane.get(((x, y, z), k)):
                 continue
@@ -3656,6 +3917,9 @@ class Cavebot:
                 n_xy = (x + d[0], y + d[1])
                 if n_xy != (cel[0], cel[1]) and self.pole_zmiany_pietra((n_xy[0], n_xy[1], z)):
                     continue                   # trasa wielopiętrowa: schodów nie wchodzimy "przy okazji" (cel kroku wolno)
+            if KROK_BEZ_SCIAN and pierwszy is not None and self._krok_sciana_mapy(
+                    (x + bot.KIERUNKI[k][0], y + bot.KIERUNKI[k][1], z)):
+                continue                       # po nieudanym pierwszym kierunku: nie bijemy w ścianę z mapy (każda próba ~1,5 s)
             if self.postac.krok(k):
                 self.zablokowane.clear()
                 d = bot.KIERUNKI[k]
@@ -3677,12 +3941,34 @@ class Cavebot:
                 pass
             self._ratunek_zdarzenie("krok_nieudany", (x, y, z))
             self.zablokowane[((x, y, z), k)] = True
+            if KROK_BEZ_SCIAN and pierwszy is None:
+                pierwszy = k
+                d_ = bot.KIERUNKI[k]
+                if not self._krok_sciana_mapy((x + d_[0], y + d_[1], z)) and self.postac.krok(k):
+                    # pierwszy (przechodni wg mapy) kierunek zawodzi przejściowo: ponowienie raz, zanim ruszymy kolejne kierunki
+                    self.zablokowane.clear()
+                    if wstecz is not None and (x + d_[0], y + d_[1], z) == wstecz and k != kier[0]:
+                        pass
+                    else:
+                        self.nieudane = 0
+                    self.krok_z = ((x, y, z), teraz)
+                    return True
         if sk is not None and self._krok_do_skos(x, y, z, sk, teraz, wstecz):
             return True                       # strzałki w osiach nie ruszyły, skos tak
         self.nieudane += 1
         self.zablokowane.clear()
         self.pauza(0.3, 0.8)
         return False
+
+    def _krok_sciana_mapy(self, pole):
+        """KROK_BEZ_SCIAN: True, gdy mapa jednoznacznie uznaje pole za nieprzechodnie (przechodnie False albo flaga ściany 4);
+        pole nieznane (None) to False: wciąż próbujemy."""
+        if self.mapa is None:
+            return False
+        try:
+            return self.mapa.przechodnie(*pole) is False or bool(self.mapa.flagi(*pole) & 4)
+        except Exception:
+            return False
 
     def _skos_kandydat(self, x, y, z, cel, pietra_on):
         """(dx, dy) skosu w stronę celu, gdy skos awaryjny jest włączony, postać umie skos, a pole po skosie nie jest
@@ -4167,6 +4453,8 @@ class Cavebot:
                 if teraz - self.ostatni_alarm > 15:
                     self.ostatni_alarm = teraz
                     self.alarm("gracz na ekranie: " + nazwy)
+                if self.marsz is not None:
+                    self._marsz_stop(poz, "gracz groźny w widoku")    # MARSZ_KLIK: pauza ma stać, a klient idzie sam
                 self.pauza(0.5, 1.0)
                 return True
             # zwykły gracz: gramy dalej; tylko wpis informacyjny (bez [GRACZ], bez alarmu).
@@ -6126,6 +6414,8 @@ class Cavebot:
         return None if wynik is None else True
 
     def walcz(self, cel, g, poz):
+        if self.marsz is not None:
+            self._marsz_stop(poz, "walka")        # MARSZ_KLIK: klient idzie sam, a Escape zdejmuje atak, więc PRZED pierwszym atakiem
         teraz = self.zegar()
         odl = self.cel["odl"]
         self.walka_odl_tick = odl
@@ -6828,6 +7118,8 @@ class Cavebot:
             pass
 
     def zbierz_loot(self, zwloki):
+        if self.marsz is not None:
+            self._marsz_stop(self.postac.pozycja(), "loot")     # MARSZ_KLIK: loot idzie własnymi klikami/krokami
         if not getattr(self, "loot_seria", False):
             self.loot_probowane_czysc()          # inne zwłoki niż w trwającej serii kandydatów: bez cudzych pustych pól
         # Zaległe okno zwłok (po pilnym przerwaniu lootu w walce) zostaje na liście: zwykły loot zamyka tylko
@@ -9460,6 +9752,8 @@ class Cavebot:
                     log("Trzy punkty z rzędu nieosiągalne, przerywam.")
                     return False
             return True
+        if MARSZ_KLIK and self._marsz_dozwolony() and self._marsz_klik((x, y, z), prowadz):
+            return True                       # 20.10: marsz klikiem (patrol/dojście), tylko przy MARSZ_KLIK=1
         if prowadz and self.klik is not None:
             # poza prostą (ściana w poprzek / daleko): klikamy kilka pól drogi do przodu
             zasieg = random.randint(*DROGA_DO_PRZODU)

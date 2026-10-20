@@ -2178,6 +2178,8 @@ class CavebotMozgu(cavebot.Cavebot):
         return super().walcz(cel, g, poz)
 
     def idz(self):
+        if self.marsz is not None and (self.w_rozmowie() or self.wstrzymany()):
+            self._marsz_stop(self.postac.pozycja(), "pauza/rozmowa")     # MARSZ_KLIK: klient idzie sam, pauza ma stać
         if self.w_rozmowie():
             self.ustaw_stan("PAUZA", "rozmowa z graczem")
             self.pauza(0.4, 0.9)
