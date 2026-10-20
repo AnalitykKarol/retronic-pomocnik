@@ -2,7 +2,7 @@
 
 Przypadek K1 (Kutangen, Rook rook_raty_z8, 20.10 16:38-17:02): po upadku z8 -> z9 bot 24 min chodził cyklem 6 pól
 (32085..32086, 32196..32199) na z9, a trasa leży na z8. Testy:
- (a) sekwencja K1 (krok co ~2 s): wyzwolenie po 60 s, stop chodzenia, pauza 3-8 s, próba planu (wpadniecie.py), alarm + STOP przy braku wyjścia;
+ (a) sekwencja K1 (krok co ~2 s): wyzwolenie po 60 s, stop chodzenia, pauza 3-8 s, próba planu (wpadniecie.py), przy braku wyjścia rotacja napraw (nigdy STOP ani critical);
  (b) wyjście w trakcie: powrót do pracy bez alarmu (plan pięter; A* po piętrze); walka w środku nie zeruje okna;
  (c) brak wyzwolenia: normalny patrol, walka w miejscu, PAUZA/PRZERWA, mijanie gracza, stanie z krótkim ruchem;
  (d) pokrętło 0 = zero zmian (te same akcje co z 1), 1 = tylko log i telemetria.
@@ -375,6 +375,98 @@ for t_ in (1401.0, 1402.5, 1404.0):
     rea.tick((32086, 32197, 9), t_)
 sprawdz("a11 zwykłe obiegi co 1-2 s naliczają czas", 3.0 <= rea.akt <= 4.0, rea.akt)
 
+# --- uwagi checkera: plan strażnika nie może dojść do STOP/critical wpadniecie.py ani pietra.py ---
+def start_planu(gora, pietra_porazki=0):
+    """K1 -> reakcja doprowadzona do sposobu plan (faza m_plan). Zwraca (s, b, rea)."""
+    random.seed(7)
+    s, b = nowy((32086, 32197, 9), TRASA, gora)
+    orbituj(s, b, 1)
+    rea = b._straznik[1]
+    orbituj(s, b, 100, az=lambda: rea.faza is not None)
+    s.stoi = False
+    b.pietra_porazki = pietra_porazki
+    ticki(b, 3000, az=lambda: rea.faza == "m_plan")
+    return s, b, rea
+
+def bez_stop_i_critical(b, nazwa):
+    sprawdz(nazwa + ": zero STOP, zero critical, zero alarmu bota", not (b.kat / "STOP").exists() and not ALARMY
+            and not any(len(a) >= 3 and a[2] == "critical" for a in POWIADOMIENIA) and not any("ALARM" in l for l in LOG),
+            (list(b.kat.iterdir()), ALARMY, POWIADOMIENIA, [l for l in LOG if "ALARM" in l]))
+
+# A: skok zegara > PIETRA_MAX_S (150 s) w m_plan (walka/loot ~160 s) -> wpadniecie.tick zaalarmowałby STOP + critical
+s, b, rea = start_planu(GORA_K1)
+sprawdz("A0 reakcja doszła do m_plan, wp.st ustawione przez strażnika", rea.faza == "m_plan" and b._wp().st is not None and rea.wp_moj, (rea.faza, rea.wp_moj))
+s.t += 160.0
+ticki(b, 4)
+bez_stop_i_critical(b, "A1 skok zegara 160 s w m_plan")
+sprawdz("A1 plan zwinięty (wp.st wyczyszczone), rotacja idzie dalej (sposób plan nieudany, kolejny)", b._wp().st is None
+        and any(m == "plan" and w != "start" for m, w in rea.historia) and rea.faza is not None, rea.historia[:6])
+sprawdz("A1 bez_alarmu wyłączone po kroku", not b._wp().bez_alarmu)
+ticki(b, 400)
+bez_stop_i_critical(b, "A1 dalsza rotacja")
+sprawdz("A1 dalsza rotacja próbuje kolejnych sposobów", any(m in ("klik", "krok") and w == "start" for m, w in rea.historia), rea.historia[:8])
+# A: _alarm wpadniecie.py wywołany bezpośrednio w kroku strażnika oddaje porażkę zamiast STOP; poza strażnikiem działa po staremu
+s, b, rea = start_planu(GORA_K1)
+wp = b._wp(); wp.bez_alarmu = True
+r = wp._alarm("test", tuple(s.poz))
+sprawdz("A2 _alarm z bez_alarmu: porażka dla strażnika, bez STOP/critical", r is True and wp.st["porazka_dla_straznika"] == "test"
+        and not (b.kat / "STOP").exists() and not POWIADOMIENIA and not ALARMY, (POWIADOMIENIA, ALARMY))
+wp.bez_alarmu = False
+wp._alarm("test", tuple(s.poz))
+sprawdz("A2 _alarm bez flagi (dawna ścieżka wpadniecie.py) bez zmian: STOP + critical", (b.kat / "STOP").exists()
+        and any(len(a) >= 3 and a[2] == "critical" for a in POWIADOMIENIA))
+# A: STRAZNIK_WYJSCIE_S > PIETRA_MAX_S nie wydłuża planu ponad bezpieczny limit
+cavebot.STRAZNIK_WYJSCIE_S = 300.0
+try:
+    s, b, rea = start_planu(GORA_K1)
+    sprawdz("A3 limit planu = min(STRAZNIK_WYJSCIE_S, 120 s) < PIETRA_MAX_S", rea.ep["limit"] <= straznik_orbity.PLAN_MAX_S < 150.0, rea.ep["limit"])
+finally:
+    cavebot.STRAZNIK_WYJSCIE_S = 90.0
+sprawdz("A3 zakres pokrętła STRAZNIK_WYJSCIE_S <= PIETRA_MAX_S (150)", __import__("pokretla").ZAKRESY["STRAZNIK_WYJSCIE_S"][1] <= 150.0)
+
+# B: pietra_porazki=2 + przejście planu bez zmiany piętra -> brak critical z pietra.py, licznik jak przed krokiem
+s, b, rea = start_planu({(32086, 32197, 9): (32086, 32198, 9)}, pietra_porazki=2)    # "przejście" prowadzi na to samo piętro
+ticki(b, 3000, az=lambda: any(m == "plan" and w != "start" for m, w in rea.historia))
+bez_stop_i_critical(b, "B1 pietra_porazki=2 + przejście bez zmiany piętra")
+sprawdz("B1 licznik pietra_porazki wrócił do 2 (strażnik nie podbija go do progu)", b.pietra_porazki == 2, b.pietra_porazki)
+sprawdz("B1 plan próbowano (log porażki przejścia)", any("Przejście pięter NIEUDANE" in l for l in LOG) or any(m == "plan" for m, w in rea.historia), LOG[-5:])
+
+# C: wyjątek w reakcji / 2->0 w locie -> wp.st i pietra.st wyczyszczone
+s, b, rea = start_planu(GORA_K1)
+b._wp().st["krok"] = None
+oryg_tick = rea.tick
+rea.tick = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("test"))
+b.tick()
+sprawdz("C1 wyjątek w reakcji: wp.st i pietra.st wyczyszczone, faza None, bez STOP", b._wp().st is None and rea.faza is None
+        and (b.pietra is None or b.pietra.st is None) and not rea.wp_moj, (b._wp().st, rea.faza))
+bez_stop_i_critical(b, "C1")
+ticki(b, 30)
+bez_stop_i_critical(b, "C1 dalsze obiegi (zwykłe 3b)")
+s, b, rea = start_planu(GORA_K1)
+cavebot.STRAZNIK_ORBITY = 0
+b.tick()
+sprawdz("C2 2->0 w locie: wp.st wyczyszczone, faza None", b._wp().st is None and rea.faza is None and not rea.wp_moj, (b._wp().st, rea.faza))
+ticki(b, 30)
+bez_stop_i_critical(b, "C2 dalsze obiegi")
+cavebot.STRAZNIK_ORBITY = 2
+s, b, rea = start_planu(GORA_K1)
+cavebot.STRAZNIK_ORBITY = 1
+b.tick()
+sprawdz("C3 2->1 w locie: wp.st wyczyszczone", b._wp().st is None and rea.faza is None)
+cavebot.STRAZNIK_ORBITY = 2
+
+# NITS: kolejka w całości pominięta nie liczy rundy; jedno odwrócenie pętli na epizod
+s, b = nowy((32086, 32197, 9), TRASA, {})
+orbituj(s, b, 1)
+rea = b._straznik[1]
+orbituj(s, b, 100, az=lambda: rea.faza is not None)
+rea.ep["kolejka"] = ["plan"]; rea.ep["w_rundzie"] = 0; rea.ep["runda"] = 0
+rea.cb._wp().st = None
+rea._s_plan = lambda p, t: False                                 # plan nie ma zastosowania
+rea.ep["pauza_do"] = 0.0
+rea._nastepny(tuple(s.poz), s.t)
+sprawdz("N1 pominięta w całości kolejka nie zwiększa rundy", rea.ep["runda"] == 0, rea.ep["runda"])
+
 # --- (b) orbita na piętrze trasy: A* do punktu trasy z polami orbity jako zakazanymi ---
 def otwarty_blok():
     """Blok 2x3 pola (cykl 6 pól) z ramką 1 pola chodliwą, przy trasie z8; reszta trasy >= 5 pól dalej."""
@@ -454,6 +546,22 @@ if blok:
                 and not any(len(a) >= 3 and a[2] == "critical" for a in POWIADOMIENIA), (rea.historia, rea.faza))
         sprawdz("b4 naprawa zakończona postępem (bot wyszedł z korytarza sam po rotacji lub krokach)", rea.faza is None
                 and any("[ORBITA] postęp" in l for l in LOG), (rea.faza, rea.historia, [l for l in LOG if "ORBITA" in l][-3:]))
+
+if blok:
+    s, b = nowy((bx, by, 8), trasa8)
+    s.stoi = True; b.tick(); rea = b._straznik[1]
+    for i in range(60):
+        if rea.faza is not None: break
+        s.poz[:] = [cykl8[i % len(cykl8)][0], cykl8[i % len(cykl8)][1], 8]; s.t += 1.9; b.tick()
+    rea.ep["uzyte_cele"] = []
+    odw = 0
+    for _ in range(8):
+        zn = list(b.punkty)
+        rea.faza = "pauza"; rea.ep["kolejka"] = ["punkt"]; rea.ep["w_rundzie"] = 0
+        if rea._s_punkt(tuple(s.poz), s.t) and list(b.punkty) != zn:
+            odw += 1
+    sprawdz("N2 odwrócenie pętli najwyżej raz na epizod w 8 próbach punkt", odw <= 1 and rea.ep.get("odwrocono") in (True, None), odw)
+
 
 # --- (d) pokrętło 0 = zero zmian, 1 = tylko log ---
 def scenariusz(tryb):

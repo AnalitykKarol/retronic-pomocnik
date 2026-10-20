@@ -322,7 +322,7 @@ ZAKRESY = {
     "STRAZNIK_ORBITA_S": (30.0, 600.0),    # s okno orbity: >= STRAZNIK_ORBITA_ZMIAN zmian pozycji w <= STRAZNIK_ORBITA_POL polach poza walką (domyślnie 60)
     "STRAZNIK_ORBITA_POL": (3, 12),     # maks. różnych pól orbity (domyślnie 8)
     "STRAZNIK_ORBITA_ZMIAN": (6, 60),   # min. zmian pozycji w oknie (domyślnie 15)
-    "STRAZNIK_WYJSCIE_S": (30.0, 300.0),   # s aktywne na dłuższy sposób naprawy (plan pięter, A* do punktu), potem następny sposób (domyślnie 90)
+    "STRAZNIK_WYJSCIE_S": (30.0, 150.0),   # s aktywne na dłuższy sposób naprawy (plan pięter, A* do punktu), potem następny sposób (domyślnie 90; plan pięter zawsze zwijany po <= 120 s, przed PIETRA_MAX_S)
     "D3_ALARM_S": (0.0, 1800.0),        # 17.10 (F1): >0 = zawieszka D3 trwająca tyle s => jedno powiadomienie krytyczne, bez STOP (domyślnie 0 = wyłączone)
     "SLEPOTA_DIAG_S": (0.0, 900.0),     # 19.10: s bez expa i potworów (bot polował) => zrzut diagnostyki do logi/slepota/ (0 = wyłączone)
     "SLEPOTA_RESTART_S": (0.0, 1800.0), # 19.10: s takiej ślepoty => restart mozg.py (0 = bez restartu; min. rozsądnie 240)
