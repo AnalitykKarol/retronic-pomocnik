@@ -88,6 +88,10 @@ Stałe w `cavebot.py`, zakres i kierunek (analityk nie włączy) w `pokretla.py`
   ani ognia ani dziury/zmiany piętra znanej Cavebotowi (klient wybiera własną drogę i przy obejściu przeszkody ma objazdy po obu stronach, więc znana dziura
   przy depo (33167,31812,z7), omijana przez nagranie, blokuje klik w okolicy); inaczej ścieżkę skracamy, < 2 pola = kroki jak dotąd. Mob (nie gracz) w 3
   polach od postaci albo w 2 polach od pola ścieżki = bez kliku albo skrócenie; groźny gracz (GM/czaszka) w widoku, `ucieczka`, `ostrozny` = bez kliku.
+  **Kierunek (poprawka po teście na żywo 20.10, Johny: klik „za siebie”):** ścieżka startuje ZA punktem planu najbliższym postaci (okno wokół `pi`, Chebyshev ≤ 2;
+  remis: bliższy `pi`, potem późniejszy: plan z zawrotem ma to samo pole dwa razy), `pi` jest wyrównywane do pozycji przed klikiem, ścieżka urywa się na zawrocie
+  (pole postaci albo pole już na niej), cel kliku nie może być polem postaci, a klik musi skracać pozostałą drogę liczoną po planie. Każdy klik zostawia wiersz
+  w logu: `Wypad: marsz klikiem: klik na (x, y) N pól z (x, y): doszedł w T s` (albo `ruszył, stoję w…`, `nic nie ruszył`, `przerwany…`).
   Na prawdziwych planach (bez stworów): troll 119/197, gobliny_edron 136/182, edron 80/117 pozycji ma dozwolony klik, 0 naruszeń prostokąta.
 - **Po kliku:** czekanie na ruch jak w serwisie (do 0,8 s + 0,45 s na pole); co 3. odczyt kontrola: mob w 3 polach, groźny gracz albo spadek HP o
   > 5 pp = przerwanie (Escape, obieg oddany; walka/ucieczka/PK idą dotychczasową logiką w następnym obiegu, kolejny klik najwcześniej po 3 s).

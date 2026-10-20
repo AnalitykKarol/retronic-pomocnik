@@ -876,6 +876,8 @@ class Wypad:
         do KLIK_MAKS_POL pól naprzód i w zasięgu widoku. Wszystkie pola ścieżki muszą być zwykłe wg mapy i wolne (bez ognia, bez zajętych
         przez stwory i graczy, widma pomijane), a prostokąt postać + cała ścieżka z marginesem 1 pola nie może zawierać pola z flagą 2
         (schody, dziury, krzesła, nieznane przejścia) ani dziury nauczonej; inaczej ścieżka jest skracana. Min. 2 pola, inaczej kroki.
+        Ścieżka startuje ZA punktem planu najbliższym postaci (okno wokół self.pi, remis: bliższy pi; plan z zawrotem ma to samo pole dwa
+        razy), urywa się na zawrocie, a klik musi skracać pozostałą drogę liczoną po planie i nie może celować we własne pole.
         Potem czekanie na ruch (marsz_klik.klik_i_czekaj, limit czasu liczony w polach). False (kroki jak dotąd): postać nie stoi na
         odcinku, mob blisko, groźny gracz, ucieczka, mniej niż 2 pola, klik bez ruchu (wtedy KLIK_BLAD_PAUZA_S przerwy) albo klik
         odrzucony (ValueError, 3 s przerwy). True = obieg zużyty: ruch, zmiana piętra (dalej rządzi _resync / etap przejścia) albo
@@ -888,10 +890,11 @@ class Wypad:
             return False
         poz = tuple(poz)
         z = poz[2]
-        k = next((i for i in range(max(0, self.pi - 3), min(len(pkt), self.pi + 12)) if tuple(pkt[i]) == poz), None)
+        k = self._klik_indeks(pkt, poz)
         if k is None:
             return False                      # postać zeszła z odcinka: wraca na niego dotychczasowa maszyneria
-        pola = marsz_klik.gesta_sciezka(poz, pkt[k + 1:])
+        gesta = marsz_klik.gesta_sciezka_idx(poz, pkt[k + 1:])
+        pola = [xy for xy, _ in gesta]
         if len(pola) < 2:
             return False
         lista = [m for m in (getattr(cb, "ostatnie_stwory", None) or []) if m.get("z") == z and not m.get("widmo")]
@@ -914,6 +917,12 @@ class Wypad:
         if n < 2:
             return False
         cel_kl = (pola[n - 1][0], pola[n - 1][1], z)
+        if cel_kl[:2] == poz[:2] or not self._klik_postep(pkt, k, poz, cel_kl, k + 1 + gesta[n - 1][1]):
+            self.log(f"Wypad: marsz klikiem: klik na {cel_kl[:2]} z {poz[:2]} nie przybliża do końca odcinka, pomijam")
+            self._klik_zakaz_do = teraz + 1.0
+            return False
+        self.pi = max(self.pi, k)             # wyrównanie indeksu planu do pozycji (kliki przesuwają postać o kilka punktów naraz)
+        t0 = cb.zegar()
         try:
             klik(cel_kl[0] - poz[0], cel_kl[1] - poz[1])
         except ValueError:
@@ -923,16 +932,21 @@ class Wypad:
         wynik = marsz_klik.klik_i_czekaj(cb.postac, poz, cel_kl, n, zegar=marsz_klik.Czas(cb.zegar, cb.spij), log=self.log,
                                          przerwij=lambda p: self._klik_przerwij(p, hp0), prefiks="Wypad: marsz klikiem")
         nowa = tuple(cb.postac.pozycja())
+        dt = cb.zegar() - t0
+        opis = f"klik na {cel_kl[:2]} {n} pól z {poz[:2]}"
         if wynik == "ruch":
             self.klik_ile += 1
-            i = next((j for j in range(k, len(pkt)) if tuple(pkt[j]) == nowa), None)
+            i = self._klik_indeks(pkt, nowa)
             if i is not None:
                 self.pi = max(self.pi, i)
+            self.log(f"Wypad: marsz klikiem: {opis}: " + (f"doszedł w {dt:.1f} s" if nowa[:2] == cel_kl[:2]
+                                                         else f"ruszył, stoję w {nowa[:2]} po {dt:.1f} s"))
             return True
         if wynik == "pietro":
+            self.log(f"Wypad: marsz klikiem: {opis}: zmiana piętra po {dt:.1f} s")
             return True
         if wynik == "przerwano":
-            self.log(f"Wypad: marsz klikiem przerwany w {nowa} (mob, PK albo spadek HP), dalej jak dotąd")
+            self.log(f"Wypad: marsz klikiem: {opis}: przerwany w {nowa[:2]} po {dt:.1f} s (mob, PK albo spadek HP), dalej jak dotąd")
             try:
                 cb.postac.klawisz("Escape")   # klient dalej prowadziłby postać do klikniętego pola
             except bot.Zatrzymano:
@@ -941,9 +955,25 @@ class Wypad:
                 pass
             self._klik_zakaz_do = teraz + 3.0
             return True
-        self.log(f"Wypad: marsz klikiem: klik na {cel_kl[:2]} z {poz[:2]} nic nie ruszył, wracam do kroków na {KLIK_BLAD_PAUZA_S:.0f} s")
+        self.log(f"Wypad: marsz klikiem: {opis}: nic nie ruszył, wracam do kroków na {KLIK_BLAD_PAUZA_S:.0f} s")
         self._klik_zakaz_do = teraz + KLIK_BLAD_PAUZA_S
         return False
+
+    def _klik_indeks(self, pkt, poz):
+        """Indeks punktu odcinka najbliższego postaci (to samo piętro, Chebyshev <= 2: pole zagęszczonej ścieżki leży w pobliżu punktu planu),
+        szukany w oknie wokół self.pi; przy remisie bliższy self.pi (plan z zawrotem może mieć to samo pole dwa razy: liczy się przejście,
+        na którym jesteśmy), potem późniejszy. None = postać poza planem."""
+        okno = range(max(0, self.pi - 3), min(len(pkt), self.pi + 12))
+        kand = [(cheb(pkt[i], poz), abs(i - self.pi), -i) for i in okno if pkt[i][2] == poz[2] and cheb(pkt[i], poz) <= 2]
+        return -min(kand)[2] if kand else None
+
+    @staticmethod
+    def _klik_postep(pkt, k, poz, cel, b):
+        """Czy klik przybliża do końca odcinka liczonego PO PLANIE: pozostała droga z celu kliku (do punktu `b`, do którego prowadzi jego
+        odcinek, plus reszta planu) musi być krótsza niż z pozycji postaci (do punktu `k` plus reszta). Klik 'za siebie' odpada."""
+        def reszta(i):
+            return sum(cheb(pkt[t], pkt[t + 1]) for t in range(i, len(pkt) - 1) if pkt[t][2] == pkt[t + 1][2])
+        return cheb(cel, pkt[b]) + reszta(b) < cheb(poz, pkt[k]) + reszta(k)
 
     def _klik_dziury(self, poz, pola):
         """Pola (x, y) w prostokącie postać + ścieżka (margines 1), które Cavebot zna jako zmianę piętra albo dziurę nauczoną."""

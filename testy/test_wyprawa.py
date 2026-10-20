@@ -1548,6 +1548,53 @@ sprawdz("20d8 to samo przy rzadkich punktach (co 2 pola): wciąż 5 pól, ten sa
 kl, w, pkt, logi = klik_swiat()
 kl.dziura_nauczona = lambda p: p[:2] == (13, 11)
 sprawdz("20d9 dziura nauczona obok ścieżki (Cavebot ją zna, mapa nie): bez kliku", klikni(kl, w, pkt) is False and kl.klikniecia == [])
+# --- klik „za siebie” (test na żywo 20.10, Johny): plan z zawrotem, indeks planu w tyle ---
+def klik_plan(pkt, poz, pi=0):
+    kl, w, _, logi = klik_swiat()
+    kl.poz = list(poz)
+    w.pi = pi
+    return kl, w, pkt, logi
+
+
+plan_odbicie = [(32483, 32301, 8), (32484, 32301, 8), (32485, 32301, 8), (32486, 32301, 8), (32485, 32301, 8), (32484, 32301, 8)]
+kl, w, pkt, logi = klik_plan(plan_odbicie, (32485, 32301, 8), pi=2)
+sprawdz("20e1 replay logu 08:51:55: plan wraca na pole postaci (odbicie), klik na własne pole odpada, ścieżka urywa się na zawrocie",
+        klikni(kl, w, pkt) is False and kl.klikniecia == [], kl.klikniecia)
+plan_ostroga = [(32490, 32262, 8), (32491, 32262, 8), (32492, 32261, 8), (32493, 32260, 8), (32492, 32261, 8), (32491, 32262, 8),
+                (32490, 32262, 8), (32489, 32261, 8), (32488, 32260, 8), (32487, 32259, 8), (32486, 32258, 8), (32485, 32257, 8)]
+kl, w, pkt, logi = klik_plan(plan_ostroga, (32490, 32262, 8), pi=6)
+sprawdz("20e2 replay logu 08:55:07: postać na drugim przejściu pola (ostroga na wschód już za nią): klik na zachód/północ, nie na wschód",
+        klikni(kl, w, pkt) is True and kl.klikniecia and kl.klikniecia[0][0] < 0 and kl.klikniecia[0][1] < 0 and w.pi >= 6, (kl.klikniecia, w.pi))
+kl, w, pkt, logi = klik_plan(plan_ostroga, (32490, 32262, 8), pi=3)
+sprawdz("20e3 ta sama ostroga, pi=3 (remis odległości): wybór późniejszego przejścia, klik na zachód",
+        klikni(kl, w, pkt) is True and kl.klikniecia[0][0] < 0, kl.klikniecia)
+kl, w, pkt, logi = klik_plan(plan_ostroga, (32490, 32262, 8), pi=0)
+sprawdz("20e4 pi=0 (pierwsze przejście): klik na ostrogę jest naprzód po planie (3 pola na wschód), nie wstecz",
+        klikni(kl, w, pkt) is True and kl.klikniecia[0][0] > 0, kl.klikniecia)
+# postać przesunięta względem pi po udanym kliku: następny klik naprzód, indeks planu dogania pozycję
+kl, w, pkt, logi = klik_swiat()
+w.pi = 0
+kl.poz = [13, 10, 7]                                      # postać stoi na punkcie nr 3, pi zostało na 0
+sprawdz("20e5 pi w tyle o 3 punkty: klik naprzód (dx > 0), indeks planu wyrównany do pozycji",
+        klikni(kl, w, pkt) is True and kl.klikniecia[0][0] > 0 and w.pi >= 3 + 4, (kl.klikniecia, w.pi))
+kl, w, pkt, logi = klik_swiat(krok=2)
+r1 = klikni(kl, w, pkt)
+p1 = tuple(kl.poz)
+kl.t += 1.0
+r2 = klikni(kl, w, pkt)
+sprawdz("20e6 rzadki plan: po kliku postać stoi na polu między punktami, a następny klik wciąż idzie naprzód (nie wstecz, nie w miejscu)",
+        r1 is True and r2 is True and len(kl.klikniecia) == 2 and p1 == (15, 10, 7) and kl.klikniecia[1][0] > 0 and tuple(kl.poz) == (20, 10, 7),
+        (kl.klikniecia, p1, kl.poz))
+sprawdz("20e7 każdy klik (także udany) zostawia ślad w logu: pole, liczba pól, skąd, wynik i czas", len([l for l in logi if "marsz klikiem: klik na" in l]) == 2
+        and "5 pól z (10, 10)" in logi[0] and "doszedł w" in logi[0], logi)
+kl, w, pkt, logi = klik_swiat(tryb="stoi")
+klikni(kl, w, pkt)
+sprawdz("20e8 klik bez ruchu też ma wiersz z celem, liczbą pól i skąd", any("klik na (15, 10) 5 pól z (10, 10): nic nie ruszył" in l for l in logi), logi)
+# bezpiecznik postępu po planie: plan, który po kilku polach zawraca, nie daje kliku zwiększającego drogę do końca
+kl, w, pkt, logi = klik_swiat()
+sprawdz("20e9 _klik_postep: cel bliżej końca planu = tak, cel za nami = nie",
+        w._klik_postep(pkt, 3, (13, 10, 7), (16, 10, 7), 6) and not w._klik_postep(pkt, 3, (13, 10, 7), (11, 10, 7), 1)
+        and not w._klik_postep(pkt, 3, (13, 10, 7), (13, 10, 7), 3))
 kl, w, pkt, logi = klik_swiat(nad={(13, 10, 7): 1 | 4})
 sprawdz("20e pole zablokowane na mapie (flaga 4): klik do pola nr 2", klikni(kl, w, pkt) is True and kl.klikniecia == [(2, 0)], kl.klikniecia)
 kl, w, pkt, logi = klik_swiat()
@@ -1583,7 +1630,7 @@ kl, w, pkt, logi = klik_swiat()
 kl.klik = None
 sprawdz("20l2 brak funkcji kliku (atak/test): bez kliku", klikni(kl, w, pkt) is False)
 kl, w, pkt, logi = klik_swiat()
-sprawdz("20m postać poza odcinkiem (inny rząd): bez kliku, wraca dotychczasowa maszyneria", klikni(kl, w, pkt, poz=(10, 11, 7)) is False and kl.klikniecia == [])
+sprawdz("20m postać poza odcinkiem (inny rząd): bez kliku, wraca dotychczasowa maszyneria", klikni(kl, w, pkt, poz=(10, 14, 7)) is False and kl.klikniecia == [])
 kl, w, pkt, logi = klik_swiat(tryb="pietro")
 sprawdz("20n klik zmienia piętro: obieg zużyty (dalej _resync), wpis w logu, bez zaliczenia kliku", klikni(kl, w, pkt) is True
         and any("zmienił piętro" in l for l in logi) and w.klik_ile == 0 and kl.poz[2] == 6, (logi, kl.poz))
@@ -1651,21 +1698,23 @@ try:
             (s.poz, len(wyw1["klik"]), wyw1["fazy"], wyw1["odc"], wyw0["odc"]))
     zle = []
     for z0, cel, pts in wyw1["klik"]:
-        if z0 not in pts:
-            zle.append(("postać poza odcinkiem", z0, cel))
-            continue
-        pola = marsz_klik.gesta_sciezka(z0, pts[pts.index(z0) + 1:])          # gęsta ścieżka planu od pola postaci
-        if cel[:2] not in pola:
-            zle.append(("cel kliku poza gęstą ścieżką planu", z0, cel))
-            continue
-        trasa = pola[:pola.index(cel[:2]) + 1]
-        d = len(trasa)
-        x0, x1 = min([z0[0]] + [p[0] for p in trasa]) - 1, max([z0[0]] + [p[0] for p in trasa]) + 1
-        y0, y1 = min([z0[1]] + [p[1] for p in trasa]) - 1, max([z0[1]] + [p[1] for p in trasa]) + 1
-        if not 2 <= d <= marsz_klik.KLIK_MAKS_POL or any(
-                marsz_klik.koszt_pola(MAPA, q[0], q[1], z0[2]) != marsz_klik.ZWYKLE for q in trasa) or any(
-                int(MAPA.flagi(x, y, z0[2])) & 2 for x in range(x0, x1 + 1) for y in range(y0, y1 + 1)):
-            zle.append(("niezwykłe pole, schody w prostokącie albo długość", z0, cel, trasa))
+        bledy_k = []
+        for k_ in [i for i, q in enumerate(pts) if q[2] == z0[2] and max(abs(q[0] - z0[0]), abs(q[1] - z0[1])) <= 2]:
+            pola = marsz_klik.gesta_sciezka(z0, pts[k_ + 1:])                   # gęsta ścieżka planu za punktem najbliższym postaci
+            if cel[:2] not in pola:
+                continue
+            trasa = pola[:pola.index(cel[:2]) + 1]
+            x0, x1 = min([z0[0]] + [p[0] for p in trasa]) - 1, max([z0[0]] + [p[0] for p in trasa]) + 1
+            y0, y1 = min([z0[1]] + [p[1] for p in trasa]) - 1, max([z0[1]] + [p[1] for p in trasa]) + 1
+            if 2 <= len(trasa) <= marsz_klik.KLIK_MAKS_POL and all(
+                    marsz_klik.koszt_pola(MAPA, q[0], q[1], z0[2]) == marsz_klik.ZWYKLE for q in trasa) and not any(
+                    int(MAPA.flagi(x, y, z0[2])) & 2 for x in range(x0, x1 + 1) for y in range(y0, y1 + 1)):
+                bledy_k = []
+                break
+            bledy_k.append((z0, cel, trasa))
+        else:
+            bledy_k = bledy_k or [("cel kliku poza gęstą ścieżką planu", z0, cel)]
+        zle += bledy_k
     sprawdz("20t każdy klik: 2..5 pól naprzód, wszystkie pola linii zwykłe, w prostokącie z marginesem 1 zero pól z flagą 2 (schody/dziury)",
             wyw1["klik"] and not zle, zle[:2])
     sprawdz("20u po marszu klikiem nadal koniec 'depo', STOP, brak zakupów i alarmów",
