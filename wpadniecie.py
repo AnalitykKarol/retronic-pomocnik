@@ -63,6 +63,7 @@ class Wpadniecie:
         self._plan_t = float("-inf")      # kiedy ostatnio widziano wypad/wyprawę/dojście
         self._przejscia = None            # leniwa lista przejść z danych
         self.wykryte = 0
+        self.bez_alarmu = False            # True tylko w kroku planu prowadzonego przez strażnika orbit (patrz _alarm)
         self.wczytaj()
 
     def _k(self, nazwa, domyslna):
@@ -685,6 +686,14 @@ class Wpadniecie:
     def _alarm(self, powod, p):
         cb = self.cb
         st = self.st
+        if self.bez_alarmu:
+            # 20.10 (zasada naprawiania): plan prowadzi strażnik orbit (straznik_orbity.py) i sam decyduje, co dalej (rotacja napraw):
+            # zamiast powiadomienia critical i pliku STOP oddajemy mu porażkę (st["porazka_dla_straznika"]); poza strażnikiem bez zmian
+            st["porazka_dla_straznika"] = powod
+            self.log(f"Wpadnięcie: bez alarmu ({powod}), plan prowadzi strażnik orbit.")
+            self._tele("wpadniecie_bez_alarmu", powod=powod, poz=list(p), z0=st["z0"])
+            cb.pauza(0.2, 0.5)
+            return True
         st["alarm"] = True
         tresc = f"wpadłem z z{st['z0']} na z{p[2]} i nie umiem wrócić ({powod}); jestem w {tuple(p)}"
         self.log(f"Wpadnięcie: ALARM, {tresc}. Zatrzymuję bota (STOP).")

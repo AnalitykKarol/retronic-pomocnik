@@ -43,6 +43,7 @@ POSTEP_POL = 3                       # postęp = >= tyle pól od najbliższego p
 KAND_TRASY = 8                       # ile najbliższych punktów trasy/patrolu sprawdzamy A*
 LIMIT_KLIK_S = 25.0                  # limity czasu aktywnego sposobów (s); wyjscie/astar/plan: STRAZNIK_WYJSCIE_S
 LIMIT_PUNKT_S = 30.0
+PLAN_MAX_S = 120.0                   # plan pięter zwijamy zawsze przed PIETRA_MAX_S (150 s) wpadniecie.py, mimo STRAZNIK_WYJSCIE_S
 MAX_DT_S = 6.0                       # dłuższa luka między obiegami reakcji = była walka/loot: nie liczy się do limitów
 KLIK_MIN, KLIK_MAX = 3, 7            # klik: odległość pola od najbliższego pola orbity
 MAX_PRZERWA_S = ratunek.MAX_PRZERWA_S
@@ -166,12 +167,31 @@ class Reakcja:
         self.ost_tick = None
         self.det = None                     # Detektor do wyzerowania po epizodzie (ustawia cavebot)
         self.historia = []                  # [(sposób, wynik)] ostatniego epizodu (testy, telemetria)
+        self.wp_moj = False                 # True, gdy wp.st / pietra.st ustawił strażnik (sprzątamy tylko swoje)
 
     def k(self, nazwa):
         return getattr(self.konf, nazwa, DOMYSLNE[nazwa]) if self.konf is not None else DOMYSLNE[nazwa]
 
     def aktywna(self):
         return self.faza is not None
+
+    def sprzatnij(self):
+        """Przerwanie reakcji z zewnątrz (wyjątek, STRAZNIK_ORBITY 2->0 w locie): oddajemy stan, który ustawił strażnik
+        (wp.st, pietra.st), bo zwykłe 3b doprowadziłoby go do alarmu wpadniecie.py."""
+        cb = self.cb
+        if self.wp_moj:
+            try:
+                wp = cb._wp()
+                if wp is not None:
+                    wp.st = None
+                    wp.bez_alarmu = False
+                if getattr(cb, "pietra", None) is not None:
+                    cb.pietra.st = None
+            except Exception:
+                pass
+            self.wp_moj = False
+        self.faza = None
+        self.ep = None
 
     def _tele(self, etap, **d):
         t = getattr(self.cb, "tele", None)
@@ -273,6 +293,7 @@ class Reakcja:
             ep["n_met"] += 1
             ok = getattr(self, "_s_" + met)(p, teraz)
             if ok:
+                ep["w_rundzie"] = ep.get("w_rundzie", 0) + 1
                 self.faza = "m_" + met
                 self.log(f"[ORBITA] sposób {ep['n_met']} (runda {ep['runda'] + 1}): {met}.")
                 self._tele("sposob", sposob=met, nr=ep["n_met"], runda=ep["runda"] + 1, poz=list(p))
@@ -342,10 +363,11 @@ class Reakcja:
         self._tele("postep", wynik="ok", poz=list(p), czas_s=round(czas, 1), powod=powod, sposoby=ep["n_met"],
                    pola=[list(q) for q in ep["pola"]])
         wp = cb._wp()
-        if wp is not None and wp.st is not None:
+        if self.wp_moj and wp is not None and wp.st is not None:
             wp.st = None
             if getattr(cb, "pietra", None) is not None:
                 cb.pietra.st = None
+        self.wp_moj = False
         try:
             if sync and not po_punkcie and not cb._wypad_wroc_na_trase(p):   # plan pięter robi to sam
                 cb._patrol_sync_idx(p)
@@ -517,6 +539,8 @@ class Reakcja:
         warianty = ["patrol", "odwroc", "inny"] if patrol else ["inny", "odwroc"]
         if patrol and not cb.patrol:
             warianty = ["odwroc", "inny"]
+        if ep.get("odwrocono"):                  # jedno odwrócenie pętli na epizod (inaczej wahadło kierunków)
+            warianty = [w for w in warianty if w != "odwroc"] or ["inny"]
         if n < 2 and not patrol:
             return False
         wariant = warianty[self.var_punkt % len(warianty)]
@@ -525,7 +549,7 @@ class Reakcja:
         if wariant == "patrol" and cb.patrol:
             try:
                 pp = cb.patrol
-                cb.patrol_blok[pp["m"]["id"]] = teraz + float(getattr(cb, "PATROL_BLOK_S", 150.0))
+                cb.patrol_blok[pp["m"]["id"]] = teraz + float(getattr(self.konf, "PATROL_BLOK_S", 150.0))
                 try:
                     cb._patrol_zakoncz(pp, "strażnik orbit")
                 except Exception:
@@ -537,6 +561,7 @@ class Reakcja:
                     raise
                 return False
         elif wariant == "odwroc" and n >= 2:
+            ep["odwrocono"] = True
             cb.punkty.reverse()
             cb.idx = (n - (cb.idx - 1) % n) % n
             cb.__dict__["utk_zakaz"] = {}
@@ -580,7 +605,8 @@ class Reakcja:
             self.log(f"[ORBITA] plan pięter nie wyszedł ({e!r})")
             wp.st = None
             return False
-        self.ep["limit"] = float(self.k("STRAZNIK_WYJSCIE_S"))
+        self.wp_moj = True
+        self.ep["limit"] = min(float(self.k("STRAZNIK_WYJSCIE_S")), PLAN_MAX_S)
         self.ep["alias"] = "plan"
         self.log(f"[ORBITA] plan pięter (wpadniecie.py), wyjście na z{wp.st['z0'] if wp.st else '?'}.")
         return True
@@ -596,24 +622,39 @@ class Reakcja:
         st = wp.st
         if st["krok"] is None and teraz >= st["nast"] and wp._znajdz_plan(p, st["zle"]) is None:
             return self._zwin_plan(p, teraz, "plan wyczerpany")      # wpadniecie.py zaalarmowałoby STOP: my nie dopuszczamy
+        # wpadniecie.py w tym kroku nie alarmuje (STOP + critical): porażkę oddaje nam (st["porazka_dla_straznika"]), a licznik
+        # porażek pięter (critical po PIETRA_PORAZKI_STOP) liczy od zera i po kroku wraca do dawnej wartości
+        porazki = getattr(cb, "pietra_porazki", 0)
+        cb.pietra_porazki = 0
+        wp.bez_alarmu = True
         try:
             wp.tick(p, teraz)
         except Exception as e:
             if type(e).__name__ == "Zatrzymano":
                 raise
             self.log(f"[ORBITA] plan pięter: błąd {e!r}")
+            cb.pietra_porazki = porazki
             return self._zwin_plan(p, teraz, "błąd")
+        finally:
+            wp.bez_alarmu = False
         if wp.st is None:
             q = tuple(cb.postac.pozycja())
+            self.wp_moj = False
             if self._sukces(q):
                 return self._postep(q, teraz, "plan pięter zakończony", sync=False)
+            cb.pietra_porazki = porazki
             return self._koniec_sposobu(q, teraz, "plan pięter zakończony bez skutku")
+        cb.pietra_porazki = porazki
+        if wp.st.get("porazka_dla_straznika"):
+            return self._zwin_plan(p, teraz, f"wpadniecie.py bez wyjścia: {wp.st['porazka_dla_straznika']}")
         return True
 
     def _zwin_plan(self, p, teraz, powod):
         wp = self.cb._wp()
+        self.wp_moj = False
         if wp is not None:
             wp.st = None
+            wp.bez_alarmu = False
         if getattr(self.cb, "pietra", None) is not None:
             self.cb.pietra.st = None
         return self._koniec_sposobu(p, teraz, powod)

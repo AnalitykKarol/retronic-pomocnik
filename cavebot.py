@@ -4352,7 +4352,7 @@ class Cavebot:
         self._d3_tick(g, poz, teraz)       # 16.10: detektor zawieszki (D3 krok A), tylko log
         self._ratunek_tick(poz, teraz)     # 19.10: detektor zachowań „jak bot” (ratunek F1, cień), tylko log
         if STRAZNIK_ORBITY or self._straznik is not None:
-            self._straznik_tick(poz, teraz)    # 20.10: strażnik orbit (straznik_orbity.py): wykrycie (1 = cień, 2 = + reakcja w kroku 3b)
+            self._straznik_tick(poz, teraz)    # 20.10: strażnik orbit (straznik_orbity.py): wykrycie (1 = cień, 2 = + reakcja w kroku 3a)
         if self.ruch_poz != tuple(poz):
             self.ruch_poz, self.ruch_czas = tuple(poz), teraz
             self.aktywnosc_ts = teraz
@@ -4749,7 +4749,7 @@ class Cavebot:
                 st_dz.pop(cel["id"], None)                     # cel już nie przy dziurze: budżet podejścia od nowa
             return self.walcz(cel, g, poz)
 
-        # 3a. strażnik orbit (STRAZNIK_ORBITY=2): stop chodzenia, jedna próba wyjścia, potem alarm; walka ma pierwszeństwo
+        # 3a. strażnik orbit (STRAZNIK_ORBITY=2): stop chodzenia, rotacja sposobów naprawy (nigdy STOP); walka ma pierwszeństwo
         if self._straznik is not None and self._straznik_reakcja(poz, teraz):
             return True
 
@@ -5669,8 +5669,8 @@ class Cavebot:
         try:
             tryb = int(STRAZNIK_ORBITY)
             if not tryb:
-                if self._straznik is not None:
-                    self._straznik[1].faza = None
+                if self._straznik is not None and self._straznik[1].aktywna():
+                    self._straznik[1].sprzatnij()          # 2->0 w locie: oddaj wp.st / pietra.st, które ustawił strażnik
                 return
             if self._straznik is None:
                 import straznik_orbity  # noqa: PLC0415
@@ -5682,7 +5682,7 @@ class Cavebot:
             det, rea = self._straznik
             if rea.aktywna():
                 if tryb < 2:
-                    rea.faza = None
+                    rea.sprzatnij()
                 return                          # reakcja trwa: okno nie liczy ruchu planu wyjścia
             wp = self._wp()
             if wp is not None and wp.st is not None:
@@ -5715,7 +5715,7 @@ class Cavebot:
             if not rea.aktywna():
                 return False
             if int(STRAZNIK_ORBITY) < 2:
-                rea.faza = None
+                rea.sprzatnij()
                 return False
             return bool(rea.tick(poz, teraz))
         except bot.Zatrzymano:
@@ -5723,7 +5723,7 @@ class Cavebot:
         except Exception as e:
             log(f"[ORBITA] błąd reakcji {e!r}")
             try:
-                self._straznik[1].faza = None
+                self._straznik[1].sprzatnij()              # wyjątek w reakcji: oddaj wp.st / pietra.st (inaczej 3b doprowadzi do alarmu)
             except Exception:
                 pass
             return False
