@@ -307,7 +307,7 @@ sprawdz("G9b zamknięty: remmina --disable-toolbar -c profil, odłączona, z RET
         and WYWOLANIA[0][2].get("RETRONIC_ID") == "dwa", (kod, out, WYWOLANIA))
 tekst = prof.read_text() if prof.exists() else ""
 sprawdz("G9c brak profilu: utworzony z wzoru (port sesji, nazwa = tytuł okna, skalowanie, bez paska)",
-        "server=127.0.0.1:5950" in tekst and "name=Retronic dwa" in tekst and "scale=1" in tekst and "disabletoolbar=1" in tekst, tekst)
+        "server=127.0.0.1:5950" in tekst and "name=Retronic dwa" in tekst and "scale=1" in tekst and "disabletoolbar=1" in tekst and "keymap=Retronic Alt" in tekst, tekst)
 prof.write_text(tekst.replace("name=Retronic dwa", "name=Moja Dwójka"))
 kod, out = akcja("dwa", "podglad")
 sprawdz("G9d istniejący profil Karola nie jest nadpisywany", "name=Moja Dwójka" in prof.read_text())

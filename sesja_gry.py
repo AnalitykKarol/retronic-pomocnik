@@ -211,6 +211,7 @@ disableclipboard=0
 showcursor=0
 disableencryption=0
 disabletoolbar=1
+keymap=Retronic Alt
 """
 
 
