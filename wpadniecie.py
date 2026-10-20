@@ -10,7 +10,7 @@ Przebieg (Cavebot.tick woła obserwuj() na początku każdego obiegu i tick() po
      starcie). Cavebot traktuje te pola jak ścianę we WSZYSTKICH drogach A* (droga, _droga_do, unikanie, loot) i
      w krokach (pole_zmiany_pietra).
   3. WYJŚCIE: (a) lina: Use liny na polu lądowania (rope spot pod dziurą), do WPADNIECIE_LINA_PROB prób; lina z
-     plecaka, a gdy jej tam nie ma, ze slotu ekwipunku 10 (jak pochodnia.py); (b) plan po mapie: wielopiętrowy
+     dowolnego otwartego pojemnika (plecak ma pierwszeństwo; 20.10), a gdy jej tam nie ma, ze slotu ekwipunku 10 (jak pochodnia.py); (b) plan po mapie: wielopiętrowy
      Dijkstra po przejściach (mapa_doswiadczenia.json, miejsca_troll.json "przejscia", nagrane trasy, na końcu
      niepewne flagi 2 z mapy), przejście wykonuje pietra.py; (c) nic nie działa albo PIETRA_MAX_S: ALARM,
      powiadomienie krytyczne i plik STOP (bot się zatrzymuje zamiast kręcić się w kółko).
@@ -236,6 +236,17 @@ class Wpadniecie:
             return False
         return self._wykryto(p0, p, teraz)
 
+    def w_petli(self, poz, teraz):
+        """20.10 (WPADNIECIE_POSCIG=1, SPEC_orbity_straznik_1020 A): pozycja odczytana w pętli poza obiegiem ticka
+        (pościg, loot). Odświeża ostatnią próbkę `obserwuj`, ale tylko na tym samym piętrze: pierwsza próbka na
+        innym piętrze zostaje dla `obserwuj` na początku następnego ticka, który porówna ją z ostatnim polem sprzed
+        upadku (przypadek K1: pościg 9 s, ostatnia próbka z ticka 8 pól dalej, więc `_cheb > WPADNIECIE_ODL` gubiło
+        wykrycie). Nie wykrywa niczego sam i nie zmienia stanu poza `_ost`."""
+        p = (int(poz[0]), int(poz[1]), int(poz[2]))
+        ost = self._ost
+        if ost is None or ost[0][2] == p[2]:
+            self._ost = (p, teraz)
+
     def _flaga_mapy(self, x, y, z):
         m = getattr(self.cb, "mapa", None)
         try:
@@ -394,7 +405,7 @@ class Wpadniecie:
             if type(ex).__name__ != "BrakEkranu" or getattr(ops, "ekwipunek", None) is None:
                 raise
             blad = ex
-        self.log(f"Wpadnięcie: liny nie ma w plecaku ({blad}), próbuję ze slotu {SLOT_LINY} ekwipunku.")
+        self.log(f"Wpadnięcie: liny nie ma w otwartych pojemnikach ({blad}), próbuję z ekwipunku (slot {SLOT_LINY}).")
         self._lina_z_ekwipunku(ops, spot, poz)
 
     def _lina_z_ekwipunku(self, ops, spot, poz):
@@ -402,7 +413,8 @@ class Wpadniecie:
         e = ops.ekwipunek() or {}
         slot = next((s for s, i in e.items() if int(i) == ID_LINA), None)
         if slot is None:
-            raise RuntimeError("liny (3003) nie ma ani w plecaku, ani w ekwipunku")
+            raise RuntimeError("liny (3003) nie ma w żadnym otwartym pojemniku ani w ekwipunku (sloty: "
+                               f"{sorted(e) or 'brak odczytu'}), lista pojemników w poprzednim wpisie logu")
         ez = getattr(ops, "uzyj_z_ekwipunku", None)
         if ez is not None:
             ez(slot, spot, poz)

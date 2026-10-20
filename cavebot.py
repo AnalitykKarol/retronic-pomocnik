@@ -117,6 +117,7 @@ WPADNIECIE_LINA = 1                # pokrętło 0/1: 1 = pierwsza próba wyjści
 WPADNIECIE_LINA_PROB = 3           # prób liny (pokrętło 1-5)
 WPADNIECIE_PLAN = 1                # pokrętło 0/1: 1 = gdy lina nie działa, plan wielopiętrowy po mapie i przejściach z danych (wykonuje pietra.py)
 WPADNIECIE_ODL = 3                 # pola: tak blisko poprzedniej pozycji musi być lądowanie, żeby zmiana piętra była upadkiem (nie teleportem/śmiercią); pokrętło 1-6
+WPADNIECIE_POSCIG = 0              # pokrętło 0/1 (domyślnie 0 = jak dotąd): 1 = pozycje czytane w pętli pościgu/lootu odświeżają ostatnią próbkę wpadnięcia, więc upadek w dziurę podczas pościgu jest wykrywany (wpadniecie.w_petli; SPEC_orbity_straznik_1020 A)
 WPADNIECIE_WALIDACJA = 0           # pokrętło 0/1 (domyślnie 0 = jak dotąd): 1 = przed nauką dziury sprawdź mapę (flaga 2, brak 4) i brak schodów w cheb<=1 od lądowania/p0; inaczej bez nauki (wpadniecie.py)
 DZIURY_NAUCZONE = 1                # pokrętło 0/1: 1 = pola z trasy/dziury_nauczone.json są ścianą dla każdej drogi A* i kroku na danym piętrze
 DZIURA_PODEJSCIE_S = 10.0           # s: tyle idziemy sami obok celu stojącego przy dziurze, potem go odpuszczamy (DZIURA_PRZY_CELU)
@@ -2586,6 +2587,11 @@ class Cavebot:
     def zapamietaj_pole(self, poz):
         """Pozycja gracza = pole, po którym da się chodzić. Na żywo co ZNANE_ZAPIS_CO s zapis do pliku."""
         poz = tuple(poz)
+        if WPADNIECIE_POSCIG and WPADNIECIE and self.wpadniecie:
+            try:
+                self.wpadniecie.w_petli(poz, self.zegar())      # 20.10: pętla pościgu/lootu nie wraca do ticka, a ostatnia próbka musi być świeża
+            except Exception as e:
+                log(f"debug: wpadniecie.w_petli błąd {e!r}")
         if poz not in self.znane:
             self.znane.add(poz)
             self.znane_nowe += 1

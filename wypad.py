@@ -338,7 +338,17 @@ class OperacjeZywe:
         self.wyslij(tekst)
 
     # ekran
-    def _przedmiot_na_ekranie(self, obraz, id_przedmiotu, nazwa="przedmiotu"):
+    @staticmethod
+    def opis_kontenerow(kontenery):
+        """Krótki opis otwartych pojemników z pamięci do logu: 'nazwa (id) N rzecz.; ...' (20.10, lina z każdego pojemnika)."""
+        if not kontenery:
+            return "brak otwartych pojemników"
+        return "; ".join(f"{k.get('nazwa') or '?'} (id {k.get('id')}) {len(k.get('przedmioty', []))} rzecz." for k in kontenery)
+
+    def _przedmiot_na_ekranie(self, obraz, id_przedmiotu, nazwa="przedmiotu", wszystkie=False):
+        """Środek slotu z przedmiotem o danym ID w oknie plecaka. wszystkie=True (lina, 20.10): gdy w plecakach go nie ma,
+        szuka w KAŻDYM otwartym pojemniku z oknem na ekranie (drugi bag, bag na runy, zwłoki); plecaki mają pierwszeństwo,
+        więc lina w głównym plecaku działa jak dotąd. Brak: BrakEkranu z listą sprawdzonych pojemników."""
         import loot  # noqa: PLC0415
         okna = loot.znajdz_okna(obraz)
         kontenery, powod = loot.kontenery_z_pamieci()
@@ -346,19 +356,27 @@ class OperacjeZywe:
             raise BrakEkranu(f"pamięć: {powod}")
         przypisane, powod = loot.dopasuj_okna(obraz, okna, kontenery)
         if przypisane is None:
-            raise BrakEkranu(f"okna plecaka: {powod}")
-        for o, k in zip(okna, przypisane):
-            if not loot.czy_plecak(k):
-                continue
-            for p in k.get("przedmioty", []):
-                if p["id"] == id_przedmiotu and p["slot"] < len(o.sloty):
-                    return o.sloty[p["slot"]].srodek
-        raise BrakEkranu(f"nie widzę {nazwa} w oknie plecaka")
+            gdzie = [k.get("nazwa") for k in kontenery if any(p["id"] == id_przedmiotu for p in k.get("przedmioty", []))]
+            raise BrakEkranu(f"okna plecaka: {powod}; pojemniki w pamięci: {self.opis_kontenerow(kontenery)}"
+                             + (f"; {nazwa} leży w: {', '.join(map(str, gdzie))}" if gdzie else ""))
+        for tylko_plecaki in ((True, False) if wszystkie else (True,)):
+            for o, k in zip(okna, przypisane):
+                if tylko_plecaki != bool(loot.czy_plecak(k)):
+                    continue
+                for p in k.get("przedmioty", []):
+                    if p["id"] == id_przedmiotu and p["slot"] < len(o.sloty):
+                        return o.sloty[p["slot"]].srodek
+        poza = [f"{k.get('nazwa')} slot {p['slot']}" for k in przypisane for p in k.get("przedmioty", [])
+                if p["id"] == id_przedmiotu]
+        raise BrakEkranu(f"nie widzę {nazwa} w oknie plecaka"
+                         + ("" if not wszystkie else " ani w innym otwartym pojemniku")
+                         + f"; sprawdzone pojemniki: {self.opis_kontenerow(przypisane)}"
+                         + (f"; {nazwa} poza widocznym oknem: {', '.join(poza)}" if poza else ""))
 
     def _lina_na_ekranie(self, obraz):
-        return self._przedmiot_na_ekranie(obraz, ID_LINA, "liny (rope)")
+        return self._przedmiot_na_ekranie(obraz, ID_LINA, "liny (rope)", wszystkie=True)
 
-    def _uzyj_na_polu(self, id_przedmiotu, nazwa, cel, poz):
+    def _uzyj_na_polu(self, id_przedmiotu, nazwa, cel, poz, wszystkie=False):
         """Ctrl+klik na przedmiocie w plecaku (Use with), potem klik na polu `cel` (<= 1 pola od `poz`)."""
         import ekran  # noqa: PLC0415
         import loot  # noqa: PLC0415
@@ -367,7 +385,7 @@ class OperacjeZywe:
             raise BrakEkranu(f"pole {nazwa} {cel} za daleko od {tuple(poz)}")
         with ekran.Mysz() as mysz:
             obraz = loot._zrzut(mysz)
-            x, y = self._przedmiot_na_ekranie(obraz, id_przedmiotu, nazwa)
+            x, y = self._przedmiot_na_ekranie(obraz, id_przedmiotu, nazwa, wszystkie)
             mysz.klik(x, y, 1, "Control_L", drganie=3)
             time.sleep(0.45)
             mysz.klik(*ekran.pole_na_ekran(dx, dy, ekran.aktualny_prostokat(mysz.ekran)), 1, None, drganie=2)
@@ -376,14 +394,14 @@ class OperacjeZywe:
         """Ctrl+klik na linie w plecaku (Use), potem klik na polu `cel` (pole-lina).
         15.10: bez liny w plecaku bierzemy ją ze slotu ekwipunku (zwykle amunicja, slot 10)."""
         try:
-            self._uzyj_na_polu(ID_LINA, "liny (rope)", cel, poz)
+            self._uzyj_na_polu(ID_LINA, "liny (rope)", cel, poz, wszystkie=True)
             return
         except BrakEkranu as ex:
             blad = ex
         e = self.ekwipunek() or {}
         slot = next((s for s, i in e.items() if int(i) == ID_LINA), None)
         if slot is None:
-            raise blad
+            raise BrakEkranu(f"{blad}; ekwipunek (sloty: {sorted(e) or 'brak odczytu'}) bez liny")
         import ekran  # noqa: PLC0415
         import loot  # noqa: PLC0415
         import pochodnia  # noqa: PLC0415
