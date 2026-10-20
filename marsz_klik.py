@@ -59,26 +59,34 @@ def dalej_klik(sciezka, koszt, z, maks=KLIK_MAKS_POL):
     return dalej
 
 
-def gesta_sciezka(poz, punkty, maks=KLIK_MAKS_POL, zasieg=ZASIEG_KLIKU):
-    """Pola do przejścia po `punktach` odcinka (lista (x, y, z), zwykle zaczyna się od `poz`) jako ścieżka GĘSTA: kolejne pola są
-    sąsiednie (Chebyshev 1), tego samego piętra co `poz`, w zasięgu kliku. Rzadkie punkty nagrania (co 2+ pola) uzupełniamy linią prostą
-    (każde pole pośrednie i tak sprawdzi `koszt_pola`). -> lista (x, y) BEZ pola `poz`, najwyżej `maks` pól; kończy się na pierwszym polu
-    poza zasięgiem albo na zmianie piętra."""
-    z, prev, wynik = poz[2], (poz[0], poz[1]), []
-    for q in punkty:
+def gesta_sciezka_idx(poz, punkty, maks=KLIK_MAKS_POL, zasieg=ZASIEG_KLIKU):
+    """Jak gesta_sciezka, ale -> lista ((x, y), i): `i` = indeks punktu w `punkty`, DO którego prowadzi odcinek zawierający to pole
+    (potrzebny do oceny postępu po planie). Ścieżka kończy się też na pierwszym polu, które cofa się na pole `poz` albo na pole już na niej
+    (plan z zawrotem / odbiciem): klik nie może prowadzić z powrotem."""
+    z, prev, wynik, byly = poz[2], (poz[0], poz[1]), [], {(poz[0], poz[1])}
+    for idx, q in enumerate(punkty):
         if len(q) > 2 and q[2] != z:
             break
         d = max(abs(q[0] - prev[0]), abs(q[1] - prev[1]))
         for i in range(1, d + 1):
             xy = (prev[0] + round(i * (q[0] - prev[0]) / d), prev[1] + round(i * (q[1] - prev[1]) / d))
-            if abs(xy[0] - poz[0]) > zasieg[0] or abs(xy[1] - poz[1]) > zasieg[1]:
+            if abs(xy[0] - poz[0]) > zasieg[0] or abs(xy[1] - poz[1]) > zasieg[1] or xy in byly:
                 return wynik
-            wynik.append(xy)
+            wynik.append((xy, idx))
+            byly.add(xy)
             if len(wynik) >= maks:
                 return wynik
         if d:
             prev = (q[0], q[1])
     return wynik
+
+
+def gesta_sciezka(poz, punkty, maks=KLIK_MAKS_POL, zasieg=ZASIEG_KLIKU):
+    """Pola do przejścia po `punktach` odcinka (lista (x, y, z), zwykle zaczyna się od `poz`) jako ścieżka GĘSTA: kolejne pola są
+    sąsiednie (Chebyshev 1), tego samego piętra co `poz`, w zasięgu kliku, bez powrotów na pole `poz` i bez powtórzeń. Rzadkie punkty
+    nagrania (co 2+ pola) uzupełniamy linią prostą (każde pole pośrednie i tak sprawdzi `koszt_pola`). -> lista (x, y) BEZ pola `poz`,
+    najwyżej `maks` pól; kończy się na pierwszym polu poza zasięgiem, na zawrocie albo na zmianie piętra."""
+    return [xy for xy, _ in gesta_sciezka_idx(poz, punkty, maks, zasieg)]
 
 
 def prostokat_czysty(mp, poz, pola, zakaz=()):
