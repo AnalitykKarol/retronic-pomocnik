@@ -211,8 +211,8 @@ if (RAZEM / "mapa" / "map74.otmm").is_file() and (RAZEM / "trasy" / "miejsca_tro
     sprawdz("mapa: drzwi zamknięte -> wyjście w kilka sekund, nie w 766 s", wz["czas_s"] < 10.0, str(wz["czas_s"]))
     sprawdz("mapa: drzwi otwarte -> bez użycia drzwi, dochodzi do celu", wo["wynik"] == "wyszedl" and not any(z["akcja"] == "drzwi" for z in wo["zdarzenia"]), str(wo["zdarzenia"]))
     sprawdz("mapa: kontrola jednej zmiennej (tylko flaga drzwi) zmienia ścieżkę", wz["sciezka"] != wo["sciezka"] or wz["zdarzenia"] != wo["zdarzenia"])
-    # nauczone dziury z repo są ścianami
-    sprawdz("mapa: nauczone dziury z trasy/dziury_nauczone.json wczytane jako ściany", (32498, 32271, 8) in sz.dziury and not sz.wolne((32498, 32271, 8)))
+    # nauczone dziury z repo są ścianami ((32498,32271,8) usunięta 20.10 jako fałszywa — patrz test_dane_schody_troll)
+    sprawdz("mapa: nauczone dziury z trasy/dziury_nauczone.json wczytane jako ściany", (32508, 32273, 8) in sz.dziury and not sz.wolne((32508, 32273, 8)))
     # walidacja na danych
     wal = S.waliduj(sz)
     e = wal["epizody"]
