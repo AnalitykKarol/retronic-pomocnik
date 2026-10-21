@@ -1,4 +1,4 @@
-# SPEC: nadzorca zestawu (grafik zmian + pilnowanie botów) - 21.10 — SZKIC, czeka na Karola (Q1–Q8)
+# SPEC: nadzorca zestawu (grafik zmian + pilnowanie botów) - 21.10 — ZATWIERDZONA (Karol 21.10 ~07:40: „ok” na propozycje Q1–Q8)
 
 Cel: zestaw instancji gra według grafiku, bez Karola przy klawiaturze. Postacie logują się i wylogowują pojedynczo,
 o różnych porach, nigdy wszystkie naraz. Ktoś pilnuje, żeby boty działały, naprawia drobne zawieszki, a Karola woła tylko,
@@ -87,21 +87,18 @@ Prowadzi każdą postać przez cykl:
 - **F4 obchód Sonneta** (najpierw tylko ocena i powiadomienia, potem naprawy z białej listy).
 - **F5 cały zestaw.**
 
-## Pytania otwarte (Karol)
+## Decyzje (Karol 21.10 ~07:40, „ok” na propozycje)
 
-- Q1: Ramy grafiku. Propozycja: zmiana 2–4 h, najwyżej 4 postacie naraz, między logowaniami/wylogowaniami 7–25 min,
-  przesunięcie dzienne ±1 h, cisza 01:00–08:00, limit 8 h na postać dziennie. Zmienić coś?
-- Q2: Czy **zatwierdzony grafik = zgoda** na przerwanie expienia na koniec zmiany? (Dziś: bota nie przerywam bez Twojej zgody.)
-  Propozycja: tak, ale koniec zmiany czeka do spokojnej chwili (bez walki), najdłużej 15 min.
-- Q3: Sonnet jako **świeże wywołanie z timera co 10 min** (rekomendacja: stabilne, tanie, działa bez otwartej sesji)
-  czy jedna długa sesja `/loop`?
-- Q4: Mapy: każda postać ma stałą mapę w grafiku czy rotację między kilkoma (mniej powtarzalny wzór)?
-- Q5: Zgon: tylko powiadomienie i postać zostaje wylogowana do Twojej decyzji (rekomendacja) czy nadzorca po zgonie
-  wraca z postacią na spot?
-- Q6: Gdzie powiadomienia krytyczne: pulpit (`notify-send`) czy też telefon?
-- Q7: Czy w F1 mają być krótkie przerwy w trakcie zmiany (np. 5–15 min AFK w mieście), czy to później?
-- Q8: Limit kosztu obchodu: Sonnet co 10 min ≈ 100 wywołań dziennie. Czy zamiast tego Haiku do rutynowego obchodu,
-  a Sonnet tylko przy odchyleniu?
+- Q1: zmiana 2–4 h, najwyżej 4 postacie naraz, między logowaniami/wylogowaniami 7–25 min, przesunięcie dzienne ±1 h,
+  cisza 01:00–08:00, limit 8 h na postać dziennie.
+- Q2: zatwierdzony grafik = zgoda na koniec zmiany; wylogowanie czeka do spokojnej chwili (bez walki), najdłużej 15 min.
+- Q3: Sonnet jako świeże wywołanie z timera co ~10 min, nie długa sesja `/loop`.
+- Q4: (bez propozycji w szkicu, przyjęte domyślnie) stała mapa i tryb na postać w grafiku, start od `ostatni_start.<id>.env`;
+  rotacja map później.
+- Q5: zgon = powiadomienie, postać wylogowana do decyzji Karola, bez powrotu na spot.
+- Q6: (przyjęte domyślnie) powiadomienia krytyczne na pulpit (`powiadom.py`, pilność critical); telefon później.
+- Q7: (przyjęte domyślnie) przerwy AFK w trakcie zmiany poza F1, osobny krok po F5.
+- Q8: rutynowy obchód Haiku (`--model haiku`), Sonnet tylko przy odchyleniu wskazanym przez obchód albo `nadzor.py`.
 
 ## Weryfikacja
 
