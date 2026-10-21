@@ -1,0 +1,36 @@
+{
+ "_opis": "Tabela spotów dla nadzorcy (SPEC_wybor_spotu_1021.md). Nakładka na mapy.json: tu tylko to, czego mapy.json nie wie. Edytuje Karol. poziom = [min, max] postaci; poziom_zrodlo 'domyslne' = widełki wg potworów, nie z danych (po przeglądzie ustaw 'karol'); waga = względna szansa przy losowaniu; auto false = nadzorca nie wybiera (powod mówi dlaczego); jaskinia = spoty dzielące jaskinię (najwyżej jeden własny bot na jaskinię); wymaga_dodatkowo = lista przedmiotów oprócz liny i łopaty (te liczą się same z tras). miasta = prostokąty x/y (cała okolica miasta łącznie z jaskiniami).",
+ "miasta": {
+  "edron": {"x": [32900, 33400], "y": [31500, 32100]},
+  "thais": {"x": [32200, 32700], "y": [32000, 32450]},
+  "rook": {"x": [31900, 32160], "y": [32050, 32300]},
+  "port_hope": {"x": [32550, 32900], "y": [32600, 32900]}
+ },
+ "spoty": {
+  "trolle_edron": {"miasto": "edron", "jaskinia": "edron_trolle_z8", "poziom": [10, 30], "poziom_zrodlo": "domyslne", "waga": 0.5, "auto": true, "powod": "Troll, Bear, Swamp Troll, Frost Troll: mieszane moby, stąd 10+"},
+  "trolle_edron_patrol": {"miasto": "edron", "jaskinia": "edron_trolle_z8", "poziom": [10, 30], "poziom_zrodlo": "domyslne", "waga": 0.5, "auto": true, "powod": "ta sama jaskinia co trolle_edron (wariant patrolowy)"},
+  "trolle_edron_z9w": {"miasto": "edron", "jaskinia": "edron_trolle_z9w", "poziom": [8, 30], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": true, "powod": "Kolanosh lvl 8 przeszedł 21.10 17:24; dojście liną (lina wyliczana z tras)"},
+  "gobliny_edron": {"miasto": "edron", "jaskinia": "edron_gobliny_z8", "poziom": [6, 20], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": true},
+  "gobliny_edron_z9": {"miasto": "edron", "jaskinia": "edron_gobliny_z9", "poziom": [6, 20], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": true},
+  "stoj_trade": {"miasto": "edron", "jaskinia": "edron_trade", "poziom": [1, 99], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": false, "powod": "nie poluje: stoi i sprzedaje na Trade"},
+  "raty": {"miasto": "thais", "jaskinia": "thais_raty_kanaly", "poziom": [1, 12], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": true},
+  "trolle": {"miasto": "thais", "jaskinia": "thais_trolle_wschod", "poziom": [8, 30], "poziom_zrodlo": "domyslne", "waga": 0.25, "auto": true, "powod": "Troll; jedna jaskinia z wariantami (wagi sumują się do 1); łopata wyliczana z pietra.ZASYPANE"},
+  "trolle_pelny": {"miasto": "thais", "jaskinia": "thais_trolle_wschod", "poziom": [8, 30], "poziom_zrodlo": "domyslne", "waga": 0.25, "auto": true, "powod": "Troll; jedna jaskinia z wariantami (wagi sumują się do 1); łopata wyliczana z pietra.ZASYPANE"},
+  "trolle_nowe": {"miasto": "thais", "jaskinia": "thais_trolle_wschod", "poziom": [10, 30], "poziom_zrodlo": "domyslne", "waga": 0.25, "auto": true, "powod": "Troll + Orc; jedna jaskinia z wariantami (wagi sumują się do 1); łopata wyliczana z pietra.ZASYPANE"},
+  "trolle_patrol": {"miasto": "thais", "jaskinia": "thais_trolle_wschod", "poziom": [10, 30], "poziom_zrodlo": "domyslne", "waga": 0.25, "auto": true, "powod": "patrol, Troll + Orc; jedna jaskinia z wariantami (wagi sumują się do 1); łopata wyliczana z pietra.ZASYPANE"},
+  "wilki": {"miasto": "thais", "jaskinia": "thais_wilki", "poziom": [5, 15], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": false, "powod": "bez dojścia z depo (pętla na powierzchni, niesprawdzone): włączyć po teście z depo"},
+  "thais_pn_z8": {"miasto": "thais", "jaskinia": "thais_pn", "poziom": [8, 30], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": true, "powod": "Troll + Rat, Spider, Bug; dojście przez zasypaną dziurę, łopata wyliczana"},
+  "thais_pn_z9": {"miasto": "thais", "jaskinia": "thais_pn", "poziom": [8, 30], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": false, "powod": "bez dojścia (zejście z z8 nieznane): postać musi stać na z9"},
+  "rook": {"miasto": "rook", "jaskinia": "rook_kanaly_patrol", "poziom": [1, 12], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": false, "powod": "bez dojścia: postać musi stać w kanałach"},
+  "rook_raty_z8": {"miasto": "rook", "jaskinia": "rook_raty_z8", "poziom": [1, 12], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": true, "powod": "wejście z mapy, przejście niezweryfikowane botem (20.10)"},
+  "rook_raty_z8_do_smierci": {"miasto": "rook", "jaskinia": "rook_raty_z8", "poziom": [1, 12], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": false, "powod": "BEZ UCIECZKI: decyzja Karola 20.10 tylko dla Bobera lvl 1, nie do automatu"},
+  "rook_kanaly_z11": {"miasto": "rook", "jaskinia": "rook_kanaly_z11", "poziom": [1, 12], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": true, "powod": "przejścia z7-z11 sprawdzone w grze"},
+  "rook_raty_z9": {"miasto": "rook", "jaskinia": "rook_raty_z9", "poziom": [1, 12], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": true, "powod": "jedna jaskinia z z10; droga wskazana przez Karola, bot jeszcze jej nie przeszedł"},
+  "rook_raty_z9_do_smierci": {"miasto": "rook", "jaskinia": "rook_raty_z9", "poziom": [1, 12], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": false, "powod": "BEZ UCIECZKI: decyzja Karola 20.10 tylko dla Bobera lvl 1, nie do automatu"},
+  "rook_raty_z10": {"miasto": "rook", "jaskinia": "rook_raty_z9", "poziom": [1, 12], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": true, "powod": "drugie piętro tego samego spota co rook_raty_z9 (opis w mapy.json)"},
+  "rook_bugi_z8": {"miasto": "rook", "jaskinia": "rook_bugi_z8", "poziom": [1, 10], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": false, "powod": "bez dojścia: wejście ręczne schodami z7"},
+  "rook_bugi_z10": {"miasto": "rook", "jaskinia": "rook_bugi_z10", "poziom": [1, 10], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": true, "powod": "przejścia z mapy, niezweryfikowane botem"},
+  "rook_cave_raty_z9_glab": {"miasto": "rook", "jaskinia": "rook_raty_z9_glab", "poziom": [1, 12], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": false, "powod": "bez ucieczki (prog_hp -100) i bez wyjścia z obszaru"},
+  "ph_raty_z8": {"miasto": "port_hope", "jaskinia": "port_hope_z8", "poziom": [5, 15], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": true, "powod": "niszowy (pod runy); Wasp i Snake trują; wejście z mapy, niezweryfikowane; Port Hope nie ma planu serwisu"}
+ }
+}

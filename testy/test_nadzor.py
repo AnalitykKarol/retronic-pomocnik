@@ -42,6 +42,7 @@ class Swiat:
         self.k = Path(self.tmp.name)
         self.zegar = zegar or Zegar()
         self.inst, self.ekran_map, self.ip, self.tele, self.serwis_proc = {}, {}, {}, {}, {}
+        self.ekw = {}                 # id -> {"lina": ..., "lopata": ...} dla Zrodla.ekwipunek (wybór spotu)
         (self.k / "instancje" / "_wspolne").mkdir(parents=True)
         (self.k / "mapy.json").write_text(json.dumps(MAPY))
         for i in ids:
@@ -53,9 +54,10 @@ class Swiat:
         (kat / "profil.json").write_text(json.dumps(profil or {"postac": id_.capitalize()}))
         self.inst[id_] = {"id": id_, "sesja": False, "gra": False, "bot": False, "gracz": None, "panel": {}, "nick": id_, "mapa": None}
 
-    def online(self, id_, bot=True, w_grze=True, **panel):
+    def online(self, id_, bot=True, w_grze=True, level=None, **panel):
         r = self.inst[id_]
-        r.update(sesja=True, gra=True, bot=bot, gracz={"hp": 100, "max_hp": 100} if w_grze else None, panel=dict(panel))
+        gracz = ({"hp": 100, "max_hp": 100, **({"level": level} if level is not None else {})}) if w_grze else None
+        r.update(sesja=True, gra=True, bot=bot, gracz=gracz, panel=dict(panel))
 
     def offline(self, id_):
         self.inst[id_].update(sesja=False, gra=False, bot=False, gracz=None, panel={})
@@ -85,6 +87,7 @@ class Swiat:
     def ip_zgodne(self, id_): return self.ip.get(id_)
     def telemetria(self, id_): return self.tele.get(id_, {})
     def procesy_serwisu(self, id_): return self.serwis_proc.get(id_, [])
+    def ekwipunek(self, id_): return self.ekw.get(id_, {"lina": None, "lopata": None})
 
 
 class Atrapa(N.WykonawcaCien):
@@ -95,6 +98,7 @@ class Atrapa(N.WykonawcaCien):
         super().__init__()
         self.s = swiat
         self.czasy = []
+        self.zapisuj_tryb = False     # True: start_bota dopisuje [TRYB] do tryb.log jak uruchom.sh (testy wyboru spotu)
         self.wyniki = {}              # nazwa -> (ok, tekst) wymuszone zamiast skutku w świecie
         self.hak = {}                 # nazwa -> funkcja wołana na początku metody (np. Karol przejmuje postać)
 
@@ -131,6 +135,8 @@ class Atrapa(N.WykonawcaCien):
             return r
         self.s.inst[id_]["bot"] = True
         self.s.plik(id_, "STOP").unlink(missing_ok=True)
+        if self.zapisuj_tryb:
+            self.s.tryb_log(id_, mapa, tryb or "", self.s.zegar.t)
         return self._w("start_bota", id_, mapa, tryb)
 
     def zatrzymaj_bota(self, id_):
@@ -935,6 +941,264 @@ def test_b5_bez_zapisu_bytecode():
     po = {p.name: p.stat().st_mtime for p in pyc.glob("*")} if pyc.is_dir() else {}
     assert przed == po, set(po.items()) ^ set(przed.items())
     assert not [n for n in po if n.startswith(("grafik.", "nadzor."))] or all(n in przed for n in po)
+
+
+# ---------------------------------------------------------------- wybór spotu (Q5, SPEC_wybor_spotu_1021)
+EDRON = [33191, 31818, 7]                     # depo Edron
+THAIS = [32370, 32214, 7]
+ED_MIASTA = {"edron": {"x": [32900, 33400], "y": [31500, 32100]}, "thais": {"x": [32200, 32700], "y": [32000, 32450]}}
+
+
+def tabela_q5(swiat, widelki=None, bez=()):
+    """mapy.json + dane_tibia/spoty_nadzorca.json w świecie testu: raty (Thais), ed_a/ed_b/ed_c (Edron; ed_c wymaga liny)."""
+    mapy = {"_opis": "x", "raty": {"trasa": "x", "potwory": "Rat"}, "ed_a": {"trasa": "x", "potwory": "Troll"},
+            "ed_b": {"trasa": "x", "potwory": "Troll"}, "ed_c": {"trasa": "x", "potwory": "Troll"}}
+    w = widelki or {}
+    sp = lambda m, j, lo, hi, **kw: {"miasto": m, "jaskinia": j, "poziom": w.get(j, [lo, hi]), "waga": 1.0, "auto": True, **kw}      # noqa: E731
+    spoty = {"raty": sp("thais", "j_raty", 1, 12), "ed_a": sp("edron", "j_a", 5, 30), "ed_b": sp("edron", "j_b", 5, 30),
+             "ed_c": sp("edron", "j_c", 5, 30, wymaga_dodatkowo=["lina"])}
+    for b in bez:
+        spoty.pop(b)
+    (swiat.k / "mapy.json").write_text(json.dumps(mapy))
+    (swiat.k / "dane_tibia").mkdir(exist_ok=True)
+    (swiat.k / "dane_tibia" / "spoty_nadzorca.json").write_text(json.dumps({"miasta": ED_MIASTA, "spoty": spoty}))
+
+
+def w_grze_q5(swiat, id_, poz, level, bot=False):
+    swiat.inst[id_].update(sesja=True, gra=True, bot=bot, gracz={"hp": 100, "max_hp": 100, "level": level},
+                           panel={"pozycja": list(poz), "level": level})
+
+
+def start_q5(swiat, n, at, id_):
+    """Do chwili, w której nadzorca zalogował postać i (jeśli może) wystartował bota; zwraca wywołania start_bota."""
+    swiat.zegar.t = datetime(2026, 10, 21, 9, 0, 0)
+    n.tick()                                            # sesja_start
+    swiat.inst[id_]["gra"] = True
+    swiat.zegar.dalej(minutes=2)
+    n.tick()                                            # zaloguj
+    return n
+
+
+def test_q5_start_zmiany_miasto_z_pozycji_kolanosh():
+    s = Swiat(("a",))
+    tabela_q5(s)
+    s.grafik([zmiana("a", od="2026-10-21 09:00", koniec="2026-10-21 11:00", wylog="2026-10-21 11:15")])
+    s.tryb_log("a", "raty", "ostrozny,ml", datetime(2026, 10, 21, 8, 0, 0))          # ostatnia mapa w tryb.log = Thais (jak Kolanosh 21.10 17:02)
+    s.ekw["a"] = {"lina": True, "lopata": False}
+    n, at = nz(s)
+    at.zapisuj_tryb = True
+    s.zegar.t = datetime(2026, 10, 21, 9, 0, 0)
+    n.tick()
+    s.inst["a"]["gra"] = True
+    s.zegar.dalej(minutes=2)
+    n.tick()
+    w_grze_q5(s, "a", EDRON, 8)                          # stoi w depo w Edronie
+    s.zegar.dalej(minutes=1)
+    n.tick()
+    st = [w for w in at.wywolania if w[0] == "start_bota"]
+    assert len(st) == 1 and st[0][2] in ("ed_a", "ed_b", "ed_c") and st[0][2] != "raty", at.wywolania
+    assert st[0][3] == "ostrozny,ml", "tryb zostaje bieżący z tryb.log (cecha postaci)"
+    ost = [x for x in n.dziennik.ostatnie if x["akcja"] == "start_bota"][-1]
+    assert "wybór spotu" in ost["powod"] and "miasto edron" in ost["powod"] and "odrzucone" in ost["powod"], ost["powod"]
+    stp = n.stan["postacie"]["a"]
+    assert stp["spot"]["mapa"] == st[0][2] and stp["spoty_hist"][-1]["mapa"] == st[0][2], stp
+
+
+def test_q5_dwie_postacie_w_edronie_w_jednym_przebiegu_rozne_spoty():
+    s = Swiat(("a", "b"))
+    tabela_q5(s, widelki={"j_c": [40, 50]})              # ed_c poza widełkami: zostają ed_a i ed_b
+    s.grafik([zmiana("a", od="2026-10-21 09:00"), zmiana("b", od="2026-10-21 09:00")])
+    s.zegar.t = datetime(2026, 10, 21, 9, 30, 0)
+    n, at = nz(s)
+    for i in ("a", "b"):
+        w_grze_q5(s, i, EDRON, 12)
+        n.post(i).update(faza="DOJSCIE", sesja_nasza=True, login_ts=ts(s), zmiana_od="2026-10-21 09:00")
+    n.tick()
+    st = {w[1]: w[2] for w in at.wywolania if w[0] == "start_bota"}
+    assert set(st) == {"a", "b"} and st["a"] != st["b"] and set(st.values()) == {"ed_a", "ed_b"}, at.wywolania
+
+
+def ts(s):
+    return s.zegar.t.timestamp()
+
+
+def test_q5_lina_wymagana_bez_liny_to_eskalacja_a_nie_start():
+    s = Swiat(("a",))
+    tabela_q5(s, widelki={"j_a": [40, 50], "j_b": [40, 50]})                       # zostaje tylko ed_c (wymaga liny)
+    s.grafik([zmiana("a", od="2026-10-21 09:00")])
+    s.zegar.t = datetime(2026, 10, 21, 9, 30, 0)
+    n, at = nz(s)
+    w_grze_q5(s, "a", EDRON, 8)
+    n.post("a").update(faza="DOJSCIE", sesja_nasza=True, login_ts=ts(s), zmiana_od="2026-10-21 09:00")
+    s.ekw["a"] = {"lina": False, "lopata": False}
+    n.tick()
+    assert "start_bota" not in at.nazwy(), at.wywolania
+    assert "powiadom" in at.nazwy(), "eskalacja brak spotu idzie do Karola"
+    esk = [x for x in n.dziennik.ostatnie if x["akcja"] == "eskaluj"]
+    assert esk and "brak spotu" in esk[-1]["powod"] and "lina" in esk[-1]["powod"], esk
+    assert not n.post("a").get("hold"), "brak spotu nie wstrzymuje postaci: kolejny przebieg próbuje znów"
+    s.zegar.dalej(minutes=1)
+    s.ekw["a"] = {"lina": True, "lopata": False}                                   # Karol dał linę
+    n.tick()
+    assert [w for w in at.wywolania if w[0] == "start_bota"][0][2] == "ed_c", at.wywolania
+    # lina nieznana (brak odczytu), jedyny spot wymaga liny: start jak w mozg.sprawdz_line
+    s2 = Swiat(("a",))
+    tabela_q5(s2, widelki={"j_a": [40, 50], "j_b": [40, 50]})
+    s2.grafik([zmiana("a", od="2026-10-21 09:00")])
+    s2.zegar.t = datetime(2026, 10, 21, 9, 30, 0)
+    n2, at2 = nz(s2)
+    w_grze_q5(s2, "a", EDRON, 8)
+    n2.post("a").update(faza="DOJSCIE", sesja_nasza=True, login_ts=ts(s2), zmiana_od="2026-10-21 09:00")
+    n2.tick()
+    assert [w for w in at2.wywolania if w[0] == "start_bota"], at2.wywolania
+
+
+def test_q5_mieszanie_druga_zmiana_inna_niz_pierwsza():
+    s = Swiat(("a",))
+    tabela_q5(s, widelki={"j_c": [40, 50]})                                        # dwa spoty w Edronie: ed_a, ed_b
+    s.zegar.t = datetime(2026, 10, 21, 9, 0)
+    s.grafik([zmiana("a", od="2026-10-21 09:00", koniec="2026-10-21 11:00", wylog="2026-10-21 11:15"),
+              zmiana("a", od="2026-10-21 13:00", koniec="2026-10-21 15:00", wylog="2026-10-21 15:15")])
+    s.tryb_log("a", "raty", "ostrozny", datetime(2026, 10, 21, 8, 0))
+    n, at = nz(s)
+    at.zapisuj_tryb = True
+
+    def tik(m=1):
+        n.tick()
+        s.zegar.dalej(minutes=m)
+    tik()
+    s.inst["a"]["gra"] = True
+    tik(2)
+    w_grze_q5(s, "a", EDRON, 12)
+    tik()
+    pierwszy = [w for w in at.wywolania if w[0] == "start_bota"][-1][2]
+    assert pierwszy in ("ed_a", "ed_b"), at.wywolania
+    s.zegar.t = datetime(2026, 10, 21, 11, 1)
+    tik()                                                                          # wroc
+    s.plik("a", "WROC").unlink()
+    w_miescie(s, "a")
+    tik()
+    s.zegar.t = datetime(2026, 10, 21, 11, 16)
+    tik()
+    assert at.nazwy()[-1] == "wyloguj" and n.stan["postacie"]["a"].get("spot") is None, at.nazwy()
+    s.zegar.t = datetime(2026, 10, 21, 13, 0)
+    tik()
+    assert at.nazwy().count("sesja_start") == 2, at.nazwy()
+    s.inst["a"]["gra"] = True
+    tik(2)
+    w_grze_q5(s, "a", EDRON, 12)
+    tik()
+    drugi = [w for w in at.wywolania if w[0] == "start_bota"][-1][2]
+    assert len([w for w in at.wywolania if w[0] == "start_bota"]) == 2 and drugi != pierwszy and drugi in ("ed_a", "ed_b"), (pierwszy, drugi)
+    assert [h["mapa"] for h in n.stan["postacie"]["a"]["spoty_hist"]] == [pierwszy, drugi]
+
+
+def test_q5_zmien_spot_z_tabeli_i_brak_alternatywy():
+    s = Swiat(("a", "b"))
+    tabela_q5(s)
+    for i, m in (("a", "ed_a"), ("b", "ed_b")):
+        s.tryb_log(i, m, "ostrozny")
+        w_grze_q5(s, i, [33110, 31742, 8], 12, bot=True)                           # w jaskini, w prostokącie Edronu
+    s.ekw["a"] = {"lina": True, "lopata": False}
+    n, at = nz(s)
+    kod, txt = n.napraw("a", "zmien_spot")
+    assert kod == 0, txt
+    st = [w for w in at.wywolania if w[0] == "start_bota"]
+    assert st and st[0][2] == "ed_c" and st[0][3] == "ostrozny", at.wywolania       # ed_a to jego własna jaskinia, ed_b zajęte przez b
+    assert n.stan["postacie"]["a"]["spot"]["mapa"] == "ed_c"
+    # bez liny jedyna alternatywa odpada: zmiana niemożliwa, nic nie startuje
+    s2 = Swiat(("a", "b"))
+    tabela_q5(s2)
+    for i, m in (("a", "ed_a"), ("b", "ed_b")):
+        s2.tryb_log(i, m, "ostrozny")
+        w_grze_q5(s2, i, [33110, 31742, 8], 12, bot=True)
+    s2.ekw["a"] = {"lina": False, "lopata": False}
+    n2, at2 = nz(s2)
+    kod, txt = n2.napraw("a", "zmien_spot")
+    assert kod == 1 and "niemożliwa" in txt and not [w for w in at2.wywolania if w[0] == "start_bota"], (kod, txt, at2.wywolania)
+    n2._raw = {i: s2.inst[i] for i in s2.inst}
+    assert not n2._alternatywa_spotu("a", n2.obserwuj("a", s2.inst["a"], s2.zegar.t), "ed_a", s2.zegar.t), "drabina nie dostaje szczebla zmien_spot bez alternatywy"
+    s2.ekw["a"] = {"lina": True, "lopata": False}
+    assert n2._alternatywa_spotu("a", n2.obserwuj("a", s2.inst["a"], s2.zegar.t), "ed_a", s2.zegar.t)
+
+
+def test_q5_cien_raz_podglad_spotow_zero_zapisow():
+    s = Swiat(("a", "b", "c"))
+    tabela_q5(s)
+    for i, (m, poz, lvl) in {"a": ("ed_a", EDRON, 12), "b": ("ed_b", EDRON, 12), "c": ("raty", THAIS, 5)}.items():
+        s.tryb_log(i, m, "ostrozny")
+        w_grze_q5(s, i, poz, lvl, bot=True)
+        s.log(i, [(s.zegar.t - timedelta(seconds=40), "Cel Rat zabity na (1, 2, 8).")])
+    s.ekw["a"] = s.ekw["b"] = {"lina": True, "lopata": False}
+    s.grafik([zmiana(i, od="2026-10-21 10:00") for i in "abc"])
+
+    def migawka():
+        return sorted((str(p.relative_to(s.k)), p.stat().st_size, p.stat().st_mtime_ns) for p in s.k.rglob("*") if p.is_file())
+    przed = migawka()
+    n, at = nz(s, zywo=False, zapis=False)
+    r = n.tick()
+    pod = {x["id"]: x for x in r if x["akcja"] == "spot_podglad"}
+    assert set(pod) == {"a", "b", "c"}, [x["akcja"] for x in r]
+    assert migawka() == przed and at.wywolania == [], "cień --raz: zero zapisów i zero akcji"
+    assert all(x["wynik"] == "cień" and "teraz na" in x["powod"] for x in pod.values())
+    wybrane = {i: x["powod"].split("wybrano ")[1].split(":")[0] for i, x in pod.items()}
+    assert wybrane["a"] != "ed_a" and wybrane["b"] != "ed_b" and wybrane["c"] == "raty", wybrane      # mieszanie (a, b), raty to jedyny spot Thais
+    assert wybrane["a"] != wybrane["b"], wybrane                                    # plan bez dubli w Edronie
+    # z zapisem: wpis najwyżej raz na 30 min
+    s.zegar.t = datetime(2026, 10, 21, 10, 0)
+    n2, _ = nz(s, zywo=False, zapis=True)
+    n2.tick()
+    s.zegar.dalej(minutes=5)
+    n2.tick()
+    p = next((s.k / "instancje" / "_wspolne" / "logi").glob("nadzor-*.jsonl"))
+    assert sum(json.loads(l)["akcja"] == "spot_podglad" for l in p.read_text().splitlines()) == 3, p.read_text()
+
+
+def test_q5_brak_tabeli_jak_dotad_i_brak_danych():
+    s = Swiat(("a",))                                                              # bez dane_tibia/spoty_nadzorca.json
+    s.tryb_log("a", "raty", "ostrozny")
+    n, at = nz(s)
+    st = n.post("a")
+    wyn = n._wybor_startu("a", {"panel": {}, "gracz": None}, st, zmiana("a"), s.zegar.t)
+    assert wyn["mapa"] == "raty" and wyn["spot"] is None and "tryb.log" in wyn["skad"], wyn
+    assert any(x["akcja"] == "ostrezenie" or x["akcja"] == "ostrzezenie" for x in n.dziennik.ostatnie), n.dziennik.ostatnie
+    wyn = n._wybor_startu("a", {"panel": {}, "gracz": None}, st, zmiana("a", mapa="ed_a", tryb="x"), s.zegar.t)
+    assert wyn["mapa"] == "ed_a" and wyn["skad"] == "grafik", "jawna mapa Karola z grafiku wygrywa nad wyborem"
+    # tabela jest, ale poziom nieczytelny: czekaj, po 10 min od logowania eskalacja nieustalony (bez wstrzymania)
+    tabela_q5(s)
+    n, at = nz(s)
+    st = n.post("a")
+    st["login_ts"] = ts(s)
+    o = {"panel": {"pozycja": EDRON}, "gracz": {"hp": 1, "max_hp": 1}}
+    d = n._wybor_startu("a", o, st, zmiana("a"), s.zegar.t)
+    assert d["akcja"] == "czekaj" and d["kod"] == "spot-dane", d
+    s.zegar.dalej(minutes=11)
+    d = n._wybor_startu("a", o, st, zmiana("a"), s.zegar.t)
+    assert d["akcja"] == "eskaluj" and d["arg"]["kod_eskalacji"] == "nieustalony", d
+
+
+def test_q5_zajetosc_z_tryb_log_a_nie_z_pola_mapa_okno_api():
+    """okno_api podaje w `mapa` ostatni_start.env (lekcja 21.10 15:36): zajętość musi iść z tryb.log (+ stan nadzorcy), a przypisanie z tego przebiegu blokuje spot."""
+    s = Swiat(("a", "b"))
+    tabela_q5(s, widelki={"j_c": [40, 50]})
+    s.tryb_log("b", "ed_a", "ostrozny")
+    w_grze_q5(s, "b", [33110, 31742, 8], 12, bot=True)
+    s.inst["b"]["mapa"] = "raty"                                  # stare ostatni_start.env
+    w_grze_q5(s, "a", EDRON, 12)
+    n, at = nz(s)
+    n._raw = {i: s.inst[i] for i in s.inst}
+    assert n.mapy_zajete("a", s.zegar.t) == {"b": {"ed_a"}}, n.mapy_zajete("a", s.zegar.t)
+    assert n._zajete_mapy("a") == {"ed_a"}
+    n.post("b")["spot"] = {"mapa": "ed_b"}                          # nadzorca zapisał inny spot: liczą się oba źródła
+    assert n.mapy_zajete("a", s.zegar.t) == {"b": {"ed_a", "ed_b"}}
+    # przypisanie z tego przebiegu (bot jeszcze nie ruszył): spot zajęty
+    n2, _ = nz(s)
+    n2._raw = {"a": s.inst["a"]}
+    n2._przypisane = {"b": "ed_a"}
+    for d in range(30):
+        zegar = datetime(2026, 10, 1 + d, 9, 0)
+        w = n2.wybierz_spot("a", s.inst["a"]["panel"], s.inst["a"]["gracz"], zegar, None, "start")
+        assert w["mapa"] == "ed_b", w
 
 
 if __name__ == "__main__":
