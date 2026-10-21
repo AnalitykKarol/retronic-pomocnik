@@ -9,6 +9,7 @@ Specyfikacje i decyzje: `dane_tibia/SPEC_*.md`. Ten plik streszcza i linkuje.
 
 ## Gdzie jesteśmy
 
+- **21.10 17:40 PODSUMOWANIE DNIA: `dane_tibia/PODSUMOWANIE_1021.md`.** Wszystkie nowe pokrętła włączone u 5 postaci, 4 boty zrestartowane z nowym kodem (wydra: ręczna gra). Nadzorca zbudowany, na żywo jeszcze nie działa (start: timer w cieniu → jedna postać → zestaw).
 - **21.10 ~17:30 nadzorca, który zarządza (Karol 16:20: rotacja postaci, miasto, przerwy, „zarządzać jak ja”) — klocki zbudowane offline, NA ŻYWO NIC.** Spec `dane_tibia/SPEC_nadzorca_rotacja_1021.md` (decyzje: 5 online + nowe konta, hunt 2–3 h, cała biała lista, „wszystko naraz”).
   - K1 `logowanie.py`/`zaloguj.sh`/`wyloguj.sh` (`SPEC_logowanie_wylogowanie_1021.md`, test 64/64, checker NITS).
   - K2 powroty (kanały Thais przez drabiny pod kratkami, Edron, Rook; `SPEC_powroty_k2_1021.md`, test 136/136, checker APPROVE).
@@ -288,3 +289,15 @@ Do testu na drugiej postaci: postać w Edronie, >= 260 gp i >= 100 gold do wymia
 - **Generator spotów F0 ZROBIONE (21.10 ~17:30, agentami):** `spot_lib.py` + 7 generatorów na bibliotece, bramka bajtowa `testy/test_spot_lib_regresja.py` 57/57 (sabotaż czerwony), checker NITS (6 wymagań dopisanych do F1 w specu), scalone do głównego checkoutu, kopie `.bak-f0-20261021/`, worktree usunięty. Nie ruszało kodu botów. Następne: F1 (`generuj_spot.py` + deklaracje JSON, dojście z najbliższego depo) — czeka na „tak”.
 - **OGIEŃ na Edron z9 wschód (21.10 17:14, invincible):** dojście `trolle_edron_z9w` prowadziło na (33115,31744,z8), które generator wziął za zejście (flaga 2), a to ogień: telemetria 17:14:20–17:14:51 HP 91% → 58% stojąc na tym polu; bota zatrzymał Karol. Kolanoth stanął wcześniej na z11 (brak liny, STOP 17:09:36). Poprawka: wejście (33119,31740) (kolor 210 = prawdziwe schody), generator omija znany ogień (`ogien_pola`, bufor 1), nowe punkty 0 na/obok ognia, waliduj OK (dojście: stary #15). Reguła: flaga 2 w kolorze podłogi poza z7 = PRZESZKODA (`spot_lib.przeszkoda_na_podlodze`, `zejscia(ogien=)`, `przejscia_pieter` pisze PRZESZKODA). Zapisane w skillu `nowy-spot`, procedurze, `CLAUDE.md`. Kopie `*.bak-20261021-ogien`. Boty invincible/kolanoth NIE restartowane (decyzja Karola). Uwaga: `ogien_stale.json` to w większości fałszywe ognie („bez spadku HP”) — prawdziwego ognia (33115,31744) w nim NIE było jako pola, tylko sąsiedzi.
 - **Edron z9 wschód DZIAŁA (21.10 17:24–17:28, Kolanosh/kolanoth lvl 8, start z (33167,31823,z9) na polecenie Karola):** dojście `trolle_edron_z9w_dojscie` (169 pkt): z9→z10→z11 krokiem, z11→z10 (33133,31805) i z9→z8 LINĄ (próba 2; rano bez liny utknął), z8→z7, z7→z8 dziura (33117,31776), z8 po odcinku bez ognia do schodów (33119,31740), zejście krokiem na z9 17:27:40, pierwszy troll zabity 17:27:58 na (33114,31741,9). HP 100% przez całe dojście. Wymagania: rope w plecaku. Invincible nadal zatrzymany (decyzja Karola „nie”).
+
+## 2026-10-21 17:35 — PODSUMOWANIE dnia: nowe spoty przez AI (sesja Claude z omarchy)
+
+**Działa na żywo:** Thais północ `thais_pn_z8` (kutangen, od 16:36; łopata na (32347,32123)) i Edron z9 wschód `trolle_edron_z9w`
+(kolanoth/Kolanosh, od 17:27; lina na dojściu). **Gotowe bez testu:** `trolle_edron_z10w` (35 pól, doczepka), `thais_pn_z9` (bez dojścia).
+**Narzędzia:** skill `nowy-spot`, `dane_tibia/mapy/PROCEDURA_nowy_spot.md` (8 kroków, 2 przypadki), `narzedzia/spoty_skladowe.py`,
+`narzedzia/przejscia_pieter.py` (W GÓRĘ / W DÓŁ / PRZESZKODA), `spot_lib.py` (F0), F4 łopata w pamięci (`testy/test_lopata_pamiec.py`).
+**Reguły z porażek (wszystkie w procedurze i `CLAUDE.md`):** start z `RETRONIC_POSTAC`; żółte 210 bywa w górę; stoi i nie spada = łopata;
+flaga 2 w kolorze podłogi poza z7 = ogień/przeszkoda; omijać `trasy/ogien_*.json`; ekwipunek z opisu mapy (lina/łopata);
+monitor dwufazowy. **Otwarte:** invincible zatrzymany na (33112,31747,z8) 144/205 HP (Karol: nie puszczać); F1 generatora
+(czeka na „tak”; przed nim odświeżyć bazę bramki F0 — edron_wschod zmieniony celowo); `thais_pn_z9` bez zejścia z z8;
+`test_trasy_rook` 17/19 i `_raty2` 30/31 czerwone od wcześniej (test vs `mapy.json` „potwory”). Bez commita.
