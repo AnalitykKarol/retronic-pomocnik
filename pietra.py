@@ -171,7 +171,8 @@ TRYBY_GORA_DRABINA = ("R", "krok", "R")
 # 19.10: wspinaczka bez danych o trybie (pole nieznane) próbuje także liny z plecaka: Edron ma liny, a dojście z depo
 # (gobliny_edron_z_depo) stawało na pierwszej linie z11->z10, bo samo R/krok nie dawało przejścia (wyprawa w wypad.py linę zna).
 TRYBY_GORA_NIEZNANE = ("R", "lina", "krok", "R", "lina")
-ZASYPANE = {(32493, 32259, 7)}      # dziury zasypane (piętro z, na którym stoimy), jedyne, gdzie łopata ma sens
+ZASYPANE = {(32493, 32259, 7),     # dziury zasypane (piętro z, na którym stoimy), jedyne, gdzie łopata ma sens
+            (32347, 32123, 7)}     # 21.10 Thais północ (thais_pn_z8_dojscie): postać stoi na polu, use bez skutku
 
 
 class Pietra:
@@ -548,9 +549,38 @@ class Pietra:
         return bool(self._k("PIETRA_TRYBY_Z_DANYCH", 1))
 
     def _tryby(self, k, st):
+        tr = Pietra._tryby_baza(self, k, st)       # wywołanie przez klasę: testy podają atrapy bez tej metody i bez _k
+        k_fn = getattr(self, "_k", None)
+        if not (callable(k_fn) and k_fn("PRZEJSCIE_TRZY_SPOSOBY", 0)):
+            return tr
+        # 21.10 (Karol): trzy sposoby na punkcie przejścia (wejść, kliknąć, lina w górę); sposób, który już zadziałał
+        # (wypad.PLIK_PRZEJSC, wspólny dla postaci), idzie pierwszy
+        gora = k["lad"][2] < st["z0"]
+        use = "R" if gora else "use"
+        for t in ("krok", use) + (("lina",) if gora else ()):
+            if t not in tr:
+                tr.append(t)
+        try:
+            import wypad
+            z_pam = wypad.przejscie_z_pamieci([k["pole"]], k["lad"][2])
+        except Exception:
+            z_pam = None
+        if z_pam is not None:
+            t = {"use": use}.get(z_pam[0], z_pam[0])
+            if t != "lina" or gora:
+                tr.insert(0, t)
+        return tr
+
+    def _tryby_baza(self, k, st):
+        # 21.10: pewne przejście w dół bez dziury na mapie (flaga 2) to kratka/klapa (kanały Thais): krokiem się nie otwiera,
+        # najpierw Use. Wcześniej plan wpadnięcia (przejście z trasy = pewne) próbował tylko kroku i łopaty: kolanoth 13:04 i 13:37
+        # stanął na kratce (32370,32213,z7), lista prób pusta po 1 kroku, ALARM i STOP.
+        # Obejmuje też pewne zejścia z trasy na złym polu (schody zgadnięte bez flagi): koszt to jeden zbędny Ctrl+klik, krok jest drugi.
+        cb = getattr(self, "cb", None)          # atrapy testów bez cb: nie zgadujemy kratki; cb.mapa None jak dawniej (flaga 0)
+        kratka = cb is not None and k["lad"][2] > st["z0"] and k["pewne"] and not _flaga(getattr(cb, "mapa", None), *k["pole"][:3]) & 2
         if self._dane():
             if k["lad"][2] > st["z0"]:
-                return list(TRYBY_DOL_DANE if k["pewne"] else TRYBY_DOL_DANE_DOMYSL)
+                return list(TRYBY_DOL_DANE if k["pewne"] and not kratka else TRYBY_DOL_DANE_DOMYSL)
             z_danych = tryb_z_danych(k["pole"])          # dane z 12 h przed flagami mapy (flagi bywają mylące)
             if z_danych == "R":
                 return list(TRYBY_GORA_DRABINA)
@@ -558,7 +588,7 @@ class Pietra:
                 return list(TRYBY_GORA_SCHODY)
             return list(TRYBY_GORA_NIEZNANE)
         if k["lad"][2] > st["z0"]:
-            return list(TRYBY_DOL[bool(k["pewne"])])
+            return list(TRYBY_DOL[bool(k["pewne"]) and not kratka])
         return list(TRYBY_GORA)
 
     def _stosuje(self, tryb, poz, T, teraz):
@@ -567,10 +597,22 @@ class Pietra:
         if tryb == "krok":
             return (poz[0], poz[1]) != (T[0], T[1])
         if tryb == "lopata":
-            return bool(self._k("PIETRA_LOPATA", 1)) and (T[0], T[1], T[2]) in ZASYPANE \
+            return bool(self._k("PIETRA_LOPATA", 1)) and Pietra._zasypana(self, T) \
                 and teraz >= getattr(self, "brak_lopaty_do", float("-inf")) \
                 and getattr(self.ops, "uzyj_lopate", None) is not None
         return True
+
+    def _zasypana(self, T):
+        """21.10 (F4 SPEC_generator_spotow_1021): łopata ma sens, gdy pole jest w ZASYPANE, gdy pamięć przejść mówi
+        "lopata" (zapisana po udanym zejściu łopata + krok) albo przy PIETRA_LOPATA_AUTO=1 (każde zejście w dół)."""
+        if (T[0], T[1], T[2]) in ZASYPANE or self._k("PIETRA_LOPATA_AUTO", 0):
+            return True
+        try:
+            import wypad
+            z = wypad.przejscie_z_pamieci([T], T[2] + 1)
+        except Exception:
+            z = None
+        return z is not None and z[0] == "lopata"
 
     def _wybierz(self, st, k, poz, teraz):
         """R1b: najbliższy tryb z zastosowaniem na bieżącym slocie; sloty bez zastosowania wypadają z listy, więc nie
@@ -727,6 +769,7 @@ class Pietra:
                         self.log(f"Przejście pięter: brak łopaty w plecaku, nie próbuję ponownie przez "
                                  f"{self._k('PIETRA_LOPATA_BRAK_S', 600.0):.0f} s")
                     raise
+                st["lopata_pole"] = (T[0], T[1], T[2])     # F4: krok, który potem zmieni piętro, zapisze się jako "lopata"
                 cb.spij(0.6)                    # dziura otwiera się po chwili; kolejna próba to krok w nią
             elif tryb == "lina":
                 if (poz[0], poz[1]) == (T[0], T[1]):
@@ -804,9 +847,35 @@ class Pietra:
                 if cheb(poz_przed, T) == 1 and (poz_przed[0] == T[0] or poz_przed[1] == T[1]) and poz_przed[2] == T[2] \
                         and (not self._dane() or opis.startswith("krok")):      # R1b: pamięć startu tylko dla kroku
                     self._zapamietaj_start(T, poz_przed)
+                if oczekiwane and self._k("PRZEJSCIE_TRZY_SPOSOBY", 0):
+                    self._naucz(opis, T, poz_przed, p[2], lopata=st.get("lopata_pole") == (T[0], T[1], T[2]))
                 self._sukces(p)
                 return True
         return False
+
+    def _naucz(self, opis, T, poz_przed, z_do, lopata=False):
+        """Zapamiętuje sposób przejścia (wypad.zapisz_przejscie) z opisu próby: krok, use/R (na T), wlasne (Use na polu
+        stania), lina, lopata. E/W/N i kroki po skosie nie są zapamiętywane (pole inne niż T, niepewne).
+        lopata=True: w tym etapie odkopaliśmy T łopatą, więc udany krok zapisujemy jako "lopata" (21.10: Thais północ
+        (32347,32123) zapisało się jako "krok", a po zasypaniu dziury sam krok nie działa)."""
+        if opis.startswith("krok po") or opis.startswith("klik"):
+            return
+        t = opis.split("->")[-1].strip().split(" ")[0]
+        pole = T
+        if t in ("use_wlasne", "wlasne"):
+            t, pole = "use", tuple(poz_przed)
+        elif t == "R":
+            t = "use"
+        if t not in ("krok", "use", "lina", "lopata"):
+            return
+        if t == "krok" and lopata:
+            t = "lopata"
+        try:
+            import wypad
+            if wypad.zapisz_przejscie(pole, z_do, t):
+                self.log(f"Przejście pięter: zapamiętane {tuple(pole)} -> z{z_do}: {t}")
+        except Exception:
+            pass
 
     def _sukces(self, p):
         cb = self.cb

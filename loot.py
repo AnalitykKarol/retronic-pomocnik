@@ -178,6 +178,7 @@ PROG_IKONY = 14.0                # maks. średni błąd (0-255), żeby uznać ik
 PROG_TYTULU = 10.0
 MAKS_RUCHOW = 12                 # ile przedmiotów maks. w jednym zbieraniu
 PRZERWIJ = None                  # opcjonalne wywołanie() -> True: przerwij zbieranie (cavebot: żywy potwór obok)
+DRABINY = set()                  # 21.10 (LOOT_BEZ_DRABIN): pola (x, y, z) drabin bez Ctrl+klik (Use wspina postać piętro wyżej); wypełnia cavebot
 
 
 # --- wykrywanie okien i slotów ----------------------------------------------
@@ -239,9 +240,11 @@ def _sloty(maska, szer):
             if e - s == BOK_SLOTU and s >= szer // 2:
                 odcinki[(s, y)] = e - s
     wynik = []
+    gorne = set()
     for (x, y), bok in sorted(odcinki.items(), key=lambda p: (p[0][1], p[0][0])):
-        if (x, y - bok + 1) in odcinki:
-            continue   # to dolna krawędź slotu wyżej
+        if (x, y - bok + 1) in gorne:
+            continue   # to dolna krawędź slotu wyżej (tamten musi być prawdziwym slotem: okno zaczynające się 33 px pod dołem pełnego okna to nie dolna krawędź)
+        gorne.add((x, y))
         wynik.append(Slot(x, y, bok))
     return wynik
 
@@ -1380,6 +1383,15 @@ def _pozycja_gracza():
 _pozycja_gracza.nazwa = None
 
 
+def _drabina(dx, dy, gracz=None):
+    """True: pole (dx, dy) względem gracza leży w DRABINY (Ctrl+klik = wspinaczka zamiast otwarcia zwłok; kanały Thais 21.10).
+    Pusty zbiór = zawsze False, bez odczytu pozycji. `gracz` = (x, y, z)/dict; brak = bieżąca pozycja z pamięci."""
+    if not DRABINY:
+        return False
+    p = _xyz(gracz) if gracz is not None else _pozycja_gracza()
+    return p is not None and p[2] is not None and (p[0] + dx, p[1] + dy, p[2]) in DRABINY
+
+
 def _czekaj_na_postoj(gracz):
     """Czeka, aż pozycja gracza będzie stała przez POSTOJ_ODCZYTOW odczytów (dłużej niż krok).
     Zwraca (pozycja, stoi): stoi None, gdy pozycji nie da się odczytać (zostaje `gracz`)."""
@@ -1501,6 +1513,9 @@ def _otworz_z_pamiecia(dx, dy, gracz, przed, powtorz, log):
         if (sx, sy) in zajete:
             proby.append(f"({sx},{sy}) stwór")
             continue
+        if _drabina(sx, sy, gracz):
+            proby.append(f"({sx},{sy}) drabina")
+            continue
         if nogi and not przed:
             if (sx, sy) != ostatnie and ((sx, sy) == (0, 0) and _juz_puste(wlasne)
                                          or (sx, sy) != (0, 0) and _juz_puste((gx + sx, gy + sy))):
@@ -1575,6 +1590,9 @@ def _otworz_dalsze(dx, dy, gracz, przed, proby, log, maks=None):
         if cel in _stwory_xy():
             proby.append(f"({rx},{ry}) stwór")
             continue
+        if _drabina(tx, ty, teraz):
+            proby.append(f"({rx},{ry}) drabina")
+            continue
         bot.sprawdz_stop()
         klikniec += 1
         ekran.otworz(tx, ty)
@@ -1640,7 +1658,8 @@ def _zamknij_zwloki(mysz, p, pole, klucz, log):
 def _otworz_bez_pamieci(mysz, dx, dy, lista, log):
     """Dawna ścieżka, gdy pamięć nie działa: okno zwłok szukane na zrzutach, potem 3 sąsiednie pola.
     Bez pamięci nie wiemy, czy okno się otworzyło, więc pola (dx, dy) drugi raz nie klikamy (przełącznik)."""
-    ekran.otworz(dx, dy)
+    if not _drabina(dx, dy):
+        ekran.otworz(dx, dy)
     _pauza(0.5, 0.9)
     p = None
     for proba in range(4):          # okno zwłok pojawia się z opóźnieniem
@@ -1651,6 +1670,8 @@ def _otworz_bez_pamieci(mysz, dx, dy, lista, log):
         _pauza(0.3, 0.6)
     # cel mógł zrobić krok tuż przed śmiercią: spróbuj sąsiednich pól przy graczu
     for sx, sy in _sasiednie_pola(dx, dy):
+        if _drabina(sx, sy):
+            continue
         bot.sprawdz_stop()
         ekran.otworz(sx, sy)
         _pauza(0.6, 0.9)
@@ -1902,7 +1923,7 @@ def krok_w_walce(stan, pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA, log=prin
     """Jeden atomowy krok lootu w walce. Zwraca (status, opis):
     "kontynuuj" (opis = nazwa wykonanego kroku z inputem/zrzutem albo None, gdy tylko czekamy),
     "gotowe" (zwłoki obsłużone, okno zamknięte; opis "ok" albo powód wcześniejszego końca) albo
-    "przerwane" (opis = powód: daleko, na_zwlokach, brak_pamieci, obce_okno, stwor_na_zwlokach, brak_okna;
+    "przerwane" (opis = powód: daleko, na_zwlokach, drabina, brak_pamieci, obce_okno, stwor_na_zwlokach, brak_okna;
     nic nie zostało otwarte przez ten krok, a gdy okno już było otwarte, jest w stan["klucz"])."""
     bot.sprawdz_stop()
     faza = stan.get("faza")
@@ -1914,6 +1935,8 @@ def krok_w_walce(stan, pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA, log=prin
         dx, dy = x1 - x2, y1 - y2
         if (dx, dy) == (0, 0):
             return "przerwane", "na_zwlokach"
+        if _drabina(dx, dy, gracz_pozycja):
+            return "przerwane", "drabina"
         kontenery = _odczyt_kontenerow()
         if kontenery is None:
             return "przerwane", "brak_pamieci"

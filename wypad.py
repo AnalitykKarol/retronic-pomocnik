@@ -40,6 +40,9 @@ import marsz_klik
 KATALOG = Path(__file__).resolve().parent
 TRASY = KATALOG / "trasy"
 PLIK_IDS = KATALOG / "pochodnia_ids.json"
+# 21.10 (Karol): przy przejściu trzy sposoby na punkcie (wejść, kliknąć = Use, lina), działający zapamiętany dla wszystkich postaci
+PLIK_PRZEJSC = KATALOG / "dane_tibia" / "ruch" / "przejscia_nauczone.json"
+TRYBY_NAUKI = ("krok", "use", "lina", "lopata")
 
 NPC = "Al Dee"
 ID_TORCH = {2920}                       # niezapalona pochodnia (pochodnia.ID_NOWA)
@@ -105,7 +108,109 @@ def cheb(a, b):
     return max(abs(a[0] - b[0]), abs(a[1] - b[1]))
 
 
+# --- pamięć przejść (wspólna dla postaci) ---------------------------------------
+
+def _klucz_przejscia(pole, z_do):
+    return f"{int(pole[0])},{int(pole[1])},{int(pole[2])}>{int(z_do)}"
+
+
+def przejscia_nauczone(plik=None):
+    """{"x,y,z>z_do": {"tryb", "n", "t"}} z pliku (pusty słownik, gdy brak/uszkodzony)."""
+    try:
+        d = json.loads(Path(plik or PLIK_PRZEJSC).read_text())
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def przejscie_z_pamieci(pola, z_do, plik=None):
+    """Pierwsze (tryb, pole) z pamięci dla któregoś z pól kandydatów przejścia na piętro z_do, albo None."""
+    d = przejscia_nauczone(plik)
+    for q in pola:
+        w = d.get(_klucz_przejscia(q, z_do))
+        if isinstance(w, dict) and w.get("tryb") in TRYBY_NAUKI:
+            return w["tryb"], (int(q[0]), int(q[1]), int(q[2]))
+    return None
+
+
+def zapisz_przejscie(pole, z_do, tryb, plik=None, teraz=None):
+    """Zapamiętuje działający sposób przejścia (atomowo, z dopisaniem do tego, co zapisały inne postacie)."""
+    if tryb not in TRYBY_NAUKI:
+        return False
+    plik = Path(plik or PLIK_PRZEJSC)
+    d = przejscia_nauczone(plik)
+    k = _klucz_przejscia(pole, z_do)
+    stary = d.get(k) if isinstance(d.get(k), dict) else {}
+    n = int(stary.get("n", 0)) + 1 if stary.get("tryb") == tryb else 1
+    d[k] = {"tryb": tryb, "n": n, "t": round(teraz if teraz is not None else time.time(), 1)}
+    try:
+        plik.parent.mkdir(parents=True, exist_ok=True)
+        tmp = plik.with_name(f".{plik.name}.{os.getpid()}.tmp")
+        tmp.write_text(json.dumps(d, ensure_ascii=False, indent=1, sort_keys=True) + "\n")
+        os.replace(tmp, plik)
+        return True
+    except Exception:
+        return False
+
+
+def proby_trzy_sposoby(poz, pola, z_do, lina=True, plik=None):
+    """Lista (tryb, pole): najpierw sposób z pamięci, potem dla każdego pola kandydata: wejść (krok, gdy obok),
+    kliknąć (use), lina (w górę). Bez duplikatów."""
+    lista, widziane = [], set()
+
+    def dodaj(t, q):
+        q = (int(q[0]), int(q[1]), int(q[2]))
+        if (t, q) not in widziane:
+            widziane.add((t, q))
+            lista.append((t, q))
+
+    z_pam = przejscie_z_pamieci(pola, z_do, plik)
+    if z_pam is not None and z_pam[0] == "krok" and tuple(z_pam[1][:2]) == tuple(poz[:2]):
+        z_pam = None                                    # stoimy na polu: krok nic nie da (ślepa strzałka)
+    if z_pam is not None and (z_pam[0] != "lina" or lina):
+        dodaj(*z_pam)
+    for q in pola:
+        if tuple(q[:2]) != tuple(poz[:2]) and cheb(poz, q) == 1:
+            dodaj("krok", q)
+        dodaj("use", q)
+        if lina:
+            dodaj("lina", q)
+    return lista
+
+
 # --- budowa planu -------------------------------------------------------------
+
+def _flaga(mapa, q):
+    try:
+        return int(mapa.flagi(*q))
+    except Exception:
+        return 0
+
+
+def _przechodnie(mapa, q):
+    try:
+        return mapa.przechodnie(*q) is True
+    except Exception:
+        return False
+
+
+def _pola_miedzy(mapa, a, c):
+    """Pola piętra `a` sąsiadujące z `a` i z `c` (gdy cheb(a, c) == 2), przechodnie według mapy; środek prostej pierwszy, potem
+    pola w jednej osi z `c`. [] bez mapy / bez takiego pola. Do rzadkich nagrań (pole stania 2 pola od przejścia, 21.10 K2)."""
+    if mapa is None or cheb(a, c) != 2:
+        return []
+    jest_srodek = (a[0] - c[0]) % 2 == 0 and (a[1] - c[1]) % 2 == 0
+    srodek = ((a[0] + c[0]) // 2, (a[1] + c[1]) // 2) if jest_srodek else None
+    wynik = []
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            q = (a[0] + dx, a[1] + dy, a[2])
+            if (dx, dy) == (0, 0) or q[:2] == tuple(c[:2]) or cheb(q, c) > 1 or not _przechodnie(mapa, q):
+                continue
+            wynik.append(q)
+    wynik.sort(key=lambda q: (q[:2] != srodek, q[0] != c[0] and q[1] != c[1], q))
+    return wynik
+
 
 def zbuduj_etapy(punkty, mapa=None, drzwi=()):
     """Lista punktów (x,y,z) -> etapy: {"typ":"IDZ","punkty":[...]} (jedno piętro) przedzielone przejściami
@@ -131,7 +236,31 @@ def zbuduj_etapy(punkty, mapa=None, drzwi=()):
             a, b = biez[-1], p
             etapy.append({"typ": "IDZ", "punkty": biez})
             if b[2] < a[2]:
-                etapy.append({"typ": "LINA", "stoi": a, "cel": (b[0], b[1] - 1, a[2]), "ladunek": b})
+                e = {"typ": "LINA", "stoi": a, "cel": (b[0], b[1] - 1, a[2]), "ladunek": b}
+                s = (b[0], b[1], a[2])
+                fl = 0
+                # tylko pole prostopadłe obok (strzałki nie chodzą po skosie); flaga 2 nie odróżnia schodów w górę od dziury w dół,
+                # ale lądowanie nagrania leży piętro wyżej, więc krok na nie to wejście w górę
+                if mapa is not None and s != a and cheb(a, s) == 1 and (s[0] == a[0] or s[1] == a[1]):
+                    try:
+                        fl = int(mapa.flagi(*s))
+                    except Exception:
+                        fl = 0
+                if fl & 2 and not fl & 4:
+                    # 21.10 (kutangen, depo Rook (32027,32198,z8) -> z7): schody w górę leżą pod lądowaniem, obok pola stania.
+                    # Pole "drabiny" (b.x, b.y-1) wypadało 2 pola dalej: brak próby, 60 s, ALARM. Wchodzimy krokiem.
+                    e["cel"], e["schody"] = s, True
+                elif (b[0], b[1]) == (a[0], a[1]):
+                    # nagranie bez zmiany (x, y): bywa drabina pod nogami (kutangen (32029,32195,z9): działało tylko Use na własnym polu,
+                    # 3 z 3 razy próba 5/7, 40-80 s); Use własnego pola idzie jako druga próba
+                    e["wlasne"] = True
+                elif mapa is not None and cheb(a, e["cel"]) == 2:
+                    # 21.10 (K2): nagranie rzadkie (co 2 pola), pole stania 2 pola od liny: dopisujemy pole obok liny (Edron z8 -> z7)
+                    obok = [q for q in _pola_miedzy(mapa, a, e["cel"]) if not _flaga(mapa, q) & 2]
+                    if obok:
+                        biez.append(obok[0])
+                        e["stoi"] = obok[0]
+                etapy.append(e)
             else:
                 h = (b[0], b[1], a[2])
                 fl = None
@@ -140,8 +269,24 @@ def zbuduj_etapy(punkty, mapa=None, drzwi=()):
                         fl = mapa.flagi(*h)
                     except Exception:
                         fl = None
-                etapy.append({"typ": "DZIURA", "stoi": a, "dziura": h, "ladunek": b,
-                              "pewna": bool(fl and fl & 2)})
+                pewna = bool(fl and fl & 2)
+                stoi = a
+                if mapa is not None and cheb(a, h) == 2:
+                    # 21.10 (K2): nagranie rzadkie (co 2 pola), pole stania 2 pola od dziury (Edron (33167,31811,z7) -> (33167,31813,z8),
+                    # Rook (32060,32174,z7) -> (32060,32172,z8)). Z rampą (flaga 2) obok pola stania nic nie zmieniamy: wykonanie próbuje jej
+                    # samo, także zajętej (_dziura_sasiednie, 19.10). Dziura w ścianie/niewidziana = właz pod nią (pole pośrednie, Use).
+                    # W pozostałych przypadkach (kratka bez flagi, dziura z flagą) pole pośrednie jest nowym polem stania.
+                    posr = _pola_miedzy(mapa, a, h)
+                    rampy = [q for q in posr if _flaga(mapa, q) & 2]
+                    zwykle = [q for q in posr if not _flaga(mapa, q) & 2]
+                    if rampy and not pewna:
+                        pass
+                    elif not pewna and not _przechodnie(mapa, h) and zwykle:
+                        h = zwykle[0]
+                    elif zwykle:
+                        stoi = zwykle[0]
+                        biez.append(stoi)
+                etapy.append({"typ": "DZIURA", "stoi": stoi, "dziura": h, "ladunek": b, "pewna": pewna})
             biez = [b]
         elif not biez or biez[-1] != p:
             biez.append(p)
@@ -232,9 +377,29 @@ def wybierz_plan(plany, poz, zasieg=PLAN_ZASIEG):
     return najl[1] if najl else None
 
 
-def sprawdz_plan(etapy, mapa=None, drzwi=()):
+def _rampa_obok(mapa, stoi, dziura):
+    """Czy obok pola stania jest rampa/schody w dół (flaga 2, przechodnie), inne niż planowana dziura: tak samo jak
+    Wypad._dziura_sasiednie, które wykonanie próbuje (także zajętą rampę)."""
+    if mapa is None:
+        return False
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            q = (stoi[0] + dx, stoi[1] + dy, stoi[2])
+            if (dx, dy) == (0, 0) or q[:2] == tuple(dziura[:2]):
+                continue
+            try:
+                if mapa.flagi(*q) & 2 and mapa.przechodnie(*q) is not False:
+                    return True
+            except Exception:
+                continue
+    return False
+
+
+def sprawdz_plan(etapy, mapa=None, drzwi=(), rampy_ok=False):
     """Lista problemów planu (pusta = ok): przejścia obok pola liny/dziury/drzwi, stoi na ostatnim punkcie etapu.
-    Kafelki drzwi (etapy DRZWI i lista `drzwi`) są przechodnie, nawet gdy mapa uważa je za ścianę."""
+    Kafelki drzwi (etapy DRZWI i lista `drzwi`) są przechodnie, nawet gdy mapa uważa je za ścianę.
+    `rampy_ok` (21.10 K2): dziura 2 pola od pola stania nie jest uwagą, gdy obok pola stania jest rampa z flagą 2, którą wykonanie
+    próbuje samo (Wypad._dziura_sasiednie); domyślnie False = ścisły lint struktury planu."""
     bledy = []
     for i, e in enumerate(etapy):
         if e["typ"] == "DRZWI":
@@ -246,7 +411,7 @@ def sprawdz_plan(etapy, mapa=None, drzwi=()):
             if cheb(e["stoi"], e["cel"]) > 1:
                 bledy.append(f"etap {i}: stoi {e['stoi']} nie sąsiaduje z liną {e['cel']}")
         elif e["typ"] == "DZIURA":
-            if cheb(e["stoi"], e["dziura"]) > 1:
+            if cheb(e["stoi"], e["dziura"]) > 1 and not (rampy_ok and _rampa_obok(mapa, e["stoi"], e["dziura"])):
                 bledy.append(f"etap {i}: stoi {e['stoi']} nie sąsiaduje z dziurą {e['dziura']}")
         elif i + 1 < len(etapy) and etapy[i + 1]["typ"] != "IDZ" and e["punkty"][-1] != etapy[i + 1]["stoi"]:
             bledy.append(f"etap {i}: koniec {e['punkty'][-1]} != stoi {etapy[i + 1]['stoi']}")
@@ -1312,13 +1477,16 @@ class Wypad:
 
     # --- przejścia pięter ---
 
-    def _po_przejsciu(self, e, poz_przed, teraz, rodzaj):
+    def _po_przejsciu(self, e, poz_przed, teraz, rodzaj, nauka=None):
         cb = self.cb
         for _ in range(5):
             cb.spij(0.4)
             p = cb.postac.pozycja()
             if p[2] == e["ladunek"][2]:
                 self.log(f"Wypad: {rodzaj} z{poz_przed[2]} -> z{p[2]} w {p}")
+                if nauka is not None and self._k("PRZEJSCIE_TRZY_SPOSOBY", 0):
+                    if zapisz_przejscie(nauka[1], p[2], nauka[0]):
+                        self.log(f"Wypad: zapamiętane przejście {tuple(nauka[1])} -> z{p[2]}: {nauka[0]}")
                 self._tele("wypad_krok", rodzaj=rodzaj, z_od=poz_przed[2], z_do=p[2], poz=list(p))
                 cb._wypad_reset_klik()
                 self.ei = min(self.ei + 1, len(self.etapy) - 1)
@@ -1416,11 +1584,16 @@ class Wypad:
         return ("Right" if dx > 0 else "Left") if dx else ("Down" if dy > 0 else "Up")
 
     @staticmethod
-    def _proby_drabiny(poz, cel):
+    def _proby_drabiny(poz, cel, e=None):
         """Kolejność prób wejścia (Ctrl+klik = Use): drabina (1 próba), lina z plecaka (2x), drabina, pole własne (0,0), potem sąsiednie
         E / W / N (bez dubla pola drabiny). 17.10: minimapa nie odróżnia liny od drabiny (oba pola żółte), a lina na tej trasie
         zawsze była ostatnia (7. próba, ok. 40-60 s zmarnowane na każdej linie), więc po jednej próbie drabiny od razu lina."""
         pola = [("drabina", cel), ("lina", cel), ("lina", cel), ("drabina", cel), ("wlasne", (poz[0], poz[1], poz[2]))]
+        if e is not None and e.get("schody"):
+            pola = [("krok", cel), ("krok", cel)] + pola
+        elif e is not None and e.get("wlasne"):
+            # druga próba (po jednej drabinie): to samo (x, y) w nagraniu bywa też zwykłą drabiną/liną obok, koszt jednego Use
+            pola = pola[:1] + [("wlasne", (poz[0], poz[1], poz[2]))] + pola[1:4]
         for nazwa, (dx, dy) in (("E", (1, 0)), ("W", (-1, 0)), ("N", (0, -1))):
             q = (poz[0] + dx, poz[1] + dy, poz[2])
             if (q[0], q[1]) != (cel[0], cel[1]):
@@ -1446,24 +1619,48 @@ class Wypad:
             cb.pauza(0.2, 0.5)
             return True
         n = e.get("proby", 0)
-        proby = self._proby_drabiny(poz, e["cel"])
+        trzy = bool(self._k("PRZEJSCIE_TRZY_SPOSOBY", 0))
+        if trzy:
+            # punkt przejścia: pole stania z nagrania, pole pod lądowaniem, pole „drabiny” (b.y-1); 15:06 kutangen stał obok
+            # drabiny (32029,32195,z9) i klikał tylko inne pola (8 prób, ALARM). Lista stała dla etapu (liczona przy 1. próbie):
+            # po kroku na pole przejścia pozycja się zmienia, a przeliczona lista przesuwałaby numer próby.
+            if n == 0 or not e.get("trzy_lista"):
+                e.pop("bez_liny", None)
+                lad = e["ladunek"]
+                pola = []
+                for q in (tuple(e["stoi"]), (lad[0], lad[1], poz[2]), tuple(e["cel"])):
+                    if q not in pola and cheb(poz, q) <= 1:
+                        pola.append(q)
+                e["trzy_lista"] = proby_trzy_sposoby(poz, pola, lad[2]) or self._proby_drabiny(poz, e["cel"], e)
+            proby = e["trzy_lista"]
+            while n < len(proby) - 1 and proby[n][0] == "lina" and e.get("bez_liny"):
+                n += 1                       # brak liny w tym etapie: następne próby liny pomijamy
+        else:
+            proby = self._proby_drabiny(poz, e["cel"], e)
         e["proby"] = n + 1
         self.pj_proby += 1
         tryb, pole = proby[min(n, len(proby) - 1)]
-        rodzaj = "lina" if tryb == "lina" else "drabina"
+        if tryb == "use":
+            tryb = "wlasne" if tuple(pole[:2]) == tuple(poz[:2]) else "drabina"
+        rodzaj = "lina" if tryb == "lina" else "schody" if tryb == "krok" else "drabina"
         self.log(f"Wypad: {rodzaj} próba {n + 1}/{len(proby)} ({tryb}) z {tuple(poz)}, pole {pole[:2]}")
         try:
-            if tryb == "lina":
-                self.ops.uzyj_line(e["cel"], poz)
+            if tryb == "krok":
+                cb.postac.krok(self._kier_do_pola(poz, pole))
+            elif tryb == "lina":
+                self.ops.uzyj_line(pole if trzy else e["cel"], poz)
             else:
                 self.ops.uzyj_pole(pole, poz)
         except bot.Zatrzymano:
             raise
         except BrakEkranu as ex:
+            if tryb == "lina" and trzy and "liny" in str(ex):
+                e["bez_liny"] = True        # brak liny: dalsze próby tego etapu bez niej (lista się skraca)
             return self._porazka_przejscia(e, teraz, f"{rodzaj}_ekran", limit=len(proby), powod=str(ex), tryb=tryb)
         except Exception as ex:
             return self._porazka_przejscia(e, teraz, f"{rodzaj}_wyjatek", limit=len(proby), powod=repr(ex), tryb=tryb)
-        if self._po_przejsciu(e, poz, teraz, rodzaj):
+        nauka = (("use" if tryb in ("drabina", "wlasne") else tryb), pole) if trzy and tryb in ("krok", "lina", "drabina", "wlasne") else None
+        if self._po_przejsciu(e, poz, teraz, rodzaj, nauka):
             return True
         return self._porazka_przejscia(e, teraz, f"{rodzaj}_bez_zmiany_pietra", limit=len(proby), tryb=tryb)
 
@@ -1515,6 +1712,19 @@ class Wypad:
         else:
             # planowane pole (2 pierwsze próby), potem sąsiednie pola z flagą mapy, potem reszta prób na planowanym
             lista = [(t, h) for t in tryby[:2]] + [("krok", q) for q in sasiednie] + [(t, h) for t in tryby[2:]]
+        if self._k("PRZEJSCIE_TRZY_SPOSOBY", 0):
+            z_pam = przejscie_z_pamieci([h] + list(sasiednie) + [tuple(poz)], e["ladunek"][2])
+            if z_pam is not None and z_pam[0] in ("krok", "use", "lopata"):
+                t_p, q_p = z_pam
+                if t_p == "use" and tuple(q_p[:2]) == tuple(poz[:2]):
+                    t_p = "use_wlasne"
+                ok_p = (q_p == tuple(h) or t_p != "use")      # use na sąsiednim polu: lista zna tylko use na planowanym (h)
+                if t_p == "krok" and tuple(q_p[:2]) == tuple(poz[:2]):
+                    ok_p = False                                 # stoimy na polu: krok nic nie da
+                if t_p in ("use", "lopata") and cheb(poz, h) > 1:
+                    ok_p = False                                 # za daleko na Use/łopatę: najpierw kroki do dziury
+                if ok_p:
+                    lista = [(t_p, q_p)] + [x for x in lista if x != (t_p, q_p)]
         limit = max(ETAP_PRZEJSCIE_PROB, len(lista)) if cheb(poz, h) <= 1 else ETAP_PRZEJSCIE_PROB
         tryb, cel_p = lista[n % len(lista)]
         if tryb == "krok" and na_dziurze:
@@ -1550,7 +1760,11 @@ class Wypad:
             return self._porazka_przejscia(e, teraz, "dziura_ekran", limit=limit, powod=str(ex), tryb=tryb)
         except Exception as ex:
             return self._porazka_przejscia(e, teraz, "dziura_wyjatek", limit=limit, powod=repr(ex), tryb=tryb)
-        if self._po_przejsciu(e, poz, teraz, "dziura"):
+        nauka = None
+        if tryb in ("krok", "lopata", "use", "use_wlasne"):
+            nauka = ("use" if tryb.startswith("use") else tryb,
+                     (poz[0], poz[1], poz[2]) if tryb == "use_wlasne" else (h if tryb == "use" else cel_p))
+        if self._po_przejsciu(e, poz, teraz, "dziura", nauka):
             return True
         return self._porazka_przejscia(e, teraz, "dziura_bez_zmiany_pietra", limit=limit, tryb=tryb)
 

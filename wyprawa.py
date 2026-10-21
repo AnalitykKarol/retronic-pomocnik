@@ -72,6 +72,13 @@ PLANY_PK = (
 )
 BAZY_PK = BAZY + tuple(p["nazwa"] for p in PLANY_PK)     # plany dostępne dla ucieczki PK (troll: istniejące depo Thais)
 PK_PLAN_ZASIEG = 80                    # pola: ucieczka PK startuje z dalszej okolicy trasy niż zwykły wypad (zasięg 40)
+# 21.10 K2 (SPEC_powroty_k2_1021): kanały Thais -> depo najbliższą PEWNĄ drabiną pod kratką (F1), nie zgadniętym wyjściem
+# (32360,32242,z8) z thais_kanaly_do_miasta (nikt nigdy nim nie przeszedł; kutangen 15:37 ALARM). Pola drabin = ostatni punkt z8
+# plików zejść kratką (jedno źródło prawdy); użycie drabiny R ląduje w (R.x, R.y+1, z7).
+KANALY_THAIS = "thais_kanaly"
+KANALY_THAIS_PROSTOKAT = (32320, 32170, 32440, 32285)      # x0, y0, x1, y1 na z8: okolica trasy thais_szczury_opt (32335..32422 x 32183..32272)
+KANALY_THAIS_DRABINY = ("thais_dojscie_kratka.json", "thais_kratka_32422_32214.json", "thais_kratka_32339_32183.json")
+WYJSCIA_BAZ = (KANALY_THAIS,)          # plany bazowe (nie PLANY_PK) liczone droga_do_depo z bieżącej pozycji przez wyjścia z z8
 _WAGI_ZAPAS = {                        # oz; wartości z dane_tibia/przedmioty.json, gdy pliku brak (torch: niezweryfikowane)
     "ham": 20.0, "dragon ham": 30.0, "meat": 13.0, "cheese": 4.0, "bread": 5.0, "fish": 5.2,
     "blank": 1.2, "torch": 5.0,
@@ -544,7 +551,7 @@ def droga_do_depo(poz, petla, do, zalew, mapa=None, limit_s=None, wyjscia=()):
         pole = (int(pole[0]), int(pole[1]), int(pole[2]))
         lad = (int(lad[0]), int(lad[1]), int(lad[2]))
         do_t = do_baza
-        if len(wyj) > 2:                    # wyjście ma własną trasę dalszą (plan "edron" startuje daleko od liny)
+        if len(wyj) > 2 and wyj[2]:         # wyjście ma własną trasę dalszą (plan "edron" startuje daleko od liny)
             try:
                 do_t = [tuple(int(v) for v in q) for q in json.loads((TRASY / wyj[2]).read_text())]
             except (OSError, ValueError, TypeError):
@@ -558,20 +565,24 @@ def droga_do_depo(poz, petla, do, zalew, mapa=None, limit_s=None, wyjscia=()):
             raise
         except Exception:
             continue
+        # 21.10 K2: wyj[3] = pola stania obok pola przejścia (drabiny Thais: północ bywa ścianą); domyślnie pole na północ od liny
+        stoiska = [(pole[0], pole[1] - 1, pole[2])]      # lina: stoimy pole na północ od pola liny (jak z8 -> z7 17.10)
+        if len(wyj) > 3 and wyj[3]:
+            stoiska = [(int(s[0]), int(s[1]), int(s[2])) for s in wyj[3]]
         for j, q in enumerate(do_t):
             wy = gora.get(q)
             if wy is None and q[2] == lad[2] and cheb(lad, q) <= 1:
                 wy = [lad, q]
             if wy:
-                stoi = (pole[0], pole[1] - 1, pole[2])      # lina: stoimy pole na północ od pola liny (jak z8 -> z7 17.10)
-                ext = [stoi, lad] + [tuple(r) for r in wy[1:]] + do_t[j + 1:]
-                alt = _po_petli_do_liny(tuple(int(v) for v in poz), petla, stoi, ext)     # szybko: stoimy na pętli
-                if alt is not None:
-                    szybko = True
-                else:
-                    alt = _droga_do_depo(poz, petla, ext, zalew, mapa, limit_s)
-                if alt is not None and (wyn is None or alt[1] < wyn[1]):
-                    wyn = (alt[0], alt[1], alt[2] if szybko else f"wyjście liną {pole} -> {lad}; {alt[2]}")
+                for stoi in stoiska:
+                    ext = [stoi, lad] + [tuple(r) for r in wy[1:]] + do_t[j + 1:]
+                    alt = _po_petli_do_liny(tuple(int(v) for v in poz), petla, stoi, ext)     # szybko: stoimy na pętli
+                    if alt is not None:
+                        szybko = True
+                    else:
+                        alt = _droga_do_depo(poz, petla, ext, zalew, mapa, limit_s)
+                    if alt is not None and (wyn is None or alt[1] < wyn[1]):
+                        wyn = (alt[0], alt[1], alt[2] if szybko else f"wyjście liną {pole} -> {lad}; {alt[2]}")
                 break
     if wyn is None or not szybko:          # stoimy poza pętlą albo brak wyjść: zwykłe szukanie (pętla/trasa "do"), tańszy wygrywa
         baza = _droga_do_depo(poz, petla, do, zalew, mapa, limit_s)
@@ -1336,7 +1347,7 @@ class Wyprawa(Wypad):
         legs_etapy = [zbuduj_etapy([_punkt(q) for q in l], mapa, drzwi) for l in legs]
         etapy_z = zbuduj_etapy([_punkt(q) for q in powrot], mapa, drzwi)
         for nazwa, et in [(f"leg{i}", e) for i, e in enumerate(legs_etapy)] + [("powrot", etapy_z)]:
-            for b in sprawdz_plan(et, mapa, drzwi):
+            for b in sprawdz_plan(et, mapa, drzwi, rampy_ok=True):
                 self.log(f"Wyprawa: plan {nazwa}: {b}")
         return {"stops": stops, "legs": legs_etapy, "powrot": etapy_z, "k": 0, "baza": baza_nazwa,
                 "wyniki": {}, "kroki": 0, "sukces": False, "potrzeby": dict(potrzeby)}, None
@@ -1362,7 +1373,7 @@ class Wyprawa(Wypad):
                 cel = tuple(e["punkty"][-1]) if e else None
         if not etapy or cel is None:
             return None, f"brak trasy powrotnej z depo ({baza_nazwa})"
-        for b in sprawdz_plan(etapy, mapa):
+        for b in sprawdz_plan(etapy, mapa, rampy_ok=True):
             self.log(f"Wyprawa: plan powrotu PK: {b}")
         st = {"id": "depo", "npc": "", "stoi": cel, "zakupy": [], "depo": True}
         return {"stops": [st], "legs": [etapy], "powrot": zbuduj_etapy([cel], mapa), "k": 0, "baza": baza_nazwa,
@@ -1377,6 +1388,10 @@ class Wyprawa(Wypad):
         pts = None
         if self._z_poz is not None and self._plan_tylko_pk(baza_nazwa):
             pts = self._droga_z_pozycji(self._z_poz, do, baza_nazwa)       # 16.10: najkrótsza droga z bieżącego miejsca, nie od początku "do"
+        elif self._z_poz is not None and baza_nazwa in WYJSCIA_BAZ:
+            pts, blad = self._droga_kanaly(self._z_poz, cel)               # 21.10 K2: kanały Thais -> najbliższa pewna drabina
+            if pts is None and blad:
+                return None, blad
         if pts is None:
             pts = self._do_depo_odwrocona(do, cel)       # z jaskini prosto do depo (nie przez Gorna)
         if pts is None:
@@ -1402,7 +1417,7 @@ class Wyprawa(Wypad):
                 powrot = pw
             else:
                 self.log("Wyprawa: brak trasy powrotnej z depo (depo_troll_cave), po dojściu będzie STOP")
-        for b in sprawdz_plan(etapy, mapa):
+        for b in sprawdz_plan(etapy, mapa, rampy_ok=True):
             self.log(f"Wyprawa: plan depo: {b}")
         st = {"id": "depo", "npc": "", "stoi": cel, "zakupy": [], "depo": True}
         return {"stops": [st], "legs": [etapy], "powrot": powrot, "k": 0, "baza": baza_nazwa,
@@ -1413,11 +1428,13 @@ class Wyprawa(Wypad):
     def _zalew_pietra(self, a, cele):
         return self._trasownik_get().zalew(a, cele, limit=DEPO_ZALEW_LIMIT)
 
-    def _petla_lowiska(self):
-        """Zamknięta trasa łowiska bota (cb.punkty) albo, gdy pusta, nagranie PLIK_PETLA_EDRON; [] gdy brak."""
+    def _petla_lowiska(self, edron=True):
+        """Zamknięta trasa łowiska bota (cb.punkty) albo, gdy pusta, nagranie PLIK_PETLA_EDRON (`edron`); [] gdy brak."""
         pts = [_punkt(q) for q in (getattr(self.cb, "punkty", None) or ())] if isinstance(
             getattr(self.cb, "punkty", None), (list, tuple)) else []
         if len(pts) < 3 or None in pts:
+            if not edron:
+                return []
             try:
                 pts = [_punkt(q) for q in json.loads((Path(self.katalog) / PLIK_PETLA_EDRON).read_text())]
             except (OSError, ValueError, TypeError):
@@ -1449,6 +1466,86 @@ class Wyprawa(Wypad):
         pts, koszt, opis = wyn
         self.log(f"Wyprawa: depo: droga z {tuple(poz)}: {len(pts)} punktów, koszt {koszt} ({opis})")
         return pts
+
+    @staticmethod
+    def _w_kanalach_thais(poz):
+        """Pozycja na z8 w okolicy kanałów Thais (trasa thais_szczury_opt), a nie np. w jaskini trolli Thais (x >= 32470)."""
+        x0, y0, x1, y1 = KANALY_THAIS_PROSTOKAT
+        return int(poz[2]) == 8 and x0 <= int(poz[0]) <= x1 and y0 <= int(poz[1]) <= y1
+
+    def _wyjscia_kanalow(self, poz, mapa):
+        """Wyjścia z kanałów Thais w formacie droga_do_depo: (pole drabiny R z8, lądowanie (R.x, R.y+1, z7), None, pola stania).
+        R = ostatni punkt z8 pliku zejścia kratką (KANALY_THAIS_DRABINY). Pola stania: sąsiedzi R na z8 bez ściany i bez flagi 2,
+        najpierw prostopadli i bez pola pod lądowaniem (stanie na nim to „własne” pole); północ od R bywa ścianą."""
+        wynik = []
+        for plik in KANALY_THAIS_DRABINY:
+            try:
+                pts = [_punkt(q) for q in json.loads((Path(self.katalog) / plik).read_text())]
+            except (OSError, ValueError, TypeError):
+                continue
+            z8 = [q for q in pts if q and q[2] == int(poz[2])]
+            if not z8:
+                continue
+            r = z8[-1]
+            lad = (r[0], r[1] + 1, r[2] - 1)
+            stoiska = []
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    q = (r[0] + dx, r[1] + dy, r[2])
+                    if (dx, dy) == (0, 0):
+                        continue
+                    try:
+                        if mapa.przechodnie(*q) is not True or int(mapa.flagi(*q)) & 2:
+                            continue
+                    except Exception:
+                        continue
+                    stoiska.append(q)
+            stoiska.sort(key=lambda q: (q[:2] == lad[:2], bool(q[0] != r[0] and q[1] != r[1]), cheb(q, poz), q))
+            if stoiska:
+                wynik.append((r, lad, None, stoiska[:4]))
+        return tuple(wynik)
+
+    def _droga_kanaly(self, poz, cel):
+        """21.10 K2: droga z kanałów Thais (z8) do depo `cel` (z7) najbliższą znaną drabiną pod kratką; z innego piętra prosty A*
+        do depo. -> (punkty, None) albo (None, powód porażki z z8 / None, gdy inna sytuacja: wtedy stara droga). Nie wraca nigdy do
+        zgadniętego wyjścia (32360,32242,z8): `do` dla droga_do_depo to samo depo."""
+        mapa = getattr(self.cb, "mapa", None)
+        poz = tuple(int(v) for v in poz)
+        z_kanalow = poz[2] == 8
+        if mapa is None:
+            return None, ("depo: brak mapy, nie wyznaczę drogi z kanałów Thais (zgadnięte wyjście (32360,32242,z8) pomijam)"
+                          if z_kanalow else None)
+        petla = self._petla_lowiska(edron=False)
+        try:
+            if z_kanalow:
+                # NAJBLIŻSZA drabina = najmniej marszu po z8 (kanały: szczury, ciemno); dopiero przy remisie krótsza całość
+                wyn, klucz = None, None
+                for wyj in self._wyjscia_kanalow(poz, mapa):
+                    r = droga_do_depo(poz, petla, [tuple(cel)], self._zalew_pietra, mapa, wyjscia=(wyj,))
+                    if r is None:
+                        continue
+                    na_z8 = []
+                    for q in r[0]:
+                        if q[2] != poz[2]:
+                            break
+                        na_z8.append(q)
+                    k = (koszt_punktow(na_z8), r[1])
+                    if klucz is None or k < klucz:
+                        wyn, klucz = (r[0], r[1], f"drabina {wyj[0]} -> {wyj[1]}, {len(na_z8)} pól po z8; {r[2]}"), k
+            else:
+                wyn = droga_do_depo(poz, petla, [tuple(cel)], self._zalew_pietra, mapa)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            wyn = None
+            self.log(f"Wyprawa: depo: nie wyznaczyłem drogi z {poz} ({e!r})")
+        if wyn is None:
+            self.log(f"Wyprawa: depo: brak drogi z {poz}")
+            return None, (f"depo: brak drogi z kanałów Thais z {poz} przez znane drabiny pod kratkami (mapa/wyjścia)"
+                          if z_kanalow else None)
+        pts, koszt, opis = wyn
+        self.log(f"Wyprawa: depo: droga z {poz}: {len(pts)} punktów, koszt {koszt} ({opis})")
+        return pts, None
 
     def _baza_dojscie(self, baza, poz):
         """Plan z PLANY_PK, do którego depo da się dojść z `poz` z dowolnego piętra (nie dalej niż DEPO_DOJSCIE_ZASIEG
@@ -1511,11 +1608,15 @@ class Wyprawa(Wypad):
         poz = tuple(cb.postac.pozycja())
         depo_spota = bool(dane.get("depo"))      # 16.10: depo każdego spotu ma swój plan (Edron: PLANY_PK), nie tylko ucieczka PK
         baza = punkty_bazy(self.katalog, nazwy=BAZY_PK if (pk or depo_spota) else BAZY)
-        nazwa = baza_nazwa if (pk and baza_nazwa in baza) else wybierz_baze(
+        z_pk = bool(pk and baza_nazwa in baza)
+        nazwa = baza_nazwa if z_pk else wybierz_baze(
             baza, poz, PK_PLAN_ZASIEG if (pk or depo_spota) else wypad.PLAN_ZASIEG)
         if nazwa is None and (pk or depo_spota):       # 16.10: plan depo spotu z dowolnego miejsca (piętra), nie tylko przy trasie
             nazwa = self._baza_dojscie(baza, poz)
-        self._z_poz = poz if (depo_spota and nazwa is not None and self._plan_tylko_pk(nazwa)) else None
+        if depo_spota and not z_pk and KANALY_THAIS in baza and self._w_kanalach_thais(poz):
+            nazwa = KANALY_THAIS           # 21.10 K2: w kanałach Thais (także przy trasie planu "troll", x ~ 32422) zawsze najbliższa drabina
+        self._z_poz = poz if (depo_spota and nazwa is not None
+                              and (self._plan_tylko_pk(nazwa) or nazwa in WYJSCIA_BAZ)) else None
         if nazwa is None:
             if pk:
                 self.log(f"Wyprawa: PK: pozycja {poz} poza planami {BAZY_PK}")

@@ -16,10 +16,15 @@ Przebieg (Cavebot.tick woła obserwuj() na początku każdego obiegu i tick() po
      powiadomienie krytyczne i plik STOP (bot się zatrzymuje zamiast kręcić się w kółko).
   4. Powrót na piętro trasy: najbliższy punkt trasy po drodze (_wypad_wroc_na_trase / _patrol_sync_idx).
 Pokrętła (cavebot.py + pokretla.py): WPADNIECIE, WPADNIECIE_LINA, WPADNIECIE_PLAN, DZIURY_NAUCZONE (0/1, domyślnie 1),
-WPADNIECIE_ODL, WPADNIECIE_LINA_PROB."""
+WPADNIECIE_ODL, WPADNIECIE_LINA_PROB, WPADNIECIE_BEZ_STOP (21.10, domyślnie 0).
+
+WPADNIECIE_BEZ_STOP=1 (21.10, SPEC_wpadniecie_bez_stop_1021): wyczerpanie kandydatów (3x brak planu) nie kończy się ALARM+STOP,
+tylko CYKLEM: czyścimy listę złych przejść, czekamy 10-20 s (walka i ucieczka działają jak zawsze, wpadnięcie jest wołane po nich),
+schodzimy z pola przejścia, które zawiodło, i ponawiamy linę i plan. STOP + critical dopiero po PIETRA_MAX_S i >= 3 cyklach."""
 import heapq
 import json
 import os
+import random
 import time
 from pathlib import Path
 
@@ -28,6 +33,8 @@ import bot
 KATALOG = Path(__file__).resolve().parent
 # w testach (RETRONIC_TESTY) bez pliku, chyba że test sam ustawi PLIK_DZIUR
 PLIK_DZIUR = None if os.environ.get("RETRONIC_TESTY") else KATALOG / "trasy" / "dziury_nauczone.json"
+# 21.10 (LOOT_BEZ_DRABIN, F3): pola drabin nauczone przy wyjściu w górę; dla lootu, NIE ściana (drabina bywa punktem trasy)
+PLIK_DRABIN = None if os.environ.get("RETRONIC_TESTY") else KATALOG / "trasy" / "drabiny_nauczone.json"
 PLIK_DOSWIADCZENIA = KATALOG / "dane_tibia" / "ruch" / "mapa_doswiadczenia.json"
 PLIK_MIEJSC_TROLL = KATALOG / "trasy" / "miejsca_troll.json"
 KATALOG_TRAS = KATALOG / "trasy"
@@ -43,6 +50,9 @@ PLAN_MAX_KAND = 14                # maks. przejść na piętrze, do których lic
 PROMIEN_MAPY = 25                 # pola: okno szukania niepewnych przejść w górę (flaga 2 piętro wyżej)
 PLAN_PROBY = 3                    # tyle razy z rzędu brak planu = koniec (alarm)
 OSIAG_KAND = 6                    # 15.10 (kieszeń): ile najbliższych punktów trasy/miejsc na piętrze sprawdzamy A*
+BEZ_STOP_CZEKAJ_S = (10.0, 20.0)  # 21.10 (WPADNIECIE_BEZ_STOP): przerwa między cyklami ponawiania (losowo z przedziału)
+BEZ_STOP_CYKLE_MIN = 3            # STOP dopiero po tylu pełnych cyklach (i po PIETRA_MAX_S)
+BEZ_STOP_TWARDY_S = 900.0         # bezpiecznik: po tylu s alarm niezależnie od liczby cykli
 OSIAG_ODSWIEZ_S = 3.0             # co ile s w stanie WPADNIECIE ponawiamy sprawdzenie "trasa osiągalna"
 
 
@@ -64,6 +74,8 @@ class Wpadniecie:
         self._przejscia = None            # leniwa lista przejść z danych
         self.wykryte = 0
         self.bez_alarmu = False            # True tylko w kroku planu prowadzonego przez strażnika orbit (patrz _alarm)
+        self.plik_drabin = PLIK_DRABIN
+        self.drabiny = set()               # {(x, y, z)}: pole drabiny na piętrze z (Use = wspinaczka); wspólny zbiór z loot.DRABINY
         self.wczytaj()
 
     def _k(self, nazwa, domyslna):
@@ -111,6 +123,50 @@ class Wpadniecie:
         self.dziury.add(pole)
         self.zapisz()
         self.log(f"Wpadnięcie: nauczona dziura {pole[:2]} na z{pole[2]} (od teraz ściana dla dróg A*).")
+        return True
+
+    # --- drabiny (loot ich nie klika) ---
+
+    def wczytaj_drabiny(self):
+        """Wypełnia self.drabiny (ten sam obiekt zbioru, który cavebot daje do loot.DRABINY): nauczone z pliku + z przejść w danych:
+        pole R przejść w górę (drabina na piętrze startu) i lądowanie zejść w dół w tym samym (x, y) (drabina pod kratką/dziurą)."""
+        nowe = set()
+        try:
+            if self.plik_drabin is not None and Path(self.plik_drabin).exists():
+                d = json.loads(Path(self.plik_drabin).read_text())
+                for e in (d.get("drabiny", []) if isinstance(d, dict) else d):
+                    nowe.add((int(e[0]), int(e[1]), int(e[2])))
+        except Exception as e:
+            self.log(f"Wpadnięcie: nie wczytano {self.plik_drabin} ({e!r})")
+        for t in self._wczytaj_przejscia():
+            T, L = t["T"], t["L"]
+            if L[2] < T[2]:
+                nowe.add(T)
+            elif L[2] == T[2] + 1 and L[:2] == T[:2]:
+                nowe.add(L)
+        self.drabiny.clear()
+        self.drabiny.update(nowe)
+        return self.drabiny
+
+    def ucz_drabine(self, pole):
+        pole = (int(pole[0]), int(pole[1]), int(pole[2]))
+        if pole in self.drabiny:
+            return False
+        self.drabiny.add(pole)
+        nauczone = {pole}
+        try:
+            if self.plik_drabin is not None:
+                if Path(self.plik_drabin).exists():
+                    d = json.loads(Path(self.plik_drabin).read_text())
+                    nauczone |= {tuple(int(v) for v in e[:3]) for e in (d.get("drabiny", []) if isinstance(d, dict) else d)}
+                tmp = Path(str(self.plik_drabin) + ".tmp")
+                tmp.write_text(json.dumps(
+                    {"_opis": "pola drabin (x, y, piętro) nauczone przy wyjściu w górę (lądowanie x, y+1, piętro-1); loot ich nie klika (LOOT_BEZ_DRABIN)",
+                     "drabiny": [list(p) for p in sorted(nauczone)]}, indent=1))
+                os.replace(tmp, self.plik_drabin)
+        except Exception as e:
+            self.log(f"Wpadnięcie: nie zapisałem {self.plik_drabin} ({e!r})")
+        self.log(f"Wpadnięcie: nauczona drabina {pole[:2]} na z{pole[2]} (loot jej nie klika).")
         return True
 
     def lista(self, z, start=None, cel=None, margines=30):
@@ -306,6 +362,8 @@ class Wpadniecie:
                     nauczona = self.ucz((p[0], p[1], z0))
             else:
                 nauczona = self.ucz((p[0], p[1], z0))
+        if z1 == z0 - 1 and self._k("LOOT_BEZ_DRABIN", 0):
+            self.ucz_drabine((p[0], p[1] - 1, z0))      # drabina: lądowanie (R.x, R.y+1, z-1)
         w_trasie = self._trasa_osiagalna(p)
         self._tele("wpadniecie", z_od=z0, z_do=z1, poz_od=list(p0), poz_do=list(p), nauczona=nauczona,
                    w_trasie=w_trasie, n=self.wykryte, **extra)
@@ -360,13 +418,17 @@ class Wpadniecie:
         if st["alarm"]:
             cb.pauza(1.0, 2.0)
             return True
-        if teraz - st["od"] > float(self._k("PIETRA_MAX_S", 150.0)):
+        if teraz - st["od"] > float(self._k("PIETRA_MAX_S", 150.0)) and (not self._bez_stop() or self._stop_dozwolony(st, teraz)):
             return self._alarm(f"limit czasu {self._k('PIETRA_MAX_S', 150.0):.0f} s", p)
         if st["krok"] is not None:
             return self._krok(p, teraz)
         if teraz < st["nast"]:
             cb.pauza(0.2, 0.5)
             return True
+        if st.get("odsun"):
+            st["odsun"] = False
+            if self._odsun(p):
+                return True
         lina_prob = int(self._k("WPADNIECIE_LINA_PROB", 3))
         if self._k("WPADNIECIE_LINA", 1) and p[2] == st["z0"] + 1 and st["lina"] < lina_prob:
             return self._lina(p, teraz)
@@ -374,7 +436,79 @@ class Wpadniecie:
             r = self._plan(p, teraz)
             if r is not None:
                 return r
+        if self._bez_stop():
+            return self._cykl_koniec(p, teraz)
         return self._alarm("lina i plan po mapie nie działają", p)
+
+    # --- 21.10 WPADNIECIE_BEZ_STOP: cykle ponawiania zamiast ALARM + STOP ---
+
+    def _bez_stop(self):
+        """Pokrętło WPADNIECIE_BEZ_STOP (domyślnie 0 = bez zmian). Nie dotyczy kroku prowadzonego przez strażnika orbit (bez_alarmu)."""
+        return bool(int(self._k("WPADNIECIE_BEZ_STOP", 0))) and not self.bez_alarmu
+
+    def _stop_dozwolony(self, st, teraz):
+        """STOP + critical wolno dopiero po PIETRA_MAX_S i >= BEZ_STOP_CYKLE_MIN pełnych cyklach; bezpiecznik BEZ_STOP_TWARDY_S."""
+        czas = teraz - st["od"]
+        if czas > BEZ_STOP_TWARDY_S:
+            return True
+        return czas > float(self._k("PIETRA_MAX_S", 150.0)) and st.get("cykle", 0) >= BEZ_STOP_CYKLE_MIN
+
+    def _cykl_koniec(self, p, teraz):
+        """Wyczerpani kandydaci (liny i planu): cykl +1. Jeszcze nie wolno STOP: czyścimy `zle`, odliczamy lina od zera, czekamy 10-20 s
+        (st['nast'], walka i ucieczka działają wcześniej w ticku), po czekaniu schodzimy z pola, które zawiodło (`_odsun`) i ponawiamy."""
+        cb = self.cb
+        st = self.st
+        st["cykle"] = st.get("cykle", 0) + 1
+        n = st["cykle"]
+        czas = teraz - st["od"]
+        koniec = self._stop_dozwolony(st, teraz)
+        czekaj = 0.0 if koniec else random.uniform(*BEZ_STOP_CZEKAJ_S)
+        zle = len(st["zle"])
+        if koniec:
+            self.log(f"Wpadnięcie: cykl {n} bez wyjścia z {tuple(p)} po {czas:.0f} s, budżet i {BEZ_STOP_CYKLE_MIN} cykle wyczerpane.")
+        else:
+            self.log(f"Wpadnięcie: cykl {n} bez wyjścia z {tuple(p)} po {czas:.0f} s ({zle} złych przejść wyczyszczone), "
+                     f"ponawiam za {czekaj:.0f} s (STOP dopiero po {float(self._k('PIETRA_MAX_S', 150.0)):.0f} s i {BEZ_STOP_CYKLE_MIN} cyklach).")
+        self._tele("wpadniecie_cykl", cykl=n, poz=list(p), z0=st["z0"], czas_s=round(czas, 1), zle=zle, czekaj_s=round(czekaj, 1))
+        if koniec:
+            return self._alarm(f"lina i plan po mapie nie działają (po {n} cyklach, {czas:.0f} s)", p)
+        st["zle"] = set()
+        st.update(brak_planu=0, lina=0, dojscie=0, krok=None, nast=cb.zegar() + czekaj, odsun=True)
+        if cb.pietra is not None:
+            cb.pietra.st = None
+        cb.pauza(0.2, 0.5)
+        return True
+
+    def _odsun(self, p):
+        """Postać stoi na polu przejścia, które już zawiodło: jeden krok na sąsiednie chodliwe pole (nie dziura, nie inne przejście),
+        żeby następna próba była prawdziwym wejściem na pole. True = krok zrobiony (obieg zużyty)."""
+        cb = self.cb
+        st = self.st
+        if not any(T[:2] == p[:2] and T[2] == p[2] for T in st.get("zawiodlo", ())):
+            return False
+        przejscia = {tuple(t["T"][:2]) for t in self._wczytaj_przejscia() if t["T"][2] == p[2]}
+        sas = [(p[0] + dx, p[1] + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy]
+        random.shuffle(sas)
+        sas.sort(key=lambda c: c[0] != p[0] and c[1] != p[1])           # najpierw w osiach
+        for c in sas:
+            f = self._flaga_mapy(c[0], c[1], p[2])
+            if f is None or not f & 1 or f & (2 | 4) or (c[0], c[1], p[2]) in self.dziury or c in przejscia \
+                    or (c[0], c[1], p[2]) in getattr(self, "drabiny", ()):
+                continue
+            try:
+                ruszyl = cb.krok_do(c)
+            except bot.Zatrzymano:
+                raise
+            except Exception as e:
+                self.log(f"Wpadnięcie: krok z pola przejścia nie wyszedł ({e!r})")
+                return False
+            if ruszyl:
+                self.log(f"Wpadnięcie: schodzę z pola przejścia {p[:2]} na {c}, żeby wejść na nie od nowa.")
+                self._tele("wpadniecie_odsun", poz=list(p), na=list(c))
+                st["nast"] = cb.zegar() + 1.0
+                return True
+        self.log(f"Wpadnięcie: nie mam gdzie zejść z pola przejścia {p[:2]}, próbuję stąd.")
+        return False
 
     # --- (a) lina ---
 
@@ -588,6 +722,7 @@ class Wpadniecie:
         cb = self.cb
         cel_z = self.st["z0"]
         dane = self._wczytaj_przejscia()
+        zaw = self.st.get("zawiodlo") if self._bez_stop() else None
         licznik = 0
         kopiec = [(0, licznik, p, [])]
         odw = set()
@@ -602,8 +737,17 @@ class Wpadniecie:
             rozwiniete += 1
             kand = [t for t in dane if t["T"][2] == poz[2]] + self._z_mapy_w_gore(poz)
             kand = [t for t in kand if t["T"] not in zle and _cheb(t["T"], poz) <= 80]
+            if zaw:
+                # 21.10 (WPADNIECIE_BEZ_STOP): przejście, które już zawiodło, nie jest kandydatem, gdy stoimy na jego polu (krok „na siebie”)
+                kand = [t for t in kand if not (t["T"] in zaw and t["T"][:2] == poz[:2])]
             kand.sort(key=lambda t: (_cheb(t["T"], poz), not t["pewne"]))
-            for t in kand[:PLAN_MAX_KAND]:
+            if self._k("WPADNIECIE_PLAN_PULE", 0):
+                # 21.10 (F2): w mieście niepewne przejścia w górę z mapy (dachy) zajmowały wszystkie miejsca, a pewne
+                # schody/kratki dalej niż ~11 pól nie były liczone; teraz każda pula ma własne PLAN_MAX_KAND miejsc
+                kand = [t for t in kand if t["pewne"]][:PLAN_MAX_KAND] + [t for t in kand if not t["pewne"]][:PLAN_MAX_KAND]
+            else:
+                kand = kand[:PLAN_MAX_KAND]
+            for t in kand:
                 try:
                     d = [] if _cheb(t["T"], poz) <= 1 else cb.droga(poz, (t["T"][0], t["T"][1]), dlugosc=1)
                 except Exception:
@@ -685,6 +829,8 @@ class Wpadniecie:
     def _krok_porazka(self, k, p, powod):
         st = self.st
         st["zle"].add(k["T"])
+        if self._bez_stop():
+            st.setdefault("zawiodlo", set()).add(k["T"])     # pamięć między cyklami (st['zle'] jest czyszczone)
         st["krok"] = None
         if self.cb.pietra is not None:
             self.cb.pietra.st = None
