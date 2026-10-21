@@ -29,9 +29,15 @@ def edron(poziom, **kw):
 TAB = SP.wczytaj()
 # Testy sprawdzają logikę wyboru, nie bieżące decyzje Karola o włączeniu spotów: gobliny Edronu (21.10 18:10 wyłączone
 # w tabeli, „za mało defa”) są tu włączone, żeby filtry miasta/poziomu/jaskini/mieszania miały z czego wybierać.
+TAB.zakladane = set()       # tabela Karola zakłada łopatę u wszystkich (21.10 18:20); logika filtra ekwipunku testowana bez założeń
 for _m in ("gobliny_edron", "gobliny_edron_z9"):
     if _m in TAB.spoty:
         TAB.spoty[_m].auto = True
+
+
+def test_zakladany_ekwipunek_z_tabeli():
+    t = SP.wczytaj()
+    assert "lopata" in t.zakladane, t.zakladane
 
 
 # ---------------------------------------------------------------- tabela

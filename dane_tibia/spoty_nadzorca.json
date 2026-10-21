@@ -1,5 +1,7 @@
 {
  "_opis": "Tabela spotów dla nadzorcy (SPEC_wybor_spotu_1021.md). Nakładka na mapy.json: tu tylko to, czego mapy.json nie wie. Edytuje Karol. poziom = [min, max] postaci; poziom_zrodlo 'domyslne' = widełki wg potworów, nie z danych (po przeglądzie ustaw 'karol'); waga = względna szansa przy losowaniu; auto false = nadzorca nie wybiera (powod mówi dlaczego); jaskinia = spoty dzielące jaskinię (najwyżej jeden własny bot na jaskinię); wymaga_dodatkowo = lista przedmiotów oprócz liny i łopaty (te liczą się same z tras). miasta = prostokąty x/y (cała okolica miasta łącznie z jaskiniami).",
+ "zakladany_ekwipunek": ["lopata"],
+ "_zakladany_ekwipunek": "Karol 21.10 ~18:20: wszyscy mają łopaty (albo będą mieć); odczyt pamięci łopaty nie widział (kutangen 16:36 jej użył), więc nie blokuje spotów",
  "miasta": {
   "edron": {"x": [32900, 33400], "y": [31500, 32100]},
   "thais": {"x": [32200, 32700], "y": [32000, 32450]},

@@ -124,6 +124,7 @@ class Tabela:
         self.nieopisane = []                # mapy z mapy.json bez wpisu w spoty_nadzorca.json (wykluczone)
         self.osierocone = []                # wpisy w spoty_nadzorca.json bez mapy w mapy.json
         self.blad = None
+        self.zakladane = set()              # przedmioty, które ma każda postać (Karol): bez sprawdzania odczytu
 
     def jaskinia_mapy(self, mapa):
         s = self.spoty.get(mapa)
@@ -138,6 +139,7 @@ def wczytaj(korzen=None, plik=None, liny_znane=None, zasypane=None):
     try:
         dane = json.loads(plik.read_text(encoding="utf-8"))
         t.miasta = {k: v for k, v in dane["miasta"].items() if not k.startswith("_")}
+        t.zakladane = {str(x) for x in dane.get("zakladany_ekwipunek", []) if isinstance(x, str)}
         wpisy = {k: v for k, v in dane["spoty"].items() if not k.startswith("_")}
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
         t.blad = f"brak albo uszkodzony {plik.name}: {e!r}"
@@ -286,7 +288,7 @@ def wybierz(postac, zajete=(), historia=(), tabela=None, ziarno=None, korzen=Non
     pewne, niepewne = [], []
     for s in kand:
         brakuje, nieznane = [], []
-        for przedmiot in sorted(s.wymaga):
+        for przedmiot in sorted(s.wymaga - t.zakladane):
             v = eq().get(przedmiot)
             if v is False:
                 brakuje.append(przedmiot)
