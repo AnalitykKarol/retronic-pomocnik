@@ -1,0 +1,19 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "depo Thais (start depo_troll_cave), wygenerowane z mapy 21.10"
+  },
+  {
+   "idx": 145,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "zejście z7 (32347, 32123) do jaskini Thais północ (flaga 2, bez z6 nad nim); (32347,32123) = zasypana dziura, ŁOPATA (pietra.ZASYPANE, sprawdzone 21.10)"
+  },
+  {
+   "idx": 146,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z8 (32347, 32123); dalej po z8 do pętli drogą omijającą strefę poison spiderów"
+  }
+ ]
+}

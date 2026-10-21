@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Rookgaard, drugi spot szczurów: dwa piętra (z9 i z10) pod środkiem miasta, z mapy klienta i spawnów CipSoft 7.4 (20.10).
-Metoda jak generuj_trasy_rook.py (jego funkcje: składowa, przystanki, pętla, obraz); nic nie wysyła do gry:
+Metoda jak generuj_trasy_rook.py (jego funkcje, od 21.10 w spot_lib.py: składowa, przystanki, pętla, obraz); nic nie wysyła do gry:
 
   python3 -I generuj_trasy_rook_raty2.py [--zapisz]        bez --zapisz tylko liczy i drukuje podsumowanie
 
@@ -27,9 +27,11 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-import generuj_trasy_rook as g  # noqa: E402
 import mapa as _mapa  # noqa: E402
+import spot_lib  # noqa: E402
 import trasa_io  # noqa: E402
+# Klocki mieszkają w spot_lib.py (F0, 21.10); stare nazwy dalej tu, bo importują je inne skrypty (`import generuj_trasy_rook_raty2 as r2`).
+from spot_lib import chodliwe, ladowanie, przed_przejsciem, petla, przystanki, skladowa  # noqa: E402,F401
 
 S7 = (32061, 32180, 7)            # okolica depo w mieście, jak w rook_raty_z8_dojscie
 T7 = (32027, 32197, 7)            # schody w depo: z7 -> z8
@@ -38,52 +40,8 @@ T9 = (32038, 32212, 9)            # z9 -> z10 (środek jaskini szczurów)
 POTWORY = ("rat", "cave rat")
 
 
-def chodliwe(m, p):
-    f = m.flagi(p[0], p[1], p[2])
-    return bool(f & _mapa.WIDZIANE and not f & (_mapa.SCIANA | _mapa.BEZ_DROGI))
-
-
-def ladowanie(m, T, comp=None):
-    """Pole lądowania na piętrze T[2]+1: chodliwe, najbliższe (T.x, T.y) potem (T.x, T.y+1); gdy `comp` podano, tylko z niej."""
-    z = T[2] + 1
-    kand = []
-    for dx in (-1, 0, 1):
-        for dy in (-1, 0, 1):
-            x, y = T[0] + dx, T[1] + dy
-            if chodliwe(m, (x, y, z)) and (comp is None or (x, y) in comp):
-                kand.append((x, y))
-    if not kand:
-        raise SystemExit(f"brak pola lądowania pod przejściem {T}")
-    x, y = min(kand, key=lambda c: ((c[0] - T[0], c[1] - T[1]) != (0, 0), (c[0] - T[0], c[1] - T[1]) != (0, 1),
-                                    max(abs(c[0] - T[0]), abs(c[1] - T[1])), c))
-    return (x, y, z)
-
-
-def przed_przejsciem(m, start, T, ściana=()):
-    """(pole obok T, droga A* ze `start` (bez startu, z polem obok)) - najkrótsza po sąsiadach T na piętrze T[2]."""
-    zle = {(p[0], p[1]) for p in ściana if p[2] == T[2]}
-    best = None
-    for dx in (-1, 0, 1):
-        for dy in (-1, 0, 1):
-            c = (T[0] + dx, T[1] + dy)
-            if (dx or dy) and chodliwe(m, (c[0], c[1], T[2])) and c not in zle:
-                if (c[0], c[1]) == (start[0], start[1]):
-                    d = []
-                else:
-                    d = m.droga(start, c, dlugosc=0, limit=400000)
-                    if d is None:
-                        continue
-                    d = [(p[0], p[1]) for p in d]
-                if best is None or len(d) < len(best[1]):
-                    best = (c, d)
-    if best is None:
-        raise SystemExit(f"brak drogi {start} -> sąsiad przejścia {T}")
-    return best
-
-
 def spawny(z):
-    dane = json.loads(g.SPAWNY.read_text())["potwory"]
-    return [s for mo in dane if mo["nazwa"] in POTWORY for s in mo.get("spawny", []) if s["z"] == z]
+    return spot_lib.spawny(z, POTWORY)
 
 
 def zbuduj():
@@ -101,7 +59,7 @@ def zbuduj():
         for dy in (-1, 0, 1):
             c = (T7[0] + dx, T7[1] + dy, 8)
             if chodliwe(m, c):
-                comp8 = g.skladowa(m, c, sciana(8))
+                comp8 = skladowa(m, c, sciana(8))
                 if (T8[0], T8[1]) in comp8:
                     L8 = ladowanie(m, T7, comp8)
     if L8 is None:
@@ -111,11 +69,11 @@ def zbuduj():
     L9 = (T8[0], T8[1], 9)
     if not chodliwe(m, L9):
         raise SystemExit(f"lądowanie {L9} niechodliwe")
-    comp9 = g.skladowa(m, L9, sciana(9))
+    comp9 = skladowa(m, L9, sciana(9))
     # --- z9 -> z10 ---
     przed9, d9 = przed_przejsciem(m, L9, T9, sciana(9))
     L10 = ladowanie(m, T9)
-    comp10 = g.skladowa(m, L10, sciana(10))
+    comp10 = skladowa(m, L10, sciana(10))
     L10 = ladowanie(m, T9, comp10)
 
     doj9 = [S7] + [(x, y, 7) for x, y in d7] + [T7, L8]
@@ -132,8 +90,8 @@ def zbuduj():
 
     wyniki = {}
     for nazwa, z, comp, start, doj, meta in (("rook_raty_z9", 9, comp9, L9, doj9, meta9), ("rook_raty_z10", 10, comp10, L10, doj10, meta10)):
-        st = g.przystanki(spawny(z), comp)
-        order, nodes, pelna = g.petla(m, z, start[:2], st, sciana(z))
+        st = przystanki(spawny(z), comp)
+        order, nodes, pelna = petla(m, z, start[:2], st, sciana(z))
         szcz = sum(t["n"] for t in st)
         print(f"{nazwa}: składowa {len(comp)} pól, przystanków {len(st)}, potworów {szcz}, pętla {len(pelna)} pól, dojście {len(doj)} pkt, kolejność {order}")
         wyniki[nazwa] = (z, comp, st, order, nodes, pelna, doj, meta)
@@ -150,14 +108,7 @@ def main(argv=None):
         return
     tytuly = {"rook_raty_z9": "szczury z9", "rook_raty_z10": "szczury i jaskiniowe z10"}
     for nazwa, (z, comp, st, order, nodes, pelna, doj, meta) in wyniki.items():
-        trasa_io.zapisz(f"{nazwa}_petla", [(x, y, z) for x, y in pelna])
-        g.obraz(m, z, pelna, order, nodes, st, g.OBRAZY / f"{nazwa}.png", tytuly[nazwa])
-        (g.OBRAZY / f"{nazwa}.json").write_text(json.dumps({
-            "start": [*nodes[0], z], "dlugosc_petli": len(pelna),
-            "przystanki": [{"kolejnosc": k, "x": nodes[o][0], "y": nodes[o][1], "z": z,
-                            **({} if o == 0 else {"potworow": st[o - 1]["n"], "spawnow": st[o - 1]["spawny"]})}
-                           for k, o in enumerate(order)]}, ensure_ascii=False, indent=1))
-        trasa_io.zapisz(f"{nazwa}_dojscie", doj, meta)
+        spot_lib.zapis_spotu(m, nazwa, z, pelna, order, nodes, st, tytuly[nazwa], doj=doj, meta=meta)
     print("zapisano trasy/ i dane_tibia/mapy/ (wpisy mapy.json dodaj osobno)")
 
 

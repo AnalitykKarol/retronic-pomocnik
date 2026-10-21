@@ -3,6 +3,9 @@
 Cel: nie rysować tras ręcznie. Z mapy klienta (`../../mapa/map74.otmm`, moduł `../../mapa.py`) i danych spawnów powstaje
 obraz, trasa dojścia i pętla patrolowa po spawnach. Specyfikacja: `../SPEC_mapa_trasy_1017.md`.
 
+**Nowy spot od zera do bota na żywo (AI, 21.10): `PROCEDURA_nowy_spot.md` i skill `nowy-spot` (`../../skille/nowy-spot/`).**
+Narzędzia: `../../narzedzia/spoty_skladowe.py` (ranking spotów po składowych), `../../narzedzia/przejscia_pieter.py` (kierunek przejść).
+
 ## Co tu jest
 
 | Plik | Co to |
@@ -30,6 +33,8 @@ nie uruchomi się sam bez kroku 2 poniżej (przykładowy wynik jest obok: `sklad
 - **Przejścia między piętrami.** Schody, dziury i liny mają w mapie flagę 2 (`BEZ_DROGI`), ale nie mówi ona, dokąd prowadzą.
   Znamy tylko przejścia nauczone z nagranych tras (`trasy/*.meta`, `dziury_nauczone.json`).
 - **Żółta kropka (kolor 210) to każda zmiana piętra: schody, lina, dziura albo drabina.** Minimapa nie mówi, które to. Typ rozstrzyga nagranie przejścia (`nagraj.sh`) albo log wypadu. 17.10 w jaskini goblinów Edron cztery liny i jedna drabina (z8 -> z7 przy (33165,31827)) wyglądają w mapie tak samo.
+- **Zejście czy wejście (21.10, Thais północ):** żółte pole z flagą 2 na z7 nad jaskinią może prowadzić W GÓRĘ. Sprawdź piętro wyżej: chodliwe pole w 3x3 na z-1 = schody w górę (kutangen z (32345,32146,z7) wszedł na z6). Zejście = flaga 2 bez niczego chodliwego nad nim i z chodliwym polem obok na z+1 (tam kolor 24, nie 210). Wzór: `generuj_trasy_thais_pn.zejscia_z7`.
+- **Zasypana dziura = łopata (21.10, Thais północ (32347,32123,z7)):** jeśli postać STOI na polu zejścia i nie spada, a „use” nic nie daje, to zasypana dziura. Dopisz pole do `pietra.ZASYPANE` (bez tego bot nie próbuje łopaty) i daj postaci shovel; bot zejdzie z pola, odkopie, wejdzie krokiem. Znane: (32493,32259,7) wschodnia jaskinia trolli Thais, (32347,32123,7) Thais północ. Mapa klienta tego nie odróżnia od zwykłej dziury.
 - **Lina.** Używasz jej na polu z8 (x, y), a lądujesz na z7 o jedno pole na południe, czyli (x, y+1).
   Przykład Edron (sprawdzone w grze 17.10 23:15, nagranie `dane_tibia/nagrania/gobliny_edron_lina_potw.json`): lina na (33107, 31847, z8), używana ze stania (33107, 31846, z8), lądowanie (33107, 31848, z7); otwór na z7 to (33107, 31847, z7), zejście ląduje w (33107, 31847, z8). Wskazówka z mapy: żółte pole (kolor 210) na z8 pod żółtym otworem na z7 = pole liny; pole lądowania nie ma flagi 2. Bot zna linę (`wypad.zbuduj_etapy`: stoi obok R = (lądowanie.x, lądowanie.y-1)).
 - **Mapa to tylko widziane pola.** Pola nigdy niewidziane są traktowane jak ściana. Plik klienta (`AppData/.../map74.otmm`) zapisuje się przy zamknięciu klienta

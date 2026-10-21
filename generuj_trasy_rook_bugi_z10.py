@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Rookgaard, jaskinia bugów z10 (165 pól, 11 bugów w 5 spawnach) pod środkiem miasta, z mapy klienta i spawnów CipSoft 7.4 (20.10).
-Metoda jak generuj_trasy_rook_raty2.py (jego funkcje); nic nie wysyła do gry:
+Metoda jak generuj_trasy_rook_raty2.py (jego funkcje, od 21.10 w spot_lib.py); nic nie wysyła do gry:
 
   python3 -I generuj_trasy_rook_bugi_z10.py [--zapisz]        bez --zapisz tylko liczy i drukuje podsumowanie
 
@@ -21,10 +21,10 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-import generuj_trasy_rook as g  # noqa: E402
-import generuj_trasy_rook_raty2 as r2  # noqa: E402
+import generuj_trasy_rook_raty2 as r2  # noqa: E402  tylko S7 (punkt startu dojścia ma jedno źródło)
 import mapa as _mapa  # noqa: E402
-import trasa_io  # noqa: E402
+import spot_lib  # noqa: E402
+from spot_lib import ladowanie, petla, przed_przejsciem, przystanki, skladowa  # noqa: E402
 
 S7 = r2.S7
 T7 = (32050, 32187, 7)
@@ -34,10 +34,7 @@ OBSZAR = (32030, 32070, 32185, 32210)  # x1, x2, y1, y2 (piętro 10)
 
 
 def spawny_bugow():
-    dane = json.loads(g.SPAWNY.read_text())["potwory"]
-    x1, x2, y1, y2 = OBSZAR
-    return [s for mo in dane if mo["nazwa"] == "bug" for s in mo.get("spawny", [])
-            if s["z"] == 10 and x1 <= s["x"] <= x2 and y1 <= s["y"] <= y2]
+    return spot_lib.spawny(10, ("bug",), OBSZAR)
 
 
 def zbuduj():
@@ -48,23 +45,23 @@ def zbuduj():
         if not m.flagi(*T) & _mapa.WIDZIANE:
             raise SystemExit(f"{T}: pole niewidziane w mapie")
     # z7 -> z8
-    przed7, d7 = r2.przed_przejsciem(m, S7, T7)
-    L8 = r2.ladowanie(m, T7)
-    comp8 = g.skladowa(m, L8, sciana(8))
+    przed7, d7 = przed_przejsciem(m, S7, T7)
+    L8 = ladowanie(m, T7)
+    comp8 = skladowa(m, L8, sciana(8))
     # z8 -> z9 (schody w kieszeni z8)
-    przed8, d8 = r2.przed_przejsciem(m, L8, T8, sciana(8))
-    L9 = r2.ladowanie(m, T8)
-    comp9 = g.skladowa(m, L9, sciana(9))
+    przed8, d8 = przed_przejsciem(m, L8, T8, sciana(8))
+    L9 = ladowanie(m, T8)
+    comp9 = skladowa(m, L9, sciana(9))
     if not any((T9[0] + dx, T9[1] + dy) in comp9 for dx in (-1, 0, 1) for dy in (-1, 0, 1)):   # pole schodów (flaga 2) nie wchodzi do składowej
         raise SystemExit(f"z9: przejście {T9} poza składową z lądowania {L9}")
     # z9 -> z10
-    przed9, d9 = r2.przed_przejsciem(m, L9, T9, sciana(9))
-    L10 = r2.ladowanie(m, T9)
-    comp10 = g.skladowa(m, L10, sciana(10))
-    st = g.przystanki(spawny_bugow(), comp10)
+    przed9, d9 = przed_przejsciem(m, L9, T9, sciana(9))
+    L10 = ladowanie(m, T9)
+    comp10 = skladowa(m, L10, sciana(10))
+    st = przystanki(spawny_bugow(), comp10)
     if not st:
         raise SystemExit("brak przystanków bugów w składowej z10")
-    order, nodes, pelna = g.petla(m, 10, L10[:2], st, sciana(10))
+    order, nodes, pelna = petla(m, 10, L10[:2], st, sciana(10))
     bugi = sum(t["n"] for t in st)
 
     doj = [S7] + [(x, y, 7) for x, y in d7] + [T7, L8]
@@ -89,14 +86,8 @@ def main(argv=None):
     if not a.zapisz:
         print("(bez --zapisz: nic nie zapisano)")
         return
-    trasa_io.zapisz("rook_bugi_z10_petla", [(x, y, 10) for x, y in pelna])
-    g.obraz(m, 10, pelna, order, nodes, st, g.OBRAZY / "rook_bugi_z10.png", "Rook jaskinia bugow z10")
-    (g.OBRAZY / "rook_bugi_z10.json").write_text(json.dumps({
-        "start": [*nodes[0], 10], "dlugosc_petli": len(pelna), "potwory": ["bug"],
-        "przystanki": [{"kolejnosc": k, "x": nodes[o][0], "y": nodes[o][1], "z": 10,
-                        **({} if o == 0 else {"potworow": st[o - 1]["n"], "spawnow": st[o - 1]["spawny"]})}
-                       for k, o in enumerate(order)]}, ensure_ascii=False, indent=1))
-    trasa_io.zapisz("rook_bugi_z10_dojscie", doj, meta)
+    spot_lib.zapis_spotu(m, "rook_bugi_z10", 10, pelna, order, nodes, st, "Rook jaskinia bugow z10", ekstra={"potwory": ["bug"]},
+                         doj=doj, meta=meta)
     print("zapisano trasy/ i dane_tibia/mapy/ (wpis mapy.json dodaj osobno)")
 
 

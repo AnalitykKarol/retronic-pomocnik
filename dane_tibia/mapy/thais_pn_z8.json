@@ -1,0 +1,81 @@
+{
+ "start": [
+  32356,
+  32131,
+  8
+ ],
+ "dlugosc_petli": 334,
+ "strefa_poison_spider": 6,
+ "przystanki": [
+  {
+   "kolejnosc": 0,
+   "x": 32356,
+   "y": 32131,
+   "z": 8
+  },
+  {
+   "kolejnosc": 1,
+   "x": 32356,
+   "y": 32131,
+   "z": 8,
+   "potworow": 5,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 2,
+   "x": 32357,
+   "y": 32145,
+   "z": 8,
+   "potworow": 3,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 3,
+   "x": 32344,
+   "y": 32146,
+   "z": 8,
+   "potworow": 3,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 4,
+   "x": 32337,
+   "y": 32149,
+   "z": 8,
+   "potworow": 5,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 5,
+   "x": 32280,
+   "y": 32130,
+   "z": 8,
+   "potworow": 6,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 6,
+   "x": 32282,
+   "y": 32122,
+   "z": 8,
+   "potworow": 3,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 7,
+   "x": 32313,
+   "y": 32130,
+   "z": 8,
+   "potworow": 5,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 8,
+   "x": 32318,
+   "y": 32113,
+   "z": 8,
+   "potworow": 3,
+   "spawnow": 1
+  }
+ ]
+}

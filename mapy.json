@@ -1,11 +1,11 @@
 {
   "_opis": "Mapa = tylko miejsce i moby (gdzie i kogo bijemy). Zachowanie bota to osobny moduł: tryby.json. Mieszanie: MAPA=raty TRYB=sredni,runy ./uruchom.sh",
   "raty": {
-    "opis": "Thais, kanały: szczury (trasa thais_szczury_opt), start z z7 przechodzi dojście thais_dojscie",
+    "opis": "Thais, kanały: szczury (trasa thais_szczury_opt), start z z7 przechodzi dojście thais_dojscie_kratka (kratka (32370,32213); stare thais_dojscie przez świątynię prowadzi na z6, 21.10)",
     "trasa": "thais_szczury_opt",
     "potwory": "Rat",
     "prog_hp": 30,
-    "dojscie": "thais_dojscie"
+    "dojscie": "thais_dojscie_kratka"
   },
   "trolle": {
     "opis": "Troll cave z8+z9: pętla troll_cave (jak uruchom_trolle.sh), dojście z depo przy starcie z z7",
@@ -40,25 +40,27 @@
     "trasa": "edron_trolle_petla",
     "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
     "prog_hp": 30,
-    "dojscie": "edron_depo_trolle"
+    "dojscie": "edron_depo_trolle",
+    "dojscie_z_dowolnego_pietra": true
   },
   "trolle_edron_patrol": {
     "opis": "Edron troll cave z8: patrol po spawnach z trasy/miejsca_edron.json (wymaga TRYB_PATROL=1), trasa awaryjna pętla edron_trolle_petla, dojście z depo edron_depo_trolle",
     "trasa": "patrol:edron",
     "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
     "prog_hp": 30,
-    "dojscie": "edron_depo_trolle"
+    "dojscie": "edron_depo_trolle",
+    "dojscie_z_dowolnego_pietra": true
   },
   "rook": {
     "opis": "Rookgaard, kanały z11: patrol po miejscach z trasy/miejsca.json (trasa awaryjna kanaly2), szczury; bez dojścia: postać musi stać w kanałach",
     "trasa": "patrol",
-    "potwory": "Rat",
+    "potwory": "Rat,Cave Rat",
     "prog_hp": 30
   },
   "rook_raty_z8": {
     "opis": "Rookgaard, jaskinia szczurów z8 tuż pod miastem (872 pola, 34 szczury): pętla rook_raty_z8_petla z mapy klienta (20.10, generuj_trasy_rook.py). Dojście z miasta (z7) trasą rook_raty_z8_dojscie do wejścia (32046,32221,z7): wejście wywnioskowane z mapy, typ przejścia niezweryfikowany w grze; na z8 start na miejscu",
     "trasa": "rook_raty_z8_petla",
-    "potwory": "Rat",
+    "potwory": "Rat,Cave Rat",
     "prog_hp": 30,
     "dojscie": "rook_raty_z8_dojscie"
   },
@@ -72,21 +74,21 @@
   "rook_kanaly_z11": {
     "opis": "Rookgaard, kanały z11 (774 pola, ok. 35 szczurów): pętla rook_kanaly_z11_petla z mapy klienta (20.10). Dojście z depo w mieście (z7) trasą rook_kanaly_z11_dojscie = odwrócone nagranie do_miasta (przejścia z7-z8-z9-z10-z11 sprawdzone w grze); na z11 start na miejscu",
     "trasa": "rook_kanaly_z11_petla",
-    "potwory": "Rat",
+    "potwory": "Rat,Cave Rat",
     "prog_hp": 30,
     "dojscie": "rook_kanaly_z11_dojscie"
   },
   "rook_raty_z9": {
     "opis": "Rookgaard, jaskinia szczurów z9 (432 pola, 27 szczurów, pętla 283 pola): pętla rook_raty_z9_petla z mapy klienta (20.10, generuj_trasy_rook_raty2.py). Dojście z depo w mieście (z7): schody w depo (32027,32197), kieszeń z8, kratka (32029,32195,z8), trasą rook_raty_z9_dojscie; drogę wskazał Karol, bot jeszcze jej sam nie przeszedł; na z9 start na miejscu",
     "trasa": "rook_raty_z9_petla",
-    "potwory": "Rat",
+    "potwory": "Rat,Cave Rat",
     "prog_hp": 30,
     "dojscie": "rook_raty_z9_dojscie"
   },
   "rook_raty_z9_do_smierci": {
     "opis": "BEZ UCIECZKI (decyzja Karola 20.10, Bober lvl 1: walczy do śmierci): Rookgaard, jaskinia szczurów z9 (432 pola, 27 szczurów, pętla 283 pola): pętla rook_raty_z9_petla z mapy klienta (20.10, generuj_trasy_rook_raty2.py). Dojście z depo w mieście (z7): schody w depo (32027,32197), kieszeń z8, kratka (32029,32195,z8), trasą rook_raty_z9_dojscie; drogę wskazał Karol, bot jeszcze jej sam nie przeszedł; na z9 start na miejscu",
     "trasa": "rook_raty_z9_petla",
-    "potwory": "Rat",
+    "potwory": "Rat,Cave Rat",
     "prog_hp": -100,
     "dojscie": "rook_raty_z9_dojscie"
   },
@@ -108,7 +110,8 @@
     "trasa": "gobliny_edron_z8_petla",
     "potwory": "Goblin",
     "prog_hp": 30,
-    "dojscie": "gobliny_edron_z_depo"
+    "dojscie": "gobliny_edron_z_depo",
+    "dojscie_z_dowolnego_pietra": true
   },
   "stoj_trade": {
     "opis": "Stoi w miejscu i sprzedaje na Trade (jeden punkt, bez chodzenia)",
@@ -121,7 +124,8 @@
     "trasa": "gobliny_edron_z9_petla",
     "potwory": "Goblin",
     "prog_hp": 30,
-    "dojscie": "gobliny_edron_z9_dojscie"
+    "dojscie": "gobliny_edron_z9_dojscie",
+    "dojscie_z_dowolnego_pietra": true
   },
   "rook_bugi_z8": {
     "opis": "Rookgaard, jaskinia bugów z8 za pocztą (144 pola, 11 bugów w 5 spawnach, pętla 93 pola): pętla rook_bugi_z8_petla z mapy klienta (20.10, generuj_trasy_rook_bugi.py). Bez dojścia: postać wchodzi ręcznie schodami w dół z7 (32077,32151) lub (32056,32146) i bot startuje na miejscu; wejścia z mapy, niezweryfikowane botem",
@@ -137,11 +141,39 @@
     "dojscie": "rook_bugi_z10_dojscie",
     "dojscie_z_dowolnego_pietra": true
   },
+  "rook_cave_raty_z9_glab": {
+    "opis": "Rookgaard, głęboka część jaskini z9 (obszar x:32021-32086, y:32207-32249, 533 pola): 7 spawnów Cave Rat (21.10). Trasa BFS-owa przez spawny (201 pkt), wygenerowana z pozycji Bobera (32055,32223,9). Obszar oddzielony ścianą od rook_raty_z9_petla — inne wejście z z8 ok. (32022-32023,32207). Bez depo: bot walczy do śmierci (prog_hp=-100) bo wyjście z tego obszaru przez drabinę niezapisane.",
+    "trasa": "rook_cave_raty_z9_glab_petla",
+    "potwory": "Cave Rat,Rat",
+    "prog_hp": -100,
+    "dojscie": "rook_raty_z9_dojscie"
+  },
   "rook_raty_z8_do_smierci": {
     "opis": "BEZ UCIECZKI (decyzja Karola 20.10, Bober lvl 1: walczy do śmierci), jaskinia szczurów z8 tuż pod miastem - Bober stoi już w tej jaskini (872 pola, 34 szczury); Rookgaard, jaskinia szczurów z8 tuż pod miastem (872 pola, 34 szczury): pętla rook_raty_z8_petla z mapy klienta (20.10, generuj_trasy_rook.py). Dojście z miasta (z7) trasą rook_raty_z8_dojscie do wejścia (32046,32221,z7): wejście wywnioskowane z mapy, typ przejścia niezweryfikowany w grze; na z8 start na miejscu",
     "trasa": "rook_raty_z8_petla",
-    "potwory": "Rat",
+    "potwory": "Rat,Cave Rat",
     "prog_hp": -100,
     "dojscie": "rook_raty_z8_dojscie"
+  },
+  "trolle_edron_z9w": {
+    "opis": "Edron troll cave, wschodnia jaskinia z9 (309 pól, 15 trolli w 5 spawnach, pętla 129 pól): trolle_edron_z9w_petla z mapy klienta (generuj_trasy_edron_wschod.py). Dojście trolle_edron_z9w_dojscie = edron_depo_trolle + z8 do SCHODÓW (33119,31740) (kolor 210) i zejście na z9; z8 omija znany ogień z buforem 1. 21.10 17:14 NIE (33115,31744): to OGIEŃ, nie zejście (invincible HP 91% → 58%). Sprawdzone na żywo 21.10 17:24–17:28 (Kolanosh lvl 8): depo → z9 krokiem po schodach (33119,31740), pierwszy troll 17:27:58; po drodze 2 przejścia liną (z11→z10, z9→z8), więc postać MUSI mieć rope",
+    "trasa": "trolle_edron_z9w_petla",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "trolle_edron_z9w_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "thais_pn_z8": {
+    "opis": "Thais północ, jaskinia trolli z8 (1000 pól, ok. 107 pól na N od świątyni): pętla thais_pn_z8_petla z mapy klienta (21.10, generuj_trasy_thais_pn.py), 8 przystanków, 33 potwory (trolle, szczury, cave raty, pająki, bugi). Omija poison spidery (strefa 6 pól wokół (32326,32155)) i zejścia do cyklopów na z9. Dojście thais_pn_z8_dojscie z depo Thais (z7) przez zejście (32347,32123,z7) = ZASYPANA DZIURA, trzeba ŁOPATY w plecaku (pietra.ZASYPANE, przeszło 21.10 16:36), dalej po z8 do pętli >= 23 pola od poison spiderów; żółte pola nad jaskinią (np. 32345,32146) to schody W GÓRĘ na z6. Start postaci na z7 w Thais, zawsze z RETRONIC_POSTAC",
+    "trasa": "thais_pn_z8_petla",
+    "potwory": "Troll,Rat,Cave Rat,Spider,Bug",
+    "prog_hp": 30,
+    "dojscie": "thais_pn_z8_dojscie"
+  },
+  "thais_pn_z9": {
+    "opis": "Thais północ, jaskinia trolli z9 (257 pól, 16 trolli w 5 spawnach, pętla 109 pól): thais_pn_z9_petla z mapy klienta (21.10, generuj_trasy_thais_pn.py). Poison spidery z9 (32352,32122) za ścianą, poza składową. BEZ DOJŚCIA (zejście z z8 nieznane z mapy): postać musi stać na z9 w jaskini",
+    "trasa": "thais_pn_z9_petla",
+    "potwory": "Troll",
+    "prog_hp": 30
   }
 }

@@ -1,0 +1,40 @@
+{
+ "start": [
+  33127,
+  31726,
+  10
+ ],
+ "dlugosc_petli": 35,
+ "przystanki": [
+  {
+   "kolejnosc": 0,
+   "x": 33127,
+   "y": 31726,
+   "z": 10
+  },
+  {
+   "kolejnosc": 1,
+   "x": 33129,
+   "y": 31727,
+   "z": 10,
+   "potworow": 4,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 2,
+   "x": 33132,
+   "y": 31721,
+   "z": 10,
+   "potworow": 6,
+   "spawnow": 2
+  },
+  {
+   "kolejnosc": 3,
+   "x": 33137,
+   "y": 31721,
+   "z": 10,
+   "potworow": 3,
+   "spawnow": 2
+  }
+ ]
+}
