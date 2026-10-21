@@ -55,7 +55,10 @@ BAZY = ("troll", "thais_kanaly")       # plany wypadu (wypad.PLANY) kończące s
 # BAZY ich nie zawiera). "do" = z łowiska do depo, "z" = z depo na łowisko (oba nagrane, edron_*.json)
 PLANY_PK = (
     {"nazwa": "edron", "do": "edron_do_depo.json", "z": "edron_depo_trolle.json", "npc": None, "prefix": False,
-     "wyjscia": (((33092, 31837, 9), (33092, 31838, 8), "gobliny_edron_do_depo.json"),)},      # 19.10: _baza_dojscie wybiera "edron" także z goblinów z9
+     "wyjscia": (((33092, 31837, 9), (33092, 31838, 8), "gobliny_edron_do_depo.json"),      # 19.10: _baza_dojscie wybiera "edron" także z goblinów z9
+                 # 21.10: wschodnia jaskinia trolli z9 (trolle_edron_z9w): lina w dziurze, którą dojście schodzi z z8,
+                 # stoimy obok (pole liny wolne); bez tego wpisu powrót = "brak drogi" i utknięcie (Kolanosh 20:14)
+                 ((33119, 31740, 9), (33119, 31741, 8), "trolle_edron_z9w_do_depo.json", ((33119, 31739, 9),)))},
     # 17.10: jaskinia goblinów Edron z8 (trasy wygenerowane z mapy klienta; lina na (33107,31847,z8), stanie (33107,31846,z8), lądowanie (33107,31848,z7): sprawdzone w grze 17.10 23:15)
     # 19.10: pętla goblinów jest cała na z9 (bez przejścia pięter), więc "wyjscia" = [pole liny na z9, lądowanie na z8]:
     # lina w górę pod dziurą z8 (33092,31837) (mapa: "pewne"); z8 dalej A* do nagranej trasy "do" (start (33106,31849,z8))

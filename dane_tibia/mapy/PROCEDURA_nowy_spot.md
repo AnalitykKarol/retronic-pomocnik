@@ -76,6 +76,10 @@ Co generator musi zrobić:
 
 Obejrzyj PNG (Read). Pętla nie może wchodzić w fiolet, start przy spawnach celu, przystanki = spawny.
 Kontrola ognia: żaden nowy punkt pętli/dojścia na polu z `trasy/ogien_stale.json`/`ogien_epizody.json` ani obok.
+**Powrót do depo z pętli (21.10, Kolanosh z9w 20:14 utknął):** spot na innym piętrze niż pętla planu powrotu (np. pod z8
+Edron) potrzebuje wpisu w `wyprawa.PLANY_PK[...]["wyjscia"]` (pole liny, lądowanie, trasa dalej, pole stania obok) i testu
+`droga_do_depo` z każdego punktu pętli do depo. Bez tego `wroc.sh`/wyprawa = „depo: brak drogi” i STOP. Wzór:
+`generuj_powrot_edron_z9w.py`, `testy/test_powrot_edron_z9w.py`.
 
 ## 5. Wpis w `mapy.json`
 
@@ -153,6 +157,7 @@ zejścia, wymagania: łopata/lina), `trasa`, `potwory` (nazwy dokładne, casefol
 | 3 | poprawka | schody (33119,31740) kolor 210 + omijanie ognia `trasy/ogien_*.json` z buforem 1; 0 nowych punktów przy ogniu |
 | 6 | kolanoth bez liny | 17:09 STOP na z11→z10 (33133,31805) — przejście w górę liną w nagranym `edron_depo_trolle` |
 | 7 | kolanoth z liną, start z z9 | z11→z10 i z9→z8 liną (próba 2), dziura z7→z8, schody (33119,31740) krokiem 17:27:40, troll 17:27:58, 3 trolle w 30 s, HP 100% |
+| 8 | powrót do depo (20:13, żądanie ręczne) | **brak wyjścia z z9w w planie „edron”** → stanie w (33121,31756,z9), ALARM/STOP 20:14; poprawka: lina (33119,31740,z9) ze stania (33119,31739), trasa `trolle_edron_z9w_do_depo`, test 100/100; na żywo NIESPRAWDZONE |
 
 ## Przypadek: Edron troll cave z9 zachód, 21.10 (Karol wskazał spot z nagrania `edron_nowy_spot`)
 
