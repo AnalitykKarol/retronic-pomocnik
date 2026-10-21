@@ -301,3 +301,22 @@ flaga 2 w kolorze podłogi poza z7 = ogień/przeszkoda; omijać `trasy/ogien_*.j
 monitor dwufazowy. **Otwarte:** invincible zatrzymany na (33112,31747,z8) 144/205 HP (Karol: nie puszczać); F1 generatora
 (czeka na „tak”; przed nim odświeżyć bazę bramki F0 — edron_wschod zmieniony celowo); `thais_pn_z9` bez zejścia z z8;
 `test_trasy_rook` 17/19 i `_raty2` 30/31 czerwone od wcześniej (test vs `mapy.json` „potwory”). Bez commita.
+
+## 2026-10-21 18:20 — Edron jaskinia trolli z9 ZACHÓD (`trolle_edron_z9z`): trasy z mapy gotowe, test na żywo czeka na „puszczaj”
+
+Karol wskazał miejsce (nagranie 17.10 `trasy/edron_nowy_spot.json`, bot jej nigdy nie chodził); kroki 1, 3, 4, 5 skilla `nowy-spot`, **gra nietknięta**.
+- **Składowa (krok 1):** z9 (33077,31728), 871 pól (z ogniem jako ścianą 668), 39 potworów: **34 Troll + 5 Bear**, nic innego. OSOBNA od `trolle_edron`
+  (pętla na z8, składowa 1092 pola, 44 trolle) i od `trolle_edron_z9w` (z9 wschód, 313 pól, 15 trolli). Wejście TYLKO z z8 składowej `trolle_edron`:
+  schody 210 (33081,31742,z8) i (33071,31752,z8); nagranie schodziło z (33080,31742) i wracało liną z z9 (33081,31742). Z10 pod nią to małe kieszenie (58–133 pól), pominięte.
+- **Generator** `generuj_trasy_edron_z9z.py` (`--zapisz` zrobiony): `trolle_edron_z9z_petla` 343 pola, 7 przystanków, 30 potworów (z 39; 4+4 na ogniu
+  (33096,31707), (33097,31743), 9 w zaułku (33048,31728), (33050,31726) za ogniem). `trolle_edron_z9z_dojscie` 182 pkt = `edron_depo_trolle` (112) + 68 pól po z8 + schody
+  (33081,31742) + lądowanie (33081,31742,z9). Przejścia: z8→z7→z8→z9→z10→z11 krokiem/schodami, potem 4 razy LINA w górę (z11→z10, z10→z9, z9→z8, z8→z7), z7→z8 dziurą (33117,31775), po z8 do schodów, krok w dół na z9. **Wymaga liny** (`liny.py trasa`); pętla bez liny.
+- **Walidacja:** `waliduj_trase.py` pętla OK; dojście 1 błąd (#15 (33166,31816,z7)→(33166,31820,z7)) odziedziczony z nagranego `edron_depo_trolle` (ten sam błąd w oryginale);
+  `tryb.py --mapa trolle_edron_z9z --sucho` OK (MAPA_DOJSCIE niepuste, `DOJSCIE_WSZEDZIE=1`); ogień: 0 nowych punktów (pętla 343 + 70 nowych dojścia) na polu ognia ani w buforze 1.
+- **Wpisy:** `mapy.json` (kopia `.bak-20261021-z9z`, zmieniony tylko ten klucz), `dane_tibia/spoty_nadzorca.json` (jaskinia `edron_trolle_z9z`, poziom 8–30 karol, waga 1.0, auto true; kopia `.bak-20261021-z9z`).
+  `testy/test_spoty.py`: dopisano nowy spot do trzech list oczekiwanych w Edronie (kopia `.bak-20261021-z9z`); `test_spoty` 19/19, `test_nadzor` 45/45.
+- **Wykryte przy okazji:** (1) `trasy/ogien_epizody.json` ma od niedawna format słownika `{"pola": {"x,y,z": {...}}}`; `generuj_trasy_edron_wschod.ogien_pola()` go NIE czyta
+  (ładuje tylko `ogien_stale`: 1394 pola wobec 2137 z epizodami) → dojście/pętla `trolle_edron_z9w` i `edron_trolle_petla` mają 8–20 pól w buforze nowych epizodów
+  (m.in. z9w (33135,31739,z9) n=11). (2) `spot_lib.przed_przejsciem` omija ścianę tylko przy wyborze pola OBOK przejścia, nie na drodze A* — nowy generator ma własne `droga_z_omijaniem`. (3) Część epizodów to pojedyncze
+  (n=1) fałszywe alarmy (np. z7 przy depo, 15:00); `edron_depo_trolle` ma 1 punkt na takim polu (33171,31811,z7) — dojście chodzone od tygodni, nietykane.
+- **Otwarte:** typ zejścia (33081,31742) niezweryfikowany na żywo (nagranie: krok w dół, hole); test na żywo = krok 7 po „puszczaj”.

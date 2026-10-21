@@ -175,5 +175,13 @@
     "trasa": "thais_pn_z9_petla",
     "potwory": "Troll",
     "prog_hp": 30
+  },
+  "trolle_edron_z9z": {
+    "opis": "Edron jaskinia trolli z9 ZACHÓD (668 pól, 30 potworów w 7 spawnach: Troll + Bear, pętla 343 pola): trolle_edron_z9z_petla z mapy klienta (generuj_trasy_edron_z9z.py, 21.10), osobna składowa od trolle_edron (z8) i od trolle_edron_z9w (z9 wschód); wskazówka: nagranie edron_nowy_spot (17.10, bot jej nie chodził). Dojście trolle_edron_z9z_dojscie = edron_depo_trolle + z8 (70 pól po jaskini trolli z8, omija znany ogień z buforem 1) do zejścia (33081,31742,z8) (kolor 210; w nagraniu schodzi się krokiem, powrót liną z z9) i lądowanie (33081,31742,z9); typ zejścia NIEZWERYFIKOWANY na żywo. Pominięte: 2 spawny na ogniu (33096,31707), (33097,31743) i zachodni zaułek za ogniem (33048,31728), (33050,31726). Po drodze 4 przejścia liną (jak edron_depo_trolle), więc postać MUSI mieć rope",
+    "trasa": "trolle_edron_z9z_petla",
+    "potwory": "Troll,Bear",
+    "prog_hp": 30,
+    "dojscie": "trolle_edron_z9z_dojscie",
+    "dojscie_z_dowolnego_pietra": true
   }
 }

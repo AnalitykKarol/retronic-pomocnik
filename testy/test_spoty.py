@@ -100,10 +100,10 @@ def test_edron_tylko_edron_a_kolanosh_nie_dostaje_thais():
 
 def test_poziom_w_widelkach():
     r8 = SP.wybierz(edron(8), tabela=TAB, ziarno="p")
-    assert r8["mapa"] in ("trolle_edron_z9w", "gobliny_edron", "gobliny_edron_z9"), r8
+    assert r8["mapa"] in ("trolle_edron_z9w", "trolle_edron_z9z", "gobliny_edron", "gobliny_edron_z9"), r8
     assert ("trolle_edron", "poziom", "poziom 8 poza 10-30") in r8["odrzucone"]
     for seed in range(30):
-        assert SP.wybierz(edron(25), tabela=TAB, ziarno=f"p{seed}")["mapa"] in ("trolle_edron", "trolle_edron_patrol", "trolle_edron_z9w")   # gobliny 6-20 odpadają
+        assert SP.wybierz(edron(25), tabela=TAB, ziarno=f"p{seed}")["mapa"] in ("trolle_edron", "trolle_edron_patrol", "trolle_edron_z9w", "trolle_edron_z9z")   # gobliny 6-20 odpadają
     brak = SP.wybierz(edron(3), tabela=TAB)
     assert brak["mapa"] is None and brak["brak"] == "spot" and "poziom 3 poza" in brak["powod"], brak
     assert SP.wybierz(edron(60), tabela=TAB)["mapa"] is None
@@ -168,7 +168,7 @@ def test_mieszanie_druga_zmiana_inna():
     b = SP.wybierz(edron(12), historia=["trolle_edron"], tabela=TAB)
     assert b["mapa"] not in ("trolle_edron", "trolle_edron_patrol"), b
     # brak alternatywy: ten sam spot wolno (jedyny kandydat)
-    tylko = SP.wybierz(edron(12), zajete=["trolle_edron", "trolle_edron_z9w", "gobliny_edron_z9"], historia=["gobliny_edron"], tabela=TAB)
+    tylko = SP.wybierz(edron(12), zajete=["trolle_edron", "trolle_edron_z9w", "trolle_edron_z9z", "gobliny_edron_z9"], historia=["gobliny_edron"], tabela=TAB)
     assert tylko["mapa"] == "gobliny_edron", tylko
 
 

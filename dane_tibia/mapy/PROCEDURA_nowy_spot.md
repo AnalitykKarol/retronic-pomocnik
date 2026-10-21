@@ -154,6 +154,20 @@ zejścia, wymagania: łopata/lina), `trasa`, `potwory` (nazwy dokładne, casefol
 | 6 | kolanoth bez liny | 17:09 STOP na z11→z10 (33133,31805) — przejście w górę liną w nagranym `edron_depo_trolle` |
 | 7 | kolanoth z liną, start z z9 | z11→z10 i z9→z8 liną (próba 2), dziura z7→z8, schody (33119,31740) krokiem 17:27:40, troll 17:27:58, 3 trolle w 30 s, HP 100% |
 
+## Przypadek: Edron troll cave z9 zachód, 21.10 (Karol wskazał spot z nagrania `edron_nowy_spot`)
+
+| Krok | Co | Wynik |
+|---|---|---|
+| 1 | składowe Edron (obszar 33040,31690,33150,31790, z8–z10) | z9 (33077,31728): 871 pól, 34 Troll + 5 Bear, osobna od `trolle_edron` (z8) i `trolle_edron_z9w`; `bot:` tylko nagranie |
+| 2 | wejście | tylko z z8 składowej `trolle_edron`: schody 210 (33081,31742,z8) i (33071,31752,z8); dojście = `edron_depo_trolle` + 68 pól po z8 (też trolle) |
+| 3 | `generuj_trasy_edron_z9z.py` | pętla 343 pola, 7 przystanków, 30 potworów; 9 trolli za ogniem i 8 na polach ognia odpadło |
+| 5 | wpis `mapy.json` + `spoty_nadzorca.json` | jaskinia `edron_trolle_z9z`; testy `test_spoty` wymagają dopisania nowego spotu Edronu do list oczekiwanych |
+
+Reguły z tego przebiegu (krok 3): (a) **`trasy/ogien_epizody.json` ma format `{"pola": {"x,y,z": {...}}}`** — czytaj klucze słownika `pola` (starsza `ogien_pola()` z `generuj_trasy_edron_wschod.py` czyta tylko listy i zgubiłaby epizody);
+(b) droga A* dojścia musi dostać ogień w `zajete` (`m.droga(..., zajete=...)`): `spot_lib.przed_przejsciem` omija ścianę tylko przy wyborze pola obok przejścia, więc generator liczy dojście własnym `droga_z_omijaniem`;
+(c) spawn na polu ognia albo za nim (bufor 1 odcina korytarz) wypada z pętli — zapisz go w opisie mapy (ile potworów odpadło i dlaczego), nie przesuwaj ognia;
+(d) dojście przez składową innego spotu (tu: z8 `trolle_edron`) przechodzi przez jej potwory: ostrzeż w opisie, nie buduj obejścia, jeśli go nie ma.
+
 ## Czego jeszcze brakuje (następny krok, wymaga specu)
 
 - Jeden ogólny generator (`generuj_spot.py --miasto --obszar --cel --zakazane --start`) zamiast pliku na spot.
