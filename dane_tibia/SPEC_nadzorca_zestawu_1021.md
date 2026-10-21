@@ -14,7 +14,15 @@ nie logowały i nie wylogowywały, bo to będzie dziwne”; po ocenie: „raczej
 - Logowanie postaci: **ręcznie** w podglądzie. Skryptu brak. Klienty mają `autoReconnect: true` i zapisany login.
   Czy po starcie klienta wystarczy Enter na ekranie logowania i Enter na liście postaci: **niezmierzone**.
   21.10 07:27 (zrzut `grim`, kutangen i kolanoth): po starcie klient stoi na „Enter Game” z wypełnionym kontem i hasłem
-  („Remember password” zaznaczone), serwer Retronic 7.4, świat Danubia. Samo przejście Enter → lista → Enter: niezmierzone.
+  („Remember password” zaznaczone), serwer Retronic 7.4, świat Danubia.
+- **F0 pomiar logowania (21.10 07:34–07:36, kutangen, ekran 1175x910, XTEST na DISPLAY instancji):**
+  - sam Enter na ekranie „Enter Game”: **bez skutku** przez 12 s (formularz bez fokusu klawiatury);
+  - klik w „Login” (588,594) → „Character List” z jedną postacią (zaznaczona) po ≤ 2,2 s;
+  - klik w „Ok” (641,628) → w grze po 0,8 s (wykrycie: ikony paska klienta, piksele W-80,17 / W-50,17, jak w prototypie
+    wylogowania). Kutangen pojawił się w świątyni Rooka, HP pełne, lvl 7 (po zgonie 20.10). Razem ok. 3 s.
+  - Wniosek dla `zaloguj.sh`: kliki zamiast Enter; **zrzut i rozpoznanie ekranu tuż przed każdym klikiem** (07:33 Enter
+    wysłany do kolanotha, którego Karol zalogował minutę wcześniej, trafił do gry: „Sorry, not possible.”); współrzędne
+    zależą od rozmiaru sesji, więc przycisk szukać na zrzucie albo sprawdzać rozmiar przed klikiem.
 - Wylogowanie: tylko prototyp `narzedzia_jednorazowe/wyloguj_prototyp_1020.py` (Ctrl+L, po zniknięciu ikon paska klienta
   natychmiast `sesja_gry.py zamknij`, bo autoReconnect loguje z powrotem w < 60 s). `wyloguj.sh` to F2 specu
   `SPEC_powrot_rook_1020.md`, niezrobione.
