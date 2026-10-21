@@ -27,6 +27,11 @@ def edron(poziom, **kw):
 
 
 TAB = SP.wczytaj()
+# Testy sprawdzają logikę wyboru, nie bieżące decyzje Karola o włączeniu spotów: gobliny Edronu (21.10 18:10 wyłączone
+# w tabeli, „za mało defa”) są tu włączone, żeby filtry miasta/poziomu/jaskini/mieszania miały z czego wybierać.
+for _m in ("gobliny_edron", "gobliny_edron_z9"):
+    if _m in TAB.spoty:
+        TAB.spoty[_m].auto = True
 
 
 # ---------------------------------------------------------------- tabela
