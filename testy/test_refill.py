@@ -22,8 +22,10 @@ EDRON_DEPO, EDRON_ULICA, GOBLINY, THAIS, ROOK, DALEKO = (33173, 31796, 8), (3317
     (32366, 32215, 7), (32097, 32219, 7), (33300, 31800, 7)
 sprawdz("1a depo Edron: w mieście i w depo", panel.miasto_pozycji(EDRON_DEPO) == ("edron", True))
 sprawdz("1b ulica Edron: w mieście, nie w depo", panel.miasto_pozycji(EDRON_ULICA) == ("edron", False))
-sprawdz("1c spot goblinów, Thais, Rook, daleko od miasta: nie w mieście",
-        all(panel.miasto_pozycji(p) == (None, False) for p in (GOBLINY, THAIS, ROOK, DALEKO)))
+sprawdz("1c spot goblinów, Rook, daleko od miasta: nie w mieście",
+        all(panel.miasto_pozycji(p) == (None, False) for p in (GOBLINY, ROOK, DALEKO)))
+sprawdz("1c2 Thais (serwis_thais.json, 21.10 K3): ulica w mieście, depo w depo",
+        panel.miasto_pozycji(THAIS) == ("thais", False) and panel.miasto_pozycji((32348, 32225, 7)) == ("thais", True))
 sprawdz("1d brak pozycji = nie w mieście", panel.miasto_pozycji(None) == (None, False))
 sprawdz("1e plan depo: gobliny -> gobliny_edron, depo Edron -> edron", panel.plan_depo(GOBLINY) == "gobliny_edron"
         and panel.plan_depo(EDRON_DEPO) == "edron")

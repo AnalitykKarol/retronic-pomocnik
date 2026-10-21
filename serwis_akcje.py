@@ -25,6 +25,7 @@ ZASIEG_POTWORA = 4                          # potwór bliżej niż tyle pól na 
 BAG_ILE_RZEDOW = 5                          # okna plecaków rozciągamy do 5 rzędów (20 slotów)
 SASIEDZI_SKRZYNI = ((0, -1), (1, 0), (0, 1), (-1, 0))     # skrzynia depo Edron stoi na północ od pola stania (zmierzone)
 STRZALKA_LEWA = (-50, 1)                    # środek okna "Move Objects" -> strzałka suwaka w lewo (kalibracja 19.10)
+WAGA_HAM_OZ, WAGA_BLANK_OZ, WAGA_BAGU_OZ = 20.0, 1.2, 18.0   # oz; dane_tibia/przedmioty.json, bag z 20 blankami = 42 oz (Karol 21.10)
 LIMITY_CENY = {"ham": 12, "blank rune": 12, "backpack": 25}   # gp za sztukę; dwa razy więcej = oferta odrzucona
 ODP_OFERTA = re.compile(r"do you want to buy (?:(\d+) |an? )?(.+?) for (\d+) gold", re.I)
 ODP_PYTANIE_PLATINUM = re.compile(r"how many platinum", re.I)
@@ -265,6 +266,28 @@ class AkcjeZywe:
             return 1 if self.potrzeba_baga() else 0
         ids = {"ham": {ID_HAM}, "blank rune": {ID_BLANK}}[co]
         return max(0, docelowo - self.ilosc(ids))
+
+    def cap(self):
+        """Wolny udźwig postaci w oz (jak wyprawa._cap: wartość > 5000 to setne części oz). Brak odczytu = błąd, nie zgadujemy."""
+        cap = self._gracz().get("cap")
+        if cap is None:
+            raise SerwisBlad("start", "klient nie podaje capa postaci")
+        return float(cap) / 100.0 if cap > 5000 else float(cap)
+
+    def rezerwa_na_blanki(self, blanki):
+        """Ile oz capa musi zostać wolne po zakupie jedzenia, żeby zmieścić bag z `blanki` blankami: bag jeszcze niekupiony
+        (waży 18 oz) liczymy razem z blankami, bag już w plecaku (jego waga jest w capie) tylko same blanki."""
+        brak = self.brakuje("blank rune", blanki)
+        return (WAGA_BAGU_OZ if self.potrzeba_baga() else 0.0) + brak * WAGA_BLANK_OZ
+
+    def cel_ham(self, cel, rezerwa_oz):
+        """Docelowa liczba ham, tak by po zakupie zostało co najmniej `rezerwa_oz` wolnego capa (NPC i tak sprzedaje tylko tyle,
+        ile się mieści, a wtedy kolejny zakup, blanki, kończył się porażką: 21.10 invincible, 4 z 20 blanków)."""
+        ma = self.ilosc({ID_HAM})
+        wolne = self.cap() - rezerwa_oz
+        ile = max(0, min(cel - ma, int(wolne // WAGA_HAM_OZ)))
+        self.log(f"cap: wolne {self.cap():.1f} oz, rezerwa {rezerwa_oz:.1f} oz na bag z blankami, ham w plecaku {ma}, kupię {ile} (cel {cel})")
+        return ma + ile
 
     def _glowny(self, kon=None):
         glowne = [k for k in (kon or self.kontenery()) if _czy_glowny(k)]

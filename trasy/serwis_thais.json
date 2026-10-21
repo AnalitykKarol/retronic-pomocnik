@@ -1,0 +1,142 @@
+{
+ "_opis": "Serwis Thais (K3, 21.10): generuj_serwis_thais.py z mapy klienta i danych repo. Kolejność edytowalna; stoi = pole stania, depo.stoi = przybycie wyprawy (stanowiska przy skrzyniach w depo_stoiska). Kroki z polem 'drzwi' wymagają obsługi drzwi.",
+ "miasto": "thais",
+ "przystanki": {
+  "depo": {
+   "rodzaj": "depo",
+   "npc": null,
+   "stoi": [
+    32348,
+    32225,
+    7
+   ],
+   "status": "przybycie z logu wyprawy; wnęki ze skrzyniami w depo_stoiska",
+   "zrodlo": "start trasy depo_troll_cave = S7 w generuj_trasy_thais_pn.py = log invincible 21.10 16:13"
+  },
+  "jedzenie": {
+   "rodzaj": "kup",
+   "npc": "Frodo",
+   "stoi": [
+    32358,
+    32210,
+    7
+   ],
+   "npc_poz": [
+    32356,
+    32209,
+    7
+   ],
+   "oferta": "ham",
+   "cena": 8,
+   "status": "pole stania zmierzone na żywo (wyprawa: 13.10 hi/buy 3 ham/yes)",
+   "zrodlo": "trasy/wyprawa_sklepy.json[frodo].stoi",
+   "drzwi": [
+    [
+     32365,
+     32208,
+     7
+    ]
+   ]
+  },
+  "backpack": {
+   "rodzaj": "kup",
+   "npc": "Gorn",
+   "stoi": [
+    32377,
+    32201,
+    7
+   ],
+   "npc_poz": [
+    32377,
+    32200,
+    7
+   ],
+   "oferta": "backpack",
+   "cena": 20,
+   "status": "pole stania z nagrania trasy; dialog u Gorna niezmierzony (analogia: Beatrice w Edronie, ta sama oferta 'backpack' 20 gp)",
+   "zrodlo": "ostatni punkt trasy/troll_do_miasta.json (stoisko Gorna, pole obok NPC)"
+  },
+  "blanki": {
+   "rodzaj": "kup",
+   "npc": "Xodet",
+   "stoi": [
+    32400,
+    32220,
+    7
+   ],
+   "npc_poz": [
+    32399,
+    32222,
+    7
+   ],
+   "oferta": "blank rune",
+   "cena": 10,
+   "status": "pole stania zmierzone na żywo (wyprawa: 14.10 buy 20 blank rune/yes)",
+   "zrodlo": "trasy/wyprawa_sklepy.json[xodet].stoi",
+   "drzwi": [
+    [
+     32400,
+     32217,
+     7
+    ]
+   ]
+  }
+ },
+ "wyjscie": [
+  32348,
+  32225,
+  7
+ ],
+ "laczniki": [],
+ "depo_stoiska": [
+  [
+   32343,
+   32226,
+   7
+  ],
+  [
+   32341,
+   32226,
+   7
+  ],
+  [
+   32352,
+   32226,
+   7
+  ],
+  [
+   32354,
+   32226,
+   7
+  ]
+ ],
+ "kolejnosc": [
+  "depo",
+  "backpack",
+  "wyjscie"
+ ],
+ "kolejnosc_po_drzwiach": [
+  "depo",
+  "jedzenie",
+  "backpack",
+  "blanki",
+  "wyjscie"
+ ],
+ "do_pomiaru": {
+  "bank": {
+   "npc": "Suzy",
+   "npc_poz": [
+    32320,
+    32258,
+    7
+   ],
+   "brak": [
+    "pole stania",
+    "drzwi/wejście do banku",
+    "dialog (czy 'change gold' jak u Ebenizera w Edronie)"
+   ],
+   "uwaga": "w danych serwera Suzy ma tylko tematy bye/farewell/job/name/time, jak Ebenizer; mapa nie pokazuje wejścia (zamknięty budynek)"
+  },
+  "rook": "patrz dane_tibia/SPEC_serwis_thais_1021.md, część Rook"
+ }
+}

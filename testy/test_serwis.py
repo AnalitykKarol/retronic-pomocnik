@@ -244,6 +244,14 @@ class AkcjeAtrapa:
     def kup(self, npc, co, ile):
         self.log.append(("kup", npc, co, ile))
 
+    def rezerwa_na_blanki(self, blanki):
+        self.rezerwy = getattr(self, "rezerwy", []) + [blanki]
+        return 42.0
+
+    def cel_ham(self, cel, rezerwa_oz):
+        self.rezerwa_ham = rezerwa_oz
+        return min(cel, getattr(self, "limit_ham", cel))
+
     def potrzeba_baga(self):
         return self.bagi
 
@@ -290,6 +298,16 @@ sprawdz("5b domyślnie kończy na wyjściu z depo (z7)", st["poz"] == tuple(DANE
 sprawdz("5c depo zostawia 3 platinum", any(isinstance(x, tuple) and x[0] == "depo" and x[2] == 3 for x in a.log), a.log)
 sprawdz("5d cele zakupów: 5 ham, 20 blanków", ("kup", "Mirabell", "ham", 5) in a.log and ("kup", "Alexander", "blank rune", 20) in a.log)
 sprawdz("5e dokładność: do depo tolerancja 0, do NPC tolerancja 0, wyjście 2", st["tol"][:-1] == [0] * (len(st["tol"]) - 1) and st["tol"][-1] == 2, st["tol"])
+
+a = AkcjeAtrapa()
+a.limit_ham = 2
+s, st = zbuduj(a)
+s.uruchom(["jedzenie", "blanki"])
+sprawdz("5e2 cap: ham ograniczone do tyle, by zostało 42 oz na bag z blankami", ("kup", "Mirabell", "ham", 2) in a.log and a.rezerwa_ham == 42.0, a.log)
+a = AkcjeAtrapa()
+s, st = zbuduj(a)
+s.uruchom(["jedzenie"])
+sprawdz("5e3 cap: bez kroku blanki ham bez rezerwy", ("kup", "Mirabell", "ham", 5) in a.log and not hasattr(a, "rezerwa_ham"), a.log)
 
 a = AkcjeAtrapa()
 s, st = zbuduj(a)

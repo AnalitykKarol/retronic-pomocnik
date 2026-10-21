@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""Serwis w mieście (Edron, 19.10): wymiana gold, depo, jedzenie, backpack, blanki i wyjście, jednym skryptem.
+"""Serwis w mieście (Edron 19.10, Thais 21.10): wymiana gold, depo, jedzenie, backpack, blanki i wyjście, jednym skryptem.
 
-  python3 -I serwis.py edron [--kroki bank,depo,jedzenie,backpack,blanki,wyjscie] [--na-sucho] [--bez-stop]
+  python3 -I serwis.py [edron|thais|auto] [--kroki bank,depo,jedzenie,backpack,blanki,wyjscie] [--na-sucho] [--bez-stop]
+
+Miasto = plik `trasy/serwis_<miasto>.json`; bez argumentu edron (jak dotąd), `auto` = miasto z bieżącej pozycji postaci
+(panel.miasto_pozycji; z `--na-sucho --od x,y,z` z podanego pola). Kroki z polem `drzwi` w danych (Thais: Frodo, Xodet) serwis
+odrzuca przed pierwszym ruchem, bo drzwi sklepów nie są jeszcze obsługiwane (SPEC_serwis_thais_1021).
 
 Kolejność kroków jest w `trasy/serwis_<miasto>.json` ("kolejnosc") albo w `--kroki`. Chodzenie: A* po piętrze
 (wyprawa.Trasownik) i łączniki pięter z nagrania Karola (laczniki); akcje na żywo (UI plecaków, rozmowa z NPC, depo)
@@ -26,6 +30,35 @@ KOSZT_LACZNIKA = 6.0                    # w "polach": przejście piętra
 
 import marsz_klik  # noqa: E402
 from serwis_blad import SerwisBlad, cheb  # noqa: E402
+
+
+def miasta(katalog=TRASY):
+    """Miasta z planem serwisu: nazwy plików trasy/serwis_<miasto>.json (bez pomocniczych serwis_stan itp.)."""
+    return sorted(p.stem[len("serwis_"):] for p in Path(katalog).glob("serwis_*.json"))
+
+
+def wybierz_miasto(arg, poz=None, katalog=TRASY):
+    """Nazwa miasta do serwisu: `arg` z wiersza poleceń (domyślnie edron) albo przy "auto" miasto z pozycji `poz` (x, y, z).
+    SerwisBlad, gdy miasta nie ma wśród planów albo pozycja nie leży w żadnym z nich."""
+    arg = arg or "edron"
+    if arg != "auto":
+        if arg not in miasta(katalog):
+            raise SerwisBlad("start", f"brak planu serwisu dla miasta {arg!r} (są: {', '.join(miasta(katalog))})")
+        if poz is not None:
+            # 21.10 (checker K3): guzik paska "Refill" w Thais wołał serwis Edronu; A* szukał drogi 20 s i kończył STOP-em.
+            # Pozycja w INNYM mieście z planem = od razu błąd startu, bez ruchu. Poza miastami jak dotąd.
+            import panel  # noqa: PLC0415
+            inne, _w_depo = panel.miasto_pozycji(tuple(poz), panel.dane_serwisu(katalog))
+            if inne is not None and inne != arg:
+                raise SerwisBlad("start", f"postać jest w mieście {inne!r} {tuple(poz)}, a serwis zlecony dla {arg!r}")
+        return arg
+    if poz is None:
+        raise SerwisBlad("start", "auto: nieznana pozycja postaci")
+    import panel  # noqa: PLC0415
+    miasto, _w_depo = panel.miasto_pozycji(tuple(poz), panel.dane_serwisu(katalog))
+    if miasto is None:
+        raise SerwisBlad("start", f"auto: pozycja {tuple(poz)} nie leży w żadnym mieście z planem serwisu ({', '.join(miasta(katalog))})")
+    return miasto
 
 
 def wczytaj(miasto, katalog=TRASY):
@@ -134,6 +167,14 @@ class Serwis:
         self.spij = spij
         self.cele = dict({"ham": 5, "blanki": 20, "platinum_zostaw": 3}, **(cele or {}))
         self.wynik = {}
+        self.kroki_przebiegu = []
+
+    # Drzwi sklepów (Thais: Frodo, Xodet) mapa widzi jako ścianę, a serwis nie umie ich otworzyć: krok z polem "drzwi" w danych
+    # jest odrzucany PRZED pierwszym ruchem i inputem (inaczej A* przeszukiwałby minutami całą mapę, a potem i tak zgłosił brak drogi).
+    obsluga_drzwi = False
+
+    def _za_drzwiami(self, krok):
+        return [] if self.obsluga_drzwi else (self.d["przystanki"].get(krok) or {}).get("drzwi") or []
 
     # --- chodzenie -----------------------------------------------------------------------------
 
@@ -153,6 +194,9 @@ class Serwis:
         poz = tuple(od or self.pozycja())
         wynik = []
         for k in kroki:
+            if self._za_drzwiami(k):
+                wynik.append((k, self._cele_kroku(k)[0], None))      # za drzwiami: brak drogi, planer nie liczy
+                continue
             for cel in self._cele_kroku(k):
                 d = self.planer.droga(poz, cel)
                 wynik.append((k, cel, None if d is None else len(d)))
@@ -219,9 +263,14 @@ class Serwis:
         kroki już zakończone są pomijane: ponowne uruchomienie nie kupuje drugi raz i nie odkłada nowego baga do depo.
         Przebieg jest „zakończony”, gdy ukończono wszystkie kroki domyślnej kolejności; `od_nowa` ignoruje stan."""
         kroki = list(kroki or self.d["kolejnosc"])
+        self.kroki_przebiegu = kroki
         nieznane = [k for k in kroki if k not in self.d["przystanki"] and k != "wyjscie"]
         if nieznane:
             raise SerwisBlad("start", f"nieznane kroki {nieznane}")
+        za_drzwiami = {k: self._za_drzwiami(k) for k in kroki if self._za_drzwiami(k)}
+        if za_drzwiami:
+            raise SerwisBlad("start", f"kroki za drzwiami sklepu {za_drzwiami}: serwis nie otwiera drzwi, nic nie ruszone "
+                                      "(usuń je z --kroki; SPEC_serwis_thais_1021, część Drzwi)")
         stan = {} if od_nowa else self._stan_czytaj()
         wznow = bool(stan) and not stan.get("koniec") and self.teraz() - stan.get("t", 0) < 3 * 3600
         ukonczone = [k for k in stan.get("ukonczone", []) if k != "wyjscie"] if wznow else []
@@ -278,7 +327,10 @@ class Serwis:
     def _krok_jedzenie(self):
         s = self.d["przystanki"]["jedzenie"]
         self._idz("jedzenie", s["stoi"])
-        self.akcje.kup(s["npc"], "ham", self.cele["ham"])
+        cel = self.cele["ham"]
+        if "blanki" in self.kroki_przebiegu:
+            cel = self.akcje.cel_ham(cel, self.akcje.rezerwa_na_blanki(self.cele["blanki"]))   # ham nie może zabrać capa bagu z blankami
+        self.akcje.kup(s["npc"], "ham", cel)
 
     def _krok_backpack(self):
         s = self.d["przystanki"]["backpack"]
@@ -498,6 +550,7 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
     zablok, zawiodlo, wizyty = {}, {}, {}
     t0, ost_log = time.monotonic(), 0.0
     zle_z_rzedu, ok_krokow, zle_razem, ost_kier = 0, 0, 0, None
+    marg = 8      # margines prostokąta szukania drogi wokół start-cel; rośnie, gdy ściana każe obejść poza prostokąt (21.10 Edron z7 do Xodeta)
 
     unik = {tuple(u)[:2] for u in unik if tuple(u)[2] == cel[2]}
 
@@ -533,7 +586,6 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
         start = (poz[0], poz[1])
         skad, d = {(start, ost_kier): None}, {(start, ost_kier): 0.0}
         kol, meta, n = [(0.0, 0, start, ost_kier)], None, 0
-        marg = 8
         xmin, xmax = min(poz[0], cel[0]) - marg, max(poz[0], cel[0]) + marg
         ymin, ymax = min(poz[1], cel[1]) - marg, max(poz[1], cel[1]) + marg
         while kol:
@@ -558,6 +610,9 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
                     n += 1
                     heapq.heappush(kol, (cc + k, n, q, ki))
         if meta is None:
+            if marg < 64:
+                marg *= 2     # droga może prowadzić poza prostokątem: szukamy szerzej, zanim uznamy brak drogi
+                continue
             if teraz - ost_log > 8:
                 log(f"serwis: brak drogi z {poz[:2]} do {cel[:2]} (ludzie na drodze albo nieznane pola), czekam")
                 ost_log = teraz
@@ -685,7 +740,8 @@ def _ratunek_porazka(postac, krok, powod, e, bot):
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    p.add_argument("miasto", choices=["edron"])
+    p.add_argument("miasto", nargs="?", default="edron", choices=miasta() + ["auto"],
+                   help="edron (domyślnie), thais albo auto = miasto z pozycji postaci")
     p.add_argument("--kroki", help="lista kroków po przecinku (domyślnie z pliku danych)")
     p.add_argument("--na-sucho", action="store_true", help="tylko plan dróg, bez inputu do gry")
     p.add_argument("--od", help="x,y,z: plan na sucho z tego pola zamiast z bieżącej pozycji")
@@ -695,8 +751,23 @@ def main(argv=None):
     import bot
     import mapa as mapa_mod
     import wyprawa
-    dane = wczytaj(a.miasto)
     postac = bot.Postac()
+    od_pola = tuple(int(v) for v in a.od.split(",")) if a.od else None
+    try:
+        poz_auto = None
+        if a.miasto == "auto":
+            poz_auto = od_pola if (a.na_sucho and od_pola) else postac.pozycja()
+        elif not a.na_sucho:
+            try:                                   # jawne miasto: tylko sprawdzenie, że postać nie stoi w innym mieście
+                poz_auto = postac.pozycja()
+            except Exception:
+                poz_auto = None
+        miasto = wybierz_miasto(a.miasto, poz_auto)
+    except SerwisBlad as e:
+        print(f"SERWIS: {e}", flush=True)
+        return 2
+    print(f"serwis: miasto {miasto}", flush=True)
+    dane = wczytaj(miasto)
     mp = mapa_mod.mapa()
     planer = Planer(wyprawa.Trasownik(mp), dane["laczniki"])
     kroki = a.kroki.split(",") if a.kroki else None

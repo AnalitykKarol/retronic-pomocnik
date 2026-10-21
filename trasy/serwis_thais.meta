@@ -1,0 +1,47 @@
+{
+ "specjalne": [],
+ "zrodla": {
+  "przybycie": "start trasy depo_troll_cave / S7 generuj_trasy_thais_pn.py / log invincible 21.10 16:13: [32348, 32225, 7]",
+  "depo_zmierzone": "[32343, 32226, 7]: wyprawa.POLE_ZLOZ_DEPO, Use na północ na skrzynię (32343,32225,7), 13.10",
+  "depo_wnęki": "ślepe wnęki ze skrzynią na północy w sali depo z mapy klienta (mapa.py), prostokąt x 32338..32358, y 32223..32231, z7; poza zmierzoną tylko wzór z mapy",
+  "depo_wnęki_południe_niezmierzone": [
+   [
+    32341,
+    32230,
+    7
+   ],
+   [
+    32343,
+    32230,
+    7
+   ],
+   [
+    32352,
+    32230,
+    7
+   ],
+   [
+    32354,
+    32230,
+    7
+   ]
+  ],
+  "frodo": "wyprawa_sklepy.json: pole stania zmierzone na żywo 13.10; drzwi z mapy ∩ nagrane dojście",
+  "xodet": "wyprawa_sklepy.json: pole stania zmierzone na żywo 14.10; drzwi z mapy ∩ nagrany powrót",
+  "gorn": "ostatni punkt troll_do_miasta.json, NPC (32377,32200,7) z npc_pelne.json; dialog niezmierzony",
+  "bank_suzy": "npc_pelne.json (32320,32258,7); pole stania, wejście i dialog niezmierzone"
+ },
+ "niezmierzone_na_zywo": [
+  "wnęki depo inne niż (32343,32226,7): że na ich północnym polu stoi skrzynia, nie ściana",
+  "dialog 'backpack' u Gorna (oferta 20 gp jest w danych serwera)",
+  "cała droga serwisu po mieście botem (A* sprawdzony tylko offline na mapie)",
+  "bank Suzy: pole stania, wejście, dialog",
+  "otwieranie drzwi sklepów w serwisie (kod nie istnieje)"
+ ],
+ "kroki": {
+  "depo": false,
+  "jedzenie": true,
+  "backpack": false,
+  "blanki": true
+ }
+}

@@ -1,5 +1,7 @@
 #!/bin/bash
-# Serwis w mieście (Edron): wymiana gold, depo (bag z UH + platinum ponad 3), ham, backpack, blanki, wyjście z depo.
+# Serwis w mieście (Edron, Thais): wymiana gold, depo (bag z UH + platinum ponad 3), ham, backpack, blanki, wyjście z depo.
+#   SERWIS_MIASTO=thais ./serwis.sh   miasto z trasy/serwis_<miasto>.json (domyślnie edron; "auto" = z bieżącej pozycji postaci)
+#                                     Thais: kroki depo,backpack,wyjscie; Frodo i Xodet (jedzenie, blanki) czekają na obsługę drzwi
 #   ./serwis.sh                       cały serwis w domyślnej kolejności (trasy/serwis_edron.json)
 #   ./serwis.sh --kroki bank,depo     tylko wybrane kroki (kolejność jak podasz)
 #   ./serwis.sh --na-sucho [--od x,y,z]   tylko plan dróg, zero inputu do gry
@@ -19,7 +21,7 @@ if [ "$SUCHO" = 0 ]; then
   rm -f "$INST_STOP" "$INST_STOP_RECZNY" "$INST_STAN/WROC"        # STOP blokuje każdy input do gry; po zatrzymanym bocie nic innego nie działa
 fi
 export RETRONIC_POSTAC="${RETRONIC_POSTAC:-$(python3 -I -c "import sys; sys.path.insert(0,'$DIR'); import bot; print(bot.Postac().nazwa)" 2>/dev/null)}"
-python3 -I -u serwis.py edron "$@"
+python3 -I -u serwis.py "${SERWIS_MIASTO:-edron}" "$@"
 kod=$?
 if [ "$SUCHO" = 0 ] && [ "$kod" != 0 ]; then
   touch "$INST_STOP"; echo "serwis: porażka (kod $kod), zostawiam plik STOP" >&2; exit "$kod"
