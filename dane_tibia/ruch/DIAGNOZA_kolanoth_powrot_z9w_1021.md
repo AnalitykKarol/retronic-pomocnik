@@ -21,13 +21,13 @@ cała na z9, „do” planu `edron` zaczyna się na z8, a `wyjscia` miały tylko
 
 - `wyprawa.PLANY_PK["edron"]["wyjscia"]`: lina na (33119,31740,z9) (dziura, którą dojście schodzi z z8; mapa: kandydat
   pewny), stanie (33119,31739,z9) (pole liny wolne), lądowanie (33119,31741,z8), dalej `trolle_edron_z9w_do_depo`.
-- `trasy/trolle_edron_z9w_do_depo.json` (`generuj_powrot_edron_z9w.py`): odwrócony odcinek z8 dojścia z9w (przebyty
+- `trasy/trolle_edron_z9w_do_depo.json` (`generuj_powroty_edron_z9.py`): odwrócony odcinek z8 dojścia z9w (przebyty
   dziś 2×) bez pola dziury + `edron_do_depo` od liny (33117,31774,z8) (powrót sprawdzony, Dawajkesh 18:24).
 - Kopia: `wyprawa.py.bak-20261021-z9w-powrot`.
 
 ## Dowód (offline)
 
-- `testy/test_powrot_edron_z9w.py` 100/100: bez nowego wyjścia `brak drogi` (objaw), z nim droga do depo z miejsc
+- `testy/test_powroty_edron_z9.py` (wtedy z9w, 100/100): bez nowego wyjścia `brak drogi` (objaw), z nim droga do depo z miejsc
   zacięcia i co 10. punktu pętli, pierwsze przejście lina (33119,31739,9)→(33119,31741,8), bez dziury z8, bez ognia.
 - `zbuduj_etapy` + `sprawdz_plan`: etap `LINA` stoi (33119,31739,9), cel (33119,31740,9), bez błędów.
 - Bez regresji: test_wyprawa 216/216, test_wyprawa_droga_depo 50/50, test_wyprawa_dojscie 25/25,
@@ -38,6 +38,7 @@ cała na z9, „do” planu `edron` zaczyna się na z8, a `wyjscia` miały tylko
 ## Otwarte
 
 - Pierwszy powrót na żywo z z9w (lina z9→z8 nie jest w `przejscia_nauczone.json`).
-- `trolle_edron_z9z` ma tę samą lukę: `droga_do_depo` = brak drogi z 14/14 punktów pętli. Do zrobienia przed
-  pierwszym wejściem (plan 22.10 pkt 5).
+- `trolle_edron_z9z` miał tę samą lukę (brak drogi z 14/14 punktów pętli) — naprawione tak samo 21.10 ~20:40:
+  lina (33081,31742,z9) ze stania (33081,31741), lądowanie (33081,31743,z8), `trolle_edron_z9z_do_depo`; odcinek z8 z
+  generatora (na żywo nieprzebyty), bufor 1 od ognia. Test `testy/test_powroty_edron_z9.py` 318/318 (oba spoty).
 - Działające boty mają stary kod do restartu.

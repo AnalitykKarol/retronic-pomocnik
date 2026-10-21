@@ -1,0 +1,109 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "lądowanie po linie z z9 (33081,31742), z8"
+  },
+  {
+   "idx": 67,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 7"
+  },
+  {
+   "idx": 68,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 8 -> 7 (w górę), z (33117,31774)"
+  },
+  {
+   "idx": 88,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 7, potem piętro 8"
+  },
+  {
+   "idx": 89,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 7 -> 8 (w dół), z (33127,31810)"
+  },
+  {
+   "idx": 94,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 9"
+  },
+  {
+   "idx": 95,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 8 -> 9 (w dół), z (33131,31807)"
+  },
+  {
+   "idx": 98,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 10"
+  },
+  {
+   "idx": 99,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 9 -> 10 (w dół), z (33131,31809)"
+  },
+  {
+   "idx": 103,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 10, potem piętro 11"
+  },
+  {
+   "idx": 104,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 10 -> 11 (w dół), z (33132,31805)"
+  },
+  {
+   "idx": 124,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 11, potem piętro 10"
+  },
+  {
+   "idx": 125,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 11 -> 10 (w górę), z (33146,31823)"
+  },
+  {
+   "idx": 131,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 10, potem piętro 9"
+  },
+  {
+   "idx": 132,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 10 -> 9 (w górę), z (33150,31820)"
+  },
+  {
+   "idx": 146,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 8"
+  },
+  {
+   "idx": 147,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 9 -> 8 (w górę), z (33168,31824)"
+  },
+  {
+   "idx": 150,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 7"
+  },
+  {
+   "idx": 151,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 8 -> 7 (w górę), z (33165,31826)"
+  },
+  {
+   "idx": 164,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 7, potem piętro 8"
+  },
+  {
+   "idx": 165,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 7 -> 8 (w dół), z (33167,31811)"
+  }
+ ]
+}

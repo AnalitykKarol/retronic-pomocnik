@@ -79,7 +79,7 @@ Kontrola ognia: żaden nowy punkt pętli/dojścia na polu z `trasy/ogien_stale.j
 **Powrót do depo z pętli (21.10, Kolanosh z9w 20:14 utknął):** spot na innym piętrze niż pętla planu powrotu (np. pod z8
 Edron) potrzebuje wpisu w `wyprawa.PLANY_PK[...]["wyjscia"]` (pole liny, lądowanie, trasa dalej, pole stania obok) i testu
 `droga_do_depo` z każdego punktu pętli do depo. Bez tego `wroc.sh`/wyprawa = „depo: brak drogi” i STOP. Wzór:
-`generuj_powrot_edron_z9w.py`, `testy/test_powrot_edron_z9w.py`.
+`generuj_powroty_edron_z9.py`, `testy/test_powroty_edron_z9.py`.
 
 ## 5. Wpis w `mapy.json`
 

@@ -9,7 +9,7 @@ Specyfikacje i decyzje: `dane_tibia/SPEC_*.md`. Ten plik streszcza i linkuje.
 
 ## Gdzie jesteśmy
 
-- **21.10 20:14 Kolanosh utknął w powrocie z `trolle_edron_z9w` (plan „edron” bez wyjścia z z9w → „brak drogi”, ALARM/STOP; wyszedł ręcznie Karol) — naprawione offline:** wyjście liną (33119,31740,z9) w `wyprawa.PLANY_PK`, trasa `trolle_edron_z9w_do_depo`, test 100/100, bez regresji. Na żywo niesprawdzone; `trolle_edron_z9z` ma tę samą lukę (przed pkt 5 planu 22.10). `dane_tibia/ruch/DIAGNOZA_kolanoth_powrot_z9w_1021.md`.
+- **21.10 20:14 Kolanosh utknął w powrocie z `trolle_edron_z9w` (plan „edron” bez wyjścia z z9w → „brak drogi”, ALARM/STOP; wyszedł ręcznie Karol) — naprawione offline:** wyjście liną (33119,31740,z9) w `wyprawa.PLANY_PK`, trasa `trolle_edron_z9w_do_depo`, bez regresji. To samo dla `trolle_edron_z9z` (ta sama luka), test obu 318/318. Na żywo niesprawdzone (pierwszy powrót: patrzeć na linę z9→z8). `dane_tibia/ruch/DIAGNOZA_kolanoth_powrot_z9w_1021.md`.
 - **22.10 — plan na jutro (Karol 21.10 ~18:30: „na razie nikogo nie wysyłamy, reszta testów jutro”).** Kolejność:
   1. 10:00 reset serwera: czy `ROZLACZENIE_STOP` zatrzymał klawisze u wszystkich i czy boty wróciły po relogu (log `ROZŁĄCZENIE`, powiadomienia).
   2. Przegląd logu nadzorcy z nocy: `instancje/_wspolne/logi/nadzor-20261021.jsonl` / `-20261022.jsonl` (timer co 5 min, cień).
