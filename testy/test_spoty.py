@@ -30,6 +30,9 @@ TAB = SP.wczytaj()
 # Testy sprawdzają logikę wyboru, nie bieżące decyzje Karola o włączeniu spotów: gobliny Edronu (21.10 18:10 wyłączone
 # w tabeli, „za mało defa”) są tu włączone, żeby filtry miasta/poziomu/jaskini/mieszania miały z czego wybierać.
 TAB.zakladane = set()       # tabela Karola zakłada łopatę u wszystkich (21.10 18:20); logika filtra ekwipunku testowana bez założeń
+for _m in ("trolle_edron", "trolle_edron_patrol"):     # Karol 21.10 18:12 dał trollom 8+; filtr poziomu testowany na 10-30
+    if _m in TAB.spoty:
+        TAB.spoty[_m].poziom = [10, 30]
 for _m in ("gobliny_edron", "gobliny_edron_z9"):
     if _m in TAB.spoty:
         TAB.spoty[_m].auto = True
@@ -49,7 +52,7 @@ def test_tabela_spojna_z_mapy_json():
     nazwy = {k for k in mapy if not k.startswith("_")}
     assert nazwy == set(TAB.spoty) and not TAB.nieopisane and not TAB.osierocone, (nazwy ^ set(TAB.spoty))
     assert all(s.poziom[0] <= s.poziom[1] for s in TAB.spoty.values())
-    assert all(s.poziom_zrodlo == "domyslne" for s in TAB.spoty.values()), "widełki niczyje -> oznaczone jako domyślne"
+    assert all(s.poziom_zrodlo in ("domyslne", "karol") for s in TAB.spoty.values()), "widełki: domyślne albo ustawione przez Karola"
 
 
 def test_wymagania_z_tras_lina_i_lopata():
