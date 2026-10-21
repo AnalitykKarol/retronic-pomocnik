@@ -9,6 +9,14 @@ Specyfikacje i decyzje: `dane_tibia/SPEC_*.md`. Ten plik streszcza i linkuje.
 
 ## Gdzie jesteśmy
 
+- **22.10 — plan na jutro (Karol 21.10 ~18:30: „na razie nikogo nie wysyłamy, reszta testów jutro”).** Kolejność:
+  1. 10:00 reset serwera: czy `ROZLACZENIE_STOP` zatrzymał klawisze u wszystkich i czy boty wróciły po relogu (log `ROZŁĄCZENIE`, powiadomienia).
+  2. Przegląd logu nadzorcy z nocy: `instancje/_wspolne/logi/nadzor-20261021.jsonl` / `-20261022.jsonl` (timer co 5 min, cień).
+  3. Wylogowanie i zalogowanie na żywo (`wyloguj.sh` → `sesja_gry.py start` → `zaloguj.sh`) na jednej postaci w mieście.
+  4. Pełny cykl nadzorcy na żywo na jednej postaci (dawajkesh, Edron: serwis jest), potem `NADZOR_ZYWO` dla zestawu.
+  5. Nowy spot `trolle_edron_z9z` (gotowy offline, commit `514c099`): pierwsze wejście dawajkeshem (typ zejścia (33081,31742,z8) niesprawdzony), po „puszczaj”.
+  6. Generator ognia: `generuj_trasy_edron_wschod.ogien_pola()` nie czyta nowego formatu `trasy/ogien_epizody.json` → `trolle_edron_z9w` i `edron_trolle_petla` mają 8–20 punktów w buforze ognia (np. (33135,31739,z9), 11 epizodów); wygenerować ponownie.
+  7. Przegląd tabeli spotów `dane_tibia/spoty_nadzorca.json` przez Karola (widełki pozostałych spotów), K3b drzwi do sklepów w Thais, reszta z `dane_tibia/ruch/AUDYT_1021.md`.
 - **21.10 17:40 PODSUMOWANIE DNIA: `dane_tibia/PODSUMOWANIE_1021.md`.** Wszystkie nowe pokrętła włączone u 5 postaci, 4 boty zrestartowane z nowym kodem (wydra: ręczna gra). Nadzorca zbudowany, na żywo jeszcze nie działa (start: timer w cieniu → jedna postać → zestaw).
 - **21.10 ~17:30 nadzorca, który zarządza (Karol 16:20: rotacja postaci, miasto, przerwy, „zarządzać jak ja”) — klocki zbudowane offline, NA ŻYWO NIC.** Spec `dane_tibia/SPEC_nadzorca_rotacja_1021.md` (decyzje: 5 online + nowe konta, hunt 2–3 h, cała biała lista, „wszystko naraz”).
   - K1 `logowanie.py`/`zaloguj.sh`/`wyloguj.sh` (`SPEC_logowanie_wylogowanie_1021.md`, test 64/64, checker NITS).
