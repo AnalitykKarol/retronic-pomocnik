@@ -486,6 +486,12 @@ class Wpadniecie:
         st = self.st
         if not any(T[:2] == p[:2] and T[2] == p[2] for T in st.get("zawiodlo", ())):
             return False
+        return self._krok_z_pola(p, "przejścia", "żeby wejść na nie od nowa")
+
+    def _krok_z_pola(self, p, co, po_co):
+        """Jeden krok z pola p na sąsiednie chodliwe pole (nie dziura, nie przejście, nie drabina). True = krok zrobiony."""
+        cb = self.cb
+        st = self.st
         przejscia = {tuple(t["T"][:2]) for t in self._wczytaj_przejscia() if t["T"][2] == p[2]}
         sas = [(p[0] + dx, p[1] + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy]
         random.shuffle(sas)
@@ -500,14 +506,14 @@ class Wpadniecie:
             except bot.Zatrzymano:
                 raise
             except Exception as e:
-                self.log(f"Wpadnięcie: krok z pola przejścia nie wyszedł ({e!r})")
+                self.log(f"Wpadnięcie: krok z pola {co} nie wyszedł ({e!r})")
                 return False
             if ruszyl:
-                self.log(f"Wpadnięcie: schodzę z pola przejścia {p[:2]} na {c}, żeby wejść na nie od nowa.")
+                self.log(f"Wpadnięcie: schodzę z pola {co} {p[:2]} na {c}, {po_co}.")
                 self._tele("wpadniecie_odsun", poz=list(p), na=list(c))
                 st["nast"] = cb.zegar() + 1.0
                 return True
-        self.log(f"Wpadnięcie: nie mam gdzie zejść z pola przejścia {p[:2]}, próbuję stąd.")
+        self.log(f"Wpadnięcie: nie mam gdzie zejść z pola {co} {p[:2]}, próbuję stąd.")
         return False
 
     # --- (a) lina ---
@@ -584,6 +590,12 @@ class Wpadniecie:
                 cb.nieudane += 1
                 cb.pauza(0.2, 0.5)
             return True
+        if tuple(p[:2]) == tuple(spot[:2]) and not st.get("lina_zszedl"):
+            # 21.10 (Karol): liny nie da się użyć na polu, na którym się stoi (ani gdy ktoś/coś na nim jest). Po upadku
+            # postać ląduje NA rope spocie: najpierw krok obok (wpadnięcia (32508,32273,z9), (32086,32197,z9): 3 próby z pola bez skutku).
+            st["lina_zszedl"] = True
+            if self._krok_z_pola(p, "liny", "bo liny nie użyję, stojąc na niej"):
+                return True
         lim = int(self._k("WPADNIECIE_LINA_PROB", 3))
         st["lina"] += 1
         n = st["lina"]

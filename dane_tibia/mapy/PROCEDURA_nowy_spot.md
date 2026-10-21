@@ -40,6 +40,9 @@ Reguły (każda kosztowała nas jedno nieudane wejście 21.10):
    `lopata` sama włącza łopatę (bez wpisu w `ZASYPANE`); `PIETRA_LOPATA_AUTO=1` = łopata na każdym zejściu w dół.
 3. Powierzchnia bywa bez flagi nad zejściem (Edron (33117,31776,z7): zwykłe pole) — wtedy kandydat z z8 („nad: z7”) albo nagranie.
 4. Lina: z8 (x,y) → z7 (x,y+1). Drabina w górę bez dziury nad nią (Thais północ z9 (32339,32122)) = przejście tylko w górę.
+   **Pola liny NIE da się użyć (Karol 21.10), gdy:** postać na nim stoi, stoi na nim ktoś inny (gracz, potwór) albo coś na nim
+   leży (zwłoki, przedmiot). Pole stania przy linie = SĄSIAD pola liny, nigdy samo pole; przed użyciem liny pole musi być wolne
+   (zejść z niego, poczekać, aż ktoś zejdzie, przesunąć przedmiot).
 6. **OGIEŃ ≠ przejście (21.10, Edron (33115,31744,z8)):** flaga 2 mają też ogień i przeszkody. Flaga 2 w kolorze podłogi
    wokół (nie 210) poza z7 = PRZESZKODA (`spot_lib.przeszkoda_na_podlodze`). Invincible stał na takim „zejściu” w ogniu,
    HP 91% → 58% w 30 s; prawdziwe zejście obok miało kolor 210 (33119,31740). Znany ogień z `trasy/ogien_*.json` + bufor 1
@@ -86,7 +89,11 @@ zejścia, wymagania: łopata/lina), `trasa`, `potwory` (nazwy dokładne, casefol
   `dojscie_z_dowolnego_pietra`). Na innym piętrze najpierw ją sprowadź (krok 7 niżej, „ratunek”).
 - `instancje/<id>/wyprawa_stan.json`: `aktywna: true` = po starcie bot najpierw dokończy starą wyprawę do depo i stanie
   (STOP). Wtedy daj mu dojść (zwykle chwila), potem start na nowej mapie.
-- Ekwipunek: łopata/lina, jeśli zejście tego wymaga; exura: `ZDROWIE_CZAR_AKTYWNY` w `instancje/<id>/na_zywo.json`.
+- **Ekwipunek z opisu mapy** (`mapy.json` → `opis`: „MUSI mieć rope”, „ŁOPATY”): bez liny bot staje na pierwszym przejściu w górę
+  liną (21.10 kolanoth 17:09: z11→z10 (33133,31805) 5 prób, STOP; po dołożeniu liny 17:25 próba 2). Łopata: zasypane dziury z7.
+  Exura: `ZDROWIE_CZAR_AKTYWNY` w `instancje/<id>/na_zywo.json`.
+- Postać nie na z7: jeśli mapa ma `dojscie_z_dowolnego_pietra: true`, bot rusza od najbliższego punktu dojścia na swoim
+  piętrze (kolanoth 21.10 z (33167,31823,z9), czyli ze środka `edron_depo_trolle`) — wtedy nie trzeba go sprowadzać.
 - `STOP_RECZNY` = Karol gra tą postacią: start dopiero na jego „puszczaj”.
 
 ## 7. Start i test na żywo (gra — tylko po „puszczaj” Karola)
@@ -95,8 +102,14 @@ zejścia, wymagania: łopata/lina), `trasa`, `potwory` (nazwy dokładne, casefol
 
 - **Dowód dobrego startu**: linia `Start (… + dojście)` i w `instancje/<id>/logi/mozg-stdout-*` `Dojście: trasa <spot>_dojscie`.
   Brak = bez `RETRONIC_POSTAC` skrypt czytał piętro innej postaci i PO CICHU pominął dojście → `./zatrzymaj.sh`, start ponownie.
-- Pilnuj Monitorem: log (`Przejście pięter`, `NIEUDANE`, `Dojście zakończone`, `zabity`, `Ucieczka`, `PK`, `Koniec.`) +
-  pozycja z `panel.py` co 5 s (emituj przy zmianie piętra).
+- Pilnuj Monitorem w DWÓCH fazach (21.10: monitor na każde zabicie i „ucieka” zasypywał Karola powiadomieniami):
+  1. **Dojście** (do pierwszego zabicia): log `Przejście pięter: zA -> zB w`, `NIEUDANE`, `Dojście zakończone`, `Cel … zabity`,
+     `Zatrzymano`, `ALARM`, `PK`, `Koniec.` + pozycja i HP z `panel.py` co 5 s (zmiana piętra, spadek HP > 8 pp).
+  2. **Na spocie** (po 1. zabiciu): tylko problemy postaci — `NIEUDANE|Zatrzymano|ALARM|Traceback|Ucieczka|PK |zgin|Koniec.`
+     z `grep -v "Troll ucieka"` (ucieka POTWÓR, nie postać) + HP < 50%. Zabić nie zgłaszaj.
+  Pętla monitora: każde polecenie z `|| true`, bez `set --` na wyniku (21.10 monitor padł z exit 1 w trakcie dojścia).
+  „Dojście zakończone” bez zdarzenia `z8 -> z9` bywa poprawne: ostatni krok trasy wchodzi na schody (zejście bez prób,
+  log `jestem przy końcu trasy (…, z9)`) — sprawdź piętro w `panel.py`, zanim uznasz, że nie zszedł.
 - **HP w Monitorze** (`panel.py` co 5 s): spadek HP bez walki, gdy postać stoi = ogień → natychmiast `./zatrzymaj.sh`, zejście
   z pola jednym klawiszem do jej ekranu, poprawka trasy. Zagrożenie życia: tu wolno zatrzymać od razu.
 - **Sukces** = `Przejście pięter: z7 -> z8 … (próba N, …)`, pozycja na z8 w składowej, potem `Cel … zabity`.
@@ -131,8 +144,18 @@ zejścia, wymagania: łopata/lina), `trasa`, `potwory` (nazwy dokładne, casefol
 | 2 | 2. zejście (32347,32123), 23 pola od poison | stoi na polu, use bez skutku → reguła 2, `ZASYPANE` |
 | 7 | start | łopata z pola obok, krok → z8 16:36:32, pierwsze zabicie 16:36:53 |
 
+## Przypadek: Edron trolle z9 wschód, 21.10 (invincible lvl 12, kolanoth/Kolanosh lvl 8)
+
+| Krok | Co | Wynik |
+|---|---|---|
+| 1 | składowe Edron | z9 wschód: osobna składowa 309 pól, 15 trolli; wejście z z8 |
+| 2 | wejście z mapy: (33115,31744,z8) flaga 2 | **to OGIEŃ**: invincible stał na nim 17:14:20–51, HP 91% → 58% → reguła 6 (przeszkoda w kolorze podłogi) |
+| 3 | poprawka | schody (33119,31740) kolor 210 + omijanie ognia `trasy/ogien_*.json` z buforem 1; 0 nowych punktów przy ogniu |
+| 6 | kolanoth bez liny | 17:09 STOP na z11→z10 (33133,31805) — przejście w górę liną w nagranym `edron_depo_trolle` |
+| 7 | kolanoth z liną, start z z9 | z11→z10 i z9→z8 liną (próba 2), dziura z7→z8, schody (33119,31740) krokiem 17:27:40, troll 17:27:58, 3 trolle w 30 s, HP 100% |
+
 ## Czego jeszcze brakuje (następny krok, wymaga specu)
 
 - Jeden ogólny generator (`generuj_spot.py --miasto --obszar --cel --zakazane --start`) zamiast pliku na spot.
-- Automatyczne wykrycie zasypanej dziury w bocie (stoi na polu przejścia, use bez skutku → łopata) zamiast ręcznego `ZASYPANE`.
+- ~~Automatyczne wykrycie zasypanej dziury~~ — ZROBIONE 21.10 (F4: pamięć „lopata”, `PIETRA_LOPATA_AUTO`).
 - Rozpoznanie przejścia z8 → z9 Thais północ (16 trolli na z9 bez dojścia).

@@ -165,7 +165,7 @@ def proby_trzy_sposoby(poz, pola, z_do, lina=True, plik=None):
             lista.append((t, q))
 
     z_pam = przejscie_z_pamieci(pola, z_do, plik)
-    if z_pam is not None and z_pam[0] == "krok" and tuple(z_pam[1][:2]) == tuple(poz[:2]):
+    if z_pam is not None and z_pam[0] in ("krok", "lina") and tuple(z_pam[1][:2]) == tuple(poz[:2]):
         z_pam = None                                    # stoimy na polu: krok nic nie da (ślepa strzałka)
     if z_pam is not None and (z_pam[0] != "lina" or lina):
         dodaj(*z_pam)
@@ -173,7 +173,7 @@ def proby_trzy_sposoby(poz, pola, z_do, lina=True, plik=None):
         if tuple(q[:2]) != tuple(poz[:2]) and cheb(poz, q) == 1:
             dodaj("krok", q)
         dodaj("use", q)
-        if lina:
+        if lina and tuple(q[:2]) != tuple(poz[:2]):     # 21.10 Karol: liny nie użyjesz na polu, na którym stoisz
             dodaj("lina", q)
     return lista
 
@@ -1600,6 +1600,30 @@ class Wypad:
                 pola.append((nazwa, q))
         return pola
 
+    def _zejdz_z_pola(self, poz):
+        """Krok o kratkę z pola liny (lina działa tylko z pola obok, jak w pietra.py): pierwszy wolny, przechodni sąsiad
+        N/E/S/W. Zwraca nową pozycję (bez zmiany, gdy nie ma gdzie stanąć)."""
+        cb = self.cb
+        mapa = getattr(cb, "mapa", None)
+        zaj = self._zajete_pola(poz)
+        for kier, (kx, ky) in (("Left", (poz[0] - 1, poz[1])), ("Right", (poz[0] + 1, poz[1])),
+                               ("Up", (poz[0], poz[1] - 1)), ("Down", (poz[0], poz[1] + 1))):
+            f = _flaga(mapa, (kx, ky, poz[2])) if mapa is not None else 0
+            if f & (4 | 2) or (f and not f & 1) or (kx, ky) in zaj:
+                continue
+            self.log(f"Wypad: stoję na polu liny {tuple(poz)[:2]}, schodzę {kier} o kratkę")
+            try:
+                cb.postac.krok(kier)
+            except bot.Zatrzymano:
+                raise
+            except Exception:
+                continue
+            cb.pauza(0.3, 0.5)
+            nowa = tuple(cb.postac.pozycja())
+            if nowa[:2] != tuple(poz)[:2]:
+                return nowa
+        return poz
+
     def _lina(self, poz, e, teraz):
         """Przejście w górę: DRABINA (Ctrl+klik na polu drabiny obok pola stania), a po wyczerpaniu prób lina."""
         cb = self.cb
@@ -1648,7 +1672,10 @@ class Wypad:
             if tryb == "krok":
                 cb.postac.krok(self._kier_do_pola(poz, pole))
             elif tryb == "lina":
-                self.ops.uzyj_line(pole if trzy else e["cel"], poz)
+                cel_l = pole if trzy else e["cel"]
+                if tuple(cel_l[:2]) == tuple(poz[:2]):
+                    poz = self._zejdz_z_pola(poz)       # 21.10: z własnego pola liny jej nie użyjemy (dawajkesh z9 -> z8, 6 prób w miejscu)
+                self.ops.uzyj_line(cel_l, poz)
             else:
                 self.ops.uzyj_pole(pole, poz)
         except bot.Zatrzymano:

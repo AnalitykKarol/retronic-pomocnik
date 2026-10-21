@@ -594,7 +594,8 @@ class Pietra:
     def _stosuje(self, tryb, poz, T, teraz):
         """R1b: czy tryb ma zastosowanie w tej chwili. "krok" nie z własnego pola przejścia; "lopata" tylko dla dziury
         zasypanej (ZASYPANE), przy włączonym PIETRA_LOPATA, z łopatą w plecaku i z operacją łopaty."""
-        if tryb == "krok":
+        if tryb in ("krok", "lina"):
+            # 21.10 (Karol): liny też nie użyjesz, stojąc na jej polu (krok z własnego pola przejścia też nic nie da)
             return (poz[0], poz[1]) != (T[0], T[1])
         if tryb == "lopata":
             return bool(self._k("PIETRA_LOPATA", 1)) and Pietra._zasypana(self, T) \
