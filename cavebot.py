@@ -117,6 +117,10 @@ WPADNIECIE_LINA = 1                # pokrętło 0/1: 1 = pierwsza próba wyjści
 WPADNIECIE_LINA_PROB = 3           # prób liny (pokrętło 1-5)
 WPADNIECIE_PLAN = 1                # pokrętło 0/1: 1 = gdy lina nie działa, plan wielopiętrowy po mapie i przejściach z danych (wykonuje pietra.py)
 WPADNIECIE_ODL = 3                 # pola: tak blisko poprzedniej pozycji musi być lądowanie, żeby zmiana piętra była upadkiem (nie teleportem/śmiercią); pokrętło 1-6
+WPADNIECIE_PLAN_PULE = 0           # pokrętło 0/1 (domyślnie 0 = jak dotąd): 1 = plan wpadnięcia liczy drogę do PLAN_MAX_KAND najbliższych PEWNYCH przejść i osobno do tylu niepewnych z flag mapy (w mieście niepewne „w górę” zajmowały wszystkie miejsca i znane schody/kratki nie były liczone; SPEC_kratki_drabiny_thais_1021 F2)
+LOOT_BEZ_DRABIN = 0                # pokrętło 0/1 (domyślnie 0 = jak dotąd): 1 = loot nie robi Ctrl+klik (Use) na polu drabiny (wspina postać piętro wyżej); drabiny z przejść w danych + nauczone przy wyjściu w górę (trasy/drabiny_nauczone.json; SPEC_kratki_drabiny_thais_1021 F3)
+WPADNIECIE_BEZ_STOP = 0            # 21.10 pokrętło 0/1 (domyślnie 0 = jak dotąd): 1 = wpadnięcie bez STOP: cykle ponawiania (czyszczenie złych przejść, czekanie 10-20 s, zejście z pola przejścia), STOP+critical dopiero po PIETRA_MAX_S i >=3 cyklach (wpadniecie.py, SPEC_wpadniecie_bez_stop_1021)
+PRZEJSCIE_TRZY_SPOSOBY = 0         # 21.10 pokrętło 0/1 (Karol): 1 = przejście pięter próbuje na punkcie przejścia: wejść, kliknąć (Use), lina (w górę); działający sposób zapamiętany dla wszystkich postaci (dane_tibia/ruch/przejscia_nauczone.json) i próbowany pierwszy (wypad.py, pietra.py; SPEC_przejscia_trzy_sposoby_1021)
 WPADNIECIE_POSCIG = 0              # pokrętło 0/1 (domyślnie 0 = jak dotąd): 1 = pozycje czytane w pętli pościgu/lootu odświeżają ostatnią próbkę wpadnięcia, więc upadek w dziurę podczas pościgu jest wykrywany (wpadniecie.w_petli; SPEC_orbity_straznik_1020 A)
 WPADNIECIE_WALIDACJA = 0           # pokrętło 0/1 (domyślnie 0 = jak dotąd): 1 = przed nauką dziury sprawdź mapę (flaga 2, brak 4) i brak schodów w cheb<=1 od lądowania/p0; inaczej bez nauki (wpadniecie.py)
 DZIURY_NAUCZONE = 1                # pokrętło 0/1: 1 = pola z trasy/dziury_nauczone.json są ścianą dla każdej drogi A* i kroku na danym piętrze
@@ -231,6 +235,7 @@ DOJSCIE_BIEGNIJ = 1                # 1 = w dojściu na spot (--dojscie, CavebotD
 PIETRA_LOPATA_TYLKO_Z7 = 1         # pokrętło 0/1: łopata tylko na z7 (wejście do jaskini z powierzchni); 0 = na każdym piętrze (dawne)
 PIETRA_LOPATA_BRAK_S = 600.0       # s: po "nie widzę łopaty" w plecaku nie próbujemy łopaty ponownie
 PIETRA_LOPATA = 1                  # 1 = przy wejściu w dół dziurą (pole z flagą 2) po nieudanym kroku odkopujemy ją łopatą z plecaka (Use with, ID 3457)
+PIETRA_LOPATA_AUTO = 0             # 21.10 (F4 SPEC_generator_spotow_1021): 1 = łopata na każdym zejściu w dół; 0 = tylko ZASYPANE i pamięć "lopata"
 PIETRA_TRYBY_Z_DANYCH = 1          # R1b pokrętło 0/1: przejścia pięter tylko trybami, które działają w danych (schody: krok w obie strony; drabina: R ze skosu bez pre-kroków; łopata tylko zasypana dziura z pola sąsiedniego); ortogonalne pole startowe tylko przed krokiem; slot bez zastosowania nie zużywa próby; 0 = dawny porządek prób
 PIETRA_CZEKAJ_KROK_S = 1.2         # R1b: s czekania na zmianę piętra po kroku (p99 udanych 1,5 s), potem ponowny odczyt pozycji; 0 = dawne 2,0 s + odstępy 1,2,4,6 s
 PIETRA_CZEKAJ_R_S = 2.0            # R1b: s czekania na zmianę piętra po R (Ctrl+klik); p99 udanych 1,8 s
@@ -518,6 +523,7 @@ SMIERC_STOP = 0                    # 16.10 (R5/P5): 1 = po zgonie bot nic nie ro
 OBSERWATOR_PK_KONTEKST = 0         # 16.10 (P10): 1 = obserwator (Haiku) dostaje pk_stan, karencję PK i wrogów oraz instrukcję, że PAUZA_PK z aktywną karencją to stan zamierzony; 0 = jak dotąd
 SMIERC_ODCZYTY = 3                 # SMIERC_STOP: tyle kolejnych odczytów HP == 0 potwierdza zgon (jeden/dwa to możliwy fałszywy odczyt; w tym czasie obieg stoi bez akcji)
 SMIERC_SKOK = 8                    # SMIERC_STOP: HP == 0 i skok pozycji o tyle pól (albo zmiana piętra) względem ostatniej żywej próbki = respawn w świątyni, zgon potwierdzony od razu
+ROZLACZENIE_STOP = 0                # 21.10 (spec SPEC_rozlaczenie_1021): 1 = klient wylogowany (pamięć gry stoi >= 25 s, a zrzut pokazuje ekran logowania "Character List"/"Enter Game"): bot nie wysyła żadnych klawiszy ani kliknięć, jedno powiadomienie critical, proces trwa i wznawia pracę po powrocie do gry (bez auto-logowania); 0 = jak dotąd
 SKOS_ZLY_S = 30.0                  # s: pole po skosie, na które nie weszliśmy (brak zmiany pozycji), nie jest ponawiane
 SKOS_LOG_S = 3.0                   # s: min. odstęp wpisów "Skos awaryjny" w logu
 POSCIG_HP_SPADEK = 8               # pp HP gracza: tyle straty w oknie kończy pętlę
@@ -676,6 +682,9 @@ PK_UCIECZKA_BLOK_S = 1.0           # s: w ucieczce PK (PK_UH_SZYBKIE=1) tyle bez
 PK_UCIECZKA_WALKA_S = 2.0          # s: maks. walka z blokującym w ucieczce PK (PK_UH_SZYBKIE=1)
 PK_UH_ID = 3160                    # id runy Ultimate Healing (jak mozg.TRADE_ID_UH)
 PK_SKAN_WIEK = 0.25                # s: cache skanu stworów w detekcji PK (bez drugiego pełnego skanu w obiegu)
+SKAN_WIEK_WALKA = 0.5              # pokrętło 0.1-0.5 s (21.10, SPEC_skan_walka_spokoj_1021): wiek listy stworów w walce/pogoni/ucieczce/leczeniu; 0.5 + SKAN_WIEK_SPOKOJ 0.5 = jak dotąd (bez pola "rytm")
+SKAN_WIEK_SPOKOJ = 0.5             # pokrętło 0.5-1.5 s: wiek listy stworów poza walką (rzadszy skan = mniej CPU)
+SKAN_STANY_WALKI = ("WALKA", "POGON", "WALKA_PVP", "UCIECZKA", "ZDROWIE", "LOOT")   # LOOT: żywy mob obok przerywa zbieranie
 _PK_TEST_N = 0                     # licznik plików wrogów w testach (RETRONIC_TESTY)
 PK_FALLBACK_PONOW_S = 10.0         # s: w ucieczce awaryjnej (brak planu do depo) co tyle ponawiamy start trasy do depo
 PK_DEPO_MAX_MIN = 20               # min: tyle w depo czekamy na regenerację HP (bez jedzenia HP nie rośnie), potem STOP + powiadomienie
@@ -924,6 +933,10 @@ class Cavebot:
         self.martwy = False            # 16.10 (SMIERC_STOP): po potwierdzonym zgonie True; tick nic nie robi, model nie wykonuje akcji
         self._smierc_zero = 0          # kolejne odczyty HP == 0
         self._smierc_zywy = None       # (poz, czas) ostatniej próbki z HP > 0
+        self.rozlaczony = False        # 21.10 (ROZLACZENIE_STOP): True od potwierdzenia ekranu logowania do powrotu do gry; tick nic nie wysyła, model i czat milczą
+        self._rozl_det = None          # rozlaczenie.Detektor (tworzony przy pierwszym obiegu z ROZLACZENIE_STOP=1)
+        self._rozl_zrzut = None        # funkcja zrzutu -> True (ekran logowania) / False / None; None = rozlaczenie.zrzut_logowania (testy wstrzykują atrapę)
+        self._rozl_start = None        # (czas zegara, czas ścienny, poz, stan sprzed rozłączenia) chwili ogłoszenia rozłączenia
         self._d3 = None                # d3_zawieszka.Zawieszka (16.10): detektor zawieszki, tworzony przy pierwszym obiegu
         self._decyzja_nr = 0           # 15.10: licznik rekordów "decyzja" w tej sesji (id łączące z nowy_cel/epizod_celu/poscig_*)
         self._d1_id_cel = None         # id decyzji D1, z której wybrano bieżący cel (do powiązania z D2)
@@ -3573,8 +3586,23 @@ class Cavebot:
         g["proc"] = 100.0 * g["hp"] / g["max_hp"] if g["max_hp"] else 100.0
         return g
 
+    def skan_rytm(self):
+        """21.10: wiek listy stworów, którego bot teraz potrzebuje (walka krócej, spokój dłużej), albo None przy
+        pokrętłach domyślnych (0.5/0.5 = zapytania bez pola "rytm", rdzeń jak dotąd)."""
+        if SKAN_WIEK_WALKA == 0.5 and SKAN_WIEK_SPOKOJ == 0.5:
+            return None
+        walka = self.stan in SKAN_STANY_WALKI or getattr(self, "cel", None) is not None
+        return float(SKAN_WIEK_WALKA if walka else SKAN_WIEK_SPOKOJ)
+
     def stwory(self, maks_wiek=None):
         z = {"cmd": "stwory"}
+        rytm = self.skan_rytm()
+        if rytm is not None:
+            if maks_wiek is None:
+                maks_wiek = rytm
+            elif maks_wiek > 0:
+                rytm = min(rytm, maks_wiek)  # marsz/PK pytają o 0,25-0,4 s: skaner ma za tym nadążać (świeży skan 0.0 nie wchodzi w rytm)
+            z["rytm"] = rytm               # skaner w tle planuje pod najmniejszy rytm z 2 s (rdzen.Pamiec._rytm_teraz)
         if maks_wiek is not None:
             z["maks_wiek"] = maks_wiek     # cache skanera rdzenia zamiast świeżego skanu
         surowa = self.zapytaj(z)["stwory"]
@@ -4328,6 +4356,8 @@ class Cavebot:
         bot.sprawdz_stop()
         if SMIERC_STOP and self.martwy:
             return True                     # MARTWY: żadnych zapytań, kliknięć ani modelu; STOP kończy pętlę
+        if ROZLACZENIE_STOP and self.rozlaczony:
+            return self._rozl_pauza()       # 21.10: rozłączony klient: własny odczyt (odporny na błędy), zero klawiszy
         if self.czas_s and self.zegar() - self.start >= self.czas_s:
             log("Upłynął limit czasu.")
             return False
@@ -4340,6 +4370,8 @@ class Cavebot:
         poz = self.postac.pozycja()
         teraz = self.zegar()
         fazy = {"gracz": teraz - t_start}
+        if ROZLACZENIE_STOP and self._rozl_tick(g, poz, teraz):
+            return True                     # 21.10: wylogowany klient wykryty w tym obiegu (przed SMIERC, PK, walką, lootem i modelem)
         if SMIERC_STOP and self._smierc_tick(g, poz, teraz):
             return True                     # zgon (albo podejrzenie zgonu) przed PK, walką, lootem i modelem
         if WPADNIECIE:
@@ -7221,7 +7253,7 @@ class Cavebot:
             return False
         lw["t_ost"] = self.zegar()
         if status == "przerwane":
-            if opis in ("brak_okna", "brak_pamieci", "obce_okno", "stwor_na_zwlokach", "daleko", "na_zwlokach"):
+            if opis in ("brak_okna", "brak_pamieci", "obce_okno", "stwor_na_zwlokach", "daleko", "na_zwlokach", "drabina"):
                 self.lww_pomin[zw] = teraz + LOOT_W_WALCE_POMIN_S
             if opis == "brak_okna":
                 self._zw_oznacz_brak_okna(zw)
@@ -7687,6 +7719,104 @@ class Cavebot:
             log(f"PK: zapisałem {bot.STOP} (zatrzymanie bota: {opis})")
         except OSError as e:
             log(f"PK: nie zapisałem STOP ({e})")
+
+    def _rozl_detektor(self):
+        if self._rozl_det is None:
+            import rozlaczenie  # noqa: PLC0415
+            self._rozl_det = rozlaczenie.Detektor()
+        return self._rozl_det
+
+    def _rozl_zrzut_fn(self):
+        f = self._rozl_zrzut
+        if f is None:
+            import rozlaczenie  # noqa: PLC0415
+            f = rozlaczenie.zrzut_logowania
+        return f
+
+    def _rozl_odcisk(self, g, poz):
+        import rozlaczenie  # noqa: PLC0415
+        return rozlaczenie.odcisk(g, poz, getattr(self, "stwory_surowe", None))
+
+    def _rozl_tick(self, g, poz, teraz):
+        """ROZLACZENIE_STOP (21.10). True = obieg zużyty (rozłączenie ogłoszone właśnie teraz). Detektor dostaje odcisk życia
+        klienta (statystyki, pozycja, lista stworów z ostatniego skanu); zrzut ekranu tylko gdy odcisk stoi >= 10 s."""
+        try:
+            wynik = self._rozl_detektor().krok(teraz, self._rozl_odcisk(g, poz), self._rozl_zrzut_fn())
+            if wynik == "rozlaczenie":
+                self._rozl_ogloz(poz, teraz)
+                return True
+            return False
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:                            # detekcja nigdy nie wywraca bota
+            log(f"debug: rozłączenie błąd {e!r}")
+            return False
+
+    def _rozl_ogloz(self, poz, teraz):
+        """Jednorazowo: stan ROZLACZONY, log, telemetria 'rozlaczenie', puszczenie trzymanych klawiszy, powiadomienie critical."""
+        det = self._rozl_detektor()
+        self.rozlaczony = True
+        ostatni_stan = str(self.stan)
+        czas = time.strftime("%H:%M:%S")
+        self._rozl_start = (teraz, time.time(), tuple(poz), self.stan)
+        self.ustaw_stan("ROZLACZONY", f"klient wylogowany (ekran logowania), pamięć stoi {det.zamrozone_s:.0f} s, poz {tuple(poz)}")
+        log(f"ROZŁĄCZENIE: pamięć gry stoi {det.zamrozone_s:.0f} s, a zrzut pokazuje ekran logowania. Przestaję naciskać klawisze "
+            f"i czekam na powrót do gry (poz {tuple(poz)}, ostatni stan {ostatni_stan}).")
+        try:
+            self._poscig_puszcz()                         # tylko puszcza klawisze ruchu, nic nie wciska
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"debug: rozłączenie: puszczenie klawiszy {e!r}")
+        self._tele_poscig("rozlaczenie", poz=list(poz[:3]), czas=czas, ostatni_stan=ostatni_stan,
+                          zamrozone_s=round(det.zamrozone_s, 1), zrzuty=det.pozytywne)
+        nick = getattr(self.postac, "nazwa", None) or "?"
+        self._pk_powiadom("Bot: rozłączony", f"{nick}, {czas}: klient pokazuje ekran logowania. Bot nie naciska klawiszy, "
+                          f"czeka na powrót do gry (bez auto-logowania).", "rozlaczenie")
+
+    def _rozl_pauza(self):
+        """Obieg w stanie ROZLACZONY: tylko odczyt i zrzut co 3 s (bez klawiszy, kliknięć i modelu). Błąd odczytu (trwa logowanie,
+        brak statystyk gracza) nie kończy bota. True zawsze."""
+        try:
+            teraz = self.zegar()
+            try:
+                g = self.gracz()
+                poz = self.postac.pozycja()
+                self.stwory(1.0)
+                odcisk = self._rozl_odcisk(g, poz)
+            except bot.Zatrzymano:
+                raise
+            except Exception:
+                odcisk = ("brak odczytu",)                # stały znacznik: brak odczytu nie liczy się jako ruch pamięci
+            det = self._rozl_detektor()
+            if det.krok(teraz, odcisk, self._rozl_zrzut_fn()) == "wznowienie":
+                self._rozl_wznow(teraz)
+            else:
+                self.spij(1.0)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"debug: rozłączenie (pauza) błąd {e!r}")
+            self.spij(1.0)
+        return True
+
+    def _rozl_wznow(self, teraz):
+        """Powrót do gry: log, telemetria 'rozlaczenie_koniec', reset liczników bezczynności, ponowny wybór własnego wpisu."""
+        start = self._rozl_start
+        self.rozlaczony = False
+        czas_s = (teraz - start[0]) if start else None
+        log(f"Rozłączenie zakończone po {czas_s:.0f} s: klient znów w grze, wznawiam pracę." if czas_s is not None
+            else "Rozłączenie zakończone: klient znów w grze, wznawiam pracę.")
+        self._tele_poscig("rozlaczenie_koniec", czas_s=round(czas_s, 1) if czas_s is not None else None)
+        self._rozl_start = None
+        for pole in ("aktywnosc_ts", "ruch_czas", "hp_wzrost", "hp_regen", "mana_wzrost"):
+            if hasattr(self, pole):
+                setattr(self, pole, teraz)
+        try:
+            bot._wlasny["t"] = float("-inf")                # po relogu może być widmo własnego wpisu: wybór od nowa
+        except Exception:
+            pass
+        self.ustaw_stan(start[3] if start and start[3] else "IDZ", "po rozłączeniu")
 
     def _smierc_tick(self, g, poz, teraz):
         """SMIERC_STOP (R5/P5). True = obieg zużyty (podejrzenie albo zgon): bez żadnej akcji. Zgon = HP == 0 przez
@@ -8716,6 +8846,14 @@ class Cavebot:
             except Exception as e:   # moduł nigdy nie wywraca bota
                 log(f"debug: wpadniecie.py niedostępne ({e!r})")
                 w = self.wpadniecie = False
+        # 21.10 (F3): pokrętła z na_zywo.json przychodzą PO pierwszym _wp(), więc podpinamy przy każdym obiegu (raz, test tożsamości)
+        if w and LOOT_BEZ_DRABIN and hasattr(self.loot, "DRABINY") and self.loot.DRABINY is not w.drabiny:
+            try:
+                self.loot.DRABINY = w.wczytaj_drabiny()      # ten sam zbiór: nauka drabiny w trakcie gry od razu działa w loocie
+                log(f"Loot: {len(w.drabiny)} pól drabin bez Ctrl+klik (LOOT_BEZ_DRABIN).")
+            except Exception as e:   # drabiny nie mogą wyłączyć całego wpadnięcia
+                log(f"debug: drabiny dla lootu niedostępne ({e!r})")
+                self.loot.DRABINY = w.drabiny
         return w or None
 
     def dziura_nauczona(self, pole):

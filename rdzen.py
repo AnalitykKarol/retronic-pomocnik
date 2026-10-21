@@ -352,6 +352,17 @@ class Pamiec:
     ZAPAS_SKANU = 0.05            # s: skan w tle startuje, gdy wynik ma (limit wieku - średni czas skanu - zapas); 20.10:
                                   # bot pyta 1,5-2,5 razy/s i bierze wynik do 0,5 s, a skaner robił 7-8 skanów/s (4 z 5 do kosza)
     _czas_skanu = 0.1             # s: średnia krocząca czasu szybkiego skanu
+    RYTM_WAZNY_S = 2.0            # 21.10 (SPEC_skan_walka_spokoj_1021): tyle s po zapytaniu z polem "rytm" skaner w tle planuje pod ten wiek
+    RYTM_ZAKRES = (0.05, 2.0)     # s: dopuszczalny wiek z pola "rytm" (bez pola = WIEK_* jak dotąd)
+    _rytmy = None                 # {wiek_s: t_mono ostatniego zapytania z tym "rytm"}; plan = najmniejszy ważny (RYTM_WAZNY_S)
+
+    def _rytm_teraz(self, teraz):
+        """Najmniejszy wiek z pola "rytm" zapytań z ostatnich RYTM_WAZNY_S albo None (= WIEK_* jak dotąd)."""
+        r = self._rytmy
+        if not r:
+            return None
+        wazne = [w for w, t in list(r.items()) if teraz - t <= self.RYTM_WAZNY_S]
+        return min(wazne) if wazne else None
     LOG_SKANU_MAX = 1 << 20
     _cache = None                 # (lista, t_mono, rodzaj, t_pelnego)
     _regiony_wiek = None
@@ -471,12 +482,24 @@ class Pamiec:
             self._agregat = ag
         return self._cache
 
-    def stwory_info(self, maks_wiek=None):
+    def stwory_info(self, maks_wiek=None, rytm=None):
         """Stwory z pamięci podręcznej (odświeżanej w tle) albo świeżym skanem.
-        Zwraca (lista, info) gdzie info: skan, wiek_s, wiek_pelnego_s."""
+        `rytm` (s, opcjonalne): bot mówi, jak świeżych danych potrzebuje (walka krócej, spokój dłużej); skaner w tle
+        planuje pod ten wiek przez RYTM_WAZNY_S. Zwraca (lista, info) gdzie info: skan, wiek_s, wiek_pelnego_s."""
         import threading
         teraz = time.monotonic()
         self._ostatnie_zapytanie = teraz
+        if rytm is not None:
+            try:
+                w = float(rytm)
+                if w == w and w not in (float("inf"), float("-inf")):      # NaN/inf z JSON-a ignorujemy
+                    lo, hi = self.RYTM_ZAKRES
+                    w = round(min(max(w, lo), hi), 3)
+                    r = {k: t for k, t in (self._rytmy or {}).items() if teraz - t <= self.RYTM_WAZNY_S}
+                    r[w] = teraz
+                    self._rytmy = r                   # nowy słownik: wątek skanera czyta spójną kopię
+            except (TypeError, ValueError):
+                pass
         self._zapytania = self._zapytania or [0, 0]
         self._zapytania[0] += 1
         if self._zamek is None:
@@ -528,6 +551,9 @@ class Pamiec:
         if c is not None and not self._potrzebny_pelny(teraz):
             ma = any(not s["gracz"] for s in c[0])
             limit = self.WIEK_STWORY if ma else self.WIEK_PUSTO
+            r = self._rytm_teraz(teraz)
+            if r is not None:
+                limit = r                    # 21.10: najmniejszy rytm zamówiony przez bota w ostatnich 2 s (walka / spokój)
             zostalo = c[1] + limit - min(self._czas_skanu, limit / 2) - self.ZAPAS_SKANU - teraz
             if zostalo > 0:
                 return min(zostalo, 0.5)
@@ -743,7 +769,10 @@ class Pamiec:
         if cmd == "pozycja":
             return {"pozycja": self.pozycja(zadanie["nazwa"])}
         if cmd == "stwory":
-            lista, info = self.stwory_info(maks_wiek=zadanie.get("maks_wiek"))
+            if zadanie.get("rytm") is None:          # bez pola "rytm" wywołanie jak przed 21.10
+                lista, info = self.stwory_info(maks_wiek=zadanie.get("maks_wiek"))
+            else:
+                lista, info = self.stwory_info(maks_wiek=zadanie.get("maks_wiek"), rytm=zadanie.get("rytm"))
             return {"stwory": lista, **info}
         if cmd == "cel_ataku":
             return self.cel_ataku()

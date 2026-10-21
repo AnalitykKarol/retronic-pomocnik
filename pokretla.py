@@ -201,12 +201,20 @@ ZAKRESY = {
     "WPADNIECIE_LINA": (0, 1),          # 1 = pierwsza próba wyjścia: Use liny na polu lądowania (rope spot pod dziurą)
     "WPADNIECIE_LINA_PROB": (1, 5),     # prób liny przed planem po mapie
     "WPADNIECIE_PLAN": (0, 1),          # 1 = gdy lina nie działa, plan wielopiętrowy po mapie i przejściach z danych (pietra.py)
+    "SKAN_WIEK_WALKA": (0.1, 0.5),      # 21.10: s, wiek listy stworów w walce (mniej = świeższe dane, więcej CPU); 0.5 = jak dotąd
+    "SKAN_WIEK_SPOKOJ": (0.5, 1.5),     # 21.10: s, wiek listy stworów poza walką (więcej = rzadszy skan); 0.5 = jak dotąd
+    "WPADNIECIE_PLAN_PULE": (0, 1),     # 21.10: 1 = plan wpadnięcia: osobna pula pewnych przejść (kratki, schody z tras) obok niepewnych z mapy; domyślnie 0
+    "LOOT_BEZ_DRABIN": (0, 1),          # 21.10: 1 = loot nie klika (Use) w pole drabiny, bo wspina postać piętro wyżej; domyślnie 0
+    "WPADNIECIE_BEZ_STOP": (0, 1),      # 21.10: 1 = po wpadnięciu cykle ponawiania zamiast STOP (STOP po PIETRA_MAX_S i >=3 cyklach); domyślnie 0
+    "PRZEJSCIE_TRZY_SPOSOBY": (0, 1),   # 21.10: 1 = przejście pięter: wejść / kliknąć / lina na punkcie, działający sposób zapamiętany; domyślnie 0
+    "ROZLACZENIE_STOP": (0, 1),         # 21.10: 1 = ekran logowania -> bot nie naciska klawiszy, powiadomienie, wznowienie po powrocie do gry; domyślnie 0
     "WPADNIECIE_POSCIG": (0, 1),        # 20.10: 1 = upadek w dziurę w trakcie pościgu też jest wykrywany (ostatnia próbka odświeżana w pętli); domyślnie 0
     "WPADNIECIE_WALIDACJA": (0, 1),     # 1 = nauka dziury tylko z flagą 2 mapy i bez schodów w pobliżu (domyślnie 0)
     "WPADNIECIE_ODL": (1, 6),           # pola: lądowanie tak blisko poprzedniej pozycji = upadek (dalej: teleport/śmierć)
     "DZIURA_PRZY_CELU": (0, 1),         # 15.10: 1 = nie atakujemy/nie gonimy celu stojącego przy znanej dziurze, gdy klient szedłby przez nią
     "DZIURY_NAUCZONE": (0, 1),          # 1 = pola z trasy/dziury_nauczone.json są ścianą dla dróg A* i kroków
     "PIETRA_LOPATA": (0, 1),            # 1 = wejście dziurą w dół: po nieudanym kroku odkopanie dziury łopatą z plecaka
+    "PIETRA_LOPATA_AUTO": (0, 1),       # 21.10: 1 = łopata na każdym zejściu w dół (nie tylko ZASYPANE i pamięć "lopata"); domyślnie 0
     "PIETRA_TRYBY_Z_DANYCH": (0, 1),    # R1b: 1 = przejścia pięter tylko skutecznymi trybami (krok na schodach, R z drabiny ze skosu), start ortogonalny tylko dla kroku
     "PIETRA_CZEKAJ_KROK_S": (0.0, 4.0),  # R1b: s czekania na zmianę piętra po kroku (0 = dawne 2,0 s i dłuższe odstępy)
     "PIETRA_CZEKAJ_R_S": (0.0, 4.0),    # R1b: s czekania na zmianę piętra po R (Ctrl+klik)
@@ -414,7 +422,7 @@ KIERUNEK = {
     "WYPRAWA_AKTYWNA": "nie_wyzej", "WYPRAWA_BLANKI": "nie_wyzej", "WYPRAWA_BLANKI_MAX_KOSZT": "nie_wyzej",
     "WYPRAWA_JEDZENIE_CEL": "nie_wyzej", "WYPRAWA_JEDZENIE_DOKUP": "nie_wyzej", "WYPRAWA_MIN_HP": "nie_nizej",
     "WYPRAWA_CO_MIN": "nie_nizej", "WYPRAWA_MAX_CZAS_S": "nie_wyzej", "WYPRAWA_MAX_KROKOW": "nie_wyzej",
-    "WYPRAWA_STOP_PRZY_UTKNIECIU": "nie_nizej", "WYPRAWA_CZEKAJ_NA_GLOD": "nie_wyzej", "JEDZENIE_BRAK_WALIDUJ": "nie_nizej", "JEDZENIE_BRAK_PROBY": "nie_nizej", "GLOD_ZAPAS_WAZNY_S": "nie_wyzej", "WYPRAWA_WZNOW_WALIDUJ": "nie_nizej", "WYPAD_BIEGNIJ": "nie_nizej", "DOJSCIE_BIEGNIJ": "nie_nizej", "WPADNIECIE": "nie_nizej", "WPADNIECIE_WALIDACJA": "nie_wyzej", "WPADNIECIE_POSCIG": "nie_wyzej", "WPADNIECIE_LINA": "nie_nizej", "WPADNIECIE_PLAN": "nie_nizej", "DZIURY_NAUCZONE": "nie_nizej", "DZIURA_PRZY_CELU": "nie_nizej", "WPADNIECIE_LINA_PROB": "nie_nizej", "PIETRA_LOPATA": "nie_nizej", "PIETRA_TRYBY_Z_DANYCH": "nie_nizej", "PIETRA_STARTY_DOMYSLNE": "nie_nizej", "WYPRAWA_DEPO_POWROT": "nie_wyzej", "WYPRAWA_DEPO_POSTOJ_S": "nie_wyzej", "WYPRAWA_TYLKO_DEPO": "nie_wyzej", "WYPRAWA_MARSZ_KLIK": "nie_wyzej", "WROC_REFILL": "nie_wyzej", "WYPRAWA_ZLOTO_MIN": "nie_nizej", "WYPRAWA_CAP_REZERWA": "nie_nizej",
+    "WYPRAWA_STOP_PRZY_UTKNIECIU": "nie_nizej", "WYPRAWA_CZEKAJ_NA_GLOD": "nie_wyzej", "JEDZENIE_BRAK_WALIDUJ": "nie_nizej", "JEDZENIE_BRAK_PROBY": "nie_nizej", "GLOD_ZAPAS_WAZNY_S": "nie_wyzej", "WYPRAWA_WZNOW_WALIDUJ": "nie_nizej", "WYPAD_BIEGNIJ": "nie_nizej", "DOJSCIE_BIEGNIJ": "nie_nizej", "WPADNIECIE": "nie_nizej", "WPADNIECIE_WALIDACJA": "nie_wyzej", "WPADNIECIE_POSCIG": "nie_wyzej", "SKAN_WIEK_WALKA": "nie_nizej", "SKAN_WIEK_SPOKOJ": "nie_wyzej", "WPADNIECIE_PLAN_PULE": "nie_wyzej", "LOOT_BEZ_DRABIN": "nie_wyzej", "WPADNIECIE_BEZ_STOP": "nie_wyzej", "PRZEJSCIE_TRZY_SPOSOBY": "nie_wyzej", "ROZLACZENIE_STOP": "nie_wyzej", "WPADNIECIE_LINA": "nie_nizej", "WPADNIECIE_PLAN": "nie_nizej", "DZIURY_NAUCZONE": "nie_nizej", "DZIURA_PRZY_CELU": "nie_nizej", "WPADNIECIE_LINA_PROB": "nie_nizej", "PIETRA_LOPATA": "nie_nizej", "PIETRA_TRYBY_Z_DANYCH": "nie_nizej", "PIETRA_STARTY_DOMYSLNE": "nie_nizej", "WYPRAWA_DEPO_POWROT": "nie_wyzej", "WYPRAWA_DEPO_POSTOJ_S": "nie_wyzej", "WYPRAWA_TYLKO_DEPO": "nie_wyzej", "WYPRAWA_MARSZ_KLIK": "nie_wyzej", "WROC_REFILL": "nie_wyzej", "WYPRAWA_ZLOTO_MIN": "nie_nizej", "WYPRAWA_CAP_REZERWA": "nie_nizej",
     # ogłoszenia Trade: analityk nie może ich włączyć ani skrócić odstępów (tylko Karol w na_zywo.json)
     "MODEL_TRASA_MIASTA": "nie_wyzej", "MODEL_TRASA_ZAMROZENIE_S": "nie_wyzej", "MODEL_TRASA_MAX_ODL": "nie_wyzej",
     "TRADE_OGLOSZENIA": "nie_wyzej", "TRADE_PRIV_ODPOWIEDZI": "nie_wyzej", "TRADE_MIN_S": "nie_nizej", "TRADE_MAX_S": "nie_nizej", "TRADE_MIN_UH": "nie_nizej",

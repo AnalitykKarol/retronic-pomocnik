@@ -2617,6 +2617,9 @@ class Mozg:
         if self._martwy():
             self.log("MARTWY: odrzucam akcje modelu.")
             return
+        if self._rozlaczony():
+            self.log("ROZŁĄCZONY: odrzucam akcje modelu (klient na ekranie logowania).")
+            return
         szybki, powod = self._pk_szybkie()
         if szybki:      # P6/R2b: w PK-alarmie / przy HP < 50% model nie wstrzymuje bota i nie "kontynuuje" (decyzja po fakcie)
             for a in akcje:
@@ -3468,9 +3471,14 @@ class Mozg:
         """SMIERC_STOP: po zgonie model nie wykonuje akcji, nie pisze na czacie i nie jest pytany."""
         return bool(self.cb is not None and cavebot.SMIERC_STOP and getattr(self.cb, "martwy", False))
 
+    def _rozlaczony(self):
+        """ROZLACZENIE_STOP (21.10): klient wylogowany (ekran logowania): model nie wykonuje akcji, nie pisze na czacie i nie jest pytany,
+        dopóki cavebot nie wznowi pracy po powrocie do gry. Pokrętło 0 = nigdy."""
+        return bool(self.cb is not None and cavebot.ROZLACZENIE_STOP and getattr(self.cb, "rozlaczony", False))
+
     def obieg_hybrydy(self, czat_co=CZAT_POLLING):
         """Część pętli hybrydy niezależna od tick(): decyzje, czat, zdarzenia, nowe pytanie."""
-        if self._martwy():
+        if self._martwy() or self._rozlaczony():
             self.decyzje.clear()
             return
         self.czaszki_ze_stworow()
@@ -3733,6 +3741,10 @@ def przedzial(tekst):
 
 DOJSCIE_PROBY = 3                  # tyle razy ponawiamy dojście (od aktualnej pozycji), zanim uznamy porażkę
 DOJSCIE_BLISKO_TRASY = 30          # pola: po nieudanym dojściu postać tak blisko trasy głównej = zaczynamy patrol
+DOJSCIE_POMIN_ODL = 10             # 21.10: pola: przy starcie postać na piętrze trasy głównej tak blisko niej = bez dojścia (restart na spocie:
+LINA_SPRAWDZ = 1                   # 21.10 (Karol „tak”): 1 = trasa/dojście przechodzi przy znanym polu liny (liny.py), a w otwartych pojemnikach
+                                   # i w ekwipunku liny nie ma -> bot nie rusza, powiadomienie critical (Kolanosh 17:12 utknął na z11 bez liny); 0 = jak dotąd
+                                   # dojście biegnie bez walki i lootu, dawajkesh 13:34 minął trolla z 30% HP); 0 = dojście zawsze jak dotąd
 
 
 DOJSCIE_START_DROGA = 60           # B: start dojścia = najwcześniejszy odcinek trasy (to samo piętro) z punktem w tylu polach DROGI po mapie
@@ -3858,6 +3870,40 @@ def ratunek_porazka(postac, co, log=print, **d):
         log(f"debug: ratunek błąd {e!r}")
 
 
+def sprawdz_line(a, punkty, log=print, ma_line=None):
+    """False = nie startujemy: dojście albo trasa przechodzi liną (znane pole liny), a liny nie widać w pamięci gry.
+    Brak odczytu pamięci = start jak dotąd (z wpisem w logu). Błąd samego sprawdzenia nigdy nie blokuje startu."""
+    try:
+        import liny  # noqa: PLC0415
+        znane = liny.znane_liny()
+        trasy = [(a.trasa, punkty)]
+        if a.dojscie:
+            trasy.insert(0, (a.dojscie, json.loads((bot.TRASY / f"{a.dojscie}.json").read_text())))
+        potrzeba = [(n, w[0]) for n, pts in trasy for w in [liny.wymaga_liny(pts, znane)] if w]
+        if not potrzeba:
+            return True
+        jest = (ma_line or liny.ma_line)()
+        opis = ", ".join(f"{n} (lina {w[2][:3]})" for n, w in potrzeba)
+        if jest is True:
+            log(f"Lina: trasa wymaga liny ({opis}), lina jest.")
+            return True
+        if jest is None:
+            log(f"Lina: trasa wymaga liny ({opis}), ale nie odczytałem pojemników ani ekwipunku; startuję jak dotąd.")
+            return True
+        log(f"Lina: trasa wymaga liny ({opis}), a w otwartych pojemnikach i w ekwipunku liny nie ma. Nie startuję.")
+        try:
+            powiadom.powiadom("Bot: brak liny", f"Trasa {opis} wymaga liny, a postać jej nie ma (albo plecak z liną zamknięty). "
+                              "Bot nie rusza.", "critical", "lina_brak")
+        except Exception:
+            pass
+        return False
+    except bot.Zatrzymano:
+        raise
+    except Exception as e:
+        log(f"Lina: nie sprawdziłem ({e!r}), startuję jak dotąd.")
+        return True
+
+
 def blisko_trasy(postac, punkty, odl=DOJSCIE_BLISKO_TRASY):
     """True, gdy postać stoi na piętrze trasy w odległości <= odl pól (Chebyshev) od któregoś jej punktu."""
     x, y, z = postac.pozycja()
@@ -3954,6 +4000,17 @@ def main(argv):
         if z_start is not None and z_start != 7:
             log(f"Dojście: postać na z{z_start}, pomijam dojście {a.dojscie}.")
             a.dojscie = None
+    if a.dojscie and DOJSCIE_POMIN_ODL > 0:
+        try:
+            if blisko_trasy(postac, punkty, DOJSCIE_POMIN_ODL):
+                log(f"Dojście: postać już na spocie (<= {DOJSCIE_POMIN_ODL} pól od trasy {a.trasa}), pomijam dojście {a.dojscie}.")
+                a.dojscie = None
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"Dojście: nie sprawdziłem odległości od trasy ({e!r}), idę dojściem.")
+    if LINA_SPRAWDZ and not sprawdz_line(a, punkty, log):
+        return
     if a.dojscie:
         dojscie = json.loads((bot.TRASY / f"{a.dojscie}.json").read_text())
         log(f"Dojście: trasa {a.dojscie} ({len(dojscie)} pkt), potem {a.trasa}.")
