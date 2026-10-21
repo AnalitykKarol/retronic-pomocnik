@@ -1,0 +1,14 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z8 (32046,32222) z mapy; po zejściu wejdź w pętlę rook_raty_z8_petla (po odwróceniu kierunek przeciwny)"
+  },
+  {
+   "idx": 1,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "pole przejścia z7 (kolor 210, flaga 2), typ przejścia (dziura/schody/kratka) NIEZWERYFIKOWANY w grze"
+  }
+ ]
+}

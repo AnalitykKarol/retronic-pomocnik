@@ -1161,7 +1161,8 @@ GOB_DO, GOB_Z, _ = BAZA_PK = W.punkty_bazy(nazwy=W.BAZY_PK)["gobliny_edron"]
 GOB_DEPO = tuple(GOB_DO[-1])
 GOB_BLISKO = (33167, 31813, 8)                 # piętro depo Edron (po schodach), ~20 pól od pola depo; atrapa świata nie zna
 #   przejścia z7 -> z8 przy depo (nagranie omija pole dziury (33167,31812,7), plan ma tam znane ostrzeżenie), więc dojście sprawdzamy stąd
-ROOK_START = (32021, 32159, 11)                # początek trasy rooka (do_miasta.json): plan rooka nie ma depo tego rodzaju
+ROOK_START = (32021, 32159, 11)                # początek trasy rooka kanały z11 (do_miasta.json): teraz w PLANY_PK
+POZA_PLANEM = (32300, 32400, 7)                # 21.10: pozycja >300 pól od najbliższej trasy (żaden plan, test brak-planu)
 
 
 def konf_wroc(**kw):
@@ -1239,9 +1240,9 @@ try:
     s, cb, w, k, plik = wroc_swiat(poz=START)
     sprawdz("19h położenie w jaskini trolli: plan troll (depo Thais)", tyk(s, cb, w) and w.w["baza"] == "troll", w.w and w.w["baza"])
     pw19.clear()
-    s, cb, w, k, plik = wroc_swiat(poz=ROOK_START)
+    s, cb, w, k, plik = wroc_swiat(poz=POZA_PLANEM)
     r = tyk(s, cb, w)
-    sprawdz("19i rook: brak planu depo -> bez startu, powiadomienie 'nie mogę ruszyć', plik WROC usunięty, bez ponawiania",
+    sprawdz("19i poza zasięgiem planów: brak depo -> bez startu, powiadomienie 'nie mogę ruszyć', plik WROC usunięty, bez ponawiania",
             not r and not cb.wypad_aktywny and not plik.exists() and any("nie mogę ruszyć" in a[1] for a in pw19)
             and not tyk(s, cb, w) and not tyk(s, cb, w, 400), (pw19, w.logi[-3:]))
     sprawdz("19i2 nieudane ręczne wywołanie nie odkłada automatycznych wypraw (nast_wyprawa bez zmian)",
@@ -1312,11 +1313,11 @@ try:
     r = tyk(s, cb, w)
     sprawdz("19l3 wyjątek w _start_wyprawa: zlecenie zakończone komunikatem, plik usunięty, bez ponawiania",
             not r and not plik.exists() and any("nie mogę ruszyć" in a[1] and "test" in a[1] for a in pw19) and not tyk(s, cb, w), pw19)
-    s, cb, w, k, plik = wroc_swiat(poz=ROOK_START)
+    s, cb, w, k, plik = wroc_swiat(poz=POZA_PLANEM)
     w.glod_potw_do = s.t + 5000
     glod0 = w.glod_potw_do
     tyk(s, cb, w)
-    sprawdz("19l4 nieudany ręczny start (rook) nie kasuje potwierdzonego głodu (CZEKAJ_NA_GLOD)", w.glod_potw_do == glod0, w.glod_potw_do)
+    sprawdz("19l4 nieudany ręczny start (poza planem) nie kasuje potwierdzonego głodu (CZEKAJ_NA_GLOD)", w.glod_potw_do == glod0, w.glod_potw_do)
 
     # h. anulowanie: usunięcie pliku (wroc.sh --anuluj) przed ruszeniem; zlecenie nie wraca samo
     pw19.clear()

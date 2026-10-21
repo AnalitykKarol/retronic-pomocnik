@@ -61,6 +61,14 @@ PLANY_PK = (
     # lina w górę pod dziurą z8 (33092,31837) (mapa: "pewne"); z8 dalej A* do nagranej trasy "do" (start (33106,31849,z8))
     {"nazwa": "gobliny_edron", "do": "gobliny_edron_do_depo.json", "z": "gobliny_edron_z_depo.json", "npc": None, "prefix": False,
      "wyjscia": (((33092, 31837, 9), (33092, 31838, 8), "gobliny_edron_do_depo.json"),)},
+    # 21.10: Rookgaard — powrót do miasta przez drabiny/schody (SPEC_powrot_rook_1020). Trasy odwrócone z dojść.
+    # Cel: (32061,32180,7) Al Dee, STOP. "z" = nagrane dojście (miasto->spot) na wypadek powrotu po PK.
+    # NIEZWERYFIKOWANE botem: przejście w górę (drabina/schody z8->z7 itd.) — ryzyko zapisane w specu.
+    {"nazwa": "rook_raty_z8",    "do": "rook_raty_z8_dojscie_odwrocona.json",    "z": "rook_raty_z8_dojscie.json",    "npc": None, "prefix": False},
+    {"nazwa": "rook_raty_z9",    "do": "rook_raty_z9_dojscie_odwrocona.json",    "z": "rook_raty_z9_dojscie.json",    "npc": None, "prefix": False},
+    {"nazwa": "rook_raty_z10",   "do": "rook_raty_z10_dojscie_odwrocona.json",   "z": "rook_raty_z10_dojscie.json",   "npc": None, "prefix": False},
+    {"nazwa": "rook_kanaly_z11", "do": "rook_kanaly_z11_dojscie_odwrocona.json", "z": "rook_kanaly_z11_dojscie.json", "npc": None, "prefix": False},
+    {"nazwa": "rook_bugi_z10",   "do": "rook_bugi_z10_dojscie_odwrocona.json",   "z": "rook_bugi_z10_dojscie.json",   "npc": None, "prefix": False},
 )
 BAZY_PK = BAZY + tuple(p["nazwa"] for p in PLANY_PK)     # plany dostępne dla ucieczki PK (troll: istniejące depo Thais)
 PK_PLAN_ZASIEG = 80                    # pola: ucieczka PK startuje z dalszej okolicy trasy niż zwykły wypad (zasięg 40)

@@ -1,0 +1,24 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "kratka_w_dol",
+   "komentarz": "lądowanie z9 (32029, 32195) dokładnie pod kratką; po zejściu wejdź w pętlę rook_raty_z9_petla"
+  },
+  {
+   "idx": 1,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "KRATKA z8 (32029,32195): w mapie zwykłe pole bez flagi 2, bot używa jej jak kratki kanału (Ctrl+klik)"
+  },
+  {
+   "idx": 5,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z8 (32027, 32198) w kieszeni z kratką (z mapy) (po odwróceniu kierunek przeciwny)"
+  },
+  {
+   "idx": 6,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody w depo z7 (kolor 210, flaga 2), wskazane przez Karola 20.10; typ NIEZWERYFIKOWANY przez bota"
+  }
+ ]
+}

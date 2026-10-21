@@ -1,0 +1,34 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z10 (32038, 32212); po zejściu wejdź w pętlę rook_raty_z10_petla (po odwróceniu kierunek przeciwny)"
+  },
+  {
+   "idx": 1,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "przejście z9 -> z10 (kolor 210, flaga 2)"
+  },
+  {
+   "idx": 38,
+   "typ": "kratka_w_dol",
+   "komentarz": "lądowanie z9 (32029, 32195) pod kratką; dalej A* po z9 do przejścia (32038,32212)"
+  },
+  {
+   "idx": 39,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "KRATKA z8 (32029,32195): w mapie zwykłe pole bez flagi 2, bot używa jej jak kratki kanału (Ctrl+klik)"
+  },
+  {
+   "idx": 43,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z8 (32027, 32198) w kieszeni z kratką (z mapy) (po odwróceniu kierunek przeciwny)"
+  },
+  {
+   "idx": 44,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody w depo z7 (kolor 210, flaga 2), wskazane przez Karola 20.10; typ NIEZWERYFIKOWANY przez bota"
+  }
+ ]
+}
