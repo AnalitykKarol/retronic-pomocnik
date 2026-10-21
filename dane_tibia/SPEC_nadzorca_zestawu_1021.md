@@ -13,6 +13,8 @@ nie logowały i nie wylogowywały, bo to będzie dziwne”; po ocenie: „raczej
   po kolei, odstępy 63–116 s, wszystkie z IP zgodnym z profilem (`okno_api.py sesja`). Skrypt jednorazowy, poza repo.
 - Logowanie postaci: **ręcznie** w podglądzie. Skryptu brak. Klienty mają `autoReconnect: true` i zapisany login.
   Czy po starcie klienta wystarczy Enter na ekranie logowania i Enter na liście postaci: **niezmierzone**.
+  21.10 07:27 (zrzut `grim`, kutangen i kolanoth): po starcie klient stoi na „Enter Game” z wypełnionym kontem i hasłem
+  („Remember password” zaznaczone), serwer Retronic 7.4, świat Danubia. Samo przejście Enter → lista → Enter: niezmierzone.
 - Wylogowanie: tylko prototyp `narzedzia_jednorazowe/wyloguj_prototyp_1020.py` (Ctrl+L, po zniknięciu ikon paska klienta
   natychmiast `sesja_gry.py zamknij`, bo autoReconnect loguje z powrotem w < 60 s). `wyloguj.sh` to F2 specu
   `SPEC_powrot_rook_1020.md`, niezrobione.
