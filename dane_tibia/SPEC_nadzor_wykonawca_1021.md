@@ -90,7 +90,13 @@ ręczna edycja wygrywa, pula. `testy/test_nadzor.py` na atrapach w katalogu tymc
 NADZOR_PAUZA = zero akcji, dwa końce zmian w tej samej minucie -> wylogowania >= 7 min od siebie, restart z `tryb.log`
 a nie z env, restart nie w walce, eskalacja przy PK, tryb cienia nic nie uruchamia.
 
-## Wdrożenie (propozycje, NIC z tego nie jest zainstalowane ani włączone)
+## Wdrożenie
+
+**21.10 17:40 zainstalowane (Karol: „raz na 10, max 5 minut”):** `~/.config/systemd/user/retronic-nadzor.{service,timer}`, przebieg co 5 min
+(`OnUnitActiveSec=5min`), tryb CIEŃ (brak `NADZOR_ZYWO`). Pierwszy przebieg 17:40:50 kod 0. Obchód modelu (`retronic-obchod`) jeszcze nie.
+Cofnięcie: `systemctl --user disable --now retronic-nadzor.timer`, usunięcie obu plików.
+
+### Propozycje z 21.10 (60 s zmienione na 5 min)
 
 Włączenie na żywo = Karol tworzy `instancje/_wspolne/NADZOR_ZYWO` (usunięcie wraca do cienia); chwilowe wstrzymanie =
 `instancje/_wspolne/NADZOR_PAUZA`. Zanim to nastąpi: dzień w cieniu (`tick` z timera, bez `NADZOR_ZYWO`), przegląd
