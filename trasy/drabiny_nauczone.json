@@ -1,0 +1,20 @@
+{
+ "_opis": "pola drabin (x, y, pi\u0119tro) nauczone przy wyj\u015bciu w g\u00f3r\u0119 (l\u0105dowanie x, y+1, pi\u0119tro-1); loot ich nie klika (LOOT_BEZ_DRABIN)",
+ "drabiny": [
+  [
+   32368,
+   32183,
+   8
+  ],
+  [
+   32498,
+   32268,
+   9
+  ],
+  [
+   32499,
+   32268,
+   9
+  ]
+ ]
+}
