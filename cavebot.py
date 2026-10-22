@@ -257,6 +257,15 @@ WYPRAWA_DEPO_ZLOZ = 0                # 1 = zwykła wyprawa zaczyna od depo: skł
 WYPRAWA_DOJSCIE_PATROLEM = 1       # 15.10: 1 = wyprawa/wypad startujący w części jaskini niepołączonej z planem (inna strona schodów, kieszeń) najpierw dochodzi do planu drogą patrolu (graf przejść pięter z pliku miejsc + pietra.py), zamiast kończyć utknięciem; 0 = dawne zachowanie; pokrętło 0-1
 WYPRAWA_TYLKO_DEPO = 0              # 1 = wyprawa idzie tylko do depo (troll_do_miasta + A* do pola depo), tam STOP + powiadomienie; bez zakupów i powrotu
 WYPRAWA_MARSZ_KLIK = 0             # 20.10 pokrętło 0/1: 1 = w drodze do miasta/depo (wypad.py, faza "do": wyprawa i "Wróć do miasta") klik w najdalsze zwykłe pole odcinka (marsz_klik.py, jak serwis); 0 = dotychczasowe chodzenie bit w bit
+STANOWISKO = 0                     # 22.10 pokrętło 0/1 (tryb "stoj"): 1 = tryb stanowisko (stanowisko.py): postać stoi w mieście poza PZ i robi runy; wymaga też stanowisko_mapa.json (tryb.py z mapy stoj_runy_*); 0 = wył.
+STANOWISKO_HP_PZ = 70              # 22.10 pokrętło %: HP poniżej tego (i bez potwora obok) = marsz do PZ; ucieczka HP zawsze do PZ
+STANOWISKO_PZ_KARENCJA_MIN = 30    # 22.10 pokrętło min: po zagrożeniu PK (atak, wróg, czaszka) stoimy w PZ tyle minut
+STANOWISKO_GRACZ_ODL = 0           # 22.10 pokrętło pól: 0 = każdy obcy gracz w widoku wstrzymuje UH (jak dotąd); N > 0 = tylko bliżej niż N pól
+STANOWISKO_NPC_IGNORUJ = 1         # 22.10 pokrętło 0/1: 1 = NPC (serwis_akcje.NPC_NAZWY) nie wstrzymują UH ani nie liczą się jako obcy gracz
+STANOWISKO_WOLNE_SLOTY_MIN = 2     # 22.10 pokrętło: próg wolnych slotów plecaka do serwisu (F2, dziś nieużywane)
+STANOWISKO_AKTYWNOSC_MAX_S = 0     # 22.10 pokrętło s: 0 = wył.; >0 = bez akcji dłużej niż 0,55-0,95 tego czasu -> krok w bok i z powrotem (anty-idle)
+STANOWISKO_ROTACJA_MIN = 0         # 22.10 pokrętło min: 0 = wył.; >0 = zmiana pola co tyle minut (gdy mapa ma kilka pól)
+STANOWISKO_ZMIANA_MAX_MIN = 180    # 22.10 pokrętło min: maks. czas stania na zmianę (decyzja Karola 22.10: 3 h); 0 = bez limitu
 WROC_REFILL = 0                    # 20.10 pokrętło 0/1: 1 = po dojściu do depo Edron (STOP w depo: wroc.sh i wyprawa tylko-do-depo) sam startuje refill (refill_auto.py -> refill.sh --tlo); 0 = bot staje i czeka na człowieka
 RUCH_OKNO = 1                      # pokrętło 0/1 (R0b): rekord telemetrii ruch_okno co 30 s (czas marszu/stania, przyczyny, luki)
 RUCH_PROBKA_WCZESNA = 1            # pokrętło 0/1 (R0b): próbka telemetrii także przy wczesnym zakończeniu obiegu (bez A*, bez RPC)
@@ -862,6 +871,8 @@ def alarm_dzwiekowy(powod):
     log(f"ALARM: {powod}")
     if os.environ.get("RETRONIC_POWIADOMIENIA", "").strip() == "0" or (Path(__file__).resolve().parent / "cisza").exists():
         return
+    if (Path(__file__).resolve().parent / "dzwiek_wylaczony").exists():  # 22.10 (Karol): bez pikania; notify-send zostaje
+        return
     try:
         import glos  # noqa: PLC0415  21.10 (Karol): głos "<nick> pomocy, <powód>" zamiast dźwięku systemowego
         if glos.mow(powod):
@@ -1127,6 +1138,9 @@ class Cavebot:
         self.pietra_ops = None         # operacje na ekranie (Use/lina); None = z wypadu / wypad.OperacjeZywe; testy wstrzykują atrapę
         self.pietra_porazki = 0        # kolejne nieudane przejścia pięter
         self._pietra_cache = None      # (id listy punktów, długość, wynik): czy trasa ma > 1 piętro
+        self.stanowisko = None         # 22.10 stanowisko.Stanowisko (tryb stoj), tworzony w _stanowisko_sync; None = zachowanie bez zmian
+        self.stanowisko_proba = False
+        self.g_tick = None             # 22.10 gracz z bieżącego obiegu (dla haka stanowiska w idz)
         self.wyprawa = None            # wypad.Wypad (tylko na żywo, patrz _hak_wypadu; testy wstrzykują własny)
         self.wypad_aktywny = False     # True w trakcie wypadu po pochodnie: przerwa i trasa łowiska nie działają
         self.wypad_czat = None         # mozg.Czat (ustawia mozg.py): NPC nie jest "obcym graczem"
@@ -1874,6 +1888,11 @@ class Cavebot:
         dx, dy = abs(s["x"] - poz[0]), abs(s["y"] - poz[1])
         if dx > ZASIEG_X or dy > ZASIEG_Y:
             return False
+        if self.stanowisko is not None:
+            if self.stanowisko.ignoruj(s):
+                return False                          # 22.10: NPC w mieście nie wstrzymuje UH
+            if s.get("gracz"):
+                return self.stanowisko.gracz_blokuje(dx, dy)
         if s.get("gracz"):
             return True
         if walka:
@@ -4465,8 +4484,10 @@ class Cavebot:
         return s["z"] == poz[2] and abs(s["x"] - poz[0]) <= ZASIEG_X and abs(s["y"] - poz[1]) <= ZASIEG_Y
 
     def inni_gracze(self, lista, poz):
+        st = self.stanowisko
         return [s for s in lista if s["gracz"] and s["nazwa"] != self.postac.nazwa and s["z"] == poz[2]
-                and abs(s["x"] - poz[0]) <= ZASIEG_X and abs(s["y"] - poz[1]) <= ZASIEG_Y]
+                and abs(s["x"] - poz[0]) <= ZASIEG_X and abs(s["y"] - poz[1]) <= ZASIEG_Y
+                and not (st is not None and st.ignoruj(s))]          # 22.10: NPC w mieście to nie obcy gracz
 
     def ignorowany(self, s, poz, teraz):
         """True, gdy potwór jest ignorowany. Zwykłe ignorowanie kończy się, gdy podejdzie na
@@ -4592,6 +4613,7 @@ class Cavebot:
     def tick(self):
         """Jeden obieg decyzyjny. Zwraca False, gdy trasa/limit się skończyły."""
         bot.sprawdz_stop()
+        self._stanowisko_sync()
         if SMIERC_STOP and self.martwy:
             return True                     # MARTWY: żadnych zapytań, kliknięć ani modelu; STOP kończy pętlę
         if ROZLACZENIE_STOP and self.rozlaczony:
@@ -4605,6 +4627,7 @@ class Cavebot:
         self.walka_odl_tick = None          # Q5 11.10: ustawia walcz() w tym obiegu (pauza po ticku zależy od odległości)
         t_start = self.zegar()
         g = self.gracz()
+        self.g_tick = g
         poz = self.postac.pozycja()
         teraz = self.zegar()
         fazy = {"gracz": teraz - t_start}
@@ -4708,6 +4731,11 @@ class Cavebot:
         self._ogien_tick(poz, teraz)
         if self._ogien_wyjdz(poz, teraz):
             self._tele_wczesny(g, poz, "ogien_wyjdz")
+            return True
+
+        if self.stanowisko is not None and self.stanowisko.przed_ucieczka(g, poz, teraz, self.ucieczka):
+            self._tele_wczesny(g, poz, "stanowisko_pz")      # 22.10: HP/PK -> marsz do PZ zamiast uciekaj po trasie
+            self.cel = None
             return True
 
         if self.ucieczka:
@@ -5181,8 +5209,46 @@ class Cavebot:
             self.pauza(*LOOT_PRZERWANY_PAUZA)
         return True
 
+    def _stanowisko_sync(self):
+        """22.10: tryb stanowisko (stanowisko.py) jest aktywny tylko, gdy pokrętło STANOWISKO=1 ORAZ instancja ma
+        stanowisko_mapa.json (zapisuje je tryb.py z mapy stoj_runy_*). Pokrętło wraca na 0 = moduł zwolniony, zachowanie jak dotąd."""
+        if not STANOWISKO:
+            if self.stanowisko is not None:
+                log("Stanowisko: pokrętło STANOWISKO=0, wracam do zwykłej pętli.")
+                try:
+                    self.stanowisko.zamknij()
+                finally:
+                    self.stanowisko = None
+            self.stanowisko_proba = False
+            return
+        if self.stanowisko is not None or self.stanowisko_proba:
+            return
+        self.stanowisko_proba = True                      # jedna próba na włączenie; błąd = zwykła pętla, bez STOP
+        try:
+            import stanowisko  # noqa: PLC0415
+            katalog = Path(instancja.S.stan)
+            mapa = stanowisko.wczytaj_mape(katalog)
+            if mapa is None:
+                log("Stanowisko: STANOWISKO=1, ale brak poprawnego stanowisko_mapa.json w katalogu instancji "
+                    "(uruchom przez tryb.py z mapą stoj_runy_*); tryb nieaktywny.")
+                return
+            koord = None
+            try:
+                import miejsca_koord  # noqa: PLC0415
+                koord = miejsca_koord.Koordynator()
+            except Exception as e:
+                log(f"Stanowisko: koordynator niedostępny ({e!r}), stoję bez niego.")
+            self.stanowisko = stanowisko.Stanowisko(self, mapa, k=lambda n, d=0: globals().get(n, d),
+                                                    plik_stanu=katalog / "stanowisko_stan.json", koord=koord, log=log)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"Stanowisko: nie udało się uruchomić ({e!r}), zwykła pętla.")
+
     def _watchdog_wyjatek(self):
         """Stany, w których bezczynność jest zamierzona (pauza/rozmowa mózgu, przerwa, wypad, jedzenie, pochodnia)."""
+        if self.stanowisko is not None:
+            return True                                   # 22.10: stanie na polu (runy) to nie zawieszenie; STOP z braku postępu zakazany
         if str(self.stan).startswith(("PAUZA", "PRZERWA", "WYPAD", "JEDZENIE", "POCHODNIA", "MOZG", "GRACZ", "UCIECZKA")):
             return True
         if self.przerwa_do is not None:
@@ -8210,6 +8276,9 @@ class Cavebot:
             self.pk_widoczni_ost = teraz
         zagrozenie = bool(atak or widoczni or czaszki)
 
+        if self.stanowisko is not None and zagrozenie:
+            return self.stanowisko.pk_reakcja(g, poz, teraz, atak, widoczni, czaszki, nicki, wr)   # 22.10: do PZ, bez pk_stan i wyprawy PK
+
         if self.pk_stan is None:
             if zagrozenie:
                 self.pk_start_sprawdzony = True
@@ -8553,6 +8622,8 @@ class Cavebot:
     def _pk_start_karencja(self, wr, g, poz, teraz):
         """Start bota w trakcie karencji (zapisanej w wrogowie.json). Przy depo czekamy, aż minie; poza depo (restart
         w jaskini, np. po awarii) uciekamy do depo jak po ataku - stanie w miejscu bez obrony = śmierć (recenzja 15.10)."""
+        if self.stanowisko is not None:
+            return self.stanowisko.start_karencja(g, poz, teraz, wr.karencja_pozostalo_s())     # 22.10: stanowisko -> PZ
         if not self._pk_przy_depo(poz):
             log(f"PK: start w karencji (jeszcze {wr.karencja_pozostalo_s() / 60:.0f} min) poza depo {tuple(poz)}: "
                 "uciekam do depo.")
@@ -10210,6 +10281,8 @@ class Cavebot:
     def idz(self):
         if self._wypad_tick():
             return True
+        if self.stanowisko is not None and self.g_tick is not None:
+            return self.stanowisko.krok(self.g_tick, tuple(self.postac.pozycja()), self.zegar())    # 22.10: stanie na polu zamiast trasy/okrążeń
         if self._patrol_aktywny():
             self.patrol_byl = True
             self.patrol_sync_uciecz = False

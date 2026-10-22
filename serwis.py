@@ -577,11 +577,13 @@ class Serwis:
         self._idz("wyjscie", self.d["wyjscie"], tolerancja=2)    # tu dokładność nie ma znaczenia: uruchom.sh liczy dojście od pozycji
 
 
-def powiadom(tytul, tresc):
-    """Dymek na pulpicie (jak nagraj_trase.py); brak notify-send nie przeszkadza."""
+def powiadom(tytul, tresc, krytyczne=False):
+    """Dymek na pulpicie (jak nagraj_trase.py); brak notify-send nie przeszkadza.
+    krytyczne=True (porażka serwisu, 22.10) = `-u critical`: przebija tryb nie przeszkadzać, bo postać stoi i czeka na Karola."""
     import subprocess
     try:
-        subprocess.run(["notify-send", "-a", "Retronic", tytul, tresc], timeout=3, capture_output=True)
+        subprocess.run(["notify-send", "-a", "Retronic"] + (["-u", "critical"] if krytyczne else []) + [tytul, tresc],
+                       timeout=3, capture_output=True)
     except (OSError, subprocess.SubprocessError):
         pass
 
@@ -1233,7 +1235,7 @@ def main(argv=None):
         krok = getattr(e, "krok", "?")
         powod = getattr(e, "powod", repr(e))
         print(f"SERWIS: PORAŻKA w kroku {krok}: {powod}", flush=True)
-        powiadom("Serwis: porażka", f"Krok {krok}: {powod}")
+        powiadom("Serwis: porażka", f"Krok {krok}: {powod}", krytyczne=True)
         _ratunek_porazka(postac, krok, powod, e, bot)
         if not a.bez_stop:
             try:

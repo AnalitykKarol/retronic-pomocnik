@@ -66,6 +66,24 @@
    "ZDROWIE_CZAR_HP": 80
   }
  },
+ "stoj": {
+  "opis": "Stanowisko (22.10, SPEC_stoj_runy_1022 F1): stoi na polu mapy z wpisem stanowisko (np. stoj_runy_thais), je ham, robi runy i obsługuje się w depo przez refill; ucieczka do PZ przy ataku/wrogu/czaszce/HP < STANOWISKO_HP_PZ. Łącz z trybem uh (od lvl 11) albo runy (poniżej 11): TRYB=uh,stoj. Wymaga hotkeyów jak tryb uh/runy i blanków w plecaku.",
+  "pokretla": {
+   "STANOWISKO": 1,
+   "WYPRAWA_AKTYWNA": 1,
+   "WYPRAWA_TYLKO_DEPO": 1,
+   "WYPRAWA_CZEKAJ_NA_GLOD": 1,
+   "WYPRAWA_JEDZENIE": 1,
+   "WYPRAWA_POCHODNIE": 0,
+   "WYPRAWA_DEPO_BLANKI": 1,
+   "WYPRAWA_BLANKI": 20,
+   "WROC_REFILL": 1,
+   "JEDZENIE_CZAR_AKTYWNY": 0,
+   "ZDROWIE_CZAR_AKTYWNY": 1,
+   "ML_CZAR_AKTYWNY": 0,
+   "STANOWISKO_AKTYWNOSC_MAX_S": 240
+  }
+ },
  "wyprawa": {
   "opis": "Wyprawa po zapasy (wyprawa.py): gdy jedzenia w plecaku < JEDZENIE_ZAPAS_MIN (albo głód bez jedzenia), bot w spokoju wraca do Thais przez troll_do_miasta, kupuje pochodnie u Gorna (jeśli brakuje), jedzenie u Frodo (cel 20 + zjedzenie do full + dokup 5), po czym wraca na spot. Wymaga pozycji Frodo (trasy/wyprawa_sklepy.json albo uczone z widoku: python3 -I wyprawa.py plan). Łączy się z innymi trybami (np. uh,wyprawa).",
   "pokretla": {

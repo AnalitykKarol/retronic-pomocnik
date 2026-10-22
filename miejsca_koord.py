@@ -31,6 +31,11 @@ def klucz_miejsca(m):
     return str(m.get("nazwa") or f"m{m['id']}")
 
 
+def klucz_stanowiska(miasto):
+    """Klucz rezerwacji miasta dla trybu stanowisko (stanowisko.py): jedna postać stoi w jednym mieście naraz."""
+    return f"stoj_{str(miasto).strip().casefold()}"
+
+
 def _pid_zyje(pid):
     try:
         pid = int(pid)

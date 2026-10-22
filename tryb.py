@@ -61,6 +61,27 @@ def main(argv=None):
     m = mapy[a.mapa]
     log(f"mapa {a.mapa}: trasa {m['trasa']}, potwory {m['potwory']}, prog-hp {m['prog_hp']}"
         + (f", dojście {m['dojscie']}" if m.get("dojscie") else ""), a.log)
+    # stanowisko (22.10): cavebot nie widzi wpisu mapy, więc opis stanowiska leży obok na_zywo.json; mapa bez wpisu = plik znika
+    # (przełącznikiem jest też pokrętło STANOWISKO; bez pliku cavebot zachowuje się jak dotąd)
+    plik_st = Path(a.na_zywo).parent / "stanowisko_mapa.json"
+    if m.get("stanowisko"):
+        st = m["stanowisko"]
+        if not st.get("pz_zmierzone"):
+            log(f"UWAGA: pola PZ mapy {a.mapa} niezmierzone, cele ucieczki to {st.get('pz')} (pomiar Karola: mapy.json stanowisko.pz)", a.log)
+        if "STANOWISKO" not in ok and "stoj" not in nazwy:
+            log("UWAGA: mapa ze stanowiskiem bez trybu stoj: STANOWISKO zostaje jak w na_zywo.json (domyślnie 0 = zwykła trasa)", a.log)
+        if not a.sucho:
+            try:
+                plik_st.write_text(json.dumps(st, ensure_ascii=False, indent=1))
+                log(f"stanowisko: zapisano {plik_st.name}", a.log)
+            except OSError as e:
+                log(f"stanowisko: nie zapisano {plik_st} ({e})", a.log)
+    elif plik_st.exists() and not a.sucho:
+        try:
+            plik_st.unlink()
+            log(f"stanowisko: usunięto {plik_st.name} (mapa {a.mapa} bez stanowiska)", a.log)
+        except OSError:
+            pass
     if nazwy:
         plik = Path(a.na_zywo)
         try:

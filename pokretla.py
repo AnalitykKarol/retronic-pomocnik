@@ -341,6 +341,15 @@ ZAKRESY = {
     "OBSERWATOR_PK_KONTEKST": (0, 1),   # 16.10 (P10): 1 = obserwator dostaje karencję PK i wie, że PAUZA_PK z karencją jest zamierzona (domyślnie 0)
     "SMIERC_STOP": (0, 1),              # 16.10 (R5/P5): 1 = po zgonie stan MARTWY: jeden STOP + powiadomienie, zero kliknięć i modelu (domyślnie 0)
     "PK_SZYBKIE": (0, 1),               # 16.10 (P6/R2): 1 = reakcja na PK bez czekania na alarm dźwiękowy i model (domyślnie 0)
+    "STANOWISKO": (0, 1),               # 22.10: 1 = zachowanie "stanowisko" (stanowisko.py): stój na polu mapy, runy, serwis, PZ przy ataku (ustawia tryb stoj; wymaga wpisu stanowisko w mapie)
+    "STANOWISKO_HP_PZ": (30, 95),       # % HP poniżej tego (bez potwora obok) = marsz do PZ
+    "STANOWISKO_PZ_KARENCJA_MIN": (5, 240),   # min w PZ po ostatnim zagrożeniu PK, zanim wrócimy na pole
+    "STANOWISKO_GRACZ_ODL": (0, 14),    # 0 = każdy obcy w widoku blokuje rzut UH; N > 0 = tylko bliżej niż N pól (luzowanie: tylko za zgodą Karola)
+    "STANOWISKO_NPC_IGNORUJ": (0, 1),   # 1 = NPC (npc_pelne.json) nie blokują rzutu UH
+    "STANOWISKO_WOLNE_SLOTY_MIN": (0, 20),    # F2: serwis przy wolnych slotach worka poniżej tego; w F1 bez efektu
+    "STANOWISKO_AKTYWNOSC_MAX_S": (0, 1200),  # >0 = bez akcji tyle sekund (z losowym zapasem) = krok w bok i z powrotem; 0 = wyłączone
+    "STANOWISKO_ROTACJA_MIN": (0, 720),       # >0 = co tyle minut inne pole z `pola` mapy (gdy są >= 2)
+    "STANOWISKO_ZMIANA_MAX_MIN": (0, 720),    # min stania na zmianę (Karol 22.10: 3 h); po tym czasie postać czeka w PZ na wylogowanie z grafiku; 0 = bez limitu
     "D3_ASTAR_MAX": (0, 12),            # najwyżej tyle wywołań A* na zawieszkę przy liczeniu opcji D3 (domyślnie 6)
 }
 # Pokrętła tekstowe (tylko ręcznie w na_zywo.json): nazwa -> dozwolone wartości
@@ -445,6 +454,9 @@ KIERUNEK = {
     # (kierunek = ograniczenie wartości względem domyślnej: nie_wyzej => v <= domyślna, nie_nizej => v >= domyślna)
     "STRAZNIK_ORBITY": "nie_wyzej", "STRAZNIK_ORBITA_S": "nie_wyzej", "STRAZNIK_ORBITA_POL": "nie_nizej",
     "STRAZNIK_ORBITA_ZMIAN": "nie_wyzej", "STRAZNIK_WYJSCIE_S": "nie_wyzej",
+    # stanowisko: analityk nie może go włączyć, obniżyć progu HP/karencji, skrócić obrony ani poluzować blokady graczy/NPC; tylko Karol w na_zywo.json
+    "STANOWISKO": "nie_wyzej", "STANOWISKO_HP_PZ": "nie_nizej", "STANOWISKO_PZ_KARENCJA_MIN": "nie_nizej",
+    "STANOWISKO_GRACZ_ODL": "nie_wyzej", "STANOWISKO_NPC_IGNORUJ": "nie_wyzej", "STANOWISKO_ZMIANA_MAX_MIN": "nie_wyzej",
 }
 COFNIECIE_S = 300
 
