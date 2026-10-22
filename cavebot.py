@@ -394,6 +394,9 @@ OGIEN_PODPALENIE_S = 60.0           # 15.10: s po spadku HP na polu ognia: posta
                                      # w tym czasie spadki HP nie obciążają innych pól (zginęliśmy przez złe przypisanie i maskę)
 OGIEN_WEJSCIE_S = 2.0                # 15.10: s: spadek HP przypisujemy polu ognia tylko tuż po wejściu na nie (i bez stwora obok)
 OGIEN_PARZY_ODL_CELU = 1             # 15.10: pola: celu tak blisko znanego parzącego pola nie atakujemy (klient poszedłby za nim w ogień)
+OGIEN_PARZY_BUFOR = 0                # 22.10 (Karol: invincible wszedł w ogień przy lootcie, (33069,31730,z8), ~20 HP): pola wokół znanego
+                                     # parzącego pola (Chebyshev) też są zakazane dla każdego ruchu (krok, klik, A*, loot, pościg);
+                                     # wykrycie u invincible'a bywa przesunięte o pole. 0 = samo pole jak dawniej
 OGIEN_POMIJAJ_PRZY_STWORZE = 1       # pokrętło 0/1: 1 = wykrycia ognia na polu stwora/celu albo obok niego (odl <= 1) pomijamy, dopóki HP nie spadnie
 PLIK_OGIEN_EPIZODY = None if os.environ.get("RETRONIC_TESTY") else Path(__file__).resolve().parent / "trasy" / "ogien_epizody.json"
 PLIK_OGIEN_STALE = None if os.environ.get("RETRONIC_TESTY") else Path(__file__).resolve().parent / "trasy" / "ogien_stale.json"   # zasiew i zapis maski
@@ -519,6 +522,12 @@ DRZWI_STARA_S = 20.0             # R1c: s od ostatniej próby, po których epizo
 DRZWI_PROB = 3                     # R1c: max Use na drzwiach, potem odpuszczenie z jedną notatką
 DRZWI_ODPUSC_S = 60.0              # R1c: s, przez które odpuszczone drzwi nie są przejściem
 DRZWI_PONOW = 0                    # F1 (17.10): 1 = flaga "drzwi otwarte" starsza niż DRZWI_STARA_S s jest przeterminowana (drzwi mogły się zamknąć): podejście do drzwi i Use znów możliwe; 0 = jak dotąd
+DRZWI_TRASA = 1                    # 22.10: 1 = zamknięte drzwi NA NAGRANEJ TRASIE (dojście, trasa; pole trasy albo pole pośrednie na prostym odcinku, które mapa uznaje za ścianę, trasa_io.drzwi_na_trasie): bot dochodzi na pole przed drzwiami, staje, krok, a gdy nic - Use i krok (max DRZWI_TRASA_PROB), potem jak dotąd; 0 = jak dotąd (invincible 22.10 10:52 biła w ścianę (33166,31817,z7) 10x)
+DRZWI_TRASA_PROB = 3               # 22.10: max Use na drzwiach trasy, potem odpuszczenie na DRZWI_TRASA_ODPUSC_S s i dawne zachowanie
+DRZWI_TRASA_ODPUSC_S = 60.0        # 22.10: s, przez które odpuszczone drzwi trasy nie są obsługiwane
+DRZWI_TRASA_OKNO = 3               # 22.10: drzwi obsługujemy, gdy indeks celu trasy jest nie dalej niż tyle punktów przed pierwszym punktem za drzwiami (ścinanie zakrętów nie przeskoczy ściany)
+DRZWI_TRASA_ODL = 8                # 22.10: ...i postać jest nie dalej niż tyle pól od pola przed drzwiami
+DRZWI_SPOKOJ = 1                   # 22.10: 1 = przed Use na drzwiach (trasa i pościg/patrol, _drzwi_hak) czekamy na stojącą pozycję (2 odczyty co 0,4 s, jak pietra._przed_use): Use w trakcie kroku klient gubi (wydra (32505,32270,z8) 22.10); 0 = jak dotąd
 SMIERC_STOP = 0                    # 16.10 (R5/P5): 1 = po zgonie bot nic nie robi: stan MARTWY, jeden STOP + jedno powiadomienie (nick, czas, miejsce), zero kliknięć i modelu; 0 = jak dotąd
 OBSERWATOR_PK_KONTEKST = 0         # 16.10 (P10): 1 = obserwator (Haiku) dostaje pk_stan, karencję PK i wrogów oraz instrukcję, że PAUZA_PK z aktywną karencją to stan zamierzony; 0 = jak dotąd
 SMIERC_ODCZYTY = 3                 # SMIERC_STOP: tyle kolejnych odczytów HP == 0 potwierdza zgon (jeden/dwa to możliwy fałszywy odczyt; w tym czasie obieg stoi bez akcji)
@@ -540,6 +549,9 @@ POSCIG_OSTATNI_DOCISKAJ = True     # 12.10: cel dalej niż 1 pole, a krok z klaw
                                    # puszczenie tu odbierało krok, który zbliża do celu: postać stała ~1,3 s (POSCIG_BRAK_WSPOL * czas
                                    # kroku) i ruszała dopiero po ponowieniu = 1,5 s/krok zamiast 0,9; uciekający szczur (krok ~1,5 s)
                                    # zostawał w odl 2-3 przez 25 s. Pętla i tak wychodzi i puszcza klawisz przy odl <= 1; False = dawne
+POSCIG_DZIURA_KROK = True          # 22.10: zakręt kolejkowany w pościgu (hold) nie może wchodzić z POZ w nauczoną dziurę / pole zmiany piętra
+                                   # (klient ruszał dopiero po zmianie klawisza z poz, nie z pola po kroku w toku: dawajkesh 10:49 wpadł w znaną
+                                   # dziurę); False = dawne
 POSCIG_VKROK_SCIANA = True         # 11.10: trzymany klawisz po dojściu prowadzący w ścianę/zajęte pole nie jest krokiem w toku
                                    # (v_krok=None, decyzja liczona z poz): bez fałszywego "zawracania" (39 z 152 pościgów); False = dawne
 POSCIG_PAUZA_TICK_DALEKO = (0.0, 0.03)   # s: Q5 11.10: pauza po ticku z WALKA i celem dalej niż 1 pole (było 0.05-0.15)
@@ -574,6 +586,19 @@ KLIK_ODSTEP = 0.4                  # s: min. odstęp między kliknięciami w map
 MARSZ_KLIK = 0                     # pokrętło 0/1 (nie_wyzej): 1 = marsz klikiem w patrolu/dojściu; 0 = dotychczasowe chodzenie bit w bit
 MARSZ_KLIK_MAKS_POL = 5            # pokrętło 2-7: ile pól naprzód klikamy naraz (widok ma ±7 x ±5, klikamy z 1 polem zapasu od krawędzi)
 KROK_BEZ_SCIAN = 0                 # pokrętło 0/1 (nie_wyzej): 1 = krok_do po nieudanym pierwszym kierunku ponawia go raz i nie wciska zapasowych kierunków w pola, które mapa jednoznacznie uznaje za ścianę (przechodnie False / flaga 4); pole nieznane (None) nadal próbujemy; 0 = dotychczasowe
+# 22.10 (wydra, trolle_patrol z8/z9: 88 "krok X nie ruszył" w 20 min, gracze widzą "bicie w ściany"): krok_do nie miał pamięci między obiegami.
+# `zablokowane` jest czyszczone po każdym udanym kroku (także kroku wstecz), `nieudane` zeruje udany krok w stronę celu, a nauczona ściana na polu
+# przechodnim wg mapy wygasa po SCIANA_WAZNA = 6 s: pętla "Up (nie rusza), Left/Right (ściany), Down (wstecz, udany), Up (udany), Up (nie rusza)..."
+# trwała ponad 40 s (32478,32274,z8). KROK_ZLY=1: pole, w które krok strzałką nie udał się KROK_ZLY_N razy z rzędu (bez udanego wejścia między
+# próbami, bez stwora na polu), jest zakazane na KROK_ZLY_S s (kolejny nieudany próbny krok po wygaśnięciu: x2, maks KROK_ZLY_MAX_S; pole, które
+# mapa uznaje za ścianę: KROK_ZLY_SCIANA_S). Zakaz = pominięcie w krok_do (bez cofania się o pole), nauczona ściana dla A* (droga/patrol/skos)
+# i sygnał dla patrolu (zmiana miejsca zamiast kręcenia się). 0 = dotychczasowe zachowanie.
+KROK_ZLY = 1                       # pokrętło 0/1 (nie_nizej)
+KROK_ZLY_N = 2                     # tyle nieudanych kroków w to samo pole z rzędu = zakaz (1-5)
+KROK_ZLY_S = 45.0                  # s: pierwszy zakaz pola (potem x2 do KROK_ZLY_MAX_S)
+KROK_ZLY_MAX_S = 180.0             # s: górna granica kolejnych zakazów tego samego pola
+KROK_ZLY_SCIANA_S = 300.0          # s: zakaz pola, które mapa uznaje za ścianę (krok w ścianę z mapy to nie przejściowa blokada)
+KROK_ZLY_OKNO_S = 60.0             # s: nieudane kroki starsze niż tyle (i po zakazie) nie sumują się z kolejnymi
 MARSZ_BEZ_RUCHU_S = 1.2            # s bez zmiany pozycji po kliku = klient nie idzie: ten odcinek wraca do kroków klawiszem
 MARSZ_BLOK_S = 8.0                 # s: tyle (i w promieniu MARSZ_BLOK_R pól) po braku ruchu nie klikamy, tylko krok klawiszem
 MARSZ_BLOK_R = 3
@@ -838,6 +863,9 @@ def alarm_dzwiekowy(powod):
     if os.environ.get("RETRONIC_POWIADOMIENIA", "").strip() == "0" or (Path(__file__).resolve().parent / "cisza").exists():
         return
     try:
+        import glos  # noqa: PLC0415  21.10 (Karol): głos "<nick> pomocy, <powód>" zamiast dźwięku systemowego
+        if glos.mow(powod):
+            return
         for plik in DZWIEKI:
             if os.path.exists(plik):
                 subprocess.run(["paplay", plik], timeout=4, capture_output=True)
@@ -960,6 +988,9 @@ class Cavebot:
         self.nieosiagalne = {}         # id celu -> dystans prosty w chwili odpuszczenia (twarde ignorowanie)
         self.ostatnia_droga_dl = None  # długość drogi z ostatniego podejdz (inf = brak drogi, None = nie wiadomo)
         self.sciany = {}               # pole -> kiedy krok strzałką na nie się nie udał (ściana)
+        self.sciany_do = {}            # KROK_ZLY: pole -> do kiedy (zegar) zakaz wejścia (wpis w `sciany` też jest)
+        self.krok_zly = {}             # KROK_ZLY: pole -> [nieudane kroki z rzędu, kiedy ostatni, ile zakazów już było]
+        self.krok_zly_blok = False     # KROK_ZLY: krok_do właśnie nałożył zakaz / pominął zakazane pole (sygnał dla patrolu)
         self.zw_grupa = {}             # LOOT_DYNAMICZNY: pole zwłok -> krotka kandydatów tego samego zabicia (po udanym lootcie znikają)
         self.zw_brak_okna = {}         # LOOT_DYNAMICZNY: pole zwłok -> liczba "brak_okna" (1 = wstrzymane do końca walki, 2 = porzucone)
         self.przeglad_odl = None       # LOOT_DYNAMICZNY: odległość żywego potwora przerywającego loot.zbierz (None = LOOT_PRZEGLAD_ODL)
@@ -2653,10 +2684,52 @@ class Cavebot:
         t = self.sciany.get(pole)
         if t is None:
             return False
+        do = self.__dict__.get("sciany_do", {}).get(pole)
+        if do is not None:                  # KROK_ZLY: zakaz na czas, niezależnie od mapy
+            if self.zegar() < do:
+                return True
+            del self.sciany_do[pole]
+            del self.sciany[pole]
+            return False
         if self.mapa is not None and self.zegar() - t > SCIANA_WAZNA and self.mapa.przechodnie(*pole):
             del self.sciany[pole]
             return False
         return True
+
+    def _krok_zly_zapis(self, pole, k):
+        """KROK_ZLY: nieudany krok strzałką `k` w `pole` (bez stwora na polu). KROK_ZLY_N nieudanych z rzędu (starsze niż
+        KROK_ZLY_OKNO_S nie liczą się) = zakaz wejścia na pole: KROK_ZLY_S s (kolejne zakazy x2, maks KROK_ZLY_MAX_S),
+        a gdy mapa uznaje pole za ścianę KROK_ZLY_SCIANA_S s. Zakaz trafia do `sciany`, więc widzą go droga, skos i patrol.
+        -> True, gdy zakaz został nałożony."""
+        kz = self.__dict__.setdefault("krok_zly", {})
+        teraz = self.zegar()
+        w = kz.get(pole)
+        if w is None or teraz - w[1] > KROK_ZLY_OKNO_S:
+            # stare nieudane próby się nie sumują; poprzednie zakazy (eskalacja) pamiętamy 2 x KROK_ZLY_MAX_S
+            w = [0, teraz, w[2] if w is not None and teraz - w[1] <= 2 * KROK_ZLY_MAX_S else 0]
+        w[0] += 1
+        w[1] = teraz
+        kz[pole] = w
+        if w[0] < (1 if w[2] > 0 else KROK_ZLY_N):      # po zakazie jedna nieudana próba po jego wygaśnięciu = kolejny, dłuższy
+            return False
+        if self._krok_sciana_mapy(pole):
+            czas = KROK_ZLY_SCIANA_S
+        else:
+            czas = min(KROK_ZLY_S * (2 ** w[2]), KROK_ZLY_MAX_S)
+        w[0], w[2] = 0, w[2] + 1
+        self.__dict__.setdefault("sciany_do", {})[pole] = teraz + czas
+        self.sciany[pole] = teraz
+        self.__dict__["krok_zly_blok"] = True
+        log(f"[KROK_ZLY] {w[2]}. zakaz wejścia na {pole[:2]} na {czas:.0f} s: krok {k} nie ruszył {KROK_ZLY_N}x z rzędu "
+            f"(mapa przechodnie {self.mapa.przechodnie(*pole) if self.mapa else '?'})")
+        return True
+
+    def _krok_zly_ok(self, pole):
+        """KROK_ZLY: udane wejście na pole kasuje licznik nieudanych (zakaz też, o ile jeszcze trwał)."""
+        self.__dict__.setdefault("krok_zly", {}).pop(pole, None)
+        if pole in self.__dict__.get("sciany_do", {}):
+            del self.sciany_do[pole]
+            self.sciany.pop(pole, None)
 
     def sprawdz_krok(self, poz, zajete, cel):
         """Wynik ostatniej strzałki: postać KROK_SCIANA s po niej stoi na tym samym polu = ściana na
@@ -2786,14 +2859,19 @@ class Cavebot:
             self._ogien_stale_zapisz()
 
     def _ogien_na(self, pole):
-        """Czy pole (x, y, z) jest polem ognia."""
+        """Czy pole (x, y, z) jest polem ognia: widziany teraz ogień albo znane parzące pole z buforem (22.10: to drugie
+        zawsze, także przy ignorowaniu ognia i gdy wykrycie ze zrzutu go nie widzi)."""
+        if (pole[0], pole[1]) in self._ogien_parzy_dane(pole[2]):
+            return True
         return self._ogien_aktywny() and (pole[0], pole[1], pole[2]) in self.ogien_pola
 
-    def _ogien_parzy_dane(self, z):
+    def _ogien_parzy_dane(self, z, bufor=None):
         """15.10: pola z trasy/ogien_epizody.json z potwierdzonym spadkiem HP ("hp": true) na piętrze z. Omijamy je
-        zawsze, także gdy wykrycie ze zrzutu chwilowo nie widzi ognia: wykrycie nie odróżnia dużego (parzy) od małego."""
+        zawsze, także gdy wykrycie ze zrzutu chwilowo nie widzi ognia: wykrycie nie odróżnia dużego (parzy) od małego.
+        22.10: razem z polami w promieniu `bufor` (domyślnie OGIEN_PARZY_BUFOR)."""
         if not OGIEN_UNIKAJ:
             return set()
+        b = max(0, int(OGIEN_PARZY_BUFOR if bufor is None else bufor))
         wynik = set()
         for k, e in self.ogien_epizody.items():
             if e.get("hp"):
@@ -2802,7 +2880,7 @@ class Cavebot:
                 except ValueError:
                     continue
                 if pz == z:
-                    wynik.add((x, y))
+                    wynik |= {(x + dx, y + dy) for dx in range(-b, b + 1) for dy in range(-b, b + 1)}   # 22.10: bufor
         return wynik
 
     def _ogien_blok(self, start, cel=None):
@@ -3243,7 +3321,10 @@ class Cavebot:
                 # stwory i nauczone ściany (często fałszywe: stwór na polu) nie mogą zamykać
                 # wąskiego korytarza ani zmuszać do objazdu: liczymy też drogę po samej mapie
                 # i bierzemy krótszą (gdy bez blokad nie jest to objazd)
-                d2 = self.mapa.droga(start, cel, zakaz + ogien, dlugosc, skosy, limit=MAPA_LIMIT, znane=znane,
+                # 22.10 KROK_ZLY: zakaz po powtórnie nieudanych krokach obowiązuje także w tej drodze (inaczej korytarz wraca)
+                twarde = [p for p in list(self.__dict__.get("sciany_do", {})) if p[2] == z and self.sciana(p)
+                          and tuple(p[:2]) not in dz]
+                d2 = self.mapa.droga(start, cel, zakaz + ogien + twarde, dlugosc, skosy, limit=MAPA_LIMIT, znane=znane,
                                      **({"przepusc": przep} if przep else {}))
                 if BLOK_WYJSCIE and d2:
                     # 13.10 (22:07): droga po samej mapie przez pole zajęte stworem to nie droga do marszu
@@ -3980,13 +4061,53 @@ class Cavebot:
                 return True
             sk = None
         pierwszy = None                        # KROK_BEZ_SCIAN: pierwszy kierunek, w który faktycznie wcisnęliśmy strzałkę
+        # 22.10: stojąc już w buforze parzącego pola, wolno iść po buforze (inaczej postać nie wyjdzie), ale nie na samo pole;
+        # pole bufora spoza niego to krok "miękki": tylko gdy żaden inny kierunek nie ruszy (korytarz 1-polowy obok ognia,
+        # wydra 08:41 w (32481,32292,z8) biła w ścianę, bo jedyna droga szła polem obok ognia (32480,32294))
+        w_buforze = (x, y) in self._ogien_parzy_dane(z)
+        miekkie = []
+
+        def odl(p):
+            return max(abs(p[0] - cel[0]), abs(p[1] - cel[1]))
+
+        def miekki_krok():
+            """Krok na pole obok znanego ognia (samo pole ognia nigdy); True, gdy postać się ruszyła."""
+            while miekkie:
+                k_ = miekkie.pop(0)
+                n_ = (x + bot.KIERUNKI[k_][0], y + bot.KIERUNKI[k_][1], z)
+                if self.dziura_nauczona(n_) or (pietra_on and n_[:2] != tuple(cel[:2]) and self.pole_zmiany_pietra(n_)):
+                    continue
+                if self.postac.krok(k_):
+                    log(f"[OGIEN] krok {k_} na pole obok znanego ognia {n_[:2]}: inna droga do celu nie ruszyła")
+                    self.zablokowane.clear()
+                    self.nieudane = 0
+                    self.krok_z = ((x, y, z), teraz)
+                    return True
+            return False
+
+        zakaz_pominiety = False                # KROK_ZLY: pominięte pole z zakazem (po nim nie cofamy się o pole)
+        self.__dict__["krok_zly_blok"] = False
         for k in kier:
             if self.zablokowane.get(((x, y, z), k)):
                 continue
-            if self._ogien_na((x + bot.KIERUNKI[k][0], y + bot.KIERUNKI[k][1], z)):
-                continue                       # pole ognia: nie wchodzimy (najpierw omijanie, potem czekanie)
-            if self.dziura_nauczona((x + bot.KIERUNKI[k][0], y + bot.KIERUNKI[k][1], z)):
-                continue                       # 15.10: nauczona dziura (wpadniecie.py): nigdy, także gdy to cel kroku
+            n_pole = (x + bot.KIERUNKI[k][0], y + bot.KIERUNKI[k][1], z)
+            if KROK_ZLY and self.sciana(n_pole) and n_pole in self.__dict__.get("sciany_do", {}):
+                zakaz_pominiety = True
+                self.__dict__["krok_zly_blok"] = True
+                continue                       # 22.10: pole z zakazem KROK_ZLY (nie bijemy w nie ponownie)
+            if KROK_ZLY and zakaz_pominiety and wstecz is not None and n_pole == wstecz and k != kier[0]:
+                continue                       # zakaz na drodze do celu: zawracanie o pole to kręcenie się w kółko, niech patrol zmieni miejsce
+            if self._ogien_na(n_pole):
+                if n_pole[:2] in self._ogien_parzy_dane(z, bufor=0) or (self._ogien_aktywny() and n_pole in self.ogien_pola):
+                    continue                   # pole ognia: nie wchodzimy (najpierw omijanie, potem czekanie)
+                if not w_buforze:
+                    miekkie.append(k)
+                    continue                   # pole obok znanego ognia: dopiero gdy nic nie zbliża do celu
+            elif miekkie and odl(n_pole) >= odl((x, y)) and miekki_krok():
+                return True                    # krok w bok/wstecz: wcześniej pole obok ognia, które prowadzi do celu
+            n_d = (x + bot.KIERUNKI[k][0], y + bot.KIERUNKI[k][1], z)
+            if self.dziura_nauczona(n_d) and not (n_d[:2] == tuple(cel[:2]) and self._dziura_w_trasie(n_d)):
+                continue                       # 15.10: nauczona dziura (wpadniecie.py): nigdy, chyba że trasa nią schodzi (22.10)
             if pietra_on:
                 d = bot.KIERUNKI[k]
                 n_xy = (x + d[0], y + d[1])
@@ -3998,30 +4119,36 @@ class Cavebot:
             if self.postac.krok(k):
                 self.zablokowane.clear()
                 d = bot.KIERUNKI[k]
+                self._krok_zly_ok((x + d[0], y + d[1], z))
                 if wstecz is not None and (x + d[0], y + d[1], z) == wstecz and k != kier[0]:
                     pass                      # krok wstecz (nie w stronę celu): to nie postęp
                 else:
                     self.nieudane = 0
                 self.krok_z = ((x, y, z), teraz)
                 return True
+            d_ = bot.KIERUNKI[k]
+            n_ = (x + d_[0], y + d_[1], z)
+            inni_ = []
+            zablok_ = bool(self.sciana(n_))    # 22.10: wcześniej `zablok` czytał słownik tuż przed ustawieniem go (zawsze False)
             try:   # 18.10 diagnostyka: nieudana strzałka kosztuje CZAS_KROKU (1,5 s)
-                d_ = bot.KIERUNKI[k]
-                n_ = (x + d_[0], y + d_[1], z)
                 inni_ = [(q.get("nazwa"), q["x"] - x, q["y"] - y) for q in (self.ostatnie_stwory or ())
                          if (q["x"], q["y"]) == n_[:2]]
                 log(f"debug: krok {k} z {(x, y, z)} nie ruszył (cel kroku {tuple(cel[:2])}, mapa przechodnie "
                     f"{self.mapa.przechodnie(*n_) if self.mapa else '?'}, na polu {inni_ or '-'}, "
-                    f"zablok {bool(self.zablokowane.get(((x, y, z), k)))}).")
+                    f"zablok {zablok_}, nieudane {self.__dict__.get('krok_zly', {}).get(n_, [0])[0] + 1}).")
             except Exception:
                 pass
             self._ratunek_zdarzenie("krok_nieudany", (x, y, z))
             self.zablokowane[((x, y, z), k)] = True
+            if KROK_ZLY and not inni_ and self._krok_zly_zapis(n_, k):
+                zakaz_pominiety = True
             if KROK_BEZ_SCIAN and pierwszy is None:
                 pierwszy = k
                 d_ = bot.KIERUNKI[k]
                 if not self._krok_sciana_mapy((x + d_[0], y + d_[1], z)) and self.postac.krok(k):
                     # pierwszy (przechodni wg mapy) kierunek zawodzi przejściowo: ponowienie raz, zanim ruszymy kolejne kierunki
                     self.zablokowane.clear()
+                    self._krok_zly_ok((x + d_[0], y + d_[1], z))
                     if wstecz is not None and (x + d_[0], y + d_[1], z) == wstecz and k != kier[0]:
                         pass
                     else:
@@ -4030,6 +4157,8 @@ class Cavebot:
                     return True
         if sk is not None and self._krok_do_skos(x, y, z, sk, teraz, wstecz):
             return True                       # strzałki w osiach nie ruszyły, skos tak
+        if miekki_krok():                     # 22.10: jedyna droga wiedzie polem obok znanego ognia (samo pole ognia nigdy)
+            return True
         self.nieudane += 1
         self.zablokowane.clear()
         self.pauza(0.3, 0.8)
@@ -4157,6 +4286,7 @@ class Cavebot:
             if st["zle_do"] > t:
                 return False
             self.sciany.pop(h, None)        # zamknięte drzwi nie są ścianą (sprawdz_krok mógł ją nauczyć)
+            self._krok_zly_ok(h)
             if st["poz"] is None:
                 st["poz"], st["t0"] = poz, t       # nowy epizod: najpierw zwykły krok/klik
                 return None
@@ -4171,6 +4301,8 @@ class Cavebot:
                     st["nota"] = True
                     log(f"Drzwi {h[:2]} z{h[2]} nie otwierają się po {DRZWI_PROB} próbach, odpuszczam na {DRZWI_ODPUSC_S:.0f} s.")
                 return False
+            if DRZWI_SPOKOJ and self._drzwi_spokoj()[:2] != poz[:2]:
+                return True                    # 22.10: Use w trakcie kroku klient gubi; coś nas przesunęło - nowy obieg (próba nie liczona)
             st["proby"] += 1
             log(f"Drzwi {h[:2]} z{h[2]}: zamknięte, Use z {poz[:2]} (próba {st['proby']}/{DRZWI_PROB}).")
             try:
@@ -4194,6 +4326,112 @@ class Cavebot:
             o = wypad.OperacjeZywe(log=lambda t: log(t))
         self.pietra_ops = o
         return o
+
+    # --- drzwi na nagranej trasie (22.10): dojście i trasa; wykrywanie w trasa_io.drzwi_na_trasie ---
+
+    def _drzwi_spokoj(self):
+        """22.10: czeka, aż pozycja stoi (2 odczyty co 0,4 s, do 1,6 s), jak pietra._przed_use: Use (Ctrl+klik) w trakcie
+        kroku klient gubi. Zwraca bieżącą pozycję (x, y, z)."""
+        ost = tuple(self.postac.pozycja())
+        for _ in range(4):
+            self.spij(0.4)
+            p = tuple(self.postac.pozycja())
+            if p == ost:
+                break
+            ost = p
+        return ost
+
+    def _drzwi_trasy(self):
+        """Drzwi na bieżącej trasie (trasa_io.drzwi_na_trasie); lista pamiętana do zmiany punktów (odwrócenie trasy)."""
+        pk = self.punkty
+        if not pk or self.mapa is None:
+            return []
+        klucz = (id(pk), len(pk), tuple(pk[0]), tuple(pk[-1]))
+        c = self.__dict__.get("_drzwi_tr_cache")
+        if c is None or c[0] != klucz:
+            try:
+                import trasa_io  # noqa: PLC0415
+                znane = {h["pole"] for h in self._drzwi_lista()}      # drzwi z PLIK_DRZWI obsługuje _drzwi_hak (PATROL_DRZWI), nie dublujemy
+                lista = [e for e in trasa_io.drzwi_na_trasie(pk, self.mapa) if e["pole"] not in znane]
+            except Exception:
+                lista = []
+            c = self.__dict__["_drzwi_tr_cache"] = (klucz, lista)
+        return c[1]
+
+    def _drzwi_trasa_tick(self, poz):
+        """22.10 (invincible 10:52, dojście edron_depo_trolle: 10x „krok Down nie ruszył” w zamknięte drzwi (33166,31817,z7), które
+        leżą MIĘDZY punktami trasy; wydra: Use w trakcie ruchu): gdy tuż przed nami (okno punktów trasy) są zamknięte drzwi z trasy,
+        dochodzimy na pole przed nimi (A* bez drzwi, żadne ścinanie zakrętu przez ścianę), tam stajemy: pierwszy raz sam krok
+        (drzwi mogą stać otwarte), potem czekanie na stojącą pozycję, Use na drzwiach, ~0,6-1 s i krok. Po DRZWI_TRASA_PROB nieudanych
+        Use drzwi są odpuszczone na DRZWI_TRASA_ODPUSC_S s (jedna notatka) i trasa idzie po staremu. True = obieg zużyty, None = nic."""
+        if not DRZWI_TRASA or self.mapa is None:
+            return None
+        poz = tuple(poz[:3])
+        t = self.zegar()
+        stany = self.__dict__.setdefault("_drzwi_tr_stan", {})
+        for e in self._drzwi_trasy():
+            h = e["pole"]
+            if h[2] != poz[2] or not (e["po"] - DRZWI_TRASA_OKNO <= self.idx <= e["po"] + 2):
+                continue
+            we = e["wejscie"]
+            kr = e["kier"]
+            if (poz[0] - h[0]) * kr[0] + (poz[1] - h[1]) * kr[1] >= 0 or self.dystans(poz, we) > DRZWI_TRASA_ODL:
+                continue                          # na drzwiach / za nimi (po drugiej stronie osi, także z boku) albo daleko: nic do roboty
+            st = stany.setdefault(h, {"proby": 0, "krok": False, "zle_do": float("-inf"), "nota": False, "t": t, "bledy": 0})
+            if st["zle_do"] > t:
+                continue
+            if st["nota"]:
+                st["nota"] = False                # odpuszczenie wygasło
+            if t - st["t"] > DRZWI_STARA_S:
+                st["proby"], st["krok"], st["bledy"] = 0, False, 0     # stary epizod: od nowa
+            st["t"] = t
+            if poz[:2] != we[:2]:
+                # podejście na pole przed drzwiami: A* bez pola drzwi, krok po kroku (strzałki), nigdy skrót przez ścianę
+                d = self.droga(poz, we[:2], [h], 0, skosy=False)
+                ruszyl = self.krok_do(d[0] if d else we)
+                st["bledy"] = 0 if ruszyl else st["bledy"] + 1
+                if st["bledy"] >= 8:
+                    return self._drzwi_trasa_odpusc(h, st, t, "nie mogę dojść na pole przed drzwiami")
+                return True
+            kier = {(0, 1): "Down", (0, -1): "Up", (1, 0): "Right", (-1, 0): "Left"}[tuple(e["kier"])]
+            if not st["krok"]:
+                st["krok"] = True                 # pierwszy raz sam krok: drzwi mogą stać otwarte (zamknięte nic nie zmienią)
+                if self.postac.krok(kier):
+                    return self._drzwi_trasa_ok(h, st)
+            if st["proby"] >= DRZWI_TRASA_PROB:
+                return self._drzwi_trasa_odpusc(h, st, t, f"nie otwierają się po {DRZWI_TRASA_PROB} próbach")
+            if DRZWI_SPOKOJ:
+                if self._drzwi_spokoj() != poz:
+                    return True                   # coś nas przesunęło: nowy obieg (próba nie liczona)
+            st["proby"] += 1
+            log(f"Drzwi {h[:2]} z{h[2]} (trasa): zamknięte, Use z {poz[:2]} (próba {st['proby']}/{DRZWI_TRASA_PROB}).")
+            try:
+                self._drzwi_ops().uzyj_pole(h, poz)
+            except bot.Zatrzymano:
+                raise
+            except Exception as ex:
+                log(f"Drzwi {h[:2]} (trasa): Use nie wyszło ({ex!r}).")
+            self.pauza(0.6, 1.0)
+            if self.postac.krok(kier):
+                return self._drzwi_trasa_ok(h, st)
+            return True
+        return None
+
+    def _drzwi_trasa_ok(self, h, st):
+        st["proby"], st["krok"], st["bledy"] = 0, False, 0
+        self.zablokowane.clear()
+        self.nieudane = 0
+        self.sciany.pop(h, None)
+        self._krok_zly_ok(h)
+        return True
+
+    def _drzwi_trasa_odpusc(self, h, st, t, powod):
+        st["zle_do"] = t + DRZWI_TRASA_ODPUSC_S
+        st["proby"], st["krok"], st["bledy"] = 0, False, 0
+        if not st["nota"]:
+            st["nota"] = True
+            log(f"Drzwi {h[:2]} z{h[2]} (trasa): {powod}, odpuszczam na {DRZWI_TRASA_ODPUSC_S:.0f} s.")
+        return None
 
     def _krok_do_skos(self, x, y, z, v, teraz, wstecz):
         """Jeden krok po skosie numpadem (postac.krok_skos). True, gdy postać się ruszyła; porażka zapisuje się
@@ -6080,6 +6318,11 @@ class Cavebot:
         except Exception as e:
             log(f"BŁĄD puszczania klawiszy: {e!r}")
 
+    def _pole_upadku(self, pole):
+        """22.10: wejście na pole (x, y, z) zmienia piętro: nauczona dziura albo pole zmiany piętra z mapy (flaga 2) poza wypadem.
+        Twardy podzbiór _pole_zablokowane: tego klawisz kolejkowany "na zapas" nie może nigdy zaryzykować."""
+        return bool(self.dziura_nauczona(pole) or self.pole_zmiany_pietra(pole))
+
     def _pole_zablokowane(self, pole, zaj):
         """Pole, na które nie wolno wchodzić trzymanym klawiszem: stwór (nie cel), nauczona ściana, ściana z mapy."""
         if pole[:2] in zaj or self.sciana(pole) or self.pole_zmiany_pietra(pole) or self._ogien_na(pole):
@@ -6366,6 +6609,26 @@ class Cavebot:
                             if filtr == "zawroc":
                                 powod = "zawracanie"
                                 break
+                        if POSCIG_DZIURA_KROK and want is not None and v_krok is not None and want != v_krok \
+                                and self._pole_upadku((poz[0] + want[0], poz[1] + want[1], poz[2])):
+                            # 22.10 (dawajkesh 10:49:29, (33068,31716,z9) -> nauczona dziura (33067,31716,z9)): zakręt kolejkowany
+                            # sprawdzaliśmy tylko względem pola Q (po kroku w toku), a klient potrafi ruszyć dopiero po zmianie
+                            # klawisza (krok w toku jeszcze się nie zaczął) i wtedy idzie z POZ w nowym kierunku. Gdy z POZ ten
+                            # kierunek wchodzi w dziurę / zmianę piętra: nie zakręcamy "na zapas", decyzja od stojącej
+                            # postaci (v_krok None: sprawdzenia liczone z POZ)
+                            filtry["dziura_krok"] = filtry.get("dziura_krok", 0) + 1
+                            v_krok = None
+                            want, objazd, powod_d = self._poscig_decyzja(s_dec, poz, None, zaj)
+                            if objazd:
+                                powod, wynik = "objazd", None
+                                break
+                            if want is not None:
+                                want, filtr = self._poscig_stabilny(want, poz, sxy, None, zaj, stab, self.zegar())
+                                if filtr:
+                                    filtry[filtr] = filtry.get(filtr, 0) + 1
+                                if filtr == "zawroc":
+                                    powod = "zawracanie"
+                                    break
                         if want != stab["ost"] and want is not None:
                             stab["t_zm"] = self.zegar()
                         stab["ost"] = want
@@ -8863,6 +9126,13 @@ class Cavebot:
         w = self._wp()
         return bool(w and (pole[0], pole[1], pole[2]) in w.dziury) if len(pole) > 2 else False
 
+    def _dziura_w_trasie(self, pole):
+        """22.10: nauczona dziura jest zaplanowanym zejściem bieżącej trasy: trasa ma (x, y, z) i zaraz po nim (x, y, z+1)
+        (dojście trolle_edron_z9z schodzi dziurą (33081,31742,z8), w którą 15.10 bot wpadł przy polowaniu na z8)."""
+        pk = [tuple(p[:3]) for p in (self.punkty or []) if len(p) > 2]
+        cel = (pole[0], pole[1], pole[2])
+        return any(a == cel and b == (cel[0], cel[1], cel[2] + 1) for a, b in zip(pk, pk[1:]))
+
     def _dziury_lista(self, start, cel):
         """Nauczone dziury piętra start[2] w prostokącie start-cel (+ margines) jako lista (x, y, z) dla A*."""
         if not DZIURY_NAUCZONE:
@@ -9896,6 +10166,11 @@ class Cavebot:
                     self._patrol_zakoncz(p, "nieosiągalne")
                     self.patrol = None
                     return True
+                if self.__dict__.get("krok_zly_blok") and KROK_ZLY:
+                    # 22.10 KROK_ZLY: krok_do nałożył zakaz na pole z drogi (albo je pominął): nowa droga A* omijająca zakaz
+                    # w następnym obiegu; gdy jej nie ma, miejsce idzie na PATROL_BLOK_S i losujemy inne (bez blokady przejścia pięter)
+                    self.__dict__["krok_zly_blok"] = False
+                    p["replan"], p["seg_xy"] = 0.0, set()
                 return True
             if p["faza"] == "postoj":
                 if teraz < p["do"]:
@@ -10004,6 +10279,8 @@ class Cavebot:
             r = self._pietra_tick((x, y, z), cel)
             if r is not None:
                 return r
+        if DRZWI_TRASA and self._drzwi_trasa_tick((x, y, z)):
+            return True                       # 22.10: zamknięte drzwi na nagranej trasie (dojście, trasa): podejście, stanie, Use, krok
         if self._utknieto_na_trasie((x, y, z), cel) and self._wroc_na_trase((x, y, z)):
             return True
         if PATROL_DRZWI and self.__dict__.get("_w_segmencie"):

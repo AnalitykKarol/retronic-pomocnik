@@ -5,7 +5,7 @@ import json, sys, types
 sys.dont_write_bytecode = True
 _R = __import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.abspath(__file__)))
 sys.path.insert(0, _R)
-import cavebot, bot, mapa as _mapa, wypad, pietra
+import cavebot, bot, mapa as _mapa, wypad, pietra, wyprawa
 from pathlib import Path
 
 TRASY = Path(_R) / "trasy"
@@ -182,6 +182,12 @@ for nazwa in ("troll", "thais_kanaly"):
 sprawdz("6 troll z z8 (jaskinia) -> plan troll", wypad.wybierz_plan(pl, troll[0]) == "troll")
 sprawdz("6 troll z z9 -> plan troll", wypad.wybierz_plan(pl, next(p for p in troll if p[2] == 9)) == "troll")
 sprawdz("6 kanały -> plan thais_kanaly", wypad.wybierz_plan(pl, (32360, 32242, 8)) == "thais_kanaly")
+# 21.10: thais_pn WYŁĄCZONY (trasa w dziurę (32356,32122,z8), zgon kutangena); jaskinia z8 nie ma planu powrotu = wyprawa się anuluje, nie zgaduje
+sprawdz("6 thais_pn wyłączony (brak planu)", "thais_pn" not in pl and "thais_pn" not in wyprawa.BAZY, f"{sorted(pl)}")
+for poz in ((32356, 32133, 8), (32323, 32114, 8), (32340, 32129, 8)):
+    sprawdz(f"6 jaskinia thais_pn_z8 {poz} -> brak planu", wypad.wybierz_plan(pl, poz) is None)
+import json as _j
+sprawdz("6 dziura (32356,32122,8) w dziury_nauczone.json", [32356, 32122, 8] in _j.load(open(_os.path.join(_R, "trasy", "dziury_nauczone.json")))["dziury"])
 sprawdz("6 daleko od wszystkiego -> brak planu (stary plan)", wypad.wybierz_plan(pl, (100, 100, 7)) is None)
 sprawdz("6 plan troll: NPC Gorn, rook: domyślny", pl["troll"]["npc"] == "Gorn" and pl["rook"]["npc"] is None)
 

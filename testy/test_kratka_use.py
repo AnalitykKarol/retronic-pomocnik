@@ -30,5 +30,26 @@ ja_gora = types.SimpleNamespace(_dane=lambda: True, cb=types.SimpleNamespace(map
 tr = pietra.Pietra._tryby(ja_gora, gora, {"z0": 11})
 spr("wspinaczka bez danych: w liście jest lina, R pierwsze", "lina" in tr and tr[0] == "R")
 spr("wspinaczka bez danych: lina przed krokiem", tr.index("lina") < tr.index("krok"))
+
+# 22.10: kratka Edron (33168,31823,z8): Use w trakcie kroku klient gubi, a z samego pola kratki trafia w postać
+class _Postac:
+    def __init__(p, poz, ruch=()): p.poz, p.ruch, p.kroki = list(poz), list(ruch), []
+    def pozycja(p):
+        if p.ruch:
+            p.poz = list(p.ruch.pop(0))
+        return tuple(p.poz)
+    def krok(p, k):
+        p.kroki.append(k); d = {"Down": (0, 1), "Left": (-1, 0), "Right": (1, 0), "Up": (0, -1)}[k]
+        p.poz = [p.poz[0] + d[0], p.poz[1] + d[1], p.poz[2]]
+def _ja(postac):
+    cb = types.SimpleNamespace(mapa=None, postac=postac, spij=lambda s: None, pauza=lambda a, b: None)
+    return types.SimpleNamespace(cb=cb, log=lambda *a: None)
+T = (33168, 31823, 8)
+p = _Postac(T)
+poz = pietra.Pietra._przed_use(_ja(p), T, T, 8, zejdz=True)
+spr("stojąc na kratce: krok z niej (Down) przed Ctrl+klik", p.kroki == ["Down"] and poz == (33168, 31824, 8))
+p = _Postac((33167, 31825, 8), ruch=[(33167, 31825, 8), (33168, 31824, 8), (33168, 31824, 8)])
+poz = pietra.Pietra._przed_use(_ja(p), T, (33167, 31825, 8), 8, zejdz=False)
+spr("w trakcie kroku: czekamy, aż postać stanie, Ctrl+klik liczony z pozycji końcowej", p.kroki == [] and poz == (33168, 31824, 8))
 print(f"\nOK={OK} FAIL={FAIL}")
 sys.exit(1 if FAIL else 0)

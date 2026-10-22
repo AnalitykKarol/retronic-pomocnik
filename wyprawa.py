@@ -1452,25 +1452,61 @@ class Wyprawa(Wypad):
     def _wyjscia_planu(baza_nazwa):
         return next((p.get("wyjscia", ()) for p in PLANY_PK if p["nazwa"] == baza_nazwa), ())
 
-    def _droga_z_pozycji(self, poz, do, baza_nazwa=None):
-        """Punkty najkrótszej drogi z `poz` do depo (koniec `do`) albo None (wtedy stara droga: cała trasa "do")."""
+    _droga_memo = None     # {(baza, poz): wynik droga_do_depo}: wybór bazy (_baza_osiagalna) i budowa planu liczą to samo raz
+
+    def _droga_z_pozycji(self, poz, do, baza_nazwa=None, cicho=False):
+        """Punkty najkrótszej drogi z `poz` do depo (koniec `do`) albo None (wtedy stara droga: cała trasa "do").
+        `cicho`: tylko sondowanie bazy (bez logu o "starej trasie")."""
         mapa = getattr(self.cb, "mapa", None)
         if mapa is None:
             return None
+        klucz = (baza_nazwa, tuple(int(v) for v in poz))
+        if self._droga_memo is None:
+            self._droga_memo = {}
         try:
-            wyn = droga_do_depo(poz, self._petla_lowiska(), [_punkt(q) for q in do], self._zalew_pietra, mapa,
-                                wyjscia=self._wyjscia_planu(baza_nazwa))
+            if klucz not in self._droga_memo:
+                self._droga_memo[klucz] = droga_do_depo(poz, self._petla_lowiska(), [_punkt(q) for q in do],
+                                                        self._zalew_pietra, mapa, wyjscia=self._wyjscia_planu(baza_nazwa))
+            wyn = self._droga_memo[klucz]
         except bot.Zatrzymano:
             raise
         except Exception as e:
-            self.log(f"Wyprawa: depo: nie wyznaczyłem drogi z {tuple(poz)} ({e!r}), idę starą trasą")
+            if not cicho:
+                self.log(f"Wyprawa: depo: nie wyznaczyłem drogi z {tuple(poz)} ({e!r}), idę starą trasą")
             return None
         if wyn is None:
-            self.log(f"Wyprawa: depo: brak drogi z {tuple(poz)}, idę starą trasą")
+            if not cicho:
+                self.log(f"Wyprawa: depo: brak drogi z {tuple(poz)}, idę starą trasą")
             return None
         pts, koszt, opis = wyn
-        self.log(f"Wyprawa: depo: droga z {tuple(poz)}: {len(pts)} punktów, koszt {koszt} ({opis})")
+        if not cicho:
+            self.log(f"Wyprawa: depo: droga z {tuple(poz)}: {len(pts)} punktów, koszt {koszt} ({opis})")
         return pts
+
+    def _baza_osiagalna(self, baza, poz, nazwa):
+        """22.10 (Geblish, Rook z8): `nazwa` = plan z PLANY_PK o najbliższym (Chebyshev) punkcie "do" na piętrze `poz`, a to nie
+        znaczy "da się stamtąd dojść": rook_bugi_z10 ma na z8 korytarz tuż obok jaskini szczurów, od której oddziela go ściana
+        ("brak drogi", kroki w ścianę, ALARM). Bierzemy więc pierwszy plan z PLANY_PK (najbliższy najpierw), dla którego
+        droga_do_depo z `poz` istnieje. Gdy `nazwa` ma drogę (Edron i reszta, jak dotąd) albo żaden jej nie ma, zostaje `nazwa`
+        (brak drogi = stara trasa jak wcześniej). Nie dotyka planów spoza PLANY_PK ani WYJSCIA_BAZ."""
+        if nazwa is None or not self._plan_tylko_pk(nazwa):
+            return nazwa
+        poz = tuple(int(v) for v in poz)
+        if self._droga_z_pozycji(poz, baza[nazwa][0], nazwa, cicho=True) is not None:
+            return nazwa
+
+        def odl(n):
+            do = baza[n][0]
+            return min((cheb(poz, q) for q in do if q[2] == poz[2]), default=cheb(poz, do[-1]) + 1000)
+
+        inne = sorted((p["nazwa"] for p in PLANY_PK if p["nazwa"] in baza and p["nazwa"] != nazwa), key=odl)
+        for n in inne:
+            if cheb(poz, baza[n][0][-1]) > DEPO_DOJSCIE_ZASIEG:
+                continue
+            if self._droga_z_pozycji(poz, baza[n][0], n, cicho=True) is not None:
+                self.log(f"Wyprawa: baza {nazwa} nie ma drogi z {poz} (najbliższy punkt za ścianą), biorę {n}")
+                return n
+        return nazwa
 
     @staticmethod
     def _w_kanalach_thais(poz):
@@ -1620,6 +1656,9 @@ class Wyprawa(Wypad):
             nazwa = self._baza_dojscie(baza, poz)
         if depo_spota and not z_pk and KANALY_THAIS in baza and self._w_kanalach_thais(poz):
             nazwa = KANALY_THAIS           # 21.10 K2: w kanałach Thais (także przy trasie planu "troll", x ~ 32422) zawsze najbliższa drabina
+        self._droga_memo = {}
+        if depo_spota and not z_pk:        # 22.10: najbliższy punkt "do" bywa za ścianą (Rook z8 -> rook_bugi_z10): wybór po osiągalności
+            nazwa = self._baza_osiagalna(baza, poz, nazwa)
         self._z_poz = poz if (depo_spota and nazwa is not None
                               and (self._plan_tylko_pk(nazwa) or nazwa in WYJSCIA_BAZ)) else None
         if nazwa is None:

@@ -22,7 +22,7 @@ EI = next(i for i, e in enumerate(et) if e["typ"] == "LINA" and e["stoi"] == (32
 DRABINA, LAD = (32029, 32195, 9), (32029, 32196, 8)
 
 
-def gra(start, trzy):
+def gra(start, trzy, lina_obok=False):
     """Uruchamia _lina aż do zmiany piętra albo awarii; zwraca (wynik, liczba prób, użyte pola)."""
     stan = {"poz": start, "awaria": None}
     uzyte, logi = [], []
@@ -38,7 +38,11 @@ def gra(start, trzy):
             stan["poz"] = LAD
 
     def uzyj_line(cel, poz):
-        uzyte.append(("lina", tuple(cel)))
+        uzyte.append(("lina", tuple(cel), tuple(stan["poz"])))
+        if lina_obok:                       # lina działa tylko z pola OBOK pola liny (nie z niego)
+            if tuple(cel) == DRABINA and wypad.cheb(stan["poz"], cel) == 1 and tuple(stan["poz"][:2]) != tuple(cel[:2]):
+                stan["poz"] = LAD
+            return
         raise wypad.BrakEkranu("nie widzę liny (rope)")
 
     cb = types.SimpleNamespace(postac=types.SimpleNamespace(krok=krok, pozycja=lambda: stan["poz"]), pauza=lambda *a: None,
@@ -48,7 +52,7 @@ def gra(start, trzy):
                               _zajete_pola=lambda poz: set(), _k=lambda n, d: (1 if trzy else 0) if n == "PRZEJSCIE_TRZY_SPOSOBY" else d,
                               _pilnuj_przejscia=lambda *a: None, _tele=lambda *a, **k: None, _blad=lambda *a, **k: None)
     w._awaria = lambda typ, opis, e=None: stan.__setitem__("awaria", typ) or True
-    for n in ("_lina", "_kier_do_pola", "_po_przejsciu", "_nie_czas", "_porazka_przejscia"):
+    for n in ("_lina", "_zejdz_z_pola", "_kier_do_pola", "_po_przejsciu", "_nie_czas", "_porazka_przejscia"):
         setattr(w, n, types.MethodType(getattr(wypad.Wypad, n), w))
     w._proby_drabiny = wypad.Wypad._proby_drabiny
     e = dict(et[EI])
@@ -100,6 +104,16 @@ sprawdz("pietra: w dół są krok i use, bez liny", all(t in atrapa(True)._tryby
 w = types.SimpleNamespace(log=lambda *a: None)
 pietra.Pietra._naucz(w, "krok->use_wlasne", (32370, 32213, 7), (32370, 32213, 7), 8)
 sprawdz("pietra: sukces zapisuje do wspólnej pamięci", wypad.przejscia_nauczone(PAM).get("32370,32213,7>8", {}).get("tryb") == "use")
+
+# 21.10 dawajkesh z9 (33168,31824): lina z własnego pola nie działa; bot schodzi o kratkę i używa jej z pola obok
+_stara = wypad.proby_trzy_sposoby
+wypad.proby_trzy_sposoby = lambda *a, **k: [("lina", DRABINA)]        # tylko lina, bez Use i kroku
+s4, n4, u4, l4 = gra(DRABINA, trzy=True, lina_obok=True)
+wypad.proby_trzy_sposoby = _stara
+lin = [u for u in u4 if u[0] == "lina"]
+sprawdz("lina: była użyta", len(lin) >= 1, u4)
+sprawdz("lina: nigdy z własnego pola", all(tuple(u[2][:2]) != tuple(u[1][:2]) for u in lin), lin)
+sprawdz("lina: stojąc na polu liny schodzi o kratkę i wychodzi na z8", s4["poz"] == LAD and not s4["awaria"], (s4, u4, l4))
 
 print()
 print(f"{sum(ok)}/{len(ok)} OK")

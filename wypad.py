@@ -83,6 +83,7 @@ DRZWI_PROB = 6              # prób otwarcia i wejścia w drzwi (typ etapu DRZWI
 DRZWI_ODSTEP = (1.5, 3.0, 4.0)   # s przerwy między kolejnymi próbami przy drzwiach
 DRZWI_CZEKAJ_S = (0.6, 1.0)      # s oczekiwania po Use na drzwiach (zanim sprawdzimy otwarcie / zrobimy krok)
 DRZWI_DALEKO_MAX = 3        # tyle razy "stoi za daleko od drzwi" zanim awaria (nigdy pętla bez końca)
+DRZWI_POMIEDZY = 1          # 22.10: 1 = drzwi_z_mapy znajduje też zamknięte drzwi MIĘDZY punktami trasy (prosty odcinek, pole-ściana), a zbuduj_etapy dopisuje je do trasy; 0 = tylko nagrane punkty
 AWARIA_PO_S = 120.0         # utknięcie w mieście na dziurze: ponawiamy co tyle
 WYPAD_ETAP_MAX_S = 60.0     # s w etapie przejścia (LINA/DZIURA) bez zmiany pozycji i bez nowej próby = awaria (19.10: 20 min ciszy)
 ODP_NPC_S = 6.0             # s czekania na odpowiedź NPC
@@ -212,12 +213,33 @@ def _pola_miedzy(mapa, a, c):
     return wynik
 
 
+def _z_drzwiami_pomiedzy(punkty, drzwi):
+    """22.10: dopisuje do listy punktów pole drzwi leżące na prostym odcinku (ta sama oś, to samo piętro) MIĘDZY dwoma kolejnymi
+    punktami (nagranie rzadkie), żeby zbuduj_etapy mogło wydzielić etap DRZWI. Punkty bez takich drzwi zostają bez zmian."""
+    pts = [(int(p[0]), int(p[1]), int(p[2])) for p in punkty]
+    wynik = []
+    for i, b in enumerate(pts):
+        if i and pts[i - 1][2] == b[2]:
+            a = pts[i - 1]
+            dx, dy = (b[0] > a[0]) - (b[0] < a[0]), (b[1] > a[1]) - (b[1] < a[1])
+            if (dx == 0) != (dy == 0):
+                x, y = a[0] + dx, a[1] + dy
+                while (x, y) != (b[0], b[1]):
+                    if (x, y, b[2]) in drzwi:
+                        wynik.append((x, y, b[2]))
+                    x, y = x + dx, y + dy
+        wynik.append(b)
+    return wynik
+
+
 def zbuduj_etapy(punkty, mapa=None, drzwi=()):
     """Lista punktów (x,y,z) -> etapy: {"typ":"IDZ","punkty":[...]} (jedno piętro) przedzielone przejściami
     {"typ":"LINA","stoi","cel","ladunek"} (w górę), {"typ":"DZIURA","stoi","dziura","ladunek","pewna"} albo
     {"typ":"DRZWI","stoi","drzwi"} (zamknięte drzwi na trasie; `drzwi` = zbiór pól (x,y,z)). Kafelek drzwi
     zaczyna następny etap IDZ (po otwarciu bot staje na nim i idzie dalej)."""
     drzwi = {(int(d[0]), int(d[1]), int(d[2])) for d in (drzwi or ())}
+    if drzwi and DRZWI_POMIEDZY:
+        punkty = _z_drzwiami_pomiedzy(punkty, drzwi)
     etapy, biez = [], []
     for p in punkty:
         p = (int(p[0]), int(p[1]), int(p[2]))
@@ -297,11 +319,21 @@ def zbuduj_etapy(punkty, mapa=None, drzwi=()):
 
 def drzwi_z_mapy(punkty, mapa):
     """Pola trasy (jedno piętro z sąsiadem przed i po na tym samym piętrze), które mapa uważa za nieprzechodnie
-    (ściana/woda): to zamknięte drzwi nagrane przez gracza. Mapa niedostępna / pole niewidziane = nic."""
+    (ściana/woda): to zamknięte drzwi nagrane przez gracza. Mapa niedostępna / pole niewidziane = nic.
+    22.10: także pole POŚREDNIE na prostym odcinku między dwoma kolejnymi punktami (nagranie rzadkie: Edron (33166,31817,z7) leży
+    między (33166,31816) i (33166,31820)); DRZWI_POMIEDZY=0 = tylko nagrane punkty, jak dotąd. zbuduj_etapy dopisuje takie pole do trasy."""
     wynik = set()
     if mapa is None:
         return wynik
     pts = [(int(p[0]), int(p[1]), int(p[2])) for p in punkty]
+    if DRZWI_POMIEDZY:
+        try:
+            import trasa_io  # noqa: PLC0415
+            for e in trasa_io.drzwi_na_trasie(pts, mapa):
+                if 0 < e["po"] < len(pts) and pts[e["po"]] != e["pole"] and 1 < len(pts):
+                    wynik.add(e["pole"])           # pole pośrednie (nie nagrany punkt - te łapie pętla niżej)
+        except Exception:
+            pass
     for i in range(1, len(pts) - 1):
         a, p, b = pts[i - 1], pts[i], pts[i + 1]
         if a[2] != p[2] or b[2] != p[2]:
@@ -345,6 +377,8 @@ PLANY = (
     {"nazwa": "thais_kanaly", "do": "thais_kanaly_do_miasta.json", "z": "thais_kanaly_z_miasta.json",
      "npc": "Gorn", "prefix": False},
 )
+# thais_pn (jaskinia z8 pod Thais) WYŁĄCZONY 21.10: trasa powrotu z flag mapy prowadziła w dziurę (32356,32122,z8) -> z9, zgon kutangena
+# (dane_tibia/ruch/DIAGNOZA_kutangen_zgon_dziura_thais_pn_1021.md). Wraca dopiero z przejściem w górę, które ktoś PRZESZEDŁ (przejscia_nauczone).
 PLAN_ZASIEG = 40                        # pola: plan pasuje, gdy ma punkt na piętrze postaci nie dalej niż tyle
 
 
@@ -492,8 +526,15 @@ class OperacjeZywe:
                 if tekst:
                     wynik.append({"autor": str(autor or ""), "tekst": tekst,
                                   "kanal": str(w.get("kanal", w.get("typ")) or ""),
-                                  "czas": str(w.get("czas") or ""), "nr": w.get("nr")})
+                                  "czas": str(w.get("czas") or ""), "nr": w.get("nr"),
+                                  "bufor": w.get("bufor")})      # 22.10: adres bufora zakładki (echo w złym buforze = przerwanie)
         return wynik
+
+    def stan_zakladek(self):
+        """Zakładki czatu (nazwa, rect, aktywna) i adres aktywnego bufora z pamięci klienta (22.10): dict z wiadomosci.stan_zakladek.
+        Własny odczyt bez znacznika (od = bardzo duże: bez wiadomości w odpowiedzi), nie rusza `self.znacznik`."""
+        odp = self.zapytaj({"cmd": "wiadomosci", "limit": 1, "od": 10 ** 9, "stan_zakladek": True})
+        return odp.get("stan_zakladek") or {}
 
     def czat(self, tekst):
         if self.wyslij is None:
@@ -651,6 +692,8 @@ class Wypad:
         self.pj = None              # [klucz, od kiedy]: czy etap przejścia (LINA/DZIURA) robi postęp (_pilnuj_przejscia)
         self.pj_proby = 0           # liczba wykonanych prób przejścia w tym wypadzie (zmiana = postęp)
         self._klik_zakaz_do = float("-inf")   # WYPRAWA_MARSZ_KLIK: do kiedy nie próbujemy kliku (klik bez ruchu, przerwanie)
+        self._klik_schody_do = float("-inf")  # 22.10 klik w schody: do kiedy nie klikamy ponownie
+        self._klik_schody_n = {}              # etap -> liczba kliknięć w schody bez zejścia
         self.klik_ile = 0           # udane marsze klikiem w tym wypadzie (do logu)
 
     # --- konfiguracja (stałe z modułu cavebot: pokrętła ustawiają je w locie) ---
@@ -1018,6 +1061,10 @@ class Wypad:
             cel_blisko = nastepny["dziura"]
         elif nastepny is not None and nastepny["typ"] == "DRZWI":
             cel_blisko = nastepny["drzwi"]
+        if nastepny is not None and nastepny["typ"] == "DZIURA" and poz[2] == ost[2]:
+            w = self._klik_schody(poz, nastepny, teraz)
+            if w is not None:
+                return w
         na_miejscu = tuple(poz) == tuple(ost) or (
             cel_blisko is not None and poz[2] == ost[2] and cheb(poz, cel_blisko) <= 1
             and teraz - self.przystanek_od > 15.0 and cheb(poz, ost) <= 2) or (
@@ -1050,6 +1097,71 @@ class Wypad:
             if self.utk >= 3:
                 self.utk = 0
                 return self._utkniecie(poz, e, teraz, wymus=True)
+        return True
+
+    # --- klik prosto w schody (22.10, Karol: „kliknięcie myszką na pole schodów, ma 3 dowolne pola, gra sama go tam wyśle”) ---
+
+    def _pola_schodow(self, e):
+        """Pola schodów/rampy w dół przy przejściu `e` (DZIURA): flaga 2 na obu piętrach, chodliwe, w promieniu 2 od dziury i
+        pola stania (jak serwis.pola_schodow). Krok na każde z nich zmienia piętro."""
+        mp = getattr(self.cb, "mapa", None)
+        if mp is None:
+            return []
+        za, zb = e["stoi"][2], e["ladunek"][2]
+        wyn = set()
+        for c in (e["dziura"], e["stoi"]):
+            for dx in range(-2, 3):
+                for dy in range(-2, 3):
+                    x, y = c[0] + dx, c[1] + dy
+                    try:
+                        f, g = int(mp.flagi(x, y, za)), int(mp.flagi(x, y, zb))
+                    except Exception:
+                        continue
+                    if f & 1 and f & 2 and not f & 4 and g & 2 and not g & 4:
+                        wyn.add((x, y, za))
+        return sorted(wyn)
+
+    def _klik_schody(self, poz, e, teraz):
+        """Zamiast iść na jedno pole stania przed schodami: klik w najbliższe WOLNE pole schodów w widoku, klient sam prowadzi
+        postać dowolną drogą (omija graczy) i schodzi. None = nie dotyczy / nie wyszło 3 razy (dalej jak dotąd), True = obieg zużyty."""
+        cb = self.cb
+        if not int(self._k("WYPAD_KLIK_SCHODY", 1)) or getattr(cb, "klik", None) is None or teraz < self._klik_schody_do:
+            return None
+        if e["ladunek"][2] <= e["stoi"][2] or self._klik_schody_n.get(self.ei, 0) >= 3:
+            return None                                   # tylko w dół (rampa/schody); po 3 nieudanych dawna maszyneria
+        schody = [T for T in self._pola_schodow(e) if abs(T[0] - poz[0]) <= 6 and abs(T[1] - poz[1]) <= 4]
+        if not schody:
+            return None
+        zaj = self._zajete_pola(poz)
+        wolne = [T for T in schody if (T[0], T[1]) not in zaj and (T[0], T[1]) != tuple(poz[:2])]
+        if not wolne:
+            self.log(f"Wypad: schody {[T[:2] for T in schody]} zajęte przez graczy, czekam")
+            self._klik_schody_do = teraz + 2.0
+            cb.pauza(0.5, 1.0)
+            return True
+        T = min(wolne, key=lambda q: (cheb(q, poz), q[1], q[0]))
+        n = self._klik_schody_n.get(self.ei, 0) + 1
+        self._klik_schody_n[self.ei] = n
+        self.log(f"Wypad: klik w schody {T[:2]} z {tuple(poz)[:2]} (próba {n}/3, wolne {[q[:2] for q in wolne]})")
+        try:
+            cb.klik(T[0] - poz[0], T[1] - poz[1])
+        except bot.Zatrzymano:
+            raise
+        except Exception as ex:                           # noqa: BLE001
+            self.log(f"Wypad: klik w schody nie wyszedł ({ex!r})")
+            self._klik_schody_do = teraz + 2.0
+            return True
+        limit = 2.5 + 0.7 * cheb(T, poz)
+        t0 = cb.zegar()
+        while cb.zegar() - t0 < limit:
+            cb.spij(0.3)
+            p = tuple(cb.postac.pozycja())
+            if p[2] == e["ladunek"][2]:
+                self.ei += 1                                # etap DZIURA: _po_przejsciu przesuwa na kolejny i loguje
+                self._klik_schody_n.pop(self.ei - 1, None)
+                return self._po_przejsciu(e, poz, teraz, "schody (klik)") or True
+        self.log(f"Wypad: klik w schody {T[:2]}: bez zmiany piętra po {limit:.1f} s (stoję w {tuple(cb.postac.pozycja())[:2]})")
+        self._klik_schody_do = cb.zegar() + 1.0
         return True
 
     # --- marsz klikiem w drodze do miasta (WYPRAWA_MARSZ_KLIK, 20.10) ---
@@ -1670,6 +1782,14 @@ class Wypad:
         self.log(f"Wypad: {rodzaj} próba {n + 1}/{len(proby)} ({tryb}) z {tuple(poz)}, pole {pole[:2]}")
         try:
             if tryb == "krok":
+                st = tuple(e["stoi"])
+                if (pole[0] != poz[0] and pole[1] != poz[1] and st[:2] != tuple(poz)[:2] and st[2] == poz[2]
+                        and cheb(poz, st) == 1 and (st[0] == pole[0] or st[1] == pole[1])):
+                    # 21.10 (kutangen, schody/drabina (32356,32122,z8)): po próbie liny stał o kratkę obok pola stania, krok na pole
+                    # przejścia szedł po skosie i nic nie dawał. Najpierw na pole stania, potem prosto na przejście.
+                    cb.postac.krok(self._kier_do_pola(poz, st))
+                    cb.pauza(0.3, 0.5)
+                    poz = tuple(cb.postac.pozycja())
                 cb.postac.krok(self._kier_do_pola(poz, pole))
             elif tryb == "lina":
                 cel_l = pole if trzy else e["cel"]

@@ -233,6 +233,27 @@ bieg(b, 300)
 sprawdz("4 dalej po trasie bez ponownego wpadnięcia w tę dziurę", sum(1 for l in LOG if "Wpadłem" in l) == wpadl0 and s.poz[2] == 8,
         f"{s.poz} zmiany={s.zmiany}")
 
+# --- 4t. (22.10 dawajkesh) zwłoki na polu liny: lina nie działa, aż bot przeciągnie je pod siebie ---
+s, b = nowy()
+spadek(s, b)
+s.stoi = False
+s.zwloki = True
+_lina_orig = s.uzyj_line
+def _lina_zwloki(pole, _s=s):
+    if _s.zwloki:
+        _s.liny.append(tuple(pole)); return
+    _lina_orig(pole)
+s.uzyj_line = _lina_zwloki
+PRZECIAG = []
+def _przeciagnij(dx1, dy1, dx2, dy2, _s=s):
+    PRZECIAG.append((dx1, dy1, dx2, dy2)); _s.zwloki = False
+b._wp().przeciagnij = _przeciagnij
+bieg(b, 400, az=lambda: s.poz[2] == 8 and b.wpadniecie.st is None)
+sprawdz("4t pierwsza lina bez skutku (zwłoki), potem przeciągnięcie pod siebie", PRZECIAG and PRZECIAG[0][2:] == (0, 0)
+        and max(abs(PRZECIAG[0][0]), abs(PRZECIAG[0][1])) == 1, f"{PRZECIAG} liny={s.liny}")
+sprawdz("4t po zdjęciu zwłok lina wyprowadza na z8", s.poz[2] == 8 and len(s.liny) == 2, f"{s.poz} liny={s.liny}")
+sprawdz("4t log: zdejmuję z pola liny", any("zdejmuję to, co leży na polu liny" in l for l in LOG))
+
 # --- 4b. lina w slocie ekwipunku 10 (brak w plecaku) ---
 class OpsEkw(Ops):
     """Lina nie w oknie plecaka (BrakEkranu), tylko w slocie ekwipunku 10: ścieżka awaryjna."""

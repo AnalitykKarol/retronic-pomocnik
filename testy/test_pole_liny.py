@@ -16,8 +16,12 @@ pusty = _os.path.join(tempfile.mkdtemp(), "p.json")
 L = wypad.proby_trzy_sposoby((10, 10, 9), [(10, 10, 9), (10, 9, 9)], 8, plik=pusty)
 sprawdz("trzy sposoby: brak liny na własnym polu", ("lina", (10, 10, 9)) not in L, L)
 sprawdz("trzy sposoby: lina na polu obok zostaje", ("lina", (10, 9, 9)) in L, L)
-sprawdz("pietra: lina nie ma zastosowania na polu przejścia",
-        not pietra.Pietra._stosuje(types.SimpleNamespace(_k=lambda n, d: d), "lina", (5, 5, 9), (5, 5, 9), 0.0))
+# 22.10: slot liny zostaje w liście także na polu przejścia (próba sama schodzi krokiem obok, testy/test_lina_z_pola.py);
+# sam krok z własnego pola nadal odpada
+sprawdz("pietra: lina zostaje w liście na polu przejścia (zejście obok robi _proba)",
+        pietra.Pietra._stosuje(types.SimpleNamespace(_k=lambda n, d: d), "lina", (5, 5, 9), (5, 5, 9), 0.0))
+sprawdz("pietra: krok z własnego pola nie ma zastosowania",
+        not pietra.Pietra._stosuje(types.SimpleNamespace(_k=lambda n, d: d), "krok", (5, 5, 9), (5, 5, 9), 0.0))
 sprawdz("pietra: lina z pola obok tak",
         pietra.Pietra._stosuje(types.SimpleNamespace(_k=lambda n, d: d), "lina", (5, 6, 9), (5, 5, 9), 0.0))
 

@@ -594,9 +594,13 @@ class Pietra:
     def _stosuje(self, tryb, poz, T, teraz):
         """R1b: czy tryb ma zastosowanie w tej chwili. "krok" nie z własnego pola przejścia; "lopata" tylko dla dziury
         zasypanej (ZASYPANE), przy włączonym PIETRA_LOPATA, z łopatą w plecaku i z operacją łopaty."""
-        if tryb in ("krok", "lina"):
-            # 21.10 (Karol): liny też nie użyjesz, stojąc na jej polu (krok z własnego pola przejścia też nic nie da)
-            return (poz[0], poz[1]) != (T[0], T[1])
+        if tryb == "krok":
+            return (poz[0], poz[1]) != (T[0], T[1])      # krok z własnego pola przejścia nic nie da
+        if tryb == "lina":
+            # 21.10 (Karol): liny nie użyjesz, stojąc na jej polu. 22.10 (invincible, Edron z9 (33131,31806)): lina NIE wypada
+            # z listy, gdy stoimy na polu (po nieudanej próbie postać wylądowała na nim i zostawały same R z pola): próba liny
+            # sama schodzi krokiem na wolne pole obok (_przed_use), a bez takiego pola nie używa liny wcale.
+            return True
         if tryb == "lopata":
             return bool(self._k("PIETRA_LOPATA", 1)) and Pietra._zasypana(self, T) \
                 and teraz >= getattr(self, "brak_lopaty_do", float("-inf")) \
@@ -712,6 +716,7 @@ class Pietra:
                     self.log(f"Przejście pięter: próba {n + 1}/{len(tryby)} (krok {kier}) z {tuple(poz)}, pole {T[:2]}")
                     cb.postac.krok(kier)
             elif tryb in ("use", "R"):
+                poz = self._przed_use(T, poz, z0, zejdz=na_polu and tryb == "use")
                 self.log(f"Przejście pięter: próba {n + 1}/{len(tryby)} ({tryb}, Ctrl+klik) z {tuple(poz)}, pole {T[:2]}")
                 self._use(T, poz, poz)
             elif tryb in ("use_wlasne", "wlasne"):
@@ -773,25 +778,13 @@ class Pietra:
                 st["lopata_pole"] = (T[0], T[1], T[2])     # F4: krok, który potem zmieni piętro, zapisze się jako "lopata"
                 cb.spij(0.6)                    # dziura otwiera się po chwili; kolejna próba to krok w nią
             elif tryb == "lina":
-                if (poz[0], poz[1]) == (T[0], T[1]):
-                    # 15.10: z własnego pola liny nie da się jej użyć (Edron z11): schodzimy o kratkę, jak przy łopacie
-                    for kier, (kx, ky) in (("Left", (poz[0] - 1, poz[1])), ("Right", (poz[0] + 1, poz[1])),
-                                           ("Up", (poz[0], poz[1] - 1)), ("Down", (poz[0], poz[1] + 1))):
-                        f = _flaga(cb.mapa, kx, ky, z0)
-                        if f & (4 | 2) or (f and not f & 1):
-                            continue
-                        self.log(f"Przejście pięter: stoję na polu liny {T[:2]}, schodzę {kier} o kratkę")
-                        try:
-                            cb.postac.krok(kier)
-                        except bot.Zatrzymano:
-                            raise
-                        except Exception:
-                            pass
-                        cb.pauza(0.3, 0.5)
-                        nowa = tuple(cb.postac.pozycja())
-                        if nowa != tuple(poz):
-                            poz = nowa
-                            break
+                if na_polu:
+                    # 15.10/22.10: z własnego pola liny nie da się jej użyć (Edron z11, z9): schodzimy o kratkę jak przed Use
+                    # (_przed_use czeka też, aż postać stanie); bez zejścia liny z własnego pola nie używamy wcale
+                    poz = self._przed_use(T, poz, z0, zejdz=True, chodne=True)
+                    if (poz[0], poz[1]) == (T[0], T[1]):
+                        self.log(f"Przejście pięter: nie zeszło z pola liny {T[:2]}, liny z własnego pola nie użyję, pomijam")
+                        return True
                 self.log(f"Przejście pięter: próba {n + 1}/{len(tryby)} (lina z otwartego pojemnika) z {tuple(poz)}, pole {T[:2]}")
                 self.ops.uzyj_line(T, poz)
             else:
@@ -812,6 +805,37 @@ class Pietra:
 
     def _use(self, pole, poz, _):
         self.ops.uzyj_pole(pole, poz)
+
+    def _przed_use(self, T, poz, z0, zejdz, chodne=False):
+        """22.10 (kratka Edron (33168,31823,z8): 3 postacie po 5 porażek, test ręczny po 1,2 s spokoju zszedł od razu):
+        Ctrl+klik (Use) w trakcie kroku klient gubi, a z samego pola T trafia w postać. `zejdz` = stoimy na T: najpierw krok
+        z niego na pole obok (nie ściana, nie schody/dziura), potem czekamy, aż pozycja stoi (2 odczyty co 0,4 s, do 1,6 s).
+        Wynik: bieżąca pozycja, względem której liczy się Ctrl+klik."""
+        cb = self.cb
+        if zejdz:
+            for kier, (kx, ky) in (("Down", (poz[0], poz[1] + 1)), ("Left", (poz[0] - 1, poz[1])),
+                                   ("Right", (poz[0] + 1, poz[1])), ("Up", (poz[0], poz[1] - 1))):
+                f = _flaga(cb.mapa, kx, ky, z0)
+                if f & (4 | 2) or (chodne and f and not f & 1):      # chodne (lina): znane niechodliwe pole też odpada
+                    continue
+                self.log(f"Przejście pięter: stoję na polu {T[:2]}, schodzę {kier}, żeby użyć go z boku")
+                try:
+                    cb.postac.krok(kier)
+                except bot.Zatrzymano:
+                    raise
+                except Exception:
+                    pass
+                cb.pauza(0.3, 0.5)
+                if tuple(cb.postac.pozycja()) != tuple(poz):
+                    break
+        ost = tuple(cb.postac.pozycja())
+        for _ in range(4):
+            cb.spij(0.4)
+            p = tuple(cb.postac.pozycja())
+            if p == ost:
+                break
+            ost = p
+        return ost
 
     def _odstep(self, n):
         # R1b: przy skróconym czekaniu pierwszy odstęp między próbami ledwie zauważalny (dawniej 1 s po 3,5 s czekania)

@@ -575,6 +575,28 @@ class Wpadniecie:
             time.sleep(0.45)
             mysz.klik(*ekran.pole_na_ekran(dx, dy, ekran.aktualny_prostokat(mysz.ekran)), 1, None, drganie=2)
 
+    przeciagnij = None             # testy: podmieniają przeciągnięcie (dx1, dy1, dx2, dy2); None = ekran.Mysz().przeciagnij_pola
+
+    def _zdejmij_z_pola_liny(self, spot, p):
+        """22.10 (dawajkesh, z10 pod (33067,31716)): trup trolla na polu liny blokuje linę. Przed kolejną próbą przeciągamy
+        wierzch pola liny pod siebie (pole obok, zawsze wolne dla nas). Pusty ruch nic nie psuje; błąd = tylko wpis w logu."""
+        dx, dy = spot[0] - p[0], spot[1] - p[1]
+        if (dx, dy) == (0, 0) or abs(dx) > 1 or abs(dy) > 1:
+            return
+        self.log(f"Wpadnięcie: zdejmuję to, co leży na polu liny {spot[:2]} (np. zwłoki), pod siebie")
+        try:
+            if self.przeciagnij is not None:
+                self.przeciagnij(dx, dy, 0, 0)
+            else:
+                import ekran  # noqa: PLC0415
+                with ekran.Mysz() as m:
+                    m.przeciagnij_pola(dx, dy, 0, 0)
+            self.cb.spij(0.6)
+        except bot.Zatrzymano:
+            raise
+        except Exception as ex:                       # noqa: BLE001
+            self.log(f"Wpadnięcie: nie zdjąłem rzeczy z pola liny ({ex!r})")
+
     def _lina(self, p, teraz):
         cb = self.cb
         st = self.st
@@ -606,6 +628,8 @@ class Wpadniecie:
         except Exception:
             pass
         cb.klik_cel = None
+        if n >= 2:
+            self._zdejmij_z_pola_liny(spot, p)
         self.log(f"Wpadnięcie: lina, próba {n}/{lim} na polu {spot[:2]} z {p}")
         self._tele("wpadniecie_lina", proba=n, poz=list(p), pole=list(spot))
         try:

@@ -1811,7 +1811,8 @@ try:
             wyst and stan.get("stan") == "pominiety" and "nie udało się" in stan.get("powod", "") and w.plik_stop.exists()
             and tuple(s.poz) == GOB_DEPO, stan)
     w.plik_stop.unlink()
-    # miasto bez planu serwisu: Thais (plan troll z jaskini trolli); trasa i atrapa jak w 12.
+    # Thais (plan troll z jaskini trolli): od 22.10 ma plan serwisu (drzwi sklepów przechodzi serwis), więc auto-refill rusza jak w Edronie;
+    # trasa i atrapa jak w 12. (Wcześniej: brak_planu, dymek „bez auto-refillu”.)
     s, cb, w, k, plik = wroc_swiat(poz=START, konf=konf_wroc(WROC_REFILL=1))
     (w.plik_stop.parent / refill_auto.PLIK).unlink(missing_ok=True)
     st = []
@@ -1821,10 +1822,10 @@ try:
     tyk(s, cb, w)
     n, wyst = bieg(s, cb, w, maks=12000)
     stan = refill_auto.czytaj_stan(w.plik_stop.parent)
-    sprawdz("20zd Thais (plan 'troll', depo Thais): bez planu serwisu = brak auto-refillu, STOP w depo, wpis w logu, dymek i pliku decyzji",
-            wyst and tuple(s.poz) == DEPO and st == [] and stan.get("stan") == "brak_planu" and "brak planu serwisu" in stan.get("powod", "")
-            and w.plik_stop.exists() and any("auto-refill pominięty" in l for l in w.logi)
-            and any(a[0] == "Wróć do miasta: bez auto-refillu" for a in pw20), (s.poz, st, stan, pw20))
+    sprawdz("20zd Thais (plan 'troll', depo Thais): serwis Thais ma plan = auto-refill rusza RAZ (czekacz), decyzja 'czeka', STOP w depo, bez wpisu o braku planu",
+            wyst and tuple(s.poz) == DEPO and st == [1] and stan.get("stan") == "czeka" and "thais" in stan.get("powod", "")
+            and w.plik_stop.exists() and not any("auto-refill pominięty" in l for l in w.logi)
+            and not any(a[0] == "Wróć do miasta: bez auto-refillu" for a in pw20), (s.poz, st, stan, pw20))
     w.plik_stop.unlink()
     # nieudane dojście (blokada marszu): alarm + STOP bez auto-refillu
     s, cb, w, k, plik = wroc_swiat(poz=GOB_BLISKO, konf=konf_wroc(WROC_REFILL=1))

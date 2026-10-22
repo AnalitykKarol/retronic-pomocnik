@@ -129,6 +129,7 @@ def ogien_w(b, s, *pola_):
         b.ogien_pola[(p[0], p[1], 7)] = s.t
 
 cavebot.OGIEN_UNIKAJ = 1
+cavebot.OGIEN_PARZY_BUFOR = 1   # 22.10: testy 9 sprawdzają bufor (domyślnie 0)
 cavebot.OGIEN_LOG_S = 1.0     # testy 3a: wpisy co 1 s (domyślnie od P6 co 10 s, patrz test 6)
 cavebot.OGIEN_WYJDZ_POTWIERDZ = 0   # starsze testy 3d/3e/7h zakładają zejście bez potwierdzenia (nowe: sekcja 8)
 
@@ -558,6 +559,36 @@ b.cel = None; b.ostatnie_stwory = [troll(104, 100)]; b.ogien_hp_hist = [(0.0, 10
 tickuj(b, s, (100, 100, 7), 5.0, {(3, 0)})
 sprawdz("8j4 pokrętło 0: wykrycie przy stworze zostaje", (103, 100, 7) in b.ogien_pola)
 cavebot.OGIEN_POMIJAJ_PRZY_STWORZE = 1
+
+# 9. 22.10: znane parzące pole z buforem 1 (invincible wszedł w ogień idąc po loot, (33069,31730,z8), ~20 HP)
+s = Swiat(pas(95, 110, 98, 102)); b = zrob(s)
+b.ogien_pola.clear(); b.ogien_ignoruj_do = 0.0
+b.ogien_epizody = {"105,100,7": {"n": 26, "godz": [8], "hp": True, "ost": 0.0}}
+sprawdz("9a pole parzące i sąsiedzi to ogień, także bez wykrycia na zrzucie",
+        b._ogien_na((105, 100, 7)) and b._ogien_na((104, 101, 7)) and b._ogien_na((106, 99, 7))
+        and not b._ogien_na((103, 100, 7)) and not b._ogien_na((105, 100, 8)))
+s.poz[:] = [102, 100, 7]; s.kroki.clear()
+b.krok_do((108, 100, 7))
+sprawdz("9b krok w stronę celu za ogniem nie wchodzi w bufor", all(abs(n[0] - 105) > 1 or abs(n[1] - 100) > 1 for _, n in s.kroki),
+        s.kroki)
+s.poz[:] = [104, 99, 7]; s.kroki.clear()
+b.krok_do((103, 98, 7))
+sprawdz("9c postać w buforze wychodzi z niego", s.kroki and tuple(s.poz[:2]) != (104, 99), (s.kroki, s.poz))
+s.poz[:] = [104, 100, 7]; s.kroki.clear()
+b.krok_do((106, 100, 7))
+sprawdz("9d z bufora nie na samo pole parzące", all(n != (105, 100) for _, n in s.kroki), s.kroki)
+sprawdz("9e A* i klik omijają bufor", (104, 100, 7) in b._ogien_blok((100, 100, 7)) and b._ogien_na_drodze((100, 100, 7), (103, 100)))
+cavebot.OGIEN_PARZY_BUFOR = 0
+sprawdz("9f pokrętło 0: samo pole jak dawniej", b._ogien_na((105, 100, 7)) and not b._ogien_na((104, 100, 7)))
+cavebot.OGIEN_PARZY_BUFOR = 1
+# 9g: korytarz 1-polowy obok ognia (wydra 08:41, (32481,32292,z8)): jedyna droga polem bufora -> krok miękki, nie na ogień
+wolne = [(100, 98), (100, 99), (100, 100), (101, 100), (102, 100)]           # w dół, potem w prawo; ogień (99, 101)
+s = Swiat(wolne); b = zrob(s); b.ogien_pola.clear()
+b.ogien_epizody = {"99,101,7": {"n": 5, "godz": [8], "hp": True, "ost": 0.0}}
+s.poz[:] = [100, 99, 7]; s.kroki.clear()
+ruszyl = b.krok_do((102, 100, 7))
+sprawdz("9g korytarz obok ognia: krok na pole bufora, gdy inny nie rusza", ruszyl and tuple(s.poz[:2]) == (100, 100), (s.kroki, s.poz))
+sprawdz("9h nigdy na samo pole ognia", all(n != (99, 101) for _, n in s.kroki), s.kroki)
 
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

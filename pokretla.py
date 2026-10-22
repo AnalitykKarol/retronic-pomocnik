@@ -74,6 +74,7 @@ ZAKRESY = {
     "PATROL_GRACZ_PAM_R": (4, 40),      # pola: miejsce tak blisko ostatniej pozycji gracza dostaje karę
     "PATROL_GRACZ_PAM_KARA": (0.0, 1.0),  # mnożnik wagi takiego miejsca (0 = blokada)
     "MARSZ_KLIK": (0, 1),               # 20.10: 1 = marsz klikiem w patrolu/dojściu (klik w najdalsze pole drogi ze zwykłych pól, do MARSZ_KLIK_MAKS_POL; obserwacja ruchu, Escape przy walce); 0 = dotychczasowe chodzenie
+    "KROK_ZLY": (0, 1),                 # 22.10: 1 = pole, w które krok strzałką nie udał się 2x z rzędu, dostaje zakaz (A*, krok_do, patrol zmienia miejsce); 0 = dotychczasowe bicie w ścianę
     "KROK_BEZ_SCIAN": (0, 1),           # 20.10: 1 = krok_do po nieudanym pierwszym kierunku ponawia go raz i pomija zapasowe kierunki w pola, które mapa uznaje za ścianę; 0 = dotychczasowe
     "MARSZ_KLIK_MAKS_POL": (2, 7),      # pola: ile pól naprzód klikamy naraz w marszu klikiem
     "STWORY_WIDMA": (0, 1),             # 19.10: 1 = wpisy-widma (obcy gracz na polu bota, kilku graczy na jednym polu) nie liczą się do zajętości pól i oceny graczy; PK/GM widzą wszystko; 0 = stare zachowanie
@@ -335,6 +336,8 @@ ZAKRESY = {
     "SLEPOTA_DIAG_S": (0.0, 900.0),     # 19.10: s bez expa i potworów (bot polował) => zrzut diagnostyki do logi/slepota/ (0 = wyłączone)
     "SLEPOTA_RESTART_S": (0.0, 1800.0), # 19.10: s takiej ślepoty => restart mozg.py (0 = bez restartu; min. rozsądnie 240)
     "DRZWI_PONOW": (0, 1),              # 17.10 (F1): 1 = flaga "drzwi otwarte" starsza niż DRZWI_STARA_S s jest przeterminowana: podejście i Use przy zamkniętych drzwiach (domyślnie 0)
+    "DRZWI_TRASA": (0, 1),              # 22.10: 1 = zamknięte drzwi na nagranej trasie (dojście, trasa; także pole pośrednie między punktami): dojście na pole przed drzwiami, krok, Use, krok (domyślnie 1)
+    "DRZWI_SPOKOJ": (0, 1),             # 22.10: 1 = przed Use na drzwiach czekamy na stojącą pozycję (Use w trakcie kroku klient gubi) (domyślnie 1)
     "OBSERWATOR_PK_KONTEKST": (0, 1),   # 16.10 (P10): 1 = obserwator dostaje karencję PK i wie, że PAUZA_PK z karencją jest zamierzona (domyślnie 0)
     "SMIERC_STOP": (0, 1),              # 16.10 (R5/P5): 1 = po zgonie stan MARTWY: jeden STOP + powiadomienie, zero kliknięć i modelu (domyślnie 0)
     "PK_SZYBKIE": (0, 1),               # 16.10 (P6/R2): 1 = reakcja na PK bez czekania na alarm dźwiękowy i model (domyślnie 0)
@@ -361,7 +364,7 @@ KIERUNEK = {
     "POSCIG_OKNO": "nie_nizej", "POSCIG_OKNO_DOBRY": "nie_nizej",
     "POSCIG_VKROK_SCIANA": "nie_nizej", "POSCIG_OSTATNI_DOCISKAJ": "nie_nizej",
     "POSCIG_SKOS_AWARYJNY": "nie_nizej", "JEDZENIE_ZAPAS_W_WALCE": "nie_nizej",
-    "MARSZ_KLIK": "nie_wyzej", "MARSZ_KLIK_MAKS_POL": "nie_wyzej", "KROK_BEZ_SCIAN": "nie_wyzej",   # analityk nie może włączyć marszu klikiem ani go wydłużyć (tylko Karol w na_zywo.json)
+    "MARSZ_KLIK": "nie_wyzej", "MARSZ_KLIK_MAKS_POL": "nie_wyzej", "KROK_BEZ_SCIAN": "nie_wyzej", "KROK_ZLY": "nie_nizej",   # analityk nie może włączyć marszu klikiem ani go wydłużyć (tylko Karol w na_zywo.json)
     "STWORY_WIDMA": "nie_nizej",        # analityk nie wyłącza filtra widm (wyłącza go tylko Karol w na_zywo.json)
     "POSCIG_PAMIEC": "nie_nizej", "POSCIG_PAMIEC_S": "nie_nizej", "POSCIG_PAMIEC_POL": "nie_nizej",
     "POSCIG_PAMIEC_MAKS_ODL": "nie_nizej",
@@ -431,7 +434,7 @@ KIERUNEK = {
     "UH_W_WALCE": "nie_wyzej", "UH_W_WALCE_MANA_MARGINES": "nie_wyzej", "UH_W_WALCE_MIN_HP": "nie_nizej",
     "UH_W_WALCE_DYSTANS": "nie_nizej", "UH_W_WALCE_SPADEK_HP": "nie_wyzej",
     # pola ognia: analityk nie może wyłączyć omijania (tylko Karol w na_zywo.json)
-    "OGIEN_UNIKAJ": "nie_nizej", "OGIEN_STALY": "nie_nizej", "OGIEN_MASKA_TYLKO_SCIANY": "nie_nizej", "OGIEN_WYJDZ_POTWIERDZ": "nie_nizej", "OGIEN_MASKA_DANE": "nie_nizej", "OGIEN_POMIJAJ_PRZY_STWORZE": "nie_nizej", "POSCIG_SKOSY_ZAPAS": "nie_nizej", "PATROL_DRZWI": "nie_nizej", "D3_REAKCJA": "nie_wyzej", "RATUNEK_HAIKU": "nie_wyzej", "RATUNEK_HAIKU_PYTAJ": "nie_wyzej", "D3_ALARM_S": "nie_wyzej", "DRZWI_PONOW": "nie_wyzej", "SMIERC_STOP": "nie_wyzej", "PK_SZYBKIE": "nie_wyzej", "OBSERWATOR_PK_KONTEKST": "nie_wyzej", "RUCH_OKNO": "nie_nizej", "RUCH_PROBKA_WCZESNA": "nie_nizej", "OGIEN_ODSWIEZ_WALKA_S": "nie_wyzej",
+    "OGIEN_UNIKAJ": "nie_nizej", "OGIEN_STALY": "nie_nizej", "OGIEN_MASKA_TYLKO_SCIANY": "nie_nizej", "OGIEN_WYJDZ_POTWIERDZ": "nie_nizej", "OGIEN_MASKA_DANE": "nie_nizej", "OGIEN_POMIJAJ_PRZY_STWORZE": "nie_nizej", "POSCIG_SKOSY_ZAPAS": "nie_nizej", "PATROL_DRZWI": "nie_nizej", "D3_REAKCJA": "nie_wyzej", "RATUNEK_HAIKU": "nie_wyzej", "RATUNEK_HAIKU_PYTAJ": "nie_wyzej", "D3_ALARM_S": "nie_wyzej", "DRZWI_PONOW": "nie_wyzej", "DRZWI_TRASA": "nie_nizej", "DRZWI_SPOKOJ": "nie_nizej", "SMIERC_STOP": "nie_wyzej", "PK_SZYBKIE": "nie_wyzej", "OBSERWATOR_PK_KONTEKST": "nie_wyzej", "RUCH_OKNO": "nie_nizej", "RUCH_PROBKA_WCZESNA": "nie_nizej", "OGIEN_ODSWIEZ_WALKA_S": "nie_wyzej",
     # ignorowanie/strażnicy/blokujący: analityk nie może wyłączyć strażników ani włączyć bicia blokującego (tylko Karol)
     # dojście z depo: analityk nie może włączyć wypraw po blanki w depo ani wyłączyć karencji/walki przy przejściu (tylko Karol)
     "WYPRAWA_DEPO_BLANKI": "nie_wyzej", "WYPRAWA_PO_DEPO_S": "nie_nizej", "WYPRAWA_PO_DOJSCIU_S": "nie_nizej", "BLANKI_AUTO_BAG": "nie_wyzej", "BLANKI_AUTO_BAG_MIN": "nie_nizej",
