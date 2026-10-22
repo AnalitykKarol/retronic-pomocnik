@@ -34,7 +34,7 @@ import spoty as SP  # noqa: E402
 
 KORZEN = Path(os.environ.get("RETRONIC_NADZOR_KORZEN") or DIR)
 FMT = G.FMT
-BIALA_LISTA = ("restart", "wznow", "wroc", "relog", "wyloguj", "zmien_spot")
+BIALA_LISTA = ("restart", "wznow", "wroc", "relog", "wyloguj", "zmien_spot", "okna")
 FAZY = ("OFFLINE", "LOGOWANIE", "DOJSCIE", "EXP", "POWROT", "MIASTO", "WYLOGOWANIE")
 ZDARZENIA_LOGOWANIA = ("sesja_start", "wyloguj", "relog")
 
@@ -53,6 +53,16 @@ RE_CAP = re.compile(r"loot: pełny plecak(?: w walce)?: powód za_ciezki")
 RE_GLOD = re.compile(r"\[jedzenie: brak jedzenia w plecaku\]")
 RE_MOZG = re.compile(r"Mózg: tryb \S+, postać \S+, trasa (\S+)")
 RE_WALKA = re.compile(r"[Cc]el|WALKA|ATAK|Loot|loot|POGO|UCIEC")
+# 22.10 okna po starcie: walka BEZ linii lootu (powtarzające się "Loot: brak_plecaka" to sam objaw, nie walka: inaczej naprawa okien
+# byłaby odraczana w nieskończoność przez własny sygnał)
+RE_WALKA_BEZ_LOOTU = re.compile(r"[Cc]el|WALKA|ATAK|POGO|UCIEC")
+RE_BRAK_PLECAKA = re.compile(r"Loot: brak_plecaka|brak_plecaka \(zero lub kilka okien plecaka\)")
+RE_BRAK_OKNA = re.compile(r"Loot: brak_okna|Loot w walce przerwany: brak_okna")
+OKNA_PROG = int(os.environ.get("NADZOR_OKNA_PROG", "5"))            # brak_plecaka w ostatnich 5 min, by zlecić kontrolę okien
+OKNA_PROG_OKNA = int(os.environ.get("NADZOR_OKNA_PROG_OKNA", "15"))  # brak_okna (zwłoki) jest zwykły; dopiero seria to sygnał
+OKNA_KARENCJA_S = 900                                                # najwyżej raz na 15 min na postać
+WROC_CZEKAJ_MIN = 15       # 22.10: tyle czekam na efekt zleconego powrotu (koniec zmiany), potem jedna eskalacja i cisza (konf "wroc_czekaj_min")
+POZIOM_MAX_WIEK_H = 24     # 22.10: najstarszy zapamiętany poziom, którego jeszcze używam przy braku bieżącego odczytu (konf "poziom_max_wiek_h")
 RE_TRYB_MAPA = re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) \[TRYB\] mapa (\S+?):")
 RE_TRYB_TRYB = re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) \[TRYB\] tryb (\S*?):")
 
@@ -101,7 +111,7 @@ def analizuj_log(linie, teraz_ep):
     """Sygnały z logu. Wartości *_ts to epoch ostatniego wystąpienia (None = brak)."""
     a = {"pk": None, "pk_tekst": None, "gm": None, "zgon": None, "rozl": None, "rozl_koniec": None, "depo": None, "alarm": None,
          "alarm_tekst": None, "stop": None, "start": None, "trasa": None, "ost_zabicie": None, "zabicia_od_startu": 0,
-         "pelny": 0, "cap": 0, "glod": 0, "walka": False, "ost_linia": None}
+         "pelny": 0, "cap": 0, "glod": 0, "walka": False, "walka_bez_lootu": False, "brak_plecaka": 0, "brak_okna": 0, "ost_linia": None}
     for t, l in linie:
         if "[OGIEN]" in l or l.startswith("debug:"):
             continue
@@ -132,8 +142,12 @@ def analizuj_log(linie, teraz_ep):
             a["cap"] += bool(RE_CAP.search(l))
         if t >= teraz_ep - 1200:
             a["glod"] += bool(RE_GLOD.search(l))
+        if t >= teraz_ep - 300:
+            a["brak_plecaka"] += bool(RE_BRAK_PLECAKA.search(l))
+            a["brak_okna"] += bool(RE_BRAK_OKNA.search(l))
     # walka: któraś z linii z ostatnich 20 s
     a["walka"] = any(t >= teraz_ep - 20 and RE_WALKA.search(l) for t, l in linie[-40:])
+    a["walka_bez_lootu"] = any(t >= teraz_ep - 20 and RE_WALKA_BEZ_LOOTU.search(l) for t, l in linie[-40:])
     return a
 
 
@@ -199,8 +213,13 @@ class Zrodla:
         self._ekw = {}
 
     def stan(self):
+        # 22.10: poziom postaci ginął, bo strażnik nie mieścił się w limitach okna/paska (0.3 s na `gracz`, 1.5/1.9 s na panel i całość)
+        # albo odczyt był wstrzymany znacznikiem gracz_brak. Nadzór nie ma budżetu paska (tick co 5 min): szersze limity i bez pauzy,
+        # tylko dla tego wywołania (opt-in przez środowisko; okno i pasek zostają przy swoich).
+        env = dict(os.environ, RETRONIC_PANEL_GRACZ_S="2.5", RETRONIC_PANEL_GRACZ_BEZ_PAUZY="1",
+                   RETRONIC_OKNO_PANEL_LIMIT_S="5", RETRONIC_OKNO_CALOSC_LIMIT_S="8")
         r = subprocess.run([sys.executable, "-I", str(DIR / "okno_api.py"), "stan"], cwd=str(DIR), capture_output=True,
-                           text=True, timeout=60)
+                           text=True, timeout=60, env=env)
         return json.loads(r.stdout).get("instancje", [])
 
     def ekran(self, id_):
@@ -286,6 +305,7 @@ class WykonawcaCien:
     def serwis(self, id_): return self._w("serwis", id_)
     def wyloguj(self, id_): return self._w("wyloguj", id_)
     def powiadom(self, id_, tytul, tresc): return self._w("powiadom", id_, tytul, tresc)
+    def okna(self, id_): return self._w("okna", id_)
 
 
 class WykonawcaZywy:
@@ -364,6 +384,11 @@ class WykonawcaZywy:
     def wroc(self, id_):
         return self._skrypt("wroc.sh", id_, 20)
 
+    def okna(self, id_):
+        """Kontrola okien po starcie (okna_start.py): zwiń minimapę / otwórz plecak, gdy pokrętło naprawy włączone, inaczej tylko
+        powiadomienie. Kod 0 = ok/naprawione, 1 = wymaga człowieka (powiadomione), 3 = odroczone, 4 = brak odczytu."""
+        return self._uruchom([sys.executable, "-I", DIR / "okna_start.py", "napraw"], id_, 90)
+
     def serwis(self, id_):
         kod = G.wspolne(self.korzen) / f"nadzor_serwis_{id_}.kod"
         kod.unlink(missing_ok=True)
@@ -425,6 +450,7 @@ class Nadzorca:
         self._przypisane = {}       # id -> mapa przypisana w tym przebiegu (zajętość zanim bot ruszy)
         self._obs = {}              # id -> obserwacja z tego przebiegu (podgląd spotów w cieniu)
         self._ostrzezono_tabele = False
+        self._poziom_z_pamieci = {}     # id -> (poziom, data odczytu), gdy w tym przebiegu użyto zapamiętanego poziomu zamiast bieżącego
 
     # --- stan trwały ---
     def _wczytaj_stan(self, tylko_odczyt=False):
@@ -578,12 +604,20 @@ class Nadzorca:
     # --- reguły ---
     def zmiana_postaci(self, plan, id_, teraz, online):
         st = self.post(id_)
+        luz = int(self.konf["przerwa_min"][0])
         if online and st.get("zmiana_od"):
             for z in G.zmiany_postaci(plan, id_):
                 if z["od"] == st["zmiana_od"]:
+                    # 22.10: przypięcie wygasa, gdy okno tej zmiany (wylog + luz) minęło, a trwa już inna (wydra: pin 08:50-11:13 do 16:37,
+                    # kolejna zmiana 13:30-16:10 ignorowana). Gdy innej aktywnej nie ma, przypięcie zostaje (koniec zmiany nadal obowiązuje).
+                    if teraz >= datetime.strptime(z["wylog"], FMT) + timedelta(minutes=luz):
+                        nowa = G.aktywna_zmiana(plan, id_, teraz, luz_min=luz)
+                        if nowa and nowa["od"] != z["od"]:
+                            st["zmiana_od"] = nowa["od"]
+                            return nowa
                     return z
         if online:
-            z = G.aktywna_zmiana(plan, id_, teraz, luz_min=int(self.konf["przerwa_min"][0]))
+            z = G.aktywna_zmiana(plan, id_, teraz, luz_min=luz)
             if z:
                 st["zmiana_od"] = z["od"]
             return z
@@ -605,6 +639,28 @@ class Nadzorca:
             return "jedzenie", f"brak jedzenia w plecaku ({a['glod']} wpisów w 20 min)"
         return None
 
+    def _decyzja_konca(self, id_, st, zm, koniec, teraz):
+        """22.10 (dziennik wydry: `wroc` z powodem „koniec zmiany (11:13)” 28 razy w 5 h): koniec zmiany zleca powrót RAZ. Dalej: czekam na efekt
+        (wroc_czekaj_min), potem jedna eskalacja „nieustalony” (bez wstrzymania) i cisza, aż zmieni się sytuacja (bot stanął, wylogowanie,
+        przejęcie przez Karola, następna zmiana). Zlecenie ma tryb (cień/żywo): to z cienia nie tłumi prawdziwego `wroc` po włączeniu NADZOR_ZYWO."""
+        w = st.get("wroc_koniec")
+        if not (w and w.get("tryb") == ("zywo" if self.zywo else "cien") and w.get("zmiana") == (zm or {}).get("od")):
+            return [D(id_, "wroc", koniec[1] + ": zlecam powrót do miasta", "koniec-" + koniec[0], klasa="naprawa", problem="koniec",
+                      zm=(zm or {}).get("od"), powod_konca=koniec[1])]
+        o_ktorej = datetime.fromtimestamp(w["ts"]).strftime("%H:%M")
+        wiek_min = (ts_ep(teraz) - w["ts"]) / 60
+        if wiek_min < float(self.konf.get("wroc_czekaj_min", WROC_CZEKAJ_MIN)):
+            return [D(id_, "czekaj", f"powrót zlecony o {o_ktorej} ({w['powod']}): czekam na efekt", "wroc-zlecony")]
+        if not w.get("eskalowano"):
+            return [D(id_, "eskaluj", f"powrót do miasta zlecony o {o_ktorej} ({w['powod']}), bez efektu po {int(wiek_min)} min: bot nadal działa, nie ponawiam",
+                      "wroc-bez-efektu", klasa="eskalacja", kod_eskalacji="nieustalony", wroc_koniec=True)]
+        return [D(id_, "czekaj", f"powrót zlecony o {o_ktorej}, bez efektu; Karol powiadomiony, nie ponawiam", "wroc-bez-efektu")]
+
+    def _zapisz_wroc_koniec(self, st, d, teraz):
+        if d["akcja"] == "wroc" and d["arg"].get("problem") == "koniec":
+            st["wroc_koniec"] = {"tryb": "zywo" if self.zywo else "cien", "zmiana": d["arg"].get("zm"), "ts": ts_ep(teraz),
+                                 "powod": d["arg"].get("powod_konca") or d["powod"]}
+
     # --- wybór spotu (Q5, SPEC_wybor_spotu_1021) ---
     def tabela_spotow(self):
         """Tabela spotów (spoty.py) albo None, gdy nie ma pliku dane_tibia/spoty_nadzorca.json (wtedy zachowanie jak przed Q5). Raz na przebieg."""
@@ -614,14 +670,52 @@ class Nadzorca:
             self._tab = SP.wczytaj(self.korzen) if plik.exists() else None
         return self._tab
 
+    @staticmethod
+    def poziom_z_odczytu(gracz, panel):
+        """Poziom z bieżącego odczytu (gracz.level, potem panel.level) albo None."""
+        for zrodlo in (gracz, panel):
+            v = zrodlo.get("level") if isinstance(zrodlo, dict) else None
+            if isinstance(v, int) and not isinstance(v, bool) and v > 0:
+                return v
+        return None
+
+    def poziom_znany(self, id_, teraz):
+        """(poziom, data odczytu) ostatniego udanego odczytu tej postaci, jeśli młodszy niż poziom_max_wiek_h; inaczej None. Nie zgaduję."""
+        z = self.post(id_).get("poziom")
+        if not (isinstance(z, dict) and isinstance(z.get("wartosc"), int) and z.get("t")):
+            return None
+        try:
+            wiek_h = (teraz - datetime.strptime(z["t"], FMT)).total_seconds() / 3600
+        except ValueError:
+            return None
+        if wiek_h > float(self.konf.get("poziom_max_wiek_h", POZIOM_MAX_WIEK_H)):
+            return None
+        return z["wartosc"], z["t"]
+
+    def zapamietaj_poziom(self, id_, o, teraz):
+        """22.10: ostatni znany poziom z datą odczytu (strażnik bywa chwilowo nieosiągalny: nie traci się wtedy poziomu postaci)."""
+        v = self.poziom_z_odczytu(o.get("gracz"), o.get("panel"))
+        if v is not None:
+            self.post(id_)["poziom"] = {"wartosc": v, "t": teraz.strftime(FMT)}
+
+    @staticmethod
+    def _kiedy(odczyt, teraz):
+        return odczyt[11:] if odczyt[:10] == teraz.strftime("%Y-%m-%d") else odczyt[5:]
+
     def fakty_postaci(self, id_, panel, gracz):
-        """Pozycja (z gry: panel.pozycja z okno_api stan) i poziom postaci dla spoty.wybierz; ekwipunek leniwie (odczyt tylko na żądanie)."""
+        """Pozycja (z gry: panel.pozycja z okno_api stan) i poziom postaci dla spoty.wybierz; ekwipunek leniwie (odczyt tylko na żądanie).
+        Przy braku bieżącego poziomu: ostatni znany (poziom_odczyt = data odczytu), jeśli nie starszy niż poziom_max_wiek_h."""
         poz = (panel or {}).get("pozycja")
         poz = tuple(int(v) for v in poz[:3]) if isinstance(poz, (list, tuple)) and len(poz) >= 3 else None
-        poziom = (gracz or {}).get("level") if isinstance(gracz, dict) else None
-        poziom = poziom if isinstance(poziom, int) and not isinstance(poziom, bool) else (panel or {}).get("level")
+        poziom, odczyt = self.poziom_z_odczytu(gracz, panel), None
+        self._poziom_z_pamieci.pop(id_, None)
+        if poziom is None:
+            zn = self.poziom_znany(id_, self.zegar())
+            if zn:
+                poziom, odczyt = zn
+                self._poziom_z_pamieci[id_] = zn
         fn = getattr(self.zrodla, "ekwipunek", None)
-        return {"id": id_, "poz": poz, "poziom": poziom if isinstance(poziom, int) else None,
+        return {"id": id_, "poz": poz, "poziom": poziom, "poziom_odczyt": odczyt,
                 "ekwipunek": (lambda: fn(id_)) if fn else None}
 
     def mapy_zajete(self, id_, teraz):
@@ -753,6 +847,8 @@ class Nadzorca:
                 st["bot_start"] = None
                 st["koniec"] = None
                 st["spot"] = None
+                st.pop("wroc_koniec", None)
+            st.pop("adopcja_od", None)
             if zm is None:
                 return [D(id_, "czekaj", "offline, brak zmiany w grafiku w tej chwili", "offline")]
             if cisza:
@@ -794,7 +890,15 @@ class Nadzorca:
             st["faza"] = "DOJSCIE"
         st["logowanie_nasze"] = False
         if zm is None:
-            return [D(id_, "czekaj", "online poza grafikiem: nie ruszam (do przyjęcia: grafik.py nowy --od-teraz)", "poza-grafikiem")]
+            # Sesja bez zmiany w grafiku (nowa instancja, ręczny start, grafik zrobiony przed jej pojawieniem się). Bot działa albo wraca do miasta:
+            # to aktywna sesja i trafia pod nadzór od razu (zacięcie, limit dzienny, plecak, cap, jedzenie, powrót), tylko bez końca zmiany z grafiku.
+            # Brak bota i brak powrotu = ręczna gra Karola: nie ruszam.
+            if not (o["bot"] or o["wroc"] or o["wyprawa"]):
+                return [D(id_, "czekaj", "online poza grafikiem, bez bota: nie ruszam (ręczna gra; do przyjęcia: grafik.py nowy --od-teraz)", "poza-grafikiem")]
+            if not st.get("adopcja_od"):
+                st["adopcja_od"] = ts_ep(teraz)
+                self.wpisz(teraz, D(id_, "adopcja", "sesja bez zmiany w grafiku, bot działa: biorę pod nadzór "
+                                    "(bez końca zmiany z grafiku; limity, zacięcia, plecak, cap i jedzenie pilnuję)", "adopcja"), "info")
         # POWROT w toku
         if o["wroc"] or o["wyprawa"]:
             st["faza"] = "POWROT"
@@ -803,6 +907,7 @@ class Nadzorca:
                 return [D(id_, "eskaluj", "powrót do miasta trwa > 40 min", "powrot-dlugo", klasa="eskalacja", kod_eskalacji="wyczerpana")]
             return [D(id_, "czekaj", "powrót do miasta (WROC) w toku", "powrot")]
         if not o["bot"]:
+            st.pop("wroc_koniec", None)         # bot stoi: powrót się udał (albo bota nie ma); następny koniec zmiany to nowe zlecenie
             return [self._bez_bota(id_, o, a, st, teraz, zm)]
         # bot działa
         if st.get("faza") in ("MIASTO", "WYLOGOWANIE", "POWROT"):
@@ -812,18 +917,35 @@ class Nadzorca:
         koniec = self.koniec_zmiany(id_, o, zm, teraz)
         if koniec:
             st["koniec"] = koniec[0]
-            return [D(id_, "wroc", koniec[1] + ": zlecam powrót do miasta", "koniec-" + koniec[0], klasa="naprawa", problem="koniec")]
+            return self._decyzja_konca(id_, st, zm, koniec, teraz)
         zaciecie = self.zaciecie(id_, o, a, st, teraz)
         if zaciecie:
             if o["log"] and a.get("walka"):
                 return [D(id_, "czekaj", f"{zaciecie}, ale bot w walce: odkładam restart", "walka-odroczenie")]
             return [self.drabina(id_, teraz, "zaciecie", o)]
+        if (a.get("brak_plecaka", 0) >= OKNA_PROG or a.get("brak_okna", 0) >= OKNA_PROG_OKNA) \
+                and ts_ep(teraz) - st.get("okna_ts", 0) >= OKNA_KARENCJA_S:
+            # 22.10: log powtarza brak plecaka/okna (po padzie klienci wystartowali z rozwiniętą minimapą i bez plecaka): kontrola okien
+            powod = f"log bota: brak_plecaka x{a.get('brak_plecaka', 0)}, brak_okna x{a.get('brak_okna', 0)} w 5 min: kontrola okien"
+            if o["log"] and a.get("walka_bez_lootu"):
+                return [D(id_, "czekaj", f"{powod}, ale bot w walce: odkładam", "okna-odroczenie")]
+            return [D(id_, "okna", powod, "okna", klasa="naprawa", problem="okna")]
         return [D(id_, "czekaj", f"{st.get('faza', 'EXP')}: bot działa, bez uwag", "ok")]
+
+    def _stanowisko(self, id_, teraz):
+        """True, gdy bieżąca mapa instancji to stanowisko (stoj_runy_*): bot stoi i robi runy, nie poluje."""
+        try:
+            mapa = mapa_tryb_biezace(self.korzen, id_, teraz)[0]
+        except Exception:
+            return False
+        return bool(mapa) and str(mapa).startswith("stoj_runy")
 
     def zaciecie(self, id_, o, a, st, teraz):
         t = o.get("tele") or {}
         if (t.get("wiek_probki_s") or 0) > 120:
             return f"telemetria stara ({t['wiek_probki_s']} s): bot zawieszony"
+        if self._stanowisko(id_, teraz):
+            return None         # 22.10 tryb stoj (stoj_runy_*): stanie na polu i brak zabić to norma, nie zacięcie; stara telemetria wyżej nadal liczy się jako zawieszenie
         if (t.get("stoi_poza_walka_s") or 0) > float(self.konf["stoi_min"]) * 60:
             return f"stoi w miejscu {t['stoi_poza_walka_s']} s poza walką"
         start = st.get("bot_start") or a.get("start")
@@ -1005,6 +1127,10 @@ class Nadzorca:
                 self.wpisz(teraz, D("*", "zdarzenie_zewn", f"zmiana liczby sesji {glob['online']} -> {online_teraz} bez naszej akcji", "zewn-" + ",".join(online_teraz)), "info")
         glob["online"] = online_teraz
         ids = G.pula(self.korzen, konf)
+        poza = G.poza_pula(self.korzen, konf, teraz)
+        for id_ in online_teraz:      # aktywna sesja poza pulą nie jest pilnowana: nie wolno tego robić po cichu
+            if id_ not in ids:
+                self.wpisz(teraz, D(id_, "ostrzezenie", f"sesja online, ale poza nadzorem: {poza.get(id_) or 'brak katalogu instancji'}", "poza-nadzorem"), "ostrzezenie")
         plan, utworzono = G.plan_dla(teraz, self.korzen, konf, online={i: {"od": None} for i in online_teraz if i in ids}, zapis=self.zapis)
         if utworzono:
             self.wpisz(teraz, D("*", "grafik", f"brak grafiku doby: wygenerowano ({plan['zrodlo']}, {len(plan['zmiany'])} zmian)", "grafik-nowy"), "info")
@@ -1014,6 +1140,7 @@ class Nadzorca:
             st = self.post(id_)
             raw = self._raw.get(id_)
             if odmowa:
+                st.pop("wroc_koniec", None)     # STOP_RECZNY / pauza postaci / hold: zlecenie powrotu nie dotyczy już tej sytuacji
                 self.wpisz(teraz, D(id_, "zablokowane", odmowa, "bramka-" + odmowa[:12]), "info")
                 self._ponow_powiadomienie(teraz, id_)
                 if raw and not (raw.get("sesja") or raw.get("gra")) and st.get("faza") != "OFFLINE":
@@ -1023,6 +1150,7 @@ class Nadzorca:
             try:
                 o = self.obserwuj(id_, raw, teraz)
                 self._obs[id_] = o
+                self.zapamietaj_poziom(id_, o, teraz)
                 for d in self.decyduj(id_, o, plan, teraz):
                     kandydaci.append((id_, d, o))
             except Exception as e:      # noqa: BLE001  (jedna postać nie wywraca przebiegu pozostałych)
@@ -1096,12 +1224,14 @@ class Nadzorca:
             except Exception as e:      # noqa: BLE001
                 self.wpisz(teraz, D(id_, "brak", f"podgląd spotu nieudany: {e!r}", "spot-podglad-wyjatek"), "blad")
                 continue
+            pam = self._poziom_z_pamieci.get(id_)
+            dopisek = f" (poziom {pam[0]} z odczytu {self._kiedy(pam[1], teraz)}; bieżącego odczytu brak)" if pam else ""
             if w["mapa"]:
                 rezerwacje[id_] = w["mapa"]
-                tekst = f"teraz na {biez or '?'}; przy starcie zmiany wybrałbym: {w['powod']}"
+                tekst = f"teraz na {biez or '?'}; przy starcie zmiany wybrałbym: {w['powod']}{dopisek}"
                 kod = "podglad-" + w["mapa"]
             else:
-                tekst = f"teraz na {biez or '?'}; przy starcie zmiany: {w['powod']}" + (" [eskalacja brak_spotu]" if w["brak"] == "spot" else " [czekam na dane]")
+                tekst = f"teraz na {biez or '?'}; przy starcie zmiany: {w['powod']}{dopisek}" + (" [eskalacja brak_spotu]" if w["brak"] == "spot" else " [czekam na dane]")
                 kod = "podglad-brak-" + w["brak"]
             self.wpisz(teraz, D(id_, "spot_podglad", tekst, kod), "cień", szczegol="podgląd, bez akcji")
 
@@ -1145,6 +1275,7 @@ class Nadzorca:
         if akcja == "eskaluj":
             return self.eskaluj(teraz, id_, d)
         if self.zywo is False:
+            self._zapisz_wroc_koniec(st, d, teraz)
             if self._cien_zdublowany(id_, d, teraz):
                 return True, "cień (powtórka)"
             ok, txt = True, f"cień: zrobiłbym {akcja}"
@@ -1208,6 +1339,7 @@ class Nadzorca:
                 ok, txt = W.wroc(id_)
                 if ok:
                     st["faza"], st["powrot_od"] = "POWROT", ts_ep(teraz)
+                    self._zapisz_wroc_koniec(st, d, teraz)
                 if d.get("arg", {}).get("problem") != "koniec":
                     st.setdefault("naprawy", []).append([ts_ep(teraz), "wroc"])
             elif akcja == "serwis":
@@ -1226,10 +1358,13 @@ class Nadzorca:
                     self.licz_wylogowanie(id_, teraz)
                     st["zakonczone"] = (st.get("zakonczone", []) + [st.get("zmiana_od")])[-30:]
                     st["faza"], st["ostatnie_wylog"] = "OFFLINE", ts_ep(teraz)
-                    for k in ("serwis_start", "serwis_koniec", "serwis_blad", "wylog_od", "koniec", "bot_start", "stoi_w_depo_od", "zmiana_od", "naprawy", "sesja_nasza", "bot_widziany", "wylog_bl", "wylog_kod", "powrot_od", "stoi_w_depo_od", "spot"):
+                    for k in ("serwis_start", "serwis_koniec", "serwis_blad", "wylog_od", "koniec", "bot_start", "stoi_w_depo_od", "zmiana_od", "naprawy", "sesja_nasza", "bot_widziany", "wylog_bl", "wylog_kod", "powrot_od", "stoi_w_depo_od", "spot", "wroc_koniec"):
                         st.pop(k, None)
             elif akcja == "relog":
                 ok, txt = self._relog(teraz, id_, st)
+            elif akcja == "okna":
+                st["okna_ts"] = ts_ep(teraz)
+                ok, txt = W.okna(id_)
             else:
                 ok, txt = False, f"nieznana akcja {akcja}"
             if d["klasa"] == "zdarzenie" and ok:
@@ -1311,6 +1446,8 @@ class Nadzorca:
     def eskaluj(self, teraz, id_, d):
         kod = d["arg"].get("kod_eskalacji") or d["kod"]
         st = self.post(id_)
+        if d["arg"].get("wroc_koniec") and st.get("wroc_koniec"):
+            st["wroc_koniec"]["eskalowano"] = ts_ep(teraz)      # jedna eskalacja na zlecenie powrotu (potem cisza, nie co eskalacja_powtorz_min)
         if d["arg"].get("zdarzenie_ts") and self.zywo:      # cień nie "zużywa" zdarzenia: po włączeniu żywego trybu Karol je dostanie
             st.setdefault("eskalowane", {})[kod] = d["arg"]["zdarzenie_ts"]
         klucz = f"{'esk' if self.zywo else 'ciesk'}|{id_}|{kod}"
@@ -1377,6 +1514,10 @@ class Nadzorca:
             blok = "bot działa: najpierw wroc (wylogowanie dopiero po powrocie do miasta)"
         elif rodzaj == "wyloguj" and a.get("walka"):
             blok = "walka w ostatnich 20 s: wylogowanie tylko w spokoju"
+        elif rodzaj == "okna" and not o["online"]:
+            blok = "postać offline (brak sesji): nie ma okien do sprawdzenia"
+        elif rodzaj == "okna" and o["bot"] and a.get("walka_bez_lootu"):
+            blok = "bot w walce: okna tylko poza walką"
         if blok is None and rodzaj in ZDARZENIA_LOGOWANIA:
             ok, powod = self.odstep_ok(teraz)
             if not ok:
@@ -1399,6 +1540,24 @@ class Nadzorca:
         self.zapisz_stan(self.zegar())
         return f"odblokowano {id_}" + (f" (było: {h.get('powod')})" if h else " (nie było wstrzymania)")
 
+    def poziom_do_stanu(self, id_, raw, blad_odczytu, teraz):
+        """Pole `poziom` w `stan`: {wartosc, odczyt, zrodlo, powod}. Bieżący odczyt, ostatni znany (z datą) albo wartość None z jawnym powodem."""
+        online = bool(raw and (raw.get("sesja") or raw.get("gra")))
+        v = self.poziom_z_odczytu((raw or {}).get("gracz"), (raw or {}).get("panel")) if online else None
+        if v is not None:
+            return {"wartosc": v, "odczyt": teraz.strftime(FMT), "zrodlo": "odczyt teraz", "powod": None}
+        zn = self.poziom_znany(id_, teraz)
+        if online:
+            powod = "bieżący odczyt z gry niedostępny (strażnik nie odpowiedział w limicie albo postać nie w grze)"
+        elif blad_odczytu:
+            powod = blad_odczytu
+        else:
+            powod = "postać offline"
+        if zn:
+            return {"wartosc": zn[0], "odczyt": zn[1], "zrodlo": "ostatni znany", "powod": powod}
+        return {"wartosc": None, "odczyt": None, "zrodlo": None,
+                "powod": f"brak odczytu z gry ({powod}) i brak zapamiętanego poziomu (nie starszego niż {self.konf.get('poziom_max_wiek_h', POZIOM_MAX_WIEK_H)} h)"}
+
     # --- skrót dla obchodu ---
     def podsumowanie(self, ile_decyzji=15):
         teraz = self.zegar()
@@ -1411,6 +1570,11 @@ class Nadzorca:
             wynik["tryb"] = f"cien (NADZOR_ZYWO jest, ale zablokowany: {wynik['powiadomienia_wylaczone']})"
         if wynik["powiadomienia_wylaczone"]:
             wynik["uwagi"].append(f"ESKALACJE NIEWIDOCZNE: {wynik['powiadomienia_wylaczone']}; tryb na żywo się nie włączy, cień ostrzega")
+        wynik["poza_nadzorem"] = G.poza_pula(self.korzen, self.konf, teraz)
+        try:        # tylko odczyt: bieżący stan z gry (okno_api stan) dla pola `poziom`; bez niego zostaje ostatni znany
+            raw_stan, blad_odczytu = {r["id"]: r for r in self.zrodla.stan()}, None
+        except Exception as e:      # noqa: BLE001
+            raw_stan, blad_odczytu = {}, f"odczyt stanu nieudany: {e!r}"
         for id_ in G.pula(self.korzen, self.konf):
             st = self.post(id_)
             zm = G.aktywna_zmiana(plan, id_, teraz) if plan else None
@@ -1419,7 +1583,8 @@ class Nadzorca:
                 wynik["uwagi"].append(f"{id_}: WSTRZYMANA BEZ DOSTARCZONEGO POWIADOMIENIA ({st['hold'].get('powod')})")
             wynik["postacie"][id_] = {"faza": st.get("faza"), "zmiana": zm and {k: zm[k] for k in ("od", "koniec", "wylog")},
                                       "nastepna": nast and nast["od"], "blok": self.bramka(id_), "hold": st.get("hold"), "spot": (st.get("spot") or {}).get("mapa"),
-                                      "naprawy_w_oknie": len(self.naprawy_w_oknie(id_, teraz))}
+                                      "naprawy_w_oknie": len(self.naprawy_w_oknie(id_, teraz)),
+                                      "poziom": self.poziom_do_stanu(id_, raw_stan.get(id_), blad_odczytu, teraz)}
         p = self.W / "logi" / f"nadzor-{teraz:%Y%m%d}.jsonl"
         try:
             wynik["ostatnie_decyzje"] = [json.loads(l) for l in p.read_text(encoding="utf-8").splitlines()[-ile_decyzji:]]
@@ -1490,9 +1655,9 @@ def main(argv=None):
         # 22.10 (Karol: obchód AI ma ratować postacie, grafik zostaje w cieniu): NADZOR_NAPRAWY=1 w środowisku albo plik
         # instancje/_wspolne/NADZOR_NAPRAWY włącza na żywo same naprawy z białej listy, bez NADZOR_ZYWO (logowania wg grafiku)
         tylko_naprawy = not zywo_plik and (os.environ.get("NADZOR_NAPRAWY") == "1" or (G.wspolne(KORZEN) / "NADZOR_NAPRAWY").exists())
-        if tylko_naprawy and a.rodzaj not in ("restart", "wznow", "relog"):
+        if tylko_naprawy and a.rodzaj not in ("restart", "wznow", "relog", "okna"):
             # 22.10 10:17: obchód odesłał invincible'a do miasta (wroc) przez koniec zmiany z grafiku; bez NADZOR_ZYWO tylko ratunek
-            print(f"NAPRAWY: odmowa: rodzaj {a.rodzaj} niedozwolony bez NADZOR_ZYWO (tylko restart, wznow, relog)")
+            print(f"NAPRAWY: odmowa: rodzaj {a.rodzaj} niedozwolony bez NADZOR_ZYWO (tylko restart, wznow, relog, okna)")
             return 3
         zywo_plik = zywo_plik or tylko_naprawy
         nz = Nadzorca(zywo=zywo_plik)

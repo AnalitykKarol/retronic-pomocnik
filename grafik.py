@@ -96,20 +96,55 @@ def poza_nadzorem(profil, wpis_konf, teraz=None):
     do tej chwili (profil albo konfiguracja). Nieczytelna data = wyłączona (lepiej pominąć postać niż ją uruchomić)."""
     teraz = teraz or datetime.now()
     for zrodlo in (profil or {}, wpis_konf or {}):
-        if zrodlo.get("nadzor") is False:
-            return "postać poza nadzorem (nadzor: false)"
         do = zrodlo.get("nadzor_do")
         if do:
+            # `nadzor_do` w tym samym źródle ma pierwszeństwo przed `nadzor: false` (Karol 22.10, Q-N Przeglądu):
+            # przyszła data = poza nadzorem do niej, minęła = postać wraca (stare `nadzor: false` obok daty jej nie blokuje).
             try:
                 if teraz < datetime.strptime(str(do), FMT):
                     return f"postać tymczasowo poza nadzorem do {do} (nadzor_do)"
+                continue
             except ValueError:
                 return f"postać poza nadzorem: nieczytelne nadzor_do {do!r}"
+        if zrodlo.get("nadzor") is False:
+            return "postać poza nadzorem (nadzor: false)"
     return None
 
 
+def powod_poza_pula(korzen, konf, n, teraz=None):
+    """Powód, dla którego katalog instancji `n` nie jest w puli nadzorowanych, albo None (jest w puli).
+    Jedno źródło prawdy dla `pula` i dla ostrzeżeń „sesja online poza nadzorem”. Katalogi `_*` nie są postaciami."""
+    p = Path(korzen or KORZEN) / "instancje" / n
+    if not p.is_dir() or n.startswith("_"):
+        return "nie jest postacią (brak katalogu albo nazwa z _)"
+    if n.startswith("test"):
+        return "nazwa zaczyna się od test (spec: instancje testowe poza nadzorem)"
+    try:
+        profil = json.loads((p / "profil.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return "brak czytelnego profil.json"
+    return poza_nadzorem(profil, (konf or {}).get("postacie", {}).get(n), teraz)
+
+
+def poza_pula(korzen=None, konf=None, teraz=None):
+    """{id: powód} dla katalogów instancji (bez `_*`), które NIE są w puli."""
+    konf = konf or wczytaj_konfig(korzen)
+    kat = Path(korzen or KORZEN) / "instancje"
+    wynik = {}
+    if not kat.is_dir():
+        return wynik
+    for p in sorted(kat.iterdir()):
+        if not p.is_dir() or p.name.startswith("_"):
+            continue
+        powod = powod_poza_pula(korzen, konf, p.name, teraz)
+        if powod:
+            wynik[p.name] = powod
+    return wynik
+
+
 def pula(korzen=None, konf=None, teraz=None):
-    """Postacie nadzorowane: instancje/*/profil.json, bez `_*`, `test*` i wyłączonych (`poza_nadzorem`: profil albo konfiguracja)."""
+    """Postacie nadzorowane: instancje/*/profil.json, bez `_*`, `test*` i wyłączonych (`poza_nadzorem`: profil albo konfiguracja).
+    Lista jest liczona od nowa przy każdym wywołaniu (przebieg nadzorcy co tick): nowa instancja z profil.json wchodzi sama."""
     konf = konf or wczytaj_konfig(korzen)
     wynik = []
     kat = Path(korzen or KORZEN) / "instancje"
@@ -117,15 +152,10 @@ def pula(korzen=None, konf=None, teraz=None):
         return wynik
     for p in sorted(kat.iterdir()):
         n = p.name
-        if not p.is_dir() or n.startswith("_") or n.startswith("test"):
+        if not p.is_dir() or n.startswith("_"):
             continue
-        try:
-            profil = json.loads((p / "profil.json").read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        if poza_nadzorem(profil, konf.get("postacie", {}).get(n), teraz):
-            continue
-        wynik.append(n)
+        if powod_poza_pula(korzen, konf, n, teraz) is None:
+            wynik.append(n)
     return wynik
 
 

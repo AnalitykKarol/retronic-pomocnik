@@ -15,6 +15,9 @@ nie klikasz po grze, nie piszesz na czacie gry. Masz zadanie na jeden obchód (o
 1. `cd ~/Games/Retronic/pomocnik && python3 -I nadzor.py stan` - JSON: tryb (`cien`/`zywo`), `pauza`, na postać: `faza`,
    bieżąca zmiana z grafiku, `blok` (powód blokady), `hold` (wstrzymanie po eskalacji), `naprawy_w_oknie`, oraz 15 ostatnich
    decyzji z dziennika nadzoru (z uzasadnieniem).
+   Pole `poza_nadzorem` = instancje, które NIE są pilnowane, z powodem (`nadzor: false`, `test*`, brak profil.json); sesja online
+   z takiej instancji daje w dzienniku ostrzeżenie „sesja online, ale poza nadzorem”. Nowa instancja z profil.json wchodzi do puli sama
+   (pula liczona od nowa co przebieg); postać online z botem, której nie ma w grafiku doby, jest brana pod nadzór od razu (wpis `adopcja`).
 2. `python3 -I nadzor_stan.py --json` - rzeczywisty stan instancji: bot, HP, alarmy, zabicia, telemetria, ostatnie linie logu.
 3. W razie wątpliwości log bota: najnowszy `instancje/<id>/logi/mozg-stdout-*.log` (pomiń linie `[OGIEN]` i `debug:`)
    i dziennik `instancje/_wspolne/logi/nadzor-RRRRMMDD.jsonl`.
@@ -35,6 +38,7 @@ Jeśli `pauza` = true albo tryb = `cien`: **nic nie naprawiasz**, tylko raportuj
 | `relog` | dziennik bota ma `ROZŁĄCZENIE`, ekran = `enter_game`/`character_list`, a kod nie zalogował | zaloguj.sh (kliki Login i Ok), potem bot wystartuje sam |
 | `wyloguj` | postać stoi w mieście po WROC, zmiana skończona, kod nie wylogował w 20 min | wyloguj.sh + zamknięcie sesji |
 | `zmien_spot` | druga naprawa z rzędu nie pomogła, albo dwa własne boty na tej samej mapie | restart na kolejnym spocie z `spoty_zapasowe` (`profil.json`) |
+| `okna` | dziennik bota powtarza `Loot: brak_plecaka` / UH `brak_plecaka (zero lub kilka okien plecaka)` (>= 5 w 5 min; `brak_okna` >= 15), co najwyżej raz na 15 min na postać | `okna_start.py napraw`: ocena układu okien (minimapa zwinięta, dokładnie jedno okno plecaka łupu); minimapę zwija i plecak otwiera TYLKO przy włączonym pokrętle naprawy (plik `OKNA_NAPRAWA`), inaczej jedno powiadomienie z tym, co zrobić. Nigdy w walce (bez linii lootu) ani przy STOP_RECZNY. Nie zamyka nadmiarowych okien. Kod 1 = wymaga człowieka (już powiadomiony), nie ponawiaj |
 
 Kody wyjścia: 0 zrobione, 1 nieudane, 2 zły rodzaj/instancja, 3 **odmowa** (blokada, walka, pauza, odstęp od poprzedniego
 logowania). Odmowa nie jest błędem: przeczytaj powód i **nie ponawiaj w tym obchodzie**. Wywołuj najwyżej jedną naprawę na postać
@@ -50,6 +54,9 @@ na obchód i nie więcej niż trzy w całym obchodzie.
   wyczerpana rotacja napraw, stan nieustalony > 10 min. Po niej postać ma `hold` i **nic jej nie naprawiasz**. Jeśli sytuacja jest
   krytyczna, a w dzienniku nie ma wpisu `eskaluj` z ostatnich 30 min, wyślij jedno `notify-send -u critical "Retronic [<id>]"
   "<zdanie: co i gdzie>"` i napisz o tym w raporcie.
+- **Stanowisko runowe** (22.10, mapa `stoj_runy_*`, tryb `stoj`): postać celowo stoi na polu w mieście i robi runy. Brak ruchu, brak zabić
+  i brak walki to tu norma, nie zacięcie (kod `zaciecie` tego nie liczy; stara telemetria nadal tak). Nie restartuj i nie zmieniaj spotu z tego
+  powodu. Marsz do PZ po ataku/niskim HP oraz serwis w depo to zamierzone stany, nie awaria.
 - `blok` zawiera `STOP_RECZNY` = **Karol gra**: nie patrzysz na tę postać, nie proponujesz niczego.
 - Dane o postaciach (profesja, leczenie, mapy) bierz z `nadzor_stan.py` i `SKILL pilnuj-botow`; nie zgaduj. Brak danych =
   "nie wiem" w raporcie, nie decyzja.

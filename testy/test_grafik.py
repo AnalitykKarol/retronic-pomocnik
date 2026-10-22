@@ -196,6 +196,27 @@ def test_pula_nadzor_do():
         assert g.poza_nadzorem({"nadzor_do": "2026-10-24 08:30"}, None, datetime(2026, 10, 25)) is None
 
 
+def test_nadzor_do_wygrywa_z_nadzor_false():
+    """Q-N (Karol 22.10): przyszłe `nadzor_do` obok `nadzor: false` = poza nadzorem DO tej daty, potem postać wraca sama
+    (profil Kolanosha: nadzor:false + nadzor_do 24.10 08:30). Bez daty `nadzor: false` zostaje bezterminowe."""
+    kolanosh = {"nadzor": False, "nadzor_do": "2026-10-24 08:30"}
+    przed = g.poza_nadzorem(kolanosh, None, datetime(2026, 10, 22, 9, 0))
+    assert przed and "nadzor_do" in przed and "2026-10-24 08:30" in przed, przed
+    assert g.poza_nadzorem(kolanosh, None, datetime(2026, 10, 24, 8, 29)) is not None
+    assert g.poza_nadzorem(kolanosh, None, datetime(2026, 10, 24, 8, 30)) is None      # w chwili nadzor_do wraca
+    assert g.poza_nadzorem(kolanosh, None, datetime(2026, 10, 25)) is None
+    assert "nadzor: false" in g.poza_nadzorem({"nadzor": False}, None, datetime(2026, 10, 25))      # bez daty: bezterminowo
+    assert g.poza_nadzorem({"nadzor": False, "nadzor_do": "kiedyś"}, None, datetime(2026, 10, 25))   # zła data: poza
+    # konfiguracja nadzorcy ma własną blokadę niezależną od profilu
+    assert g.poza_nadzorem(kolanosh, {"nadzor": False}, datetime(2026, 10, 25))
+    with tempfile.TemporaryDirectory() as tmp:
+        k = Path(tmp)
+        (k / "instancje" / "kolanoth").mkdir(parents=True)
+        (k / "instancje" / "kolanoth" / "profil.json").write_text(json.dumps(kolanosh))
+        assert g.pula(k, teraz=datetime(2026, 10, 22, 9, 0)) == []
+        assert g.pula(k, teraz=datetime(2026, 10, 24, 8, 30)) == ["kolanoth"]
+
+
 def test_waliduj_lapie_naruszenia():
     konf = g.DOMYSLNE
     plan = {"data": "20261021", "zmiany": [

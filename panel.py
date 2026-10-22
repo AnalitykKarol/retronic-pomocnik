@@ -133,13 +133,26 @@ def stan(z_graczem=True):
                     s["alarm"] = l[:200]
         s["ostatnie"] = [l for l in ogon(log, 400) if WAZNE.search(l) and "debug:" not in l][-3:]
     s["klasa"] = ("alarm" if s["alarm"] else "dziala" if s["dziala"] else "stop") if s["gra"] else "brak"
-    if z_graczem and s["gra"] and (s["dziala"] or s.get("pelny") or not gracz_niedawno_brak()):
+    bez_pauzy = os.environ.get("RETRONIC_PANEL_GRACZ_BEZ_PAUZY") == "1"
+    if z_graczem and s["gra"] and (s["dziala"] or s.get("pelny") or bez_pauzy or not gracz_niedawno_brak()):
         # 20.10 (Q3): lvl i HP także przy zatrzymanym bocie, byle gra miała gniazdo. Przy zatrzymanym bocie nieudany odczyt
         # (np. postać niezalogowana: strażnik robi pełny skan pamięci ~1-2 s) wstrzymuje kolejne próby na GRACZ_BRAK_S,
         # żeby pasek (co 5 s) i okno (co 2 s) nie trzymały jednowątkowego strażnika w ciągłym skanie.
-        s["gracz"] = gracz(0.3)
-        zapamietaj_gracza(s["gracz"] is not None)
+        # 22.10: nadzór (tick co 5 min, bez budżetu paska) prosi przez środowisko o dłuższy odczyt (RETRONIC_PANEL_GRACZ_S) i o próbę mimo
+        # pauzy (RETRONIC_PANEL_GRACZ_BEZ_PAUZY=1), bo poziom postaci ginął przy timeoucie 0.3 s; nie rusza wtedy znacznika pauzy paska/okna.
+        s["gracz"] = gracz(limit_gracza())
+        if not bez_pauzy:
+            zapamietaj_gracza(s["gracz"] is not None)
     return s
+
+
+def limit_gracza(domyslny=0.3):
+    """Limit odczytu `gracz` w stan(): 0.3 s (pasek, okno) albo RETRONIC_PANEL_GRACZ_S (0.1-10 s; zła wartość = domyślny)."""
+    try:
+        v = float(os.environ.get("RETRONIC_PANEL_GRACZ_S", ""))
+    except ValueError:
+        return domyslny
+    return v if 0.1 <= v <= 10 else domyslny
 
 
 GRACZ_BRAK_S = 30.0

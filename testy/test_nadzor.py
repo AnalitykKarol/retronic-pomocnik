@@ -654,7 +654,7 @@ def test_biala_lista_i_zakazy():
     kod, txt = n.napraw("a", "wroc")
     assert kod == 0 and at.nazwy() == ["wroc"], (kod, txt)
     assert not s.plik("a", "STOP_RECZNY").exists()
-    assert set(N.BIALA_LISTA) == {"restart", "wznow", "wroc", "relog", "wyloguj", "zmien_spot"}
+    assert set(N.BIALA_LISTA) == {"restart", "wznow", "wroc", "relog", "wyloguj", "zmien_spot", "okna"}
     kod, txt = n.napraw("a", "wyloguj")                               # bot działa: najpierw wroc
     assert kod == 3 and "wroc" in txt
     kod, txt = n.napraw("a", "wznow")
@@ -1199,6 +1199,273 @@ def test_q5_zajetosc_z_tryb_log_a_nie_z_pola_mapa_okno_api():
         zegar = datetime(2026, 10, 1 + d, 9, 0)
         w = n2.wybierz_spot("a", s.inst["a"]["panel"], s.inst["a"]["gracz"], zegar, None, "start")
         assert w["mapa"] == "ed_b", w
+
+
+# ---------------------------------------------------------------- kontrola okien (okna_start.py, 22.10)
+def _brak_plecaka(s, ile=6, id_="a", jak="Loot: brak_plecaka"):
+    s.log(id_, [(s.zegar.t - timedelta(seconds=20 + 15 * i), jak) for i in range(ile)])
+
+
+def _eksp(n, s, id_="a"):
+    n.stan["postacie"][id_] = {"faza": "EXP", "login_ts": s.zegar.t.timestamp() - 3600, "zmiana_od": "2026-10-21 09:00",
+                               "bot_start": s.zegar.t.timestamp() - 300}      # świeży start: zacięcie ("brak zabić") jeszcze nie zachodzi
+
+
+def test_okna_analiza_logu_liczy_brak_plecaka_i_walke_bez_lootu():
+    t = datetime(2026, 10, 21, 12, 0, 0)
+    f = lambda sec, txt: ((t - timedelta(seconds=sec)).timestamp(), txt)       # noqa: E731
+    a = N.analizuj_log([f(400, "Loot: brak_plecaka"), f(100, "Loot: brak_plecaka"), f(50, "brak_plecaka (zero lub kilka okien plecaka)"),
+                        f(30, "Loot: brak_okna"), f(10, "Loot: brak_plecaka")], t.timestamp())
+    assert a["brak_plecaka"] == 3 and a["brak_okna"] == 1, a            # linia sprzed 5 min nie liczy się
+    assert a["walka"] is True and a["walka_bez_lootu"] is False         # same linie lootu to nie walka
+    a = N.analizuj_log([f(5, "[WALKA] Troll odl 1 HP 70%")], t.timestamp())
+    assert a["walka_bez_lootu"] is True
+
+
+def test_okna_log_z_brakiem_plecaka_zleca_kontrole_raz_na_karencje():
+    s = Swiat(("a",))
+    s.grafik([zmiana("a", od="2026-10-21 09:00", koniec="2026-10-21 16:00", wylog="2026-10-21 16:15")])
+    s.online("a", bot=True)
+    _brak_plecaka(s)
+    n, at = nz(s)
+    _eksp(n, s)
+    n.tick()
+    assert at.nazwy() == ["okna"], at.wywolania
+    s.zegar.dalej(minutes=3)
+    _brak_plecaka(s)
+    n.tick()
+    assert at.nazwy() == ["okna"], "karencja 15 min: bez drugiego wywołania"
+    s.zegar.dalej(minutes=16)
+    _brak_plecaka(s)
+    n.tick()
+    assert at.nazwy() == ["okna", "okna"], at.wywolania
+
+
+def test_okna_ponizej_progu_i_brak_okna_zwlok_nie_zlecaja():
+    s = Swiat(("a", "b"))
+    s.grafik([zmiana(i, od="2026-10-21 09:00", koniec="2026-10-21 16:00", wylog="2026-10-21 16:15") for i in ("a", "b")])
+    for i in ("a", "b"):
+        s.online(i, bot=True)
+    _brak_plecaka(s, ile=3, id_="a")
+    _brak_plecaka(s, ile=8, id_="b", jak="Loot: brak_okna")        # brak okna zwłok to zwykła rzecz: próg 15
+    n, at = nz(s)
+    _eksp(n, s, "a")
+    _eksp(n, s, "b")
+    n.tick()
+    assert at.nazwy() == [], at.wywolania
+
+
+def test_okna_w_walce_odroczone():
+    s = Swiat(("a",))
+    s.grafik([zmiana("a", od="2026-10-21 09:00", koniec="2026-10-21 16:00", wylog="2026-10-21 16:15")])
+    s.online("a", bot=True)
+    _brak_plecaka(s)
+    s.log("a", [(s.zegar.t - timedelta(seconds=3), "[WALKA] Troll odl 1 HP 70%")])
+    n, at = nz(s)
+    _eksp(n, s)
+    n.tick()
+    assert at.wywolania == [], at.wywolania
+
+
+def test_okna_napraw_cli_blokady_i_wykonanie():
+    s = Swiat(("a", "b"))
+    s.online("a", bot=True)
+    s.offline("b")
+    n, at = nz(s)
+    kod, txt = n.napraw("b", "okna")
+    assert kod == 3 and "offline" in txt and at.wywolania == [], (kod, txt)
+    kod, txt = n.napraw("a", "okna")
+    assert kod == 0 and at.nazwy() == ["okna"], (kod, txt)
+    s.log("a", [(s.zegar.t - timedelta(seconds=3), "[WALKA] Troll odl 1 HP 70%")])
+    n2, at2 = nz(s)
+    kod, txt = n2.napraw("a", "okna")
+    assert kod == 3 and "walce" in txt and at2.wywolania == [], (kod, txt)
+    s.plik("a", "STOP_RECZNY").touch()
+    n3, at3 = nz(s)
+    kod, txt = n3.napraw("a", "okna")
+    assert kod == 3 and at3.wywolania == [], (kod, txt)               # Karol gra sam: zero akcji
+
+
+def test_okna_wykonawca_zywy_wola_okna_start_napraw():
+    w = N.WykonawcaZywy("/nie/ma")
+    wywolano = []
+    w._uruchom = lambda argv, id_, limit, odlacz=False: wywolano.append((list(map(str, argv)), id_, limit)) or (True, "kod 0")
+    assert w.okna("a") == (True, "kod 0")
+    argv, id_, limit = wywolano[0]
+    assert argv[1] == "-I" and argv[2].endswith("okna_start.py") and argv[3] == "napraw" and id_ == "a" and limit == 90, wywolano
+
+
+
+# ---------------------------------------------------------------- 22.10: grafik nie ponawia `wroc` w kółko, nadzór zna poziom (regresja z dziennika wydry)
+WYDRA_A = zmiana("a", od="2026-10-22 08:50", koniec="2026-10-22 11:13", wylog="2026-10-22 11:28")
+WYDRA_B = zmiana("a", od="2026-10-22 13:30", koniec="2026-10-22 16:10", wylog="2026-10-22 16:25")
+
+
+def _wydra(zywo, start=(11, 15)):
+    """Wydra z dziennika 22.10: zmiana A (koniec 11:13) i B (13:30-16:10), bot online przez cały czas, `wroc` nic w świecie nie zmienia."""
+    s = Swiat(("a",), Zegar(datetime(2026, 10, 22, *start)))
+    s.grafik([WYDRA_A, WYDRA_B], data="20261022")
+    s.online("a", bot=True)
+    n, at = nz(s, zywo=zywo, zapis=False)
+    n.stan["postacie"]["a"] = {"faza": "EXP", "zmiana_od": WYDRA_A["od"], "login_ts": 0, "bot_start": 0}
+    return s, n, at
+
+
+def _wydra_do(s, n, do, po_ticku=None, przed_tickiem=None):
+    """Tyknięcia co 5 min do `do` włącznie; login_ts i bot_start odświeżane (limit dzienny i brak zabić to nie ten test). -> raport."""
+    raport = []
+    while s.zegar.t <= do:
+        st = n.post("a")
+        st["login_ts"], st["bot_start"] = s.zegar.t.timestamp() - 3600, s.zegar.t.timestamp() - 600
+        if przed_tickiem:
+            przed_tickiem(s.zegar.t)
+        raport += n.tick()
+        if po_ticku:
+            po_ticku(s.zegar.t)
+        s.zegar.dalej(minutes=5)
+    return raport
+
+
+def test_grafik_wada1_cien_wroc_raz_na_zmiane_a_nie_co_30_min():
+    s, n, _ = _wydra(zywo=False)
+    r = _wydra_do(s, n, datetime(2026, 10, 22, 16, 40))
+    wroc = [x for x in r if x["akcja"] == "wroc"]
+    assert [x["t"][11:16] for x in wroc] == ["11:15", "16:10"], [(x["t"][11:16], x["powod"]) for x in wroc]
+    assert "(11:13)" in wroc[0]["powod"] and "(16:10)" in wroc[1]["powod"], [x["powod"] for x in wroc]
+    esk = [x for x in r if x["akcja"] == "eskaluj"]
+    assert len(esk) == 2 and "powrót" in esk[0]["powod"] and "bez efektu" in esk[0]["powod"], [(x["t"][11:16], x["powod"]) for x in esk]
+    assert n.post("a")["zmiana_od"] == WYDRA_B["od"], "po 13:30 zmiana to B, nie przypięta A"
+
+
+def test_grafik_wada1_zywo_jedno_zlecenie_jedna_eskalacja_potem_cisza():
+    s, n, at = _wydra(zywo=True)
+    _wydra_do(s, n, datetime(2026, 10, 22, 12, 30), przed_tickiem=lambda t: s.plik("a", "WROC").unlink(missing_ok=True))      # wroc "nie łapie"
+    assert at.nazwy().count("wroc") == 1, at.nazwy()
+    assert at.nazwy().count("powiadom") == 1, at.nazwy()
+    assert not n.post("a").get("hold"), "nieustalony nie wstrzymuje postaci"
+    assert n.post("a")["wroc_koniec"]["eskalowano"], n.post("a")
+
+
+def test_grafik_wada1_przejecie_przez_karola_czysci_zlecenie_i_nie_wraca_stara_zmiana():
+    s, n, at = _wydra(zywo=True)
+
+    def karol(t):
+        if t == datetime(2026, 10, 22, 11, 25):
+            s.plik("a", "STOP_RECZNY").touch()
+        if t == datetime(2026, 10, 22, 13, 35):
+            s.plik("a", "STOP_RECZNY").unlink()
+    _wydra_do(s, n, datetime(2026, 10, 22, 11, 30), przed_tickiem=lambda t: (s.plik("a", "WROC").unlink(missing_ok=True), karol(t)))
+    assert "wroc_koniec" not in n.post("a"), "STOP_RECZNY (Karol gra) kasuje zlecenie powrotu"
+    s.zegar.t = datetime(2026, 10, 22, 13, 35)
+    _wydra_do(s, n, datetime(2026, 10, 22, 14, 30), przed_tickiem=lambda t: (s.plik("a", "WROC").unlink(missing_ok=True), karol(t)))
+    assert at.nazwy().count("wroc") == 1, ("po przejęciu i oddaniu postaci w trakcie zmiany B nie ma wroc ze starej zmiany", at.nazwy())
+
+
+def test_grafik_wada1_zmiana_postaci_przelacza_tylko_wygasle_przypiecie():
+    s = Swiat(("a",))
+    n, _ = nz(s)
+    plan = {"zmiany": [WYDRA_A, WYDRA_B]}
+    n.post("a")["zmiana_od"] = WYDRA_A["od"]
+    for kiedy, oczekiwana in (((11, 20), WYDRA_A), ((12, 30), WYDRA_A), ((13, 35), WYDRA_B)):      # 12:30: nie ma innej aktywnej, przypięcie zostaje
+        z = n.zmiana_postaci(plan, "a", datetime(2026, 10, 22, *kiedy), True)
+        assert z["od"] == oczekiwana["od"], (kiedy, z)
+    assert n.post("a")["zmiana_od"] == WYDRA_B["od"]
+
+
+def test_grafik_wada1_zlecenie_z_cienia_nie_tlumi_wroc_na_zywo():
+    s, n1, _ = _wydra(zywo=False)
+    n1.tick()
+    assert n1.post("a")["wroc_koniec"]["tryb"] == "cien"
+    n2, at = nz(s, zywo=True)
+    n2.stan = n1.stan                                            # ten sam plik stanu, po włączeniu NADZOR_ZYWO
+    s.zegar.dalej(minutes=5)
+    n2.tick()
+    assert at.nazwy().count("wroc") == 1, "zlecenie zapisane w cieniu nie liczy się jako zlecone naprawdę"
+    assert n2.post("a")["wroc_koniec"]["tryb"] == "zywo"
+
+
+def test_grafik_wada1_zlecenie_wygasa_gdy_bot_nie_dziala_i_po_wylogowaniu():
+    s, n, at = _wydra(zywo=True)
+    n.tick()
+    assert "wroc_koniec" in n.post("a")
+    assert n.post("a")["wroc_koniec"]["tryb"] == "zywo"
+    s.plik("a", "WROC").unlink()                                 # bot wziął zlecenie, dojechał, stanął
+    s.inst["a"]["bot"] = False
+    w_miescie(s, "a")
+    s.zegar.dalej(minutes=5)
+    n.tick()
+    assert "wroc_koniec" not in n.post("a"), "bot stoi (powrót się udał): zlecenie zamknięte"
+    s.offline("a")
+    n.post("a")["wroc_koniec"] = {"tryb": "zywo", "zmiana": WYDRA_A["od"], "ts": 0, "powod": "x"}
+    s.zegar.dalej(minutes=5)
+    n.tick()
+    assert "wroc_koniec" not in n.post("a"), "offline: zlecenie zamknięte"
+
+
+def _poziom_swiat(level=12):
+    s = Swiat(("a",))
+    tabela_q5(s)
+    s.tryb_log("a", "raty", "ostrozny")
+    s.grafik([zmiana("a", od="2026-10-21 10:00")])
+    w_grze_q5(s, "a", THAIS, level, bot=True)
+    s.log("a", [(s.zegar.t - timedelta(seconds=40), "Cel Rat zabity na (1, 2, 8).")])
+    return s
+
+
+def test_poziom_wada2_ostatni_znany_poziom_z_data_przy_chwilowym_braku_odczytu():
+    s = _poziom_swiat(12)
+    n0, _ = nz(s, zywo=False, zapis=False)
+    n0.tick()                                                     # odczyt udany: poziom zapamiętany z datą
+    assert n0.post("a")["poziom"] == {"wartosc": 12, "t": s.zegar.t.strftime(N.FMT)}, n0.post("a")
+    n, _ = nz(s, zywo=False, zapis=False)                         # kolejny przebieg (stan trwały z poprzedniego, bez dedupu wpisów cienia)
+    n.stan["postacie"] = n0.stan["postacie"]
+    s.inst["a"].update(gracz={"hp": 100, "max_hp": 100}, panel={"pozycja": list(THAIS)})      # strażnik nie odpowiedział w limicie: brak level
+    s.zegar.dalej(minutes=5)
+    r = n.tick()
+    pod = next(x for x in r if x["id"] == "a" and x["akcja"] == "spot_podglad")
+    assert "poziom postaci nieznany" not in pod["powod"] and "wybrano raty" in pod["powod"] and "poziom 12 z odczytu 11:20" in pod["powod"], pod["powod"]
+    f = n.fakty_postaci("a", {}, {"hp": 1})
+    assert f["poziom"] == 12 and f["poziom_odczyt"] == "2026-10-21 11:20", f
+    s.zegar.dalej(hours=25)                                      # za stary odczyt (poziom_max_wiek_h = 24) nie jest zgadywany
+    assert n.fakty_postaci("a", {}, {"hp": 1})["poziom"] is None
+    n.fakty_postaci("a", {}, {"level": 13})                      # świeży odczyt zawsze wygrywa z zapamiętanym
+    assert n.fakty_postaci("a", {}, {"level": 13})["poziom"] == 13
+
+
+def test_poziom_wada2_stan_pokazuje_poziom_odczyt_ostatni_znany_albo_powod():
+    s = _poziom_swiat(12)
+    n, _ = nz(s, zywo=False, zapis=False)
+    p = n.podsumowanie()["postacie"]["a"]["poziom"]
+    assert p["wartosc"] == 12 and p["zrodlo"] == "odczyt teraz", p
+    s.inst["a"].update(gracz={"hp": 100, "max_hp": 100}, panel={})
+    p = n.podsumowanie()["postacie"]["a"]["poziom"]
+    assert p["wartosc"] is None and "brak odczytu" in p["powod"], p                 # nic nie zapamiętane: jawny powód, nie zgadywanie
+    n.tick()
+    s.inst["a"].update(gracz={"hp": 100, "max_hp": 100, "level": 14}, panel={})
+    n.tick()
+    s.inst["a"].update(gracz={"hp": 100, "max_hp": 100}, panel={})
+    p = n.podsumowanie()["postacie"]["a"]["poziom"]
+    assert p["wartosc"] == 14 and p["zrodlo"] == "ostatni znany" and p["odczyt"], p
+    s.offline("a")
+    p = n.podsumowanie()["postacie"]["a"]["poziom"]
+    assert p["wartosc"] == 14 and "offline" in (p.get("powod") or ""), p
+
+
+def test_poziom_wada2_zrodla_stan_prosi_o_szersze_limity_odczytu_gracza():
+    z = N.Zrodla(KORZEN)
+    wywolano = {}
+
+    class Wynik:
+        stdout = '{"instancje": []}'
+    zapas = N.subprocess.run
+    N.subprocess.run = lambda argv, **kw: (wywolano.update(kw), Wynik())[1]
+    try:
+        assert z.stan() == []
+    finally:
+        N.subprocess.run = zapas
+    env = wywolano["env"]
+    assert float(env["RETRONIC_PANEL_GRACZ_S"]) >= 1.5 and env["RETRONIC_PANEL_GRACZ_BEZ_PAUZY"] == "1", env
+    assert float(env["RETRONIC_OKNO_PANEL_LIMIT_S"]) > 1.5 and float(env["RETRONIC_OKNO_CALOSC_LIMIT_S"]) > float(env["RETRONIC_OKNO_PANEL_LIMIT_S"]), env
 
 
 if __name__ == "__main__":

@@ -12,6 +12,9 @@ Przy RYZYKU dymek `notify-send` (najwyżej raz na 5 min na postać i rodzaj).
 
   python3 -I monitor_wykrycia.py            tabela co 15 s (Ctrl+C kończy)
   python3 -I monitor_wykrycia.py --raz      jeden przebieg, wypisz i wyjdź
+Lista instancji jest skanowana na nowo w KAŻDYM przebiegu (22.10: nowa instancja albo zmiana id bez restartu monitora), a źródłem
+logu i telemetrii jest zawsze najnowszy plik (mozg-stdout-*.log powstaje przy każdym starcie bota). W tabeli jest każda instancja
+z działającym botem ALBO z sesją gry (strażnik), nie tylko z botem.
 Log zdarzeń: instancje/_wspolne/logi/monitor-wykrycia-RRRRMMDD.log. Cofnięcie: usunąć ten plik i monitor_wykrycia.sh."""
 import json
 import os
@@ -59,9 +62,9 @@ def teraz():
 
 
 class Postac:
-    def __init__(self, id_):
+    def __init__(self, id_, kat=None):
         self.id = id_
-        self.s = instancja.sciezki(id_, instancja.runtime(f"/run/user/{os.getuid()}"))
+        self.s = instancja.sciezki(id_, instancja.runtime(f"/run/user/{os.getuid()}"), katalog=kat or KAT)
         self.plik_logu = None
         self.off_logu = 0
         self.plik_tele = None
@@ -77,6 +80,7 @@ class Postac:
         self.poz = None
         self.hp = None
         self.bot = False
+        self.sesja = False              # działa strażnik (klient gry) tej instancji, bot niekoniecznie
 
     # --- źródła -------------------------------------------------------------------------------
     def _najnowszy(self, wzor):
@@ -86,12 +90,7 @@ class Postac:
             return None
         return pliki[-1] if pliki else None
 
-    def _przyrost(self, plik, off_attr, plik_attr):
-        if plik is None:
-            return []
-        if getattr(self, plik_attr) != plik:
-            setattr(self, plik_attr, plik)
-            setattr(self, off_attr, max(0, plik.stat().st_size - 200_000))   # nowy plik: ostatnie ~200 KB
+    def _czytaj_od(self, plik, off_attr):
         try:
             with open(plik, "rb") as f:
                 f.seek(getattr(self, off_attr))
@@ -100,6 +99,23 @@ class Postac:
         except OSError:
             return []
         return dane.decode("utf-8", "replace").splitlines()
+
+    def _przyrost(self, plik, off_attr, plik_attr):
+        """Nowe linie z najnowszego pliku. Zmiana pliku (nowy start bota = nowy mozg-stdout-*.log, nowa doba telemetrii):
+        najpierw dokończ ogon poprzedniego, potem przejdź na nowy od początku (albo ostatnich ~200 KB)."""
+        if plik is None:
+            return []
+        linie = []
+        stary = getattr(self, plik_attr)
+        if stary is not None and stary != plik:
+            linie += self._czytaj_od(stary, off_attr)
+        if stary != plik:
+            setattr(self, plik_attr, plik)
+            try:
+                setattr(self, off_attr, max(0, plik.stat().st_size - 200_000))   # nowy plik: ostatnie ~200 KB
+            except OSError:
+                return linie
+        return linie + self._czytaj_od(plik, off_attr)
 
     def czytaj_log(self):
         dzien = time.strftime("%Y-%m-%d ")
@@ -176,6 +192,7 @@ class Postac:
 
     def odswiez(self):
         self.bot = bool(instancja.procesy(r"(mozg|cavebot)\.py", id_=self.id))
+        self.sesja = self.bot or bool(instancja.procesy(r"(^|[ /])straznik\.py", id_=self.id))
         self.czytaj_log()
         self.czytaj_tele()
         self.czytaj_czat()
@@ -285,7 +302,7 @@ def tabela(postacie):
         c = p.liczniki()
         obcy = sum(1 for o in p.obcy.values() if teraz() - o[1] <= 20)
         zab = f"{int((teraz() - p.ost_zabicie) / 60)}m" if p.ost_zabicie else "-"
-        w.append(f"{p.id:<11} {'tak' if p.bot else 'nie':<4} {KOLOR[poziom]}{NAZWA[poziom]:<7}{RESET} {zab:>5} "
+        w.append(f"{p.id:<11} {'tak' if p.bot else ('gra' if p.sesja else 'nie'):<4} {KOLOR[poziom]}{NAZWA[poziom]:<7}{RESET} {zab:>5} "
                  f"{c.get('zawieszka', 0):>4} {c.get('kreci', 0):>5} {c.get('stoi', 0):>4} {c.get('sciana', 0):>5} "
                  f"{c.get('trasa', 0) + c.get('pietro', 0):>5} {obcy:>4}  {'; '.join(powody)[:110]}")
     w.append("\nObcy gracze w zasięgu (teraz):")
@@ -300,27 +317,57 @@ def tabela(postacie):
     return "\n".join(w)
 
 
-def instancje():
+def instancje(kat=None):
     ids = []
-    for d in sorted((KAT / "instancje").iterdir()):
+    try:
+        wpisy = sorted(((kat or KAT) / "instancje").iterdir())
+    except OSError:
+        return ids
+    for d in wpisy:
         if d.is_dir() and not d.name.startswith("_") and (d / "profil.json").exists():
             ids.append(d.name)
     return ids
 
 
+def synchronizuj(postacie, kat=None):
+    """Zgodność słownika postaci z katalogiem instancji (co przebieg): nowa instancja trafia do monitora od razu, zniknięta
+    (zmiana id, archiwizacja) odpada. Zwraca (dodane, usuniete)."""
+    kat = kat or KAT
+    ids = instancje(kat)
+    dodane, usuniete = [], []
+    for i in ids:
+        if i not in postacie:
+            try:
+                postacie[i] = Postac(i, kat)
+            except ValueError:               # id spoza a-z0-9_- : instancja.py i tak by nie wystartowała
+                continue
+            dodane.append(i)
+    for i in [i for i in postacie if i not in ids]:
+        del postacie[i]
+        usuniete.append(i)
+    return dodane, usuniete
+
+
+def przebieg(postacie, kat=None):
+    """Jeden przebieg: synchronizacja listy, odczyt każdej instancji, lista aktywnych (bot, sesja gry albo zdarzenia w oknie)."""
+    synchronizuj(postacie, kat)
+    aktywne = []
+    for p in postacie.values():
+        try:
+            p.odswiez()
+        except Exception as e:  # noqa: BLE001 — monitor nie może paść przez jedną instancję
+            p.ostatnie.append(f"{time.strftime('%H:%M:%S')} błąd monitora: {e!r}"[:120])
+        if p.bot or p.sesja or p.zdarz:
+            aktywne.append(p)
+    return aktywne
+
+
 def main():
     raz = "--raz" in sys.argv
-    postacie = {i: Postac(i) for i in instancje()}
+    postacie = {}
     ost = {}
     while True:
-        aktywne = []
-        for p in postacie.values():
-            try:
-                p.odswiez()
-            except Exception as e:  # noqa: BLE001 — monitor nie może paść przez jedną instancję
-                p.ostatnie.append(f"{time.strftime('%H:%M:%S')} błąd monitora: {e!r}"[:120])
-            if p.bot or p.zdarz:
-                aktywne.append(p)
+        aktywne = przebieg(postacie)
         for p in aktywne:
             poziom, powody = p.ocena()
             dymek(p, poziom, powody)

@@ -159,6 +159,32 @@ s = panel.stan(True)
 sprawdz("4h po GRACZ_BRAK_S: nowa próba, udana kasuje znacznik", WYWOLANIA == [0.3, 0.3, 0.3] and s["gracz"] == GRACZ and not BRAK.exists(), (WYWOLANIA, BRAK.exists()))
 panel.GNIAZDO.unlink()
 
+# 4i-4m (22.10): nadzór prosi o szerszy odczyt gracza (poziom postaci ginął przy timeoucie 0.3 s i pauzie gracz_brak); tylko przez środowisko,
+# domyślne zachowanie (pasek, okno) bez zmian - dowodzą tego 4b-4h powyżej
+panel.GNIAZDO.write_text("")
+BRAK.unlink(missing_ok=True)
+panel.procesy_bota = lambda: []
+WYWOLANIA.clear()
+WYNIK[0] = None
+_os.environ["RETRONIC_PANEL_GRACZ_S"] = "2.5"
+s = panel.stan(True)
+sprawdz("4i RETRONIC_PANEL_GRACZ_S=2.5: odczyt gracza z tym limitem", WYWOLANIA == [2.5], WYWOLANIA)
+sprawdz("4j ... a nieudany odczyt nadal zapisuje znacznik (pasek/okno się wstrzymują)", BRAK.exists())
+s = panel.stan(True)
+sprawdz("4k bez RETRONIC_PANEL_GRACZ_BEZ_PAUZY znacznik wstrzymuje próbę jak dotąd", WYWOLANIA == [2.5], WYWOLANIA)
+_os.environ["RETRONIC_PANEL_GRACZ_BEZ_PAUZY"] = "1"
+WYNIK[0] = dict(GRACZ)
+s = panel.stan(True)
+sprawdz("4l BEZ_PAUZY=1: próba mimo świeżego znacznika, odczyt udany", WYWOLANIA == [2.5, 2.5] and s["gracz"] == GRACZ, (WYWOLANIA, s["gracz"]))
+sprawdz("4m ... i nie rusza znacznika pauzy dla paska/okna", BRAK.exists())
+_os.environ["RETRONIC_PANEL_GRACZ_S"] = "bzdura"
+WYWOLANIA.clear()
+s = panel.stan(True)
+sprawdz("4n zły RETRONIC_PANEL_GRACZ_S: wraca do 0.3 s", WYWOLANIA == [0.3], WYWOLANIA)
+_os.environ.pop("RETRONIC_PANEL_GRACZ_S"); _os.environ.pop("RETRONIC_PANEL_GRACZ_BEZ_PAUZY")
+BRAK.unlink(missing_ok=True)
+panel.GNIAZDO.unlink()
+
 # ---------------------------------------------------------------- 5. panel.py --json jako proces (pełna ścieżka, atrapa /proc, bez gry)
 reset(); port(5950); proces(310, ["vncviewer", "-RemoteResize=0", "127.0.0.1::5950"])
 env = dict(_os.environ, RETRONIC_PANEL_PROC=str(PROC))
