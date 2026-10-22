@@ -27,7 +27,7 @@ QtObject {
   property string stanError: ""
   property var refreshedAt: null
   property string selectedId: ""
-  property string section: "ratunek"   // sesja | mapa | ustawienia | ratunek
+  property string section: "przeglad"   // przeglad | sesja | mapa | ustawienia | ratunek
 
   property var ratunekData: null
   property string ratunekError: ""
@@ -118,12 +118,19 @@ QtObject {
   }
 
   function setSection(name) {
-    if (name !== "sesja" && name !== "mapa" && name !== "ratunek" && name !== "ustawienia") return
+    if (name !== "przeglad" && name !== "sesja" && name !== "mapa" && name !== "ratunek" && name !== "ustawienia") return
     section = name
     refreshSection()
   }
 
+  // Klik w wiersz Przeglądu / kartę postaci w Przeglądzie: wybiera postać i otwiera jej Sesję gry (spec przeglądu: „klik w wiersz otwiera postać”).
+  function openChar(id) {
+    select(id)
+    setSection("sesja")
+  }
+
   function refreshSection() {
+    if (section === "przeglad") return           // Przegląd czyta tylko stan z pollAll (instances), własnego odczytu nie ma
     if (section === "sesja") loadSesja()
     else if (section === "ratunek") loadRatunek()
     else if (section === "mapa") loadMapy()

@@ -9,6 +9,8 @@ Rectangle {
   property bool current: false
   property string soon: ""            // "F3" / "F4" => wyszarzona
   property int count: 0               // licznik (np. dzisiejsze sygnały ratunku), 0 = brak plakietki
+  property string badge: ""           // plakietka tekstowa (np. „4/7 w grze” przy Przeglądzie), "" = brak
+  property string badgeTone: "blue"
 
   signal chosen()
 
@@ -39,19 +41,19 @@ Rectangle {
     font.pixelSize: Theme.body
   }
   Rectangle {
-    visible: item.count > 0 || item.soon !== ""
+    visible: item.count > 0 || item.soon !== "" || item.badge !== ""
     anchors.right: parent.right
     anchors.rightMargin: 10
     anchors.verticalCenter: parent.verticalCenter
     width: badge.implicitWidth + 12
     height: 16
     radius: 8
-    color: item.soon !== "" ? Theme.line : Theme.alpha(Theme.warn, 0.2)
+    color: item.soon !== "" ? Theme.line : (item.badge !== "" ? Theme.alpha(Theme.tone(item.badgeTone), 0.16) : Theme.alpha(Theme.warn, 0.2))
     Text {
       id: badge
       anchors.centerIn: parent
-      text: item.soon !== "" ? item.soon : String(item.count)
-      color: item.soon !== "" ? Theme.dim : Theme.warn
+      text: item.soon !== "" ? item.soon : (item.badge !== "" ? item.badge : String(item.count))
+      color: item.soon !== "" ? Theme.dim : (item.badge !== "" ? Theme.tone(item.badgeTone) : Theme.warn)
       font.family: Theme.font
       font.pixelSize: Theme.tiny
     }

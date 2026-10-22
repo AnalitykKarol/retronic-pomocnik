@@ -751,3 +751,53 @@ describe("akcja podglad", () => {
     assert.equal(M.parseActionResult("główna instancja nie ma podglądu\nRC=1\n").ok, false)
   })
 })
+
+describe("kolejność wierszy (22.10): aktywne u góry, level malejąco", () => {
+  // wiersz jak obiekt Instance.qml: instanceId + status
+  const w = (instanceId, klasa, level, extra) => ({ instanceId, status: ok(klasa, Object.assign({ level: level === undefined ? null : level }, extra)) })
+  const ids = (rows) => M.sortRows(rows).map((r) => r.instanceId)
+
+  it("aktywne (dziala/alarm/stop z grą) przed nieaktywnymi (brak), w grupach level malejąco", () => {
+    const rows = [w("a", "brak", 40), w("b", "dziala", 12), w("c", "stop", 30), w("d", "brak", 55), w("e", "alarm", 20)]
+    assert.deepEqual(ids(rows), ["c", "e", "b", "d", "a"])
+  })
+  it("niski level w grze bije wysoki level poza grą", () => {
+    assert.deepEqual(ids([w("wysoki", "brak", 100), w("niski", "stop", 2)]), ["niski", "wysoki"])
+  })
+  it("remis levelu: po ID alfabetycznie, główna (pusty ID) pierwsza; w obu grupach", () => {
+    const rows = [w("zed", "dziala", 10), w("", "dziala", 10), w("abc", "dziala", 10), w("y", "brak", 7), w("b", "brak", 7)]
+    assert.deepEqual(ids(rows), ["", "abc", "zed", "b", "y"])
+  })
+  it("brak levelu na koniec swojej grupy (aktywna bez levelu nadal przed nieaktywną z levelem)", () => {
+    const rows = [w("n1", "brak", null), w("a1", "dziala", null), w("n2", "brak", 3), w("a2", "stop", 8), w("a0", "dziala", null)]
+    assert.deepEqual(ids(rows), ["a2", "a0", "a1", "n2", "n1"])
+  })
+  it("status null (przed pierwszym odczytem) i nieodczytany to nieaktywne bez levelu", () => {
+    const rows = [{ instanceId: "pusty", status: null }, { instanceId: "zly", status: M.unknownStatus("brak odczytu") }, w("gra", "dziala", 5)]
+    assert.deepEqual(ids(rows), ["gra", "pusty", "zly"])
+  })
+  it("ręczna gra: klasa stop z otwartą grą i bez procesu bota jest aktywna", () => {
+    const manual = w("reczna", "stop", 20, { running: false })
+    assert.equal(M.isActive(manual.status), true)
+    assert.deepEqual(ids([w("off", "brak", 90), manual]), ["reczna", "off"])
+  })
+  it("klasa brak, ale żywy proces bota (running) = aktywna; zwykłe brak = nie", () => {
+    assert.equal(M.isActive(ok("brak", { running: true })), true)
+    assert.equal(M.isActive(ok("brak")), false)
+    assert.equal(M.isActive(null), false)
+  })
+  it("nie zmienia wejścia, jest stabilne i idempotentne; puste wejście daje []", () => {
+    const rows = [w("b", "brak", 1), w("a", "dziala", 1)]
+    const before = rows.map((r) => r.instanceId)
+    const first = M.sortRows(rows)
+    assert.deepEqual(rows.map((r) => r.instanceId), before)
+    assert.deepEqual(M.sortRows(first).map((r) => r.instanceId), first.map((r) => r.instanceId))
+    assert.deepEqual(M.sortRows([]), [])
+    assert.deepEqual(M.sortRows(undefined), [])
+  })
+  it("level z prawdziwego parseStatus: aktywny niski przed nieaktywnym wysokim", () => {
+    const json = (klasa, level) => JSON.stringify({ text: "", tooltip: "", class: klasa, alt: klasa, level }) + "\nPROXY=0\n--ENV--\n"
+    const rows = [{ instanceId: "x", status: M.parseStatus(json("brak", 80)) }, { instanceId: "y", status: M.parseStatus(json("dziala", 9)) }]
+    assert.deepEqual(ids(rows), ["y", "x"])
+  })
+})

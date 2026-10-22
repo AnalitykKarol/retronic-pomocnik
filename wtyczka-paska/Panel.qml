@@ -27,6 +27,8 @@ Panel {
 
   property var instanceIds: [""]
   property var rows: []
+  // Te same wiersze w kolejności panelu (Model.sortRows): aktywne u góry, level malejąco. Przypisywane tylko przy zmianie kolejności.
+  property var sortedRows: []
   property int statusRevision: 0
 
   // "Otwórz okno": jeden proces na cały panel (nie na instancję). Błąd gaśnie sam jak komunikaty akcji instancji.
@@ -90,6 +92,15 @@ Panel {
     if (result.ok) root.close()
   }
 
+  // Nowy odczyt statusu może zmienić kolejność (postać weszła do gry, awans levelu). Tablica trafia do Repeatera dopiero,
+  // gdy kolejność naprawdę się zmieniła: nowa tablica co 5 s odbudowywałaby wszystkie wiersze (mruganie, utrata hovera).
+  function resortRows() {
+    var sorted = Model.sortRows(root.rows)
+    var same = sorted.length === root.sortedRows.length
+    for (var i = 0; same && i < sorted.length; i++) same = sorted[i] === root.sortedRows[i]
+    if (!same) root.sortedRows = sorted
+  }
+
   function rebuildRows() {
     var result = []
     for (var i = 0; i < instances.count; i++) {
@@ -97,6 +108,7 @@ Panel {
       if (item) result.push(item)
     }
     root.rows = result
+    root.sortedRows = Model.sortRows(result)
     root.statusRevision++
     for (var j = 0; j < result.length; j++) result[j].poll()
   }
@@ -164,7 +176,7 @@ Panel {
       required property var modelData
       instanceId: modelData
       helperDir: root.helperDir
-      onUpdated: root.statusRevision++
+      onUpdated: { root.statusRevision++; root.resortRows() }
     }
 
     onObjectAdded: (index, object) => root.rebuildRows()
@@ -226,7 +238,7 @@ Panel {
         PanelContent {
           id: column
           width: panelFlick.width
-          rows: root.rows
+          rows: root.sortedRows
           summary: root.summary
           foreground: root.foreground
           urgent: root.urgent

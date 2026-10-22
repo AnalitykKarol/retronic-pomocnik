@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "OknoModel.js" as Model
 import "RetronicModel.js" as Rules
+import "PrzegladModel.js" as Prz
 
 // Pasek boczny 260 px (makieta wariant B): karty postaci (lista przewijana, liczona na 10), menu sekcji wybranej postaci
 // i akcje na dole: Stop/Start oraz ⌂ Miasto, ↻ Refill, ↗ Spot. Akcje i reguły szarości są te same co na pasku:
@@ -19,6 +20,7 @@ Rectangle {
   readonly property var refillSpec: Rules.refillButton(st)
   readonly property var spotSpec: Rules.spotButton(st)
   readonly property var info: Rules.cityInfo(st)
+  readonly property bool overview: ctl.section === "przeglad"          // w Przeglądzie nie ma wybranej postaci: bez menu postaci i akcji
   readonly property string message: ctl.selected ? (ctl.messages[ctl.selected.id] || "") : ""
   readonly property string hoverHint: btnReturn.hovered ? returnSpec.hint : (btnRefill.hovered ? refillSpec.hint
                                       : (btnSpot.hovered ? spotSpec.hint : (btnMain.hovered ? mainHint : "")))
@@ -47,6 +49,41 @@ Rectangle {
     anchors.rightMargin: 13
     spacing: 14
 
+    NavItem {
+      Layout.fillWidth: true
+      icon: "▦"; label: "Przegląd"
+      objectName: "nav-przeglad"
+      current: side.overview
+      badge: Prz.navBadge(side.ctl.instances)
+      badgeTone: "blue"
+      onChosen: side.ctl.setSection("przeglad")
+    }
+
+    Item {
+      Layout.fillWidth: true
+      Layout.topMargin: -6
+      implicitHeight: postacieLabel.implicitHeight + 4
+      Text {
+        id: postacieLabel
+        anchors.left: parent.left
+        anchors.leftMargin: 2
+        text: "POSTACIE"
+        color: Theme.dim
+        font.family: Theme.font
+        font.pixelSize: Theme.tiny
+        font.letterSpacing: 1
+      }
+      Text {
+        objectName: "postacie-liczba"
+        anchors.right: parent.right
+        anchors.rightMargin: 2
+        text: String(side.ctl.instances.length)
+        color: Theme.dim
+        font.family: Theme.font
+        font.pixelSize: Theme.tiny
+      }
+    }
+
     Flickable {
       id: cardsFlick
       Layout.fillWidth: true
@@ -74,10 +111,11 @@ Rectangle {
             width: cardsCol.width
             inst: modelData
             klasa: (side.ctl.statuses[modelData.id] && side.ctl.statuses[modelData.id].ok) ? side.ctl.statuses[modelData.id].klasa : "brak"
-            selected: modelData.id === side.ctl.selectedId
+            now: side.ctl.refreshedAt || new Date()
+            selected: modelData.id === side.ctl.selectedId && !side.overview
             preview: Rules.previewState(side.ctl.statuses[modelData.id] || null, modelData.id)
             busy: side.ctl.isBusy(modelData.id)
-            onChosen: side.ctl.select(modelData.id)
+            onChosen: side.overview ? side.ctl.openChar(modelData.id) : side.ctl.select(modelData.id)
             onPreviewRequested: { side.ctl.select(modelData.id); side.ctl.previewFor(modelData.id) }
           }
         }
@@ -86,6 +124,7 @@ Rectangle {
 
     Column {
       id: navCol
+      visible: !side.overview
       Layout.fillWidth: true
       // menu i akcje nigdy się nie zwijają: przy 10 postaciach kurczy się tylko lista kart (przewijana)
       Layout.minimumHeight: implicitHeight
@@ -133,6 +172,7 @@ Rectangle {
 
     Column {
       id: actionsCol
+      visible: !side.overview
       Layout.fillWidth: true
       Layout.minimumHeight: implicitHeight
       Layout.preferredHeight: implicitHeight

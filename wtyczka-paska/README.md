@@ -11,7 +11,8 @@ Wtyczka jest cienka: nie ma własnej logiki bota, czyta JSON z `panel.py` i woł
   motywu) > stop (bursztynowy) > działa (zielony). Stan `brak` (gra nie działa) liczy się najniżej i daje
   szarą ikonę tylko wtedy, gdy wszystkie instancje to `brak`. Hover to jedno zdanie, np.
   `2 instancje: 1 działa, 1 stop`.
-- **Panel po kliknięciu ikony** (prawy klik na ikonie = odśwież od razu). Jeden wiersz na instancję:
+- **Panel po kliknięciu ikony** (prawy klik na ikonie = odśwież od razu). Jeden wiersz na instancję
+  (kolejność: aktywne, czyli w grze, u góry, potem nieaktywne; w obu grupach level malejąco, brak levelu na końcu grupy, remis po ID):
   kropka stanu, nazwa (pusty ID = `główna`) ze znacznikiem podglądu, krótki stan z czasem działania, HP/mana i level (`HP 170/170  mana 20/20  lvl 8 (35%)`),
   `ostatni: <mapa>, <tryb>` z `ostatni_start[.<id>].env`, `proxy włączone/wyłączone`
   (czy proces `siec_proxy.sh` tej instancji żyje, bez pomiaru IP) i krótki błąd ostatniej akcji

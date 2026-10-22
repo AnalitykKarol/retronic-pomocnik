@@ -5,10 +5,11 @@ import "OknoModel.js" as Model
 // Tylko do testów (QA offscreen): wykonuje kroki z RETRONIC_OKNO_SCENARIUSZ, np.
 //   "sekcja:mapa;mapa:raty;tryb:ml;klik:start-z-tym;klik:start-potwierdz;czekaj:2500;zrzut:/tmp/a.png;koniec"
 // Bez zmiennej nic nie robi. Kliknięcia idą przez Btn.tryClick() (ta sama bramka co mysz: szary przycisk nie zadziała).
-// Kroki: sekcja:<sesja|mapa|ratunek|ustawienia> · wybierz:<id|glowna> · klik:<objectName> · mapa:<nazwa> · tryb:<nazwa> · sygnal:<indeks>
+// Kroki: sekcja:<przeglad|sesja|mapa|ratunek|ustawienia> · wybierz:<id|glowna> · klik:<objectName> · mapa:<nazwa> · tryb:<nazwa> · sygnal:<indeks>
 //        czekaj:<ms> · zrzut:<plik.png> · zamknij (zamyka okno: proces ma wyjść sam) · koniec
 // F4 (Sesja gry): sekcja:sesja · wybierz:<id|glowna> · klik:sesja-uruchom|sesja-zamknij|sesja-zamknij-potwierdz|sesja-zamknij-anuluj|sesja-podglad
 //        akcje-stan:<id,id..> (loguje zajętość akcji per instancja i klikalność Stop/Zamknij wybranej) · klik:nick-<id> (klik w nick na karcie = podgląd) · sesja-stan (loguje dostępność guzików, potwierdzenie i wynik akcji)
+// F2 przeglądu: sekcja:przeglad · klik:filtr-wszystkie|filtr-w-grze|filtr-z-alarmem (chipy) · klik:wiersz-<id> (klik w wiersz tabeli = Sesja gry tej postaci) · klik:nav-przeglad
 // F3 (Ustawienia): sekcja:ustawienia · grupa:<nazwa> · filtr:<tekst> · zmienione (przełącza "tylko zmienione") · ustaw:KLUCZ=WART (jak z widoku:
 //        ctl.setKnob) · suwak:KLUCZ=WART (puszczenie suwaka) · wpisz:KLUCZ=WART (Enter w polu liczby) · pokaz:KLUCZ (jak Enter w Ctrl+K)
 //        kolejka:K1=V1,K2=V2>id (kilka zapisów i od razu zmiana postaci w tym samym kroku: zapisy w kolejce muszą dojść do swojej instancji)
@@ -35,7 +36,8 @@ Item {
     return null
   }
 
-  readonly property bool dataReady: ctl.loaded && (ctl.section === "sesja" ? ctl.sesjaData !== null
+  readonly property bool dataReady: ctl.loaded && (ctl.section === "przeglad" ? true
+                                     : ctl.section === "sesja" ? ctl.sesjaData !== null
                                      : ctl.section === "ratunek" ? ctl.ratunekData !== null
                                      : (ctl.section === "ustawienia" ? ctl.pokretlaData !== null && ctl.mapyData !== null : ctl.mapyData !== null))
 

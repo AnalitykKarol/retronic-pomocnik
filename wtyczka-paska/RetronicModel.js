@@ -7,6 +7,7 @@
 //   miasto:  RETRONIC_ID=<id> ./wroc.sh [--anuluj]            ("Wróć do miasta": plik WROC, bot rusza w spokojnej chwili)
 //            RETRONIC_ID=<id> ./refill.sh --tlo | --spot | --przerwij  ("Refill": serwis w mieście odłączony, log refill.log;
 //                                  "Spot": to samo bez zakupów, tylko wyjście z miasta i start bota)
+//   kolejność: sortRows(): aktywne (w grze) u góry, potem nieaktywne; w grupie level malejąco, brak levelu na koniec, remis po ID
 //   okno:    <katalog>/okno.sh odłączone (setsid -f): okno zarządzania Retronic, jeden egzemplarz (drugi start = fokus)
 //            dodatkowe pola panel.py --json (opcjonalne): pozycja, w_miescie, w_depo, plan_depo_dostepny, wroc_*, serwis_*
 //   level:   opcjonalne pola panel.py --json: level (int|null), level_procent (liczba|null); brak = wiersz HP/mana bez "lvl"
@@ -61,6 +62,41 @@ function instanceIds(listingText) {
   var hidden = String(listingText || "").split("\n").some(function (l) { return l.trim() === NO_MAIN_MARKER })
   var ids = parseInstanceListing(listingText)
   return hidden ? ids : [""].concat(ids)
+}
+
+// Kolejność wierszy w panelu (22.10): na górze aktywne, pod nimi nieaktywne; w obu grupach level malejąco.
+// Aktywna = postać jest w grze: status odczytany, a klasa inna niż "brak" (gra nie działa) albo żywy proces bota.
+// To obejmuje bota (dziala), alarm, stop z otwartą grą i ręczną grę Karola (gra stoi, bot nie). Panel nie ma osobnego
+// pola "zalogowana": grę widać po klasie (socket strażnika), więc "aktywna = w grze". Status null/nieodczytany = nieaktywna.
+function isActive(status) {
+  return !!(status && status.ok && (status.klasa !== "brak" || status.running))
+}
+
+// Level do sortowania: liczba całkowita >= 1 albo null (nieznany -> na koniec swojej grupy).
+function sortLevel(status) {
+  return status && typeof status.level === "number" && isFinite(status.level) && status.level >= 1 ? status.level : null
+}
+
+// rows: obiekty z polami instanceId i status (Instance.qml). Zwraca NOWĄ tablicę (wejście bez zmian).
+// Remis levelu (też oba bez levelu): po ID alfabetycznie, główna (pusty ID) pierwsza.
+function sortRows(rows) {
+  var items = (rows || []).slice()
+  items.sort(function (a, b) {
+    var aa = isActive(a.status) ? 0 : 1
+    var ab = isActive(b.status) ? 0 : 1
+    if (aa !== ab) return aa - ab
+    var la = sortLevel(a.status)
+    var lb = sortLevel(b.status)
+    if (la !== lb) {
+      if (la === null) return 1
+      if (lb === null) return -1
+      return lb - la
+    }
+    var ia = String(a.instanceId)
+    var ib = String(b.instanceId)
+    return ia < ib ? -1 : (ia > ib ? 1 : 0)
+  })
+  return items
 }
 
 // ---------------------------------------------------------------- polecenia
@@ -548,6 +584,8 @@ if (typeof module !== "undefined" && module.exports) {
     expandPath: expandPath,
     parseInstanceListing: parseInstanceListing,
     instanceIds: instanceIds,
+    isActive: isActive,
+    sortRows: sortRows,
     listCommand: listCommand,
     statusCommand: statusCommand,
     actionCommand: actionCommand,

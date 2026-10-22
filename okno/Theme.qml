@@ -29,13 +29,17 @@ QtObject {
 
   function alpha(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
 
-  // ton ("ok", "warn", "bad", "blue", "mag", "dim") -> kolor
+  // ton ("ok", "warn", "bad", "blue", "mag", "cyan", "fg", "fg2", "dim", "dim2") -> kolor
   function tone(name) {
     if (name === "ok") return ok
     if (name === "warn") return warn
     if (name === "bad" || name === "stop") return bad
     if (name === "blue") return blue
     if (name === "mag") return mag
+    if (name === "cyan") return cyan        // stan „Karol gra” (Przegląd): to nie awaria, więc nigdy bad/warn
+    if (name === "fg") return fg
+    if (name === "fg2") return fg2
+    if (name === "dim2") return dim2
     return dim
   }
 

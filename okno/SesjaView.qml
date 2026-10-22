@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "OknoModel.js" as Model
+import "PrzegladModel.js" as Prz
 
 // Sekcja Sesja gry (F4b): karta stanu sesji (sway, gra, bot, proxy, podgląd, od kiedy), blok profilu TYLKO DO ODCZYTU (D-F4-1: proxy,
 // użytkownik, oczekiwane IP i IP z ostatniego startu z odznaką zgodne/niezgodne, postać, konto, tożsamość, uwagi, błąd/ostrzeżenie profilu),
@@ -20,6 +21,9 @@ Item {
   readonly property bool isMain: ctl.selected !== null && ctl.selected.id === ""
   readonly property string nick: ctl.selected ? Model.nickOf(ctl.selected) : ""
   readonly property var now: ctl.refreshedAt || new Date()
+  // „Ostatnio znane” (spec przeglądu): tylko gdy gry nie ma i to nie główna; z `ostatnie` z pełnego stanu (okno_api stan), nie z odczytu sesji
+  readonly property bool showLast: ctl.selected !== null && Prz.lastKnownVisible(ctl.selected)
+  readonly property var lastKnown: showLast ? Prz.lastKnown(ctl.selected, now) : null
   readonly property var buttons: Model.sessionButtons(s)
   readonly property bool canStop: buttons["gra-zamknij"].enabled
   readonly property var summary: Model.sessionSummary(s)
@@ -146,6 +150,14 @@ Item {
         y: 18
         width: flick.width - 44
         spacing: 14
+
+        OstatnioZnane {
+          objectName: "sesja-ostatnio-znane"
+          visible: view.showLast
+          width: parent.width
+          height: view.showLast ? implicitHeight : 0
+          info: view.lastKnown ? view.lastKnown : ({ empty: true, title: "", sub: "", online: "", ago: "", stats: [], cols: [], source: "" })
+        }
 
         RowLayout {
           width: parent.width

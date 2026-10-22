@@ -24,7 +24,7 @@ ma() { grep -qF -- "$2" "$WORK/wywolania.log" && ok "$1" || fail "$1 (brak: $2)"
 nie() { grep -qF -- "$2" "$WORK/wywolania.log" && fail "$1 (jest: $2)" || ok "$1"; }
 
 echo "== A: Ratunek, główna (bot działa): zrzuty, Stop, Miasto, fałszywy alarm, Pokaż w logu"
-uruchom "czekaj:800;zrzut:$OUT/ratunek.png;sygnal:0;czekaj:300;zrzut:$OUT/ratunek-haiku.png;klik:falszywy-alarm;czekaj:2500;zrzut:$OUT/ratunek-po-oznaczeniu.png;klik:pokaz-w-logu;czekaj:800;klik:akcja-glowna;czekaj:1900;klik:akcja-miasto;czekaj:1900;klik:akcja-refill;czekaj:1900;koniec"
+uruchom "sekcja:ratunek;czekaj:800;zrzut:$OUT/ratunek.png;sygnal:0;czekaj:300;zrzut:$OUT/ratunek-haiku.png;klik:falszywy-alarm;czekaj:2500;zrzut:$OUT/ratunek-po-oznaczeniu.png;klik:pokaz-w-logu;czekaj:800;klik:akcja-glowna;czekaj:1900;klik:akcja-miasto;czekaj:1900;klik:akcja-refill;czekaj:1900;koniec"
 cp "$WORK/wywolania.log" "$OUT/dziennik-A.log"
 ma "Stop = zatrzymaj.sh dla głównej (bez RETRONIC_ID)" "zatrzymaj.sh RETRONIC_ID=<brak>"
 ma "Miasto = wroc.sh dla głównej" "wroc.sh RETRONIC_ID=<brak> MAPA=<brak> TRYB=<brak> POSTAC=<brak> ARGS=[]"
@@ -48,7 +48,7 @@ cp "$WORK/wywolania.log" "$OUT/dziennik-C.log"
 nie "bot działa: uruchom.sh nie poszedł" "uruchom.sh"
 
 echo "== D: 10 postaci: lista kart przewijana, menu i akcje widoczne (1280x820 i najmniejsze 1000x600)"
-ATRAPA_ILE=10 uruchom "czekaj:1500;wybierz:p5;czekaj:800;zrzut:$OUT/dziesiec-1280.png;koniec"
+ATRAPA_ILE=10 uruchom "sekcja:ratunek;czekaj:1500;wybierz:p5;czekaj:800;zrzut:$OUT/dziesiec-1280.png;koniec"
 ATRAPA_ILE=10 RETRONIC_OKNO_ROZMIAR=1000x600 uruchom "czekaj:1500;wybierz:p5;sekcja:mapa;czekaj:800;zrzut:$OUT/dziesiec-1000x600.png;koniec"
 grep -q "zrzut .*dziesiec-1000x600.png true" "$OUT/qml.log" && ok "zrzut 1000x600 zapisany" || fail "zrzut 1000x600"
 
