@@ -33,6 +33,12 @@ CZAS_MS = 0xC0
 KOLOR = 0xE4
 TEKST = 0x2AC
 PANEL_ZAKLADKI = 0x438
+# 22.10 (zmierzone na żywo, dawajkesh/gebelish/wydra/invincible; tylko odczyt): stan zakładki i widoczność bufora.
+STAN_ZAKLADKI = 0xD0   # int: 0 = zakładka aktywna (styl "checked"), 2 = nieaktywna (wszystkie inne tak samo)
+RECT_ZAKLADKI = 0x3C   # 4 x int: lewo, góra, prawo, dół w pikselach okna klienta (= piksele zrzutu sesji)
+KOLOR_ZAKLADKI = 0xE4  # 3 floaty RGB tekstu: aktywna szara 0.87/0.87/0.87, nieaktywna czerwona 0.97/0.37/0.37
+RECT_BUFORA = 0x3C     # ukryty bufor ma rect (2, 0, -2, -1), widoczny prawdziwy (np. 10, 788, 982, 884)
+WIDOCZNY_BUFOR = 0x1E8  # int: 1 tylko u widocznego (aktywnego) bufora, 0 u pozostałych
 ROZMIAR_WIDGETU = 0x2D0
 MAKS_DZIECI = 2000
 MAKS_LOG = 3000
@@ -158,6 +164,46 @@ def _zakladki(p, pasek):
         nazwa = _napis(p, b, TEKST)
         wynik.append((t, _tekst(nazwa) if nazwa is not None else None,
                       struct.unpack_from("<I", b, PANEL_ZAKLADKI)[0]))
+    return wynik
+
+
+def stan_zakladek(p, st):
+    """Zakładki paska z położeniem i stanem + aktywny bufor (22.10, serwis nie może pisać na zakładkę prywatną).
+
+    {"zakladki": [{"nazwa", "rect": [x1, y1, x2, y2], "stan", "kolor": [r, g, b], "aktywna"}], "aktywny_bufor": "0x..."|None,
+     "pasek": bool}. `aktywna` = stan 0 ORAZ tekst nie czerwony (dwa niezależne objawy tego samego stanu); `aktywny_bufor` =
+    jedyny bufor z flagą widoczności i prawdziwym rectem (None, gdy żaden albo kilka). Odczyt tylko; kolejność listy nie
+    jest kolejnością na ekranie, pozycję daje rect."""
+    wynik = {"zakladki": [], "aktywny_bufor": None, "pasek": False}
+    pasek = st["pasek"]
+    if not pasek or not _poprawny_pasek(p, pasek):
+        _odswiez(p, st, wymus=True)
+        pasek = st["pasek"]
+        if not pasek or not _poprawny_pasek(p, pasek):
+            return wynik
+    wynik["pasek"] = True
+    for t in _deque(p, pasek) or []:
+        b = p.czytaj(t, PANEL_ZAKLADKI + 4)
+        if len(b) < PANEL_ZAKLADKI + 4 or _id_widgetu(p, t) != b"tab":
+            continue
+        nazwa = _napis(p, b, TEKST)
+        stan = struct.unpack_from("<i", b, STAN_ZAKLADKI)[0]
+        rect = list(struct.unpack_from("<4i", b, RECT_ZAKLADKI))
+        kolor = [round(x, 2) for x in struct.unpack_from("<3f", b, KOLOR_ZAKLADKI)]
+        wynik["zakladki"].append({"nazwa": _tekst(nazwa) if nazwa is not None else None, "rect": rect, "stan": stan,
+                                  "kolor": kolor, "aktywna": stan == 0 and kolor[1] > 0.6})
+    widoczne = []
+    for bufor in st["bufory"]:
+        if not _poprawny_bufor(p, bufor):
+            continue
+        b = p.czytaj(bufor, WIDOCZNY_BUFOR + 4)
+        if len(b) < WIDOCZNY_BUFOR + 4:
+            continue
+        lewo, gora, prawo, dol = struct.unpack_from("<4i", b, RECT_BUFORA)
+        if struct.unpack_from("<i", b, WIDOCZNY_BUFOR)[0] == 1 and prawo > lewo and dol > gora:
+            widoczne.append(bufor)
+    if len(widoczne) == 1:
+        wynik["aktywny_bufor"] = hex(widoczne[0])
     return wynik
 
 
@@ -348,4 +394,7 @@ def obsluz(p, z):
     od = z.get("od")
     if od is not None and z.get("epoka") not in (None, st["epoka"]):
         od = None   # dziennik założony od nowa (restart strażnika): numery z innej epoki nie pasują
-    return wiadomosci(p, None if od is None else int(od), z.get("kanal"), int(z.get("limit", 100)))
+    odp = wiadomosci(p, None if od is None else int(od), z.get("kanal"), int(z.get("limit", 100)))
+    if z.get("stan_zakladek"):
+        odp["stan_zakladek"] = stan_zakladek(p, st)
+    return odp

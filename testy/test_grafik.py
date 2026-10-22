@@ -179,6 +179,23 @@ def test_pula_postaci():
         assert g.pula(k) == ["a", "b", "e"], g.pula(k)
 
 
+def test_pula_nadzor_do():
+    """`nadzor_do`: postać poza pulą do podanej chwili, potem wraca; zła data = poza pulą; to samo z konfiguracji."""
+    with tempfile.TemporaryDirectory() as tmp:
+        k = Path(tmp)
+        for n, profil in (("a", {}), ("b", {"nadzor_do": "2026-10-24 08:30"}), ("c", {"nadzor_do": "kiedyś"}), ("d", {})):
+            (k / "instancje" / n).mkdir(parents=True)
+            (k / "instancje" / n / "profil.json").write_text(json.dumps(profil))
+        (k / "instancje" / "_wspolne").mkdir()
+        (k / "instancje" / "_wspolne" / "nadzor_konfig.json").write_text(json.dumps({"postacie": {"d": {"nadzor_do": "2026-10-23 12:00"}}}))
+        assert g.pula(k, teraz=datetime(2026, 10, 22, 9, 0)) == ["a"], g.pula(k, teraz=datetime(2026, 10, 22, 9, 0))
+        assert g.pula(k, teraz=datetime(2026, 10, 23, 12, 0)) == ["a", "d"]       # konfiguracja wygasa jako pierwsza
+        assert g.pula(k, teraz=datetime(2026, 10, 24, 8, 29)) == ["a", "d"]
+        assert g.pula(k, teraz=datetime(2026, 10, 24, 8, 30)) == ["a", "b", "d"]    # dokładnie w chwili nadzor_do wraca
+        assert "tymczasowo" in g.poza_nadzorem({"nadzor_do": "2026-10-24 08:30"}, None, datetime(2026, 10, 22, 9, 0))
+        assert g.poza_nadzorem({"nadzor_do": "2026-10-24 08:30"}, None, datetime(2026, 10, 25)) is None
+
+
 def test_waliduj_lapie_naruszenia():
     konf = g.DOMYSLNE
     plan = {"data": "20261021", "zmiany": [

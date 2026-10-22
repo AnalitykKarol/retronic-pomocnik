@@ -487,8 +487,9 @@ class Nadzorca:
         """Powód odmowy wszelkiej akcji dla postaci albo None. Kolejność: pauza, nadzor:false, STOP_RECZNY, wstrzymanie."""
         if (self.W / "NADZOR_PAUZA").exists():
             return "NADZOR_PAUZA: zero akcji"
-        if self.profil(id_).get("nadzor") is False or (self.konf.get("postacie", {}).get(id_) or {}).get("nadzor") is False:
-            return "postać poza nadzorem (nadzor: false)"
+        poza = G.poza_nadzorem(self.profil(id_), self.konf.get("postacie", {}).get(id_), self.zegar())
+        if poza:
+            return poza
         if (self.kat(id_) / "STOP_RECZNY").exists():
             return "STOP_RECZNY: Karol gra, zero akcji dla tej postaci"
         h = self.post(id_).get("hold")
@@ -1486,6 +1487,14 @@ def main(argv=None):
         wydruk(nz.tick(), f"Nadzór ({'NA ŻYWO' if zywo_plik else 'CIEŃ'}) {nz.zegar():%Y-%m-%d %H:%M:%S}")
         return 0
     if a.cmd == "napraw":
+        # 22.10 (Karol: obchód AI ma ratować postacie, grafik zostaje w cieniu): NADZOR_NAPRAWY=1 w środowisku albo plik
+        # instancje/_wspolne/NADZOR_NAPRAWY włącza na żywo same naprawy z białej listy, bez NADZOR_ZYWO (logowania wg grafiku)
+        tylko_naprawy = not zywo_plik and (os.environ.get("NADZOR_NAPRAWY") == "1" or (G.wspolne(KORZEN) / "NADZOR_NAPRAWY").exists())
+        if tylko_naprawy and a.rodzaj not in ("restart", "wznow", "relog"):
+            # 22.10 10:17: obchód odesłał invincible'a do miasta (wroc) przez koniec zmiany z grafiku; bez NADZOR_ZYWO tylko ratunek
+            print(f"NAPRAWY: odmowa: rodzaj {a.rodzaj} niedozwolony bez NADZOR_ZYWO (tylko restart, wznow, relog)")
+            return 3
+        zywo_plik = zywo_plik or tylko_naprawy
         nz = Nadzorca(zywo=zywo_plik)
         kod, txt = nz.napraw(a.id, a.rodzaj)
         print(("NA ŻYWO: " if zywo_plik else "CIEŃ: ") + txt)

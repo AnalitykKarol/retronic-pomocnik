@@ -87,6 +87,7 @@ _domyslny = Powiadamiacz()
 # 14.10 (Karol): dymki tylko, gdy coś jest nie tak, plus start i stop bota. Przechodzą klucze z ZAWSZE
 # (start, stop, niskie HP, obcy gracz, gracz pisze, GM, dojście) i wszystko "critical"; reszta (podsumowanie
 # co 5 min, brak jedzenia, wnioski analityka, pokrętła) jest cicha. RETRONIC_POWIADOMIENIA=wszystkie: dawne zachowanie.
+CICHE_STOPY = ("STOP ręczny", "Przerwano", "Koniec")   # stop zlecony przez człowieka nie krzyczy "pomocy"
 ZAWSZE = ("start", "stop", "hp", "obcy:", "czat:", "gm", "dojscie")
 
 
@@ -97,11 +98,22 @@ def istotne(tytul, pilnosc="normal", klucz=None):
 
 
 def powiadom(tytul, tresc="", pilnosc="normal", klucz=None):
+    # 22.10 (Karol): dymek „postać utknęła” bez nazwy postaci; zawsze nick (albo id instancji) na początku tytułu
+    kto = os.environ.get("RETRONIC_POSTAC") or os.environ.get("RETRONIC_ID") or ""
+    if kto and kto.lower() not in str(tytul).lower():
+        tytul = f"{kto}: {tytul}"
     if os.environ.get("RETRONIC_TESTY"):
         return False
     if not istotne(tytul, pilnosc, klucz):
         return False
-    return _domyslny.powiadom(tytul, tresc, pilnosc, klucz)
+    poszlo = _domyslny.powiadom(tytul, tresc, pilnosc, klucz)
+    if poszlo and pilnosc == "critical" and not str(tresc).startswith(CICHE_STOPY):
+        try:
+            import glos  # noqa: PLC0415  21.10 (Karol): głos "<nick> pomocy, <powód>" przy alarmach critical
+            glos.mow(tytul)          # 22.10 (Karol): sam nick i powód (tytuł), bez treści z koordynatami
+        except Exception:
+            pass
+    return poszlo
 
 
 # --- zdarzenia bota ---------------------------------------------------------------

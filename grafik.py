@@ -91,8 +91,25 @@ def poczatek_doby(data, konf):
     return datetime(data.year, data.month, data.day) + timedelta(minutes=hm(konf["cisza_do"]))
 
 
-def pula(korzen=None, konf=None):
-    """Postacie nadzorowane: instancje/*/profil.json, bez `_*`, `test*` i `"nadzor": false` (profil albo konfiguracja)."""
+def poza_nadzorem(profil, wpis_konf, teraz=None):
+    """Powód wyłączenia postaci z nadzoru albo None. `"nadzor": false` = bezterminowo; `"nadzor_do": "RRRR-MM-DD HH:MM"` =
+    do tej chwili (profil albo konfiguracja). Nieczytelna data = wyłączona (lepiej pominąć postać niż ją uruchomić)."""
+    teraz = teraz or datetime.now()
+    for zrodlo in (profil or {}, wpis_konf or {}):
+        if zrodlo.get("nadzor") is False:
+            return "postać poza nadzorem (nadzor: false)"
+        do = zrodlo.get("nadzor_do")
+        if do:
+            try:
+                if teraz < datetime.strptime(str(do), FMT):
+                    return f"postać tymczasowo poza nadzorem do {do} (nadzor_do)"
+            except ValueError:
+                return f"postać poza nadzorem: nieczytelne nadzor_do {do!r}"
+    return None
+
+
+def pula(korzen=None, konf=None, teraz=None):
+    """Postacie nadzorowane: instancje/*/profil.json, bez `_*`, `test*` i wyłączonych (`poza_nadzorem`: profil albo konfiguracja)."""
     konf = konf or wczytaj_konfig(korzen)
     wynik = []
     kat = Path(korzen or KORZEN) / "instancje"
@@ -106,7 +123,7 @@ def pula(korzen=None, konf=None):
             profil = json.loads((p / "profil.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        if profil.get("nadzor") is False or (konf.get("postacie", {}).get(n) or {}).get("nadzor") is False:
+        if poza_nadzorem(profil, konf.get("postacie", {}).get(n), teraz):
             continue
         wynik.append(n)
     return wynik
