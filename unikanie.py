@@ -20,8 +20,16 @@ Mijanie (MIJANIE=1, 18.10, dane_tibia/SPEC_mijanie_graczy_1018.md) zastępuje po
  omijamy skrótem albo odwróceniem obiegu), nowy kierunek trzymamy na stałe, a przejście udostępniamy tylko gdy gracz idzie
  w naszą stronę, nie ma jak się minąć i go widzimy (krok w bok, postój, bezpiecznik). `mijanie()` jest osobną ścieżką;
  `decyduj()` i `_wiggle()` zostają nietknięte (MIJANIE=0 = dotychczasowe zachowanie).
+Mijanie, poprawka 22.10 (dane_tibia/ruch/DIAGNOZA_mijanie_za_graczem_1022.md; pod MIJANIE=1, wyłączniki: 0 w konf):
+ - MIJANIE_HORYZONT: odwrócony obieg (i skrót) oceniamy na tylu punktach (nie 10-20) względem przewidywanego toru gracza
+   (jego pozycja + kierunek: po naszej trasie, gdy nią idzie, inaczej prosta); zbiega się z nim w tę samą stronę = odrzucony;
+ - MIJANIE_ZA_S / MIJANIE_ZA_ODL: gracz za nami <= tyle pól, idący w tę samą stronę tyle sekund, dostaje przepuszczenie
+   (krótka pauza z boku, MIJANIE_PAUZA_MIN_S..MAX_S, nie częściej niż MIJANIE_PAUZA_PONOW_S na gracza);
+ - brak bezpiecznego kierunku: ta sama pauza zamiast marszu dalej obok gracza;
+ - MIJANIE_POLUJACY_R: stojący gracz z mobem tyle pól od siebie poluje: bez skrótu, odwrócenie tylko od niego.
 Stałe czyta z `konf` (moduł cavebot) przy każdym wywołaniu, więc pokrętła z na_zywo.json działają od razu."""
 import math
+import random
 import time
 from collections import deque
 
@@ -42,6 +50,17 @@ MIJ_SLAD_S = 30.0     # s: jak długo pamiętamy, którędy szedł gracz (Z2: je
 MIJ_LOG_S = 10.0      # s: najczęściej tak często ten sam wpis "nie ma bezpiecznego kierunku"
 MIJ_ZMIANA_MIN_S = 8.0  # s: najmniejszy odstęp między dwiema zmianami kierunku (odwrócenie / skrót): bez przeskoków tam i z powrotem przy dwóch graczach
 MIJ_BRAK_S = 2.0      # s: po braku bezpiecznego kierunku nie szukamy ponownie (A* co tick byłby zbędny)
+# 22.10: domyślne nowych pokręteł mijania (konf.NAZWA nadpisuje; 0 = zachowanie sprzed poprawki)
+MIJ_HORYZONT = 40     # MIJANIE_HORYZONT: punkty kandydata sprawdzane względem toru gracza (0 = tylko stare pts[:12/10])
+MIJ_ZBIEG_D = 2       # MIJANIE_ZBIEG_D: pola: kandydat tak blisko toru gracza (w tę samą stronę, w podobnym czasie) = zbiega się z nim
+MIJ_ZBIEG_DT = 6      # kroki: tolerancja czasu zbiegu (gracz idzie trochę szybciej / wolniej)
+MIJ_ZA_S = 15.0       # MIJANIE_ZA_S: s, przez które gracz za nami idzie w tę samą stronę, zanim go przepuścimy (0 = wyłączone)
+MIJ_ZA_ODL = 4        # MIJANIE_ZA_ODL: pola: tak blisko za nami musi być
+MIJ_PAUZA_MIN_S = 2.0  # MIJANIE_PAUZA_MIN_S / MAX_S: długość przepuszczenia (losowa)
+MIJ_PAUZA_MAX_S = 5.0
+MIJ_PAUZA_PONOW_S = 60.0  # MIJANIE_PAUZA_PONOW_S: najczęściej raz na tyle s dla tego samego gracza
+MIJ_PAUZA_BRAK = 1    # MIJANIE_PAUZA_BRAK: 1 = brak bezpiecznego kierunku -> pauza z boku zamiast marszu dalej obok gracza
+MIJ_POLUJACY_R = 3    # MIJANIE_POLUJACY_R: pola: stojący gracz z mobem tak blisko poluje (0 = wyłączone)
 
 
 def _cheb(a, b):
@@ -115,6 +134,10 @@ class Unikanie:
         self.mij_zmian = 0            # zmiany kierunku w tym spotkaniu (do mijanie_koniec)
         self.mij_przejsc = 0
         self.mij_log_ost = {}         # rodzaj wpisu -> czas (bez spamu w logu)
+        self.mij_pauza = None         # trwające przepuszczenie gracza: {"klucz","nazwa","od","do","cel","powod","kroki"}
+        self.mij_pauza_ost = {}       # klucz -> czas początku ostatniego przepuszczenia (cooldown MIJANIE_PAUZA_PONOW_S)
+        self.mij_za = {}              # klucz -> {"od","ost"}: od kiedy gracz idzie za nami w tę samą stronę
+        self.mij_tory = {}            # klucz -> przewidywany tor ruchomego gracza (ustawiany w _mij_kierunek, czytany przez _mij_ocena)
         self.czat_spot = None         # czat_spot.CzatSpot: wiadomość do gracza, który wraca/zabiera moby (mózg wysyła)
         try:
             import czat_spot  # noqa: PLC0415
@@ -633,8 +656,10 @@ class Unikanie:
         nie zniknie z widoku na MIJANIE_ZNIKL_S (kolejne spotkanie = ocena od nowa, Z6); obozowicza oceniamy
         ponownie po MIJANIE_OBOZ_PAMIEC_S (stoi dalej, a pętla znów do niego dochodzi)."""
         if not self._mij_wlaczone():
-            if self.mij_widz or self.mij_dec or self.mij_prz is not None or self.mij_skrot is not None or self.mij_wroc is not None:
+            if self.mij_widz or self.mij_dec or self.mij_prz is not None or self.mij_skrot is not None or self.mij_wroc is not None \
+                    or self.mij_pauza is not None:
                 self.mij_widz, self.mij_dec, self.mij_odwroty, self.mij_slad, self.mij_brak = {}, {}, {}, {}, {}
+                self.mij_pauza, self.mij_pauza_ost, self.mij_za, self.mij_tory = None, {}, {}, {}
                 self.mij_prz, self.mij_skrot, self.mij_prz_ost, self.mij_wroc = None, None, {}, None
                 self.mij_zmiana_ost = float("-inf")
             return
@@ -652,8 +677,10 @@ class Unikanie:
             if t - self.mij_widz.get(k, float("-inf")) > zn or (d["rodzaj"] == "oboz" and t - d["t"] > pam):
                 del self.mij_dec[k]
         for k in [k for k, v in self.mij_widz.items() if t - v > max(120.0, 4 * zn)]:
-            for sl in (self.mij_widz, self.mij_slad, self.mij_odwroty, self.mij_prz_ost, self.mij_brak):
+            for sl in (self.mij_widz, self.mij_slad, self.mij_odwroty, self.mij_prz_ost, self.mij_brak, self.mij_za):
                 sl.pop(k, None)
+        for k in [k for k, v in self.mij_pauza_ost.items() if t - v > max(300.0, 2 * self._k("MIJANIE_PAUZA_PONOW_S", MIJ_PAUZA_PONOW_S))]:
+            del self.mij_pauza_ost[k]
 
     def _mij_log(self, rodzaj, tekst, t):
         """Wpis do logu najwyżej raz na MIJ_LOG_S s dla danego rodzaju (bez spamu w każdym obiegu)."""
@@ -693,7 +720,12 @@ class Unikanie:
             # ustępowanie skończyło się w tym obiegu: od razu wychodzimy z wnęki (bez zachłannego kroku cavebota w jej głąb)
         if w_walce:
             self.mij_wroc = None
+            self.mij_pauza = None                      # walka ma pierwszeństwo: przepuszczanie kończy się bez wpisu
             return None
+        if self.mij_pauza is not None:
+            r = self._mij_pauza_krok(poz3, t)
+            if r is not None:
+                return r
         if self.mij_wroc is not None:
             w = self.mij_wroc
             d = None if t > w["do"] or poz3[:2] == w["cel"] else droga_fn(poz3, w["cel"], set())
@@ -710,11 +742,15 @@ class Unikanie:
             return None
         przod = self._k("MIJANIE_PRZOD", 16)
         ok_p = self._mij_okno(punkty, idx, 1, przod + 40, z, otwarta)      # dalej niż przod: skrót za komorą obozowicza
-        ok_t = self._mij_okno(punkty, idx, -1, przod + MIJ_TANG, z, otwarta)
+        hor = max(0, int(self._k("MIJANIE_HORYZONT", MIJ_HORYZONT)))
+        ok_t = self._mij_okno(punkty, idx, -1, max(przod + MIJ_TANG, hor + 1), z, otwarta)    # odwrócony obieg: do horyzontu toru gracza
         r = self._mij_przejscie_start(poz3, wid, droga_fn, wolne_fn, t, ok_p, ok_t)
         if r is not None:
             return r
-        return self._mij_kierunek(poz3, droga_fn, wid, [g for g in self.gracze if g["z"] == z], t, ok_p, ok_t)
+        r = self._mij_za_graczem(poz3, wid, wolne_fn, t, ok_p, ok_t)
+        if r is not None:
+            return r
+        return self._mij_kierunek(poz3, droga_fn, wid, [g for g in self.gracze if g["z"] == z], t, ok_p, ok_t, wolne_fn=wolne_fn)
 
     # -- geometria trasy --
 
@@ -776,19 +812,27 @@ class Unikanie:
         vx, vy = k[0] - poz3[0], k[1] - poz3[1]
         return (vx or vy) and vx * h[0] + vy * h[1] > 0 and vx * rx + vy * ry > 0
 
-    def _mij_ocena(self, poz3, pts, g, wid, sprawdz_g=True):
-        """Ocena kierunku (lista pól `pts` przed nami): None = odrzucony (wchodzi w obozowicza albo idzie za innym graczem),
-        inaczej liczba kroków do zniknięcia z widoku gracza g (mniej = lepiej) z karą za jego ślad (Z2: jego ślad na końcu)."""
+    def _mij_ocena(self, poz3, pts, g, wid, sprawdz_g=True, pts_dl=None):
+        """Ocena kierunku (lista pól `pts` przed nami): None = odrzucony (wchodzi w obozowicza, idzie za innym graczem albo zbiega się
+        z torem idącego gracza na `pts_dl`, 22.10), inaczej liczba kroków do zniknięcia z widoku gracza g (mniej = lepiej) z karą
+        za jego ślad (Z2: jego ślad na końcu). `pts_dl` = ten sam kierunek na dłuższym horyzoncie (domyślnie `pts`)."""
         oboz_r = self._k("MIJANIE_OBOZ_R", 3)
+        dl = pts if pts_dl is None else pts_dl
         for g2 in wid:
             if g2 is g and not sprawdz_g:
+                if g2.get("kier") and self._mij_zbiega(dl, g2):
+                    return None                        # 22.10: odwrócony obieg znów schodzi się z torem tego samego gracza (równoległe ramiona pętli)
                 continue
             if g2 is g and not self._mij_stoi(g2):
+                if g2.get("kier") and self._mij_zbiega(dl, g2):
+                    return None
                 continue                               # gracz, który nas wywołał, idzie przed nami: kierunek od niego z definicji
             if self._mij_stoi(g2):
                 if any(_cheb(c, (g2["x"], g2["y"])) <= oboz_r for c in pts[:12]):
                     return None
             elif self._mij_ku_graczowi(poz3, pts, g2):
+                return None
+            elif g2.get("kier") and self._mij_zbiega(dl, g2):
                 return None
         czas = self._mij_czas_widoku(pts, (g["x"], g["y"]))
         slad = self.mij_slad.get(self._mij_klucz(g), ())
@@ -808,11 +852,13 @@ class Unikanie:
 
     # -- zmiana kierunku obiegu (Z1, Z2, Q1, Q3) --
 
-    def _mij_kierunek(self, poz3, droga_fn, wid, wszyscy, t, ok_p, ok_t):
+    def _mij_kierunek(self, poz3, droga_fn, wid, wszyscy, t, ok_p, ok_t, wolne_fn=None):
         """Ocena graczy z `wid` (w UNIKANIE_PROMIEN); `wszyscy` (do UNIKANIE_PROMIEN_MAX, to samo piętro) wchodzą tylko do oceny
         kierunku: nie odwracamy obiegu w stronę innego gracza, który odchodzi w tę stronę (Z1), nawet gdy jest dalej niż 9 pól."""
         if t - self.mij_zmiana_ost < MIJ_ZMIANA_MIN_S:
             return None
+        hor = max(0, int(self._k("MIJANIE_HORYZONT", MIJ_HORYZONT)))
+        self.mij_tory = {self._mij_klucz(g): self._mij_tor(g, ok_p, ok_t, hor) for g in wszyscy if g.get("kier")} if hor else {}
         przod = self._k("MIJANIE_PRZOD", 16)
         r_trasa = self._k("MIJANIE_TRASA_R", 2)
         oboz_r = self._k("MIJANIE_OBOZ_R", 3)
@@ -843,7 +889,7 @@ class Unikanie:
                 rodzaj = "oboz"
             else:
                 continue                               # jeszcze nie wiemy, czy idzie, czy stoi
-            r = self._mij_wybierz(poz3, droga_fn, wszyscy, g, rodzaj, kp, ok_p, ok_t, t)
+            r = self._mij_wybierz(poz3, droga_fn, wszyscy, g, rodzaj, kp, ok_p, ok_t, t, wolne_fn=wolne_fn)
             if r is not None:
                 return r
         return None
@@ -867,9 +913,11 @@ class Unikanie:
         if not droga or len(droga) > self._k("MIJANIE_SKROT_MAX", 40):
             return None
         pts = [tuple(p[:2]) for p in droga] + [ok_p[i][1][:2] for i in range(j, min(len(ok_p), j + 20))]
-        return {"idx": ok_p[j][0], "cel": tuple(cel), "droga": [tuple(p) for p in droga], "pts": pts}
+        hor = max(0, int(self._k("MIJANIE_HORYZONT", MIJ_HORYZONT)))
+        pts_dl = [tuple(p[:2]) for p in droga] + [ok_p[i][1][:2] for i in range(j, min(len(ok_p), j + max(20, hor)))]
+        return {"idx": ok_p[j][0], "cel": tuple(cel), "droga": [tuple(p) for p in droga], "pts": pts, "pts_dl": pts_dl}
 
-    def _mij_wybierz(self, poz3, droga_fn, wid, g, rodzaj, kp, ok_p, ok_t, t):
+    def _mij_wybierz(self, poz3, droga_fn, wid, g, rodzaj, kp, ok_p, ok_t, t, wolne_fn=None):
         """Wybór między skrótem (tylko obozowicz) a odwróceniem obiegu wg oceny Z1/Z2; zapamiętuje decyzję."""
         klucz = self._mij_klucz(g)
         oboz = rodzaj == "oboz"
@@ -882,16 +930,24 @@ class Unikanie:
                 self._mij_log(f"przejdz_{klucz}", f"Mijanie: gracz {g['nazwa']} stoi na pętli, obie strony już próbowałem - "
                               f"przechodzę obok niego.", t)
                 return None
+        poluje = oboz and self._mij_poluje(g)          # 22.10: stoi, ale ma moba tuż przy sobie = poluje, zaraz ruszy za nim
+        hor = max(0, int(self._k("MIJANIE_HORYZONT", MIJ_HORYZONT)))
         pts_b = [q[:2] for _, q in ok_t[:30]]
-        cz_b = self._mij_ocena(poz3, pts_b, g, wid, sprawdz_g=oboz) if pts_b else None   # obozowicz: druga strona pętli nie może wchodzić w jego komorę
-        plan_a = self._mij_skrot_plan(poz3, droga_fn, wid, g, kp, ok_p) if oboz else None
-        cz_a = self._mij_ocena(poz3, plan_a["pts"], g, wid, sprawdz_g=False) if plan_a else None
+        pts_bd = [q[:2] for _, q in ok_t[:max(30, hor)]]
+        cz_b = self._mij_ocena(poz3, pts_b, g, wid, sprawdz_g=oboz, pts_dl=pts_bd) if pts_b else None   # obozowicz: druga strona pętli nie może wchodzić w jego komorę
+        plan_a = self._mij_skrot_plan(poz3, droga_fn, wid, g, kp, ok_p) if oboz and not poluje else None   # polujący: bez skrótu obok niego
+        cz_a = self._mij_ocena(poz3, plan_a["pts"], g, wid, sprawdz_g=False, pts_dl=plan_a["pts_dl"]) if plan_a else None
         if plan_a is not None and cz_a is not None and (cz_b is None or cz_a <= cz_b + 6):
             wybor = "skrot"
         elif cz_b is not None:
             wybor = "odwroc"
         else:
             self.mij_brak[klucz] = t
+            if (rodzaj == "ta_strona" or poluje) and self._k("MIJANIE_PAUZA_BRAK", MIJ_PAUZA_BRAK):
+                # 22.10: nie idziemy dalej obok gracza (wygląda jak bot): krótka ludzka pauza z boku, on idzie przodem
+                r = self._mij_pauza_start(poz3, g, "brak", wolne_fn, t, ok_p, ok_t)
+                if r is not None:
+                    return r
             self._mij_log(f"brak_{klucz}", f"Mijanie: gracz {g['nazwa']} ({rodzaj}), ale żadnego bezpiecznego kierunku "
                           f"nie ma - idę dalej po trasie.", t)
             return None
@@ -959,6 +1015,175 @@ class Unikanie:
             return None
         s["droga"] = rest
         return Mij("marsz", idx=k, krok=rest[0], powod="skrot")
+
+    # -- tor gracza, polujący, przepuszczenie (22.10) --
+
+    @staticmethod
+    def _mij_gesto(pts, n):
+        """Lista pól `pts` (punkty trasy bywają co kilka pól) zagęszczona do kroków po 1 pole (prosto/skosem między kolejnymi), do `n` pól:
+        czas zbiegu liczymy w krokach, nie w punktach."""
+        if not pts:
+            return []
+        wyn = [tuple(pts[0][:2])]
+        for b in pts[1:]:
+            b = tuple(b[:2])
+            c = wyn[-1]
+            while c != b and len(wyn) < n:
+                c = (c[0] + (b[0] > c[0]) - (b[0] < c[0]), c[1] + (b[1] > c[1]) - (b[1] < c[1]))
+                wyn.append(c)
+            if len(wyn) >= n:
+                break
+        return wyn[:n]
+
+    def _mij_tor(self, g, ok_p, ok_t, hor):
+        """Możliwe tory idącego gracza (lista list pól, każdy `hor` pól). Leży na naszej trasie (MIJANIE_TRASA_R) i jego ruch zgadza się
+        z kierunkiem trasy = dalsze punkty trasy w tamtą stronę; gdy zgadza się z obiema (skrzyżowanie, zakręt, ruch ukośny) - oba
+        warianty (nie wiemy, w którą stronę skręci: 22.10 Harley Queen szedł na południe, a potem w głąb odwróconego obiegu).
+        Poza trasą: prosta w kierunku jego ruchu."""
+        h = g.get("kier")
+        if not h or hor <= 0:
+            return []
+        P = (g["x"], g["y"])
+        r_trasa = self._k("MIJANIE_TRASA_R", 2)
+        tory = []
+        for okno in (ok_p, ok_t):
+            k = self._mij_na_trasie(okno, P, r_trasa)
+            if k is None:
+                continue
+            tang = self._mij_tangens(okno, k)
+            if tang is not None and tang[0] * h[0] + tang[1] * h[1] > 0:
+                tor = self._mij_gesto([P] + [q[:2] for _, q in okno[k + 1:k + 1 + hor]], hor + 1)[1:]
+                if len(tor) >= 6:
+                    dl_k = math.hypot(h[0], h[1]) * math.hypot(tang[0], tang[1]) or 1.0
+                    tory.append(((tang[0] * h[0] + tang[1] * h[1]) / dl_k, tor))
+        if tory:
+            # tylko warianty zgodne z jego ruchem tak dobrze jak najlepszy (ruch ukośny wobec obu ramion = oba)
+            najl = max(c for c, _ in tory)
+            return [t for c, t in tory if c >= najl - 0.25]
+        dl = math.hypot(h[0], h[1])
+        ux, uy = h[0] / dl, h[1] / dl
+        return [[(P[0] + round(ux * i), P[1] + round(uy * i)) for i in range(1, hor + 1)]]
+
+    def _mij_zbiega(self, pts, g):
+        """True, gdy kandydat `pts` (pola przed nami, do MIJANIE_HORYZONT) schodzi się z torem gracza g: w podobnym czasie jest od
+        niego nie dalej niż MIJANIE_ZBIEG_D pól i idzie w tę samą stronę (zderzenie czołowe to zwykłe mijanie, nie zbieg)."""
+        tory = self.mij_tory.get(self._mij_klucz(g))
+        hor = int(self._k("MIJANIE_HORYZONT", MIJ_HORYZONT))
+        if not tory or not pts or hor <= 0:
+            return False
+        pts = self._mij_gesto(pts, hor)
+        d = self._k("MIJANIE_ZBIEG_D", MIJ_ZBIEG_D)
+        dt = self._k("MIJANIE_ZBIEG_DT", MIJ_ZBIEG_DT)
+        for tor in tory:
+            for i, c in enumerate(pts):
+                b = pts[min(i + MIJ_TANG, len(pts) - 1)]
+                vc = (b[0] - c[0], b[1] - c[1]) if b != c else (c[0] - pts[max(i - MIJ_TANG, 0)][0], c[1] - pts[max(i - MIJ_TANG, 0)][1])
+                tol = dt + i // 3
+                for j in range(max(0, i - tol), min(len(tor), i + tol + 1)):
+                    if _cheb(c, tor[j]) > d:
+                        continue
+                    a = tor[min(j + MIJ_TANG, len(tor) - 1)]
+                    vt = (a[0] - tor[j][0], a[1] - tor[j][1])
+                    if vt == (0, 0):
+                        e = tor[max(j - MIJ_TANG, 0)]
+                        vt = (tor[j][0] - e[0], tor[j][1] - e[1])
+                    if vc[0] * vt[0] + vc[1] * vt[1] > 0:
+                        return True
+        return False
+
+    def _mij_poluje(self, g):
+        """Stojący gracz z mobem w MIJANIE_POLUJACY_R polach od siebie: poluje (zaraz ruszy za mobem), nie obozuje."""
+        r = self._k("MIJANIE_POLUJACY_R", MIJ_POLUJACY_R)
+        if r <= 0 or g.get("kier"):
+            return False
+        return any(_cheb(m, (g["x"], g["y"])) <= r for m in self.moby)
+
+    def _mij_bok_pauzy(self, poz3, g, ok_p, ok_t, wolne_fn):
+        """Wolne pole obok nas poza trasą (12 punktów w obie strony), nie przy graczu: tam stajemy, gdy go przepuszczamy; None = stoimy w miejscu."""
+        if wolne_fn is None:
+            return None
+        trasa = {q[:2] for _, q in ok_p[:12]} | {q[:2] for _, q in ok_t[:12]}
+        z = poz3[2]
+        inni = [(x["x"], x["y"]) for x in self.gracze if x["z"] == z]
+        kand = []
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            q = (poz3[0] + dx, poz3[1] + dy)
+            if q in trasa or any(_cheb(q, c) < 2 for c in inni) or not wolne_fn((q[0], q[1], z)):
+                continue
+            kand.append(q)
+        return random.choice(kand) if kand else None
+
+    def _mij_pauza_start(self, poz3, g, powod, wolne_fn, t, ok_p, ok_t):
+        """Przepuszczenie gracza g: losowa pauza MIJANIE_PAUZA_MIN_S..MAX_S, jeśli jest wolne pole poza trasą - z boku. Najwyżej raz na
+        MIJANIE_PAUZA_PONOW_S na tego samego gracza (potem None: idziemy normalnie, bez pętli wahadła)."""
+        klucz = self._mij_klucz(g)
+        if t - self.mij_pauza_ost.get(klucz, float("-inf")) < self._k("MIJANIE_PAUZA_PONOW_S", MIJ_PAUZA_PONOW_S):
+            return None
+        lo = self._k("MIJANIE_PAUZA_MIN_S", MIJ_PAUZA_MIN_S)
+        hi = max(lo, self._k("MIJANIE_PAUZA_MAX_S", MIJ_PAUZA_MAX_S))
+        dl = random.uniform(lo, hi)
+        cel = self._mij_bok_pauzy(poz3, g, ok_p, ok_t, wolne_fn)
+        self.mij_pauza_ost[klucz] = t
+        self.mij_pauza = {"klucz": klucz, "nazwa": g["nazwa"], "gracz_id": g.get("id"), "od": t, "do": t + dl,
+                          "cel": cel, "start": poz3[:2], "powod": powod, "kroki": 0}
+        self.log(f"Mijanie: gracz {g['nazwa']} ({g['odl']} pól, kier {g.get('kier')}, {powod}) - przepuszczam go: "
+                 f"{'schodzę na ' + str(cel) + ' i ' if cel else ''}stoję {dl:.1f} s.")
+        self.zdarzenie("mijanie_pauza", etap="start", powod=powod, gracz=g["nazwa"], gracz_id=g.get("id"), odl=g["odl"],
+                       kier=list(g["kier"]) if g.get("kier") else None, pole=list(cel) if cel else None, czas_s=round(dl, 1))
+        return self._mij_pauza_krok(poz3, t)
+
+    def _mij_pauza_krok(self, poz3, t):
+        """Trwające przepuszczenie: krok na pole z boku (jeśli jest), potem stoimy do końca pauzy albo do zniknięcia gracza."""
+        p = self.mij_pauza
+        if not any(self._mij_klucz(x) == p["klucz"] and x["z"] == poz3[2] for x in self.gracze):
+            return self._mij_pauza_koniec(poz3, t, "zniknal")
+        if t >= p["do"]:
+            return self._mij_pauza_koniec(poz3, t, "czas")
+        cel = p["cel"]
+        if cel is not None and poz3[:2] != cel:
+            if _cheb(poz3[:2], cel) == 1 and p["kroki"] < 3:
+                p["kroki"] += 1
+                return Mij("marsz", krok=(cel[0], cel[1], poz3[2]), powod="pauza")
+            p["cel"] = None                            # zepchnięci z drogi / krok się nie udał: stoimy tam, gdzie jesteśmy
+        return Mij("stoj", powod="pauza")
+
+    def _mij_pauza_koniec(self, poz3, t, powod):
+        p = self.mij_pauza
+        self.mij_pauza = None
+        if p["start"] != poz3[:2]:
+            self.mij_wroc = {"cel": p["start"], "do": t + 8.0}       # wracamy na oś trasy
+        self.log(f"Mijanie: koniec przepuszczania gracza {p['nazwa']} po {t - p['od']:.1f} s ({powod}).")
+        self.zdarzenie("mijanie_pauza", etap="koniec", powod=powod, gracz=p["nazwa"], gracz_id=p.get("gracz_id"),
+                       czas_s=round(t - p["od"], 1))
+        return None
+
+    def _mij_za_graczem(self, poz3, wid, wolne_fn, t, ok_p, ok_t):
+        """Gracz idzie za nami (<= MIJANIE_ZA_ODL pól, w tę samą stronę) dłużej niż MIJANIE_ZA_S: przepuszczamy go (pauza z boku)."""
+        zs = self._k("MIJANIE_ZA_S", MIJ_ZA_S)
+        if zs <= 0 or not ok_p:
+            return None
+        tang = self._mij_tangens(ok_p, 0)
+        if tang is None:
+            return None
+        odl_max = self._k("MIJANIE_ZA_ODL", MIJ_ZA_ODL)
+        for g in wid:
+            h = g.get("kier")
+            if not h or g.get("duch"):
+                continue
+            klucz = self._mij_klucz(g)
+            rx, ry = g["x"] - poz3[0], g["y"] - poz3[1]
+            if not (1 <= g["odl"] <= odl_max and h[0] * tang[0] + h[1] * tang[1] > 0 and rx * tang[0] + ry * tang[1] < 0):
+                continue                               # nie za nami albo nie w tę samą stronę
+            rec = self.mij_za.setdefault(klucz, {"od": t, "ost": t})
+            if t - rec["ost"] > 3.0:
+                rec["od"] = t                          # przerwa w obserwacji: liczymy od nowa
+            rec["ost"] = t
+            if t - rec["od"] >= zs:
+                rec["od"] = t
+                r = self._mij_pauza_start(poz3, g, "za_nami", wolne_fn, t, ok_p, ok_t)
+                if r is not None:
+                    return r
+        return None
 
     # -- udostępnianie przejścia (Z4, Q2) --
 

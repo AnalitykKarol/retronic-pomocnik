@@ -1,0 +1,24 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "styk z pętlą (32340, 32129) (koniec dojścia z8), korytarz x=32347 na północ"
+  },
+  {
+   "idx": 18,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "stanie (32347, 32124) obok pola liny/drabiny (32347, 32123) z8 (wolne, nie wchodzić na nie); przejście w górę niezweryfikowane botem: tryby R, lina, krok"
+  },
+  {
+   "idx": 19,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z7 (32347, 32124) = (x, y+1) pola liny; dalej dojście odwrócone"
+  },
+  {
+   "idx": 163,
+   "typ": "koniec",
+   "komentarz": "depo Thais (start depo_troll_cave)"
+  }
+ ]
+}

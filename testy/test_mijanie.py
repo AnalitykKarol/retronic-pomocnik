@@ -503,12 +503,17 @@ for przerwa, oczek in ((4.0, 1), (8.0, 2)):
             f"{'ta sama decyzja trwa' if oczek == 1 else 'kolejne spotkanie, ocena od nowa'} ({oczek} decyzj{'a' if oczek == 1 else 'e'})", len(s.dec) == oczek, s.dec)
 
 # M12: drugi gracz za nami ucieka w stronę, w którą odwróciłby się obieg: nie odwracamy (Z1), dopóki jest w zasięgu UNIKANIE_PROMIEN_MAX
-s = Swiat(TEREN, P, (100, 95), {"A": [108, 95], "B": [95, 95]})
+s = Swiat(TEREN, P, (100, 95), {"A": [108, 95], "B": [95, 95]}, konf=dict(MIJANIE_PAUZA_BRAK=0))      # 22.10: stare zachowanie = pokrętło PAUZA_BRAK=0
 fa = idzie("A", [pts[(pts.index((108, 95)) + i) % len(pts)] for i in range(300)], 0.5)
 fb = idzie("B", [pts[(pts.index((95, 95)) - i) % len(pts)] for i in range(300)], 0.5)
 s.bieg(3.2, razem(fa, fb))
 sprawdz("R3 gracz A przed nami (ta strona), gracz B za nami idzie w stronę odwróconego obiegu (kier z historii, 5 pól): bez odwrócenia i wpis 'żadnego bezpiecznego kierunku'",
         s.odwroty == 0 and any("żadnego bezpiecznego kierunku" in l for l in s.logi), (s.akcje, s.logi[-2:]))
+s = Swiat(TEREN, P, (100, 95), {"A": [108, 95], "B": [95, 95]})
+s.bieg(3.2, razem(idzie("A", [pts[(pts.index((108, 95)) + i) % len(pts)] for i in range(300)], 0.5),
+                  idzie("B", [pts[(pts.index((95, 95)) - i) % len(pts)] for i in range(300)], 0.5)))
+sprawdz("R3b 22.10: to samo, domyślnie (PAUZA_BRAK=1): bez odwrócenia, zamiast marszu dalej obok graczy - pauza (zdarzenie mijanie_pauza, powód brak)",
+        s.odwroty == 0 and any(d.get("etap") == "start" and d.get("powod") == "brak" for d in typy(s, "mijanie_pauza")), (s.akcje, s.logi[-2:]))
 
 # M10: po ustąpieniu temu samemu graczowi nie ustępujemy ponownie przez MIJANIE_PONOW_S (20 s); korytarz z wnękami co 6 pól
 KOR2 = [(x, 100) for x in range(60, 161)] + [(x, 101) for x in range(104, 150, 6)]
@@ -857,6 +862,135 @@ b.tick()
 sprawdz("Q3d trasa otwarta (self.otwarta) przy trwającej decyzji mijania: koniec okrążenia nadal odwraca trasę (bot nie stoi na końcu)", b.punkty == list(reversed(PET8[:40])),
         (b.okrazenie, b.punkty[:2], b.idx))
 cavebot.MIJANIE = 0
+# ====================================================================================================
+# 7. 22.10: bot idący tuż obok / przed obcym graczem wyglądał jak bot (epizody A i B z telemetrii, SPEC: pokrętła MIJANIE_HORYZONT,
+#    MIJANIE_ZA_*, MIJANIE_PAUZA_*, MIJANIE_POLUJACY_R). Wyłączenie wszystkich = stare zachowanie.
+# ====================================================================================================
+import random as _rnd
+STARE = dict(MIJANIE_HORYZONT=0, MIJANIE_ZA_S=0, MIJANIE_PAUZA_BRAK=0, MIJANIE_POLUJACY_R=0)
+def pauzy(s, powod=None):
+    return [(t, d) for (tt, d), t in zip(s.zd, s.zt) if tt == "mijanie_pauza" and (powod is None or d.get("powod") == powod)]
+
+def tor_gracza(t, tr):
+    if t < tr[0][0] or t > tr[-1][0] + 4: return None
+    for a, b in zip(tr, tr[1:]):
+        if a[0] <= t <= b[0]:
+            if b[0] - a[0] > 3.5: return None
+            f = (t - a[0]) / (b[0] - a[0]) if b[0] > a[0] else 0
+            return [round(a[1] + (b[1] - a[1]) * f), round(a[2] + (b[2] - a[2]) * f)]
+    return [tr[-1][1], tr[-1][2]] if t <= tr[-1][0] + 1.5 else None
+
+def epizod(klucz, konf=None, T=40.0):
+    """Epizod z telemetrii na prawdziwej mapie (MAPA.przechodnie) i prawdziwej trasie; obcy idzie po zapisanym torze."""
+    import mapa as _mapa
+    cwd = _os.getcwd(); _os.chdir(KAT)
+    try:
+        MP = _mapa.Mapa()
+    finally:
+        _os.chdir(cwd)
+    E = json.loads((KAT / "testy" / "dane" / "mijanie_epizody_1022.json").read_text())[klucz]
+    R = [tuple(p[:3]) for p in json.loads((KAT / "trasy" / f"{E['trasa']}.json").read_text())]
+    if E.get("odwroc_trase"): R.reverse()
+    z = E["z"]
+    idx = E.get("idx")
+    if idx is None: idx = next(i for i, p in enumerate(R) if p[:2] == tuple(E["idx_cel"]))
+    xs = [p[0] for p in R]; ys = [p[1] for p in R]
+    wolne = [(x, y) for x in range(min(xs) - 12, max(xs) + 13) for y in range(min(ys) - 12, max(ys) + 13)
+             if MP.przechodnie(x, y, z) is True and not MP.schody_lub_dziura(x, y, z)]
+    t0 = E["gracz"][0][0]
+    tr = [[a - t0, b, c] for a, b, c in E["gracz"]]
+    _rnd.seed(1)
+    s = Swiat(wolne, R, tuple(E["start"]), {"Z": None}, konf=konf, idx=idx, z=z)
+    def fn(s_): s_.gracze["Z"] = tor_gracza(s_.t, tr)
+    s.bieg(T, fn)
+    return s
+
+try:
+    sA_s = epizod("A", STARE, 20.0); sA = epizod("A", None, 20.0)
+    sB_s = epizod("B", STARE, 20.0); sB = epizod("B", None, 20.0)
+    ep_ok = True
+except Exception as e:                       # brak mapy w środowisku testowym - sprawdzenia epizodów pomijamy z widocznym wpisem
+    ep_ok = False; print("SKIP epizody A/B:", repr(e))
+if ep_ok:
+    sprawdz("E0 (kontrola) pokrętła 22.10 wyłączone = stare zachowanie: epizod A kończy się odwróceniem obiegu (w 5 s), bez pauzy", sA_s.odwroty >= 1
+            and czasy(sA_s, "mijanie_kierunek")[0] < 5.0 and not pauzy(sA_s), (sA_s.odwroty, czasy(sA_s, "mijanie_kierunek"), pauzy(sA_s)))
+    pa = pauzy(sA, "brak")
+    sprawdz("EA Valevnos (z9z, pętla ze skrzyżowaniem): odwrócenie zbiegające się z torem gracza w <= 40 punktach odrzucone - pauza zamiast marszu obok niego",
+            pa and pa[0][1]["etap"] == "start" and pa[0][0] < 5.0 and not any(t < pa[0][0] + 0.5 for t in czasy(sA, "mijanie_kierunek")), (pa[:2], czasy(sA, "mijanie_kierunek")))
+    sprawdz("EA2 ...pauza krótka i ludzka (2-5 s), potem koniec z powodem czas", len([x for x in pauzy(sA) if x[1]["etap"] == "koniec"]) >= 1
+            and 2.0 <= [x for x in pauzy(sA) if x[1]["etap"] == "koniec"][0][0] - pa[0][0] <= 5.6, pauzy(sA)[:3])
+    sprawdz("EA3 ...i bez wahadła: w 20 s najwyżej jedna pauza i najwyżej jedno odwrócenie", len([x for x in pauzy(sA) if x[1]["etap"] == "start"]) <= 1 and sA.odwroty <= 1,
+            (pauzy(sA), sA.odwroty))
+    pb = pauzy(sB, "brak")
+    sprawdz("EB Harley Queen (invincible, z8): odwrócenie, na które gracz sam skręcił, odrzucone - pauza zamiast marszu obok niego", sB_s.odwroty >= 1
+            and pb and pb[0][0] < 5.0 and sB.odwroty == 0, (sB_s.odwroty, pb[:2], sB.odwroty))
+    sprawdz("EB2 ...nic się nie zapętla (bez stania > 6 s)", sB.max_postoj() < 6.0, sB.max_postoj())
+
+# ZA: gracz idzie za nami <= 4 pola w tę samą stronę > 15 s
+def za_nami_dlugo(konf=None, T=40.0, d=3, seed=1):
+    _rnd.seed(seed)
+    bot = (105, 95)
+    gp = pts[(pts.index(bot) - d) % len(pts)]
+    s = Swiat(TEREN, P, bot, {"Z": list(gp)}, konf=konf)
+    s.bieg(T, idzie("Z", [pts[(pts.index(gp) + i) % len(pts)] for i in range(600)], 0.4))
+    return s
+s = za_nami_dlugo(T=14.0)
+sprawdz("ZA1 gracz 3 pola za nami przez 14 s (< MIJANIE_ZA_S = 15 s): bez pauzy", not pauzy(s, "za_nami"), pauzy(s))
+s = za_nami_dlugo(T=24.0)
+pz = pauzy(s)
+st_ = [x for x in pz if x[1]["etap"] == "start" and x[1]["powod"] == "za_nami"]; kn_ = [x for x in pz if x[1]["etap"] == "koniec"]
+sprawdz("ZA2 ...po 15 s: jedna pauza za_nami między 15 a 19 s", len(st_) == 1 and 14.5 <= st_[0][0] <= 19.0, pz)
+sprawdz("ZA3 ...trwa 2-5 s (losowo) i kończy się", st_ and kn_ and 2.0 <= kn_[0][0] - st_[0][0] <= 5.6, (st_, kn_))
+t1 = st_[0][0] if st_ else 0; t2 = kn_[0][0] if kn_ else t1
+p1 = next((p for t, p in s.trasa if t >= t1), None)
+sprawdz("ZA4 ...w czasie pauzy bot nie zawraca (brak decyzji odwroc) i oddala się od miejsca startu pauzy najwyżej o 3 pola",
+        st_ and not any(t1 <= t <= t2 and a_ == "odwroc" for t, a_ in s.dec) and all(cheb(p, p1) <= 3 for t, p in s.trasa if t1 <= t <= t2), (s.dec, t1, t2))
+s = za_nami_dlugo(T=70.0)
+sprawdz("ZA5 cooldown na gracza (MIJANIE_PAUZA_PONOW_S = 60 s): w 70 s tylko jedna pauza za_nami", len([x for x in pauzy(s, "za_nami") if x[1]["etap"] == "start"]) == 1, pauzy(s, "za_nami"))
+s = za_nami_dlugo(konf=dict(MIJANIE_ZA_S=0), T=30.0)
+sprawdz("ZA6 MIJANIE_ZA_S=0 wyłącza: bez pauzy", not pauzy(s, "za_nami"), pauzy(s))
+s = za_nami_dlugo(konf=dict(MIJANIE=0), T=30.0)
+sprawdz("ZA7 MIJANIE=0: nic nie robi (bez zdarzeń mijania)", not any(t.startswith("mijanie") for t, _ in s.zd), s.zd[:2])
+rnd_dl = set()
+for sd in range(12):
+    s_ = za_nami_dlugo(T=24.0, seed=sd)
+    a_ = [x for x in pauzy(s_) if x[1]["etap"] == "start"]; b_ = [x for x in pauzy(s_) if x[1]["etap"] == "koniec"]
+    if a_ and b_: rnd_dl.add(round(b_[0][0] - a_[0][0], 1))
+sprawdz("ZA8 długość pauzy losowa w 2-5 s (12 ziaren, >= 3 różne wartości)", len(rnd_dl) >= 3 and all(2.0 <= x <= 5.6 for x in rnd_dl), sorted(rnd_dl))
+
+# brak bezpiecznego kierunku -> pauza (R3b wyżej) i walka przerywa pauzę
+_rnd.seed(1)
+s = Swiat(TEREN, P, (100, 95), {"A": [108, 95], "B": [95, 95]})
+fa = idzie("A", [pts[(pts.index((108, 95)) + i) % len(pts)] for i in range(300)], 0.5)
+fb = idzie("B", [pts[(pts.index((95, 95)) - i) % len(pts)] for i in range(300)], 0.5)
+s.bieg(3.2, razem(fa, fb))
+sprawdz("P1 brak bezpiecznego kierunku: pauza trwa, bot stoi / zszedł z trasy (nie idzie obok graczy dalej)", s.u.mij_pauza is not None or pauzy(s, "brak"), pauzy(s))
+s.w_walce = True; s.krok()
+sprawdz("P2 walka w trakcie pauzy: pauza zdjęta (zachowanie w walce bez zmian)", s.u.mij_pauza is None, s.u.mij_pauza)
+
+# POLUJĄCY: stoi, mob tuż obok niego = zaraz ruszy; bez skrótu w jego stronę
+def oboz_s(moby, konf=None, T=12.0):
+    _rnd.seed(1)
+    s = Swiat(TEREN, P, (95, 95), {"O": [110, 95]}, konf=konf)
+    s.moby = moby
+    s.bieg(T)
+    return s
+s0 = oboz_s([])
+s1 = oboz_s([(111, 97)])
+s2 = oboz_s([(111, 97)], dict(MIJANIE_POLUJACY_R=0))
+sprawdz("L0 (kontrola) zwykły obozowicz: decyzja powód oboz", typy(s0, "mijanie_kierunek"), s0.zd[:2])
+alt = lambda x: (typy(x, "mijanie_kierunek") or [{}])[0].get("alternatywa")
+sprawdz("L1 obozowicz z mobem w 2 polach = polujący: skrót obok niego nawet nie rozważany (alternatywa None), brak marszu w jego stronę, nigdy bliżej niż 3 pola",
+        alt(s0) is not None and alt(s1) is None and "marsz" not in s1.akcje and s1.min_odl >= 3, (alt(s0), alt(s1), s1.akcje[:4], s1.min_odl))
+sprawdz("L2 MIJANIE_POLUJACY_R=0: stare zachowanie (skrót rozważany jak przy zwykłym obozowiczu)", alt(s2) == alt(s0) and s2.akcje == s0.akcje, (alt(s2), alt(s0)))
+
+# regresja: zwykłe mijanie z naprzeciwka (M4) i przechodzień z boku bez zmian przy domyślnych pokrętłach 22.10
+_rnd.seed(1)
+s = Swiat(TEREN, P, (95, 95), {"Z": [125, 96]})
+s.bieg(45, idzie("Z", [(x, 96) for x in range(125, 85, -1)], 0.5))
+sprawdz("G1 zwykłe mijanie z naprzeciwka: bez pauz, bez odwróceń, mijamy się (min <= 2) i idziemy dalej", not pauzy(s) and s.odwroty == 0 and s.min_odl <= 2
+        and s.trasa[-1][1][0] > s.trasa[0][1][0], (pauzy(s), s.odwroty, s.min_odl))
+
 # pokrętła
 import pokretla as _pk
 MIJ = [k for k in _pk.ZAKRESY if k.startswith("MIJANIE")]

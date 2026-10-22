@@ -1,0 +1,49 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "depo Thais (z7), wygenerowane z mapy 22.10 (jedno wspólne dojście z drogi przez most)"
+  },
+  {
+   "idx": 356,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura (32548, 32076) z7 -> z6; MOST Thais: rampa z7 w górę na pomost z6 (32549..32553); lądowanie NIEZMIERZONE w grze (założenie jak schody 210/210)"
+  },
+  {
+   "idx": 357,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z6 (32549, 32076)"
+  },
+  {
+   "idx": 362,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura (32554, 32076) z6 -> z7; MOST Thais: rampa z pomostu w dół na z7; lądowanie NIEZMIERZONE w grze"
+  },
+  {
+   "idx": 363,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z7 (32555, 32076)"
+  },
+  {
+   "idx": 593,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura (32663, 31962) z7 -> z8; dziura z7: może być ZASYPANA (wtedy ŁOPATA; do pietra.ZASYPANE dopiszesz po dowodzie z gry); powrót LINĄ"
+  },
+  {
+   "idx": 594,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z8 (32663, 31962)"
+  },
+  {
+   "idx": 662,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura (32648, 32003) z8 -> z9; schody z8 <-> z9 w rozwidleniu"
+  },
+  {
+   "idx": 663,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z9 (32648, 32004)"
+  }
+ ]
+}

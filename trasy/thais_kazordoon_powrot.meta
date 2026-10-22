@@ -1,0 +1,114 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "depo Kazordoon (z11), DO POTWIERDZENIA w grze"
+  },
+  {
+   "idx": 49,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32613, 31925) z11 -> z10"
+  },
+  {
+   "idx": 50,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z10 (32613, 31924)"
+  },
+  {
+   "idx": 62,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32605, 31920) z10 -> z9"
+  },
+  {
+   "idx": 63,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z9 (32605, 31921)"
+  },
+  {
+   "idx": 71,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32613, 31921) z9 -> z8"
+  },
+  {
+   "idx": 72,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z8 (32613, 31922)"
+  },
+  {
+   "idx": 85,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32603, 31925) z8 -> z7"
+  },
+  {
+   "idx": 86,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z7 (32603, 31924)"
+  },
+  {
+   "idx": 88,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32602, 31923) z7 -> z6"
+  },
+  {
+   "idx": 89,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z6 (32602, 31922)"
+  },
+  {
+   "idx": 102,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32613, 31919) z6 -> z7; dziura w dół (w drugą stronę potrzeba liny)"
+  },
+  {
+   "idx": 103,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z7 (32613, 31919)"
+  },
+  {
+   "idx": 169,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32609, 31963) z7 -> z6"
+  },
+  {
+   "idx": 170,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z6 (32610, 31964)"
+  },
+  {
+   "idx": 196,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32624, 31974) z6 -> z7"
+  },
+  {
+   "idx": 197,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z7 (32625, 31974)"
+  },
+  {
+   "idx": 366,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32554, 32076) z7 -> z6; MOST Thais od wschodu: rampa z7 w górę na pomost z6; lądowanie NIEZMIERZONE"
+  },
+  {
+   "idx": 367,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z6 (32553, 32076)"
+  },
+  {
+   "idx": 372,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32548, 32076) z6 -> z7; MOST Thais od wschodu: rampa z pomostu w dół (Thais); lądowanie NIEZMIERZONE"
+  },
+  {
+   "idx": 373,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z7 (32547, 32076)"
+  },
+  {
+   "idx": 729,
+   "typ": "koniec",
+   "komentarz": "depo Thais (z7), pole przybycia wyprawy"
+  }
+ ]
+}

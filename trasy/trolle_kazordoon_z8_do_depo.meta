@@ -1,0 +1,44 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "rozwidlenie z8 (koniec dojścia, start pętli)"
+  },
+  {
+   "idx": 66,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "lina (32663, 31962) z8 -> z7; LINA na (32663,31962,z8): stoimy obok (pole liny wolne), lądowanie (x, y+1) na z7"
+  },
+  {
+   "idx": 67,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z7 (32663, 31963)"
+  },
+  {
+   "idx": 298,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura (32554, 32076) z7 -> z6"
+  },
+  {
+   "idx": 299,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z6 (32553, 32076)"
+  },
+  {
+   "idx": 304,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura (32548, 32076) z6 -> z7"
+  },
+  {
+   "idx": 305,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z7 (32547, 32076)"
+  },
+  {
+   "idx": 661,
+   "typ": "koniec",
+   "komentarz": "depo Thais (z7), pole przybycia wyprawy"
+  }
+ ]
+}

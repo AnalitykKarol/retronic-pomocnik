@@ -6,7 +6,8 @@
   "edron": {"x": [32900, 33400], "y": [31500, 32100]},
   "thais": {"x": [32200, 32700], "y": [32000, 32450]},
   "rook": {"x": [31900, 32160], "y": [32050, 32300]},
-  "port_hope": {"x": [32550, 32900], "y": [32600, 32900]}
+  "port_hope": {"x": [32550, 32900], "y": [32600, 32900]},
+  "kazordoon": {"x": [32550, 32700], "y": [31850, 31999]}
  },
  "spoty": {
   "trolle_edron": {"miasto": "edron", "jaskinia": "edron_trolle_z8", "poziom": [8, 30], "poziom_zrodlo": "karol", "waga": 0.5, "auto": true, "powod": "Troll, Bear, Swamp Troll, Frost Troll: mieszane moby, stąd 10+"},
@@ -21,6 +22,7 @@
   "trolle_pelny": {"miasto": "thais", "jaskinia": "thais_trolle_wschod", "poziom": [8, 30], "poziom_zrodlo": "karol", "waga": 0.25, "auto": true, "powod": "Troll; jedna jaskinia z wariantami (wagi sumują się do 1); łopata wyliczana z pietra.ZASYPANE"},
   "trolle_nowe": {"miasto": "thais", "jaskinia": "thais_trolle_wschod", "poziom": [8, 30], "poziom_zrodlo": "karol", "waga": 0.25, "auto": true, "powod": "Troll + Orc; jedna jaskinia z wariantami (wagi sumują się do 1); łopata wyliczana z pietra.ZASYPANE"},
   "trolle_patrol": {"miasto": "thais", "jaskinia": "thais_trolle_wschod", "poziom": [8, 30], "poziom_zrodlo": "karol", "waga": 0.25, "auto": true, "powod": "patrol, Troll + Orc; jedna jaskinia z wariantami (wagi sumują się do 1); łopata wyliczana z pietra.ZASYPANE"},
+  "stoj_runy_thais": {"miasto": "thais", "poziom": [11, 999], "poziom_zrodlo": "karol", "waga": 1.0, "auto": false, "powod": "nie poluje: stoi i robi runy (SPEC_stoj_runy_1022); Karol uruchamia ręcznie (uh,stoj; runy,stoj poniżej lvl 11), nadzorca nie wybiera"},
   "wilki": {"miasto": "thais", "jaskinia": "thais_wilki", "poziom": [5, 15], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": false, "powod": "bez dojścia z depo (pętla na powierzchni, niesprawdzone): włączyć po teście z depo"},
   "thais_pn_z8": {"miasto": "thais", "jaskinia": "thais_pn", "poziom": [8, 30], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": true, "powod": "Troll + Rat, Spider, Bug; dojście przez zasypaną dziurę, łopata wyliczana"},
   "thais_pn_z9": {"miasto": "thais", "jaskinia": "thais_pn", "poziom": [8, 30], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": false, "powod": "bez dojścia (zejście z z8 nieznane): postać musi stać na z9"},
@@ -34,6 +36,8 @@
   "rook_bugi_z8": {"miasto": "rook", "jaskinia": "rook_bugi_z8", "poziom": [1, 10], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": false, "powod": "bez dojścia: wejście ręczne schodami z7"},
   "rook_bugi_z10": {"miasto": "rook", "jaskinia": "rook_bugi_z10", "poziom": [1, 10], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": true, "powod": "przejścia z mapy, niezweryfikowane botem"},
   "rook_cave_raty_z9_glab": {"miasto": "rook", "jaskinia": "rook_raty_z9_glab", "poziom": [1, 12], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": false, "powod": "bez ucieczki (prog_hp -100) i bez wyjścia z obszaru"},
-  "ph_raty_z8": {"miasto": "port_hope", "jaskinia": "port_hope_z8", "poziom": [5, 15], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": true, "powod": "niszowy (pod runy); Wasp i Snake trują; wejście z mapy, niezweryfikowane; Port Hope nie ma planu serwisu"}
+  "ph_raty_z8": {"miasto": "port_hope", "jaskinia": "port_hope_z8", "poziom": [5, 15], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": true, "powod": "niszowy (pod runy); Wasp i Snake trują; wejście z mapy, niezweryfikowane; Port Hope nie ma planu serwisu"},
+  "trolle_kazordoon_z8": {"miasto": "thais", "jaskinia": "kazordoon_trolle_z8", "poziom": [8, 30], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": false, "powod": "Troll z8 pod Kazordoonem, baza = Thais (22.10, korekta Karola): dojście z depo Thais drogą przez most Thais i powierzchnię z7, bez miasta Kazordoon i bez grobli z dwarfami; powrót liną do depo Thais (serwis Thais). Spot ręcznie (auto:false) do czasu: potwierdzenia lądowania rampy mostu i typów przejść w grze, poziomu od Karola; wymaga liny (powrót) i światła, możliwa łopata (dziura z7 mogła zostać zasypana); niesprawdzone na żywo"},
+  "trolle_kazordoon_z9": {"miasto": "thais", "jaskinia": "kazordoon_trolle_z9", "poziom": [8, 30], "poziom_zrodlo": "domyslne", "waga": 1.0, "auto": false, "powod": "Troll z9 pod Kazordoonem, baza = Thais (22.10, korekta Karola): dojście z depo Thais drogą przez most Thais i powierzchnię z7, bez miasta Kazordoon i bez grobli z dwarfami; powrót liną do depo Thais (serwis Thais). Spot ręcznie (auto:false) do czasu: potwierdzenia lądowania rampy mostu i typów przejść w grze, poziomu od Karola; wymaga liny (powrót) i światła, możliwa łopata (dziura z7 mogła zostać zasypana); niesprawdzone na żywo"}
  }
 }

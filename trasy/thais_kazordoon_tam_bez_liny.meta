@@ -1,0 +1,114 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "depo Thais (z7), wariant bez liny (obejście góry od północy)"
+  },
+  {
+   "idx": 356,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32548, 32076) z7 -> z6; MOST Thais: rampa z7 w górę na pomost z6 (32549..32553); lądowanie NIEZMIERZONE w grze"
+  },
+  {
+   "idx": 357,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z6 (32549, 32076)"
+  },
+  {
+   "idx": 362,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32554, 32076) z6 -> z7; MOST Thais: rampa z pomostu w dół na z7; lądowanie NIEZMIERZONE w grze"
+  },
+  {
+   "idx": 363,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z7 (32555, 32076)"
+  },
+  {
+   "idx": 518,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32614, 31976) z7 -> z6; przełęcz z6 nad skałą przed Kazordoonem (jak 'most' w generuj_trasy_kazordoon_trolle.py)"
+  },
+  {
+   "idx": 519,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z6 (32614, 31975)"
+  },
+  {
+   "idx": 542,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32609, 31963) z6 -> z7"
+  },
+  {
+   "idx": 543,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z7 (32608, 31963)"
+  },
+  {
+   "idx": 784,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32556, 31923) z7 -> z6"
+  },
+  {
+   "idx": 785,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z6 (32557, 31924)"
+  },
+  {
+   "idx": 811,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32567, 31940) z6 -> z7"
+  },
+  {
+   "idx": 812,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z7 (32567, 31940)"
+  },
+  {
+   "idx": 870,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32588, 31908) z7 -> z8"
+  },
+  {
+   "idx": 871,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z8 (32588, 31908)"
+  },
+  {
+   "idx": 923,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32613, 31921) z8 -> z9"
+  },
+  {
+   "idx": 924,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z9 (32614, 31921)"
+  },
+  {
+   "idx": 936,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32605, 31920) z9 -> z10"
+  },
+  {
+   "idx": 937,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z10 (32604, 31920)"
+  },
+  {
+   "idx": 951,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura/rampa (32613, 31925) z10 -> z11"
+  },
+  {
+   "idx": 952,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z11 (32614, 31925)"
+  },
+  {
+   "idx": 1002,
+   "typ": "koniec",
+   "komentarz": "depo Kazordoon (z11), DO POTWIERDZENIA w grze"
+  }
+ ]
+}

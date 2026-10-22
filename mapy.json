@@ -119,6 +119,19 @@
     "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
     "prog_hp": 30
   },
+  "stoj_runy_thais": {
+    "opis": "Thais: stoi poza PZ na (32339,32221,7), je ham, robi runy (UH, a poniżej lvl 11 HMM) i obsługuje się przez serwis; ucieczka do PZ tylko przy ataku/wrogu/czaszce/niskim HP (22.10, SPEC_stoj_runy_1022 F1). PZ niezmierzone: cele ucieczki to pola depo.",
+    "trasa": "stoj_runy_thais",
+    "potwory": "Stanowisko Brak Celow",
+    "prog_hp": 50,
+    "stanowisko": {
+      "miasto": "thais",
+      "pola": [[32339, 32221, 7]],
+      "pz": [[32348, 32225, 7], [32343, 32226, 7], [32341, 32226, 7]],
+      "depo": [32348, 32225, 7],
+      "pz_zmierzone": false
+    }
+  },
   "gobliny_edron_z9": {
     "opis": "Edron jaskinia goblinów z9 (-2): pętla gobliny_edron_z9_petla; dojście z depo/powierzchni trasą z_depo + z8 do dziury (33092,31837) i zejście na z9 (19.10)",
     "trasa": "gobliny_edron_z9_petla",
@@ -183,5 +196,19 @@
     "prog_hp": 30,
     "dojscie": "trolle_edron_z9z_dojscie",
     "dojscie_z_dowolnego_pietra": true
+  },
+  "trolle_kazordoon_z8": {
+    "opis": "Kazordoon jaskinia trolli z8 (z8: 395 pól, 15 trolli w 7 spawnach): pętla trolle_kazordoon_z8_petla 191 pól z mapy klienta (generuj_trasy_kazordoon_trolle.py, 22.10), 7 przystanków; bez stref zakazanych. Dojście trolle_kazordoon_z8_dojscie = WSPÓLNY odcinek od depo Thais (32348,32225,z7) do rozwidlenia w z8 (32647,32003,z8) (662 pól, te same punkty co drugi spot, test testy/test_kazordoon_trolle.py) Po drodze (22.10, korekta Karola: z Thais, bez miasta Kazordoon i bez grobli z dwarfami): brama północna Thais (32367,32179,z7), droga na północ, MOST nad wodą (rampa (32548,32076,z7)->(32549,32076,z6), pomost z6 x 32549-32553, rampa (32554,32076,z6)->(32555,32076,z7); lądowanie rampy NIEZWERYFIKOWANE w grze), wschodni brzeg z7 (A* z preferencją szarej drogi, kolor 129), drzwi (32659,31966,z7), dziura (32663,31962,z7->z8), drzwi (32657,31965,z8); obok trasy snake (32662,31974) i trolle na z7 (jaskinia zaczyna się pod powierzchnią), wilki >= 10 pól - wymaga poziomu i defa. Powrót (trasy trolle_kazordoon_z8_do_depo / z9_do_depo, nie w mapy.json) do depo Thais (serwis Thais obsłuży spot) idzie liną: MUSI mieć rope (jedno przejście: z8->z7 w (32663,31961)->(32663,31963)), pole liny wolne, stoi się OBOK pola liny; dalej drzwi (32659,31966,z7), powierzchnia, most, brama, depo. Dziura (32663,31962,z7) mogła zostać zasypana: może trzeba łopaty (NIE w pietra.ZASYPANE bez dowodu z gry). Ciemna jaskinia: światło (spell/pochodnia). Depo Thais (32348,32225,z7) znane z serwisu Thais; typy przejść (schody/dziury) NIEZWERYFIKOWANE na żywo, brak wpisów w przejscia_nauczone.json. Znany ogień z buforem 1 traktowany jak ściana (zero punktów na ogniu). Trasa Thais -> miasto Kazordoon (thais_kazordoon_tam/_powrot) zostaje osobno, ten spot jej nie używa. Spot auto:false.",
+    "trasa": "trolle_kazordoon_z8_petla",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "trolle_kazordoon_z8_dojscie"
+  },
+  "trolle_kazordoon_z9": {
+    "opis": "Kazordoon jaskinia trolli z9 (z9: 900 pól w składowej, 1084 z potworami nie-trolle; 19 trolli w 9 spawnach): pętla trolle_kazordoon_z9_petla 207 pól z mapy klienta (generuj_trasy_kazordoon_trolle.py, 22.10), 9 przystanków; 4 strefy zakazane (promień 6) wokół minotaur archer (32656,31970), minotaur mage (32654,31970), rotworm (32660,31997), snake (32643,32025) - pętla ich nie dotyka, najbliższy inny potwór >= 10 pól. Dojście trolle_kazordoon_z9_dojscie = WSPÓLNY odcinek od depo Thais (32348,32225,z7) do rozwidlenia w z8 (32647,32003,z8) (662 pól, te same punkty co drugi spot, test testy/test_kazordoon_trolle.py) + schody z8 (32648,32003) i lądowanie (32648,32004,z9); powrót ze z9 najpierw schodami w górę (32648,32003,z9)->(32648,32004,z8). Po drodze (22.10, korekta Karola: z Thais, bez miasta Kazordoon i bez grobli z dwarfami): brama północna Thais (32367,32179,z7), droga na północ, MOST nad wodą (rampa (32548,32076,z7)->(32549,32076,z6), pomost z6 x 32549-32553, rampa (32554,32076,z6)->(32555,32076,z7); lądowanie rampy NIEZWERYFIKOWANE w grze), wschodni brzeg z7 (A* z preferencją szarej drogi, kolor 129), drzwi (32659,31966,z7), dziura (32663,31962,z7->z8), drzwi (32657,31965,z8); obok trasy snake (32662,31974) i trolle na z7 (jaskinia zaczyna się pod powierzchnią), wilki >= 10 pól - wymaga poziomu i defa. Powrót (trasy trolle_kazordoon_z8_do_depo / z9_do_depo, nie w mapy.json) do depo Thais (serwis Thais obsłuży spot) idzie liną: MUSI mieć rope (jedno przejście: z8->z7 w (32663,31961)->(32663,31963)), pole liny wolne, stoi się OBOK pola liny; dalej drzwi (32659,31966,z7), powierzchnia, most, brama, depo. Dziura (32663,31962,z7) mogła zostać zasypana: może trzeba łopaty (NIE w pietra.ZASYPANE bez dowodu z gry). Ciemna jaskinia: światło (spell/pochodnia). Depo Thais (32348,32225,z7) znane z serwisu Thais; typy przejść (schody/dziury) NIEZWERYFIKOWANE na żywo, brak wpisów w przejscia_nauczone.json. Znany ogień z buforem 1 traktowany jak ściana (zero punktów na ogniu). Trasa Thais -> miasto Kazordoon (thais_kazordoon_tam/_powrot) zostaje osobno, ten spot jej nie używa. Spot auto:false.",
+    "trasa": "trolle_kazordoon_z9_petla",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "trolle_kazordoon_z9_dojscie"
   }
 }
