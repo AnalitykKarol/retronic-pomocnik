@@ -57,7 +57,8 @@ Prowadzi każdą postać przez cykl:
 - **Blokady w kodzie, nie w promptcie:**
   - instancja z `STOP_RECZNY` i bez procesu bota (= Karol gra) jest pomijana w całości;
   - globalna pauza: plik `instancje/_wspolne/NADZOR_PAUZA`;
-  - wyłączenie jednej postaci: `"nadzor": false` w jej `profil.json`;
+  - wyłączenie jednej postaci: `"nadzor": false` w jej `profil.json` (bezterminowo) albo `"nadzor_do": "RRRR-MM-DD HH:MM"`
+    (do tej chwili, potem wraca sama; dodane 22.10, `grafik.poza_nadzorem`, test `test_pula_nadzor_do`);
   - poza grafikiem nadzorca niczego nie startuje.
 - Wszystko trafia do `instancje/_wspolne/logi/nadzor-RRRRMMDD.jsonl` (czas, instancja, akcja, wynik).
 - Stan zbiorczy dla Sonneta i paska: `instancje/_wspolne/nadzor_stan.json` (krótki: faza cyklu, zdrowie bota, ostatni alarm,

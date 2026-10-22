@@ -28,13 +28,16 @@ Zasady bota (start, naprawy, życie postaci): `CLAUDE.md` repo. Metoda map i jej
    Wpis `mapy.json` z kopią `.bak-<data>-<tag>`; porównaj z kopią — zmienione tylko Twoje klucze.
 6. **Zgoda**: pokaż Karolowi podgląd (ścieżki PNG, liczby) i komendę startu; postać, którą wyśle. Start dopiero po
    „puszczaj”/„tak” w tej sesji (postać z `STOP_RECZNY` = Karol gra; nie zabieraj postaci z expienia bez zgody).
-7. **Start i test na żywo**: przygotowanie postaci (z7, `wyprawa_stan.json`, łopata/lina), potem
+7. **Start i test na żywo**: przygotowanie postaci (z7 albo `dojscie_z_dowolnego_pietra`, `wyprawa_stan.json`, **ekwipunek z opisu
+   mapy: lina/łopata** — bez liny bot staje na przejściu w górę liną), potem
    `RETRONIC_ID=<id> RETRONIC_POSTAC=<nick> MAPA=<spot> TRYB=<dotychczasowy> ./uruchom.sh`.
    Dowód: `+ dojście` i `Dojście: trasa …` w logu. Monitor na log + pozycję **+ HP** do pierwszego `Cel … zabity` na spocie.
    **HP spada, gdy postać stoi w miejscu bez walki (np. na polu przejścia) = ogień → natychmiast `./zatrzymaj.sh`** i odejście
    z pola (zagrożenie życia — wyjątek od „naprawiaj, nie zatrzymuj”), potem poprawka trasy.
    Porażka przejścia → zatrzymaj, reguła z procedury, popraw generator, waliduj, start ponownie (ratunek z piętra:
    jeden klawisz do ekranu postaci z `bot.ekran_gry()`, nigdy `:1` w ciemno).
+   Monitor w dwóch fazach (procedura krok 7): dojście = przejścia + HP + 1. zabicie; na spocie = tylko problemy postaci
+   (bez zabić i bez „Troll ucieka”), HP < 50%.
 8. **Zapis**: `STAN.md` (przebieg z godzinami), nowe reguły do procedury/README/`CLAUDE.md`, kopie i testy pięter przy
    zmianie kodu. Raport dla Karola: co działa (z dowodem), co zostało otwarte. Bez commita, chyba że każe.
 

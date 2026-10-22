@@ -55,6 +55,13 @@ różnica tylko w komentarzach, łopata zostaje).
 i jest zgodne z `narzedzia/przejscia_pieter.py`; (4) testy jednostkowe reguły kierunku na innych piętrach niż z7;
 (5) tryb sabotażu bramki sprawdza, że czerwienieją dokładnie zabotowane generatory; (6) `spawny(nazwy)` odrzuca gołego stringa.
 
+**Uwaga po F0 (21.10 ~17:35):** `generuj_trasy_edron_wschod.py` zmieniony CELOWO (ogień: wejście (33119,31740), `ogien_pola`) i
+`spot_lib.zejscia` (reguła przeszkody `przeszkoda_na_podlodze`, parametr `ogien`) — bramka `test_spot_lib_regresja.py` na
+edron_wschod będzie czerwona względem zamrożonej kopii. Przed F1: odświeżyć bazę (`testy/dane_f0_baza/`) do stanu po poprawce
+ognia albo zastąpić bramkę F0 testami F1. **F1 musi**: omijać znany ogień (`trasy/ogien_*.json`, bufor 1) w każdej pętli
+i dojściu, odrzucać przeszkody w kolorze podłogi poza z7, wpisywać wymagany ekwipunek (lina/łopata) do `opis` i do raportu
+(z przejść dojścia: tryb `lina`/`lopata` z pamięci przejść albo meta trasy).
+
 **F1 — `generuj_spot.py` + deklaracje.** Pętla jednego piętra, strefy zakazane, dojście z **najbliższego** znanego depo
 (Q2: Thais (32348,32225,7), Edron — zweryfikowane trasami; „najbliższe” = najkrótsza droga A* łącznie z przejściami, nie linia
 prosta) przez łańcuch przejść W DÓŁ wybranych automatycznie (najpierw ≥ `min_odl` od zakazanych, potem najkrótsze), dojście
