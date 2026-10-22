@@ -179,6 +179,60 @@ def proby_trzy_sposoby(poz, pola, z_do, lina=True, plik=None):
     return lista
 
 
+def powtorz_line(lista, ile=2):
+    """22.10 (dawajkesh, z11 (33147,31824) -> z10, 13:54): w trybie trzech sposobów lina jest w liście JEDEN raz (bez duplikatów),
+    a pozostałe sposoby (Use na własnym polu, krok i Use na polu liny) liny nie zastąpią. Jedna nieudana próba liny (zwłoki lub rzecz
+    na polu liny, kliknięcie w trakcie kroku, lag) kończyła się więc ALARMEM i STOP. Po pierwszej próbie liny na danym polu dokładamy
+    jeszcze `ile` kolejnych (z korektą: zejście na pole ortogonalne, zdjęcie rzeczy z pola; `_lina_powtorka`)."""
+    wynik, dodane = [], set()
+    for t, q in lista:
+        wynik.append((t, q))
+        if t == "lina" and q not in dodane:
+            dodane.add(q)
+            wynik.extend([("lina", q)] * int(ile))
+    return wynik
+
+
+def _lina_powtorka(w, poz, cel):
+    """Korekta przed KOLEJNĄ próbą liny na polu `cel` (poprzednia nie zmieniła piętra), zwraca pozycję do użycia.
+    1) Zejście na pole ortogonalne względem pola liny (jeden krok z `poz`; 18:07 21.10 lina zadziałała dopiero z (33147,31823),
+       nie ze skosu (33146,31823)): pierwsze wolne, przechodnie, bez flag przejścia/ściany; brak = zostajemy.
+    2) Zdjęcie rzeczy z pola liny pod siebie (`ops.zdejmij_z_pola`, jak wpadniecie 22.10): zwłoki/przedmiot blokują linę. Błąd tu
+       nie przerywa próby."""
+    cb = w.cb
+    poz = tuple(poz)
+    if poz[0] != cel[0] and poz[1] != cel[1] and cheb(poz, cel) == 1:
+        mapa = getattr(cb, "mapa", None)
+        zaj = w._zajete_pola(poz)
+        for kx, ky in ((cel[0], cel[1] - 1), (cel[0] - 1, cel[1]), (cel[0] + 1, cel[1]), (cel[0], cel[1] + 1)):
+            if abs(kx - poz[0]) + abs(ky - poz[1]) != 1 or (kx, ky) in zaj:
+                continue
+            f = _flaga(mapa, (kx, ky, poz[2])) if mapa is not None else 1
+            if f & (4 | 2) or not f & 1:
+                continue
+            kier = ("Right" if kx > poz[0] else "Left") if kx != poz[0] else ("Down" if ky > poz[1] else "Up")
+            w.log(f"Wypad: lina powtórka, schodzę {kier} na pole obok liny {(kx, ky)} (ze skosu liny nie wzięło)")
+            try:
+                cb.postac.krok(kier)
+            except bot.Zatrzymano:
+                raise
+            except Exception:
+                break
+            cb.pauza(0.3, 0.5)
+            poz = tuple(cb.postac.pozycja())
+            break
+    zdejmij = getattr(w.ops, "zdejmij_z_pola", None)
+    if callable(zdejmij):
+        try:
+            zdejmij(cel, poz)
+            cb.spij(0.5)
+        except bot.Zatrzymano:
+            raise
+        except Exception as ex:                       # noqa: BLE001
+            w.log(f"Wypad: nie zdjąłem rzeczy z pola liny ({ex!r})")
+    return poz
+
+
 # --- budowa planu -------------------------------------------------------------
 
 def _flaga(mapa, q):
@@ -622,6 +676,16 @@ class OperacjeZywe:
             mysz.klik(xy[0], xy[1], 1, "Control_L", drganie=3)
             time.sleep(0.45)
             mysz.klik(*ekran.pole_na_ekran(dx, dy, ekran.aktualny_prostokat(mysz.ekran)), 1, None, drganie=2)
+
+    def zdejmij_z_pola(self, pole, poz):
+        """Przeciąga wierzch pola `pole` (obok `poz`) pod nas: zwłoki/rzecz na polu liny blokują linę (22.10, jak wpadniecie).
+        Puste pole: przeciągnięcie nic nie robi."""
+        dx, dy = pole[0] - poz[0], pole[1] - poz[1]
+        if (dx, dy) == (0, 0) or abs(dx) > 1 or abs(dy) > 1:
+            return
+        import ekran  # noqa: PLC0415
+        with ekran.Mysz() as mysz:
+            mysz.przeciagnij_pola(dx, dy, 0, 0)
 
     def uzyj_lopate(self, cel, poz):
         """Ctrl+klik na łopacie w plecaku (Use with), potem klik na polu `cel` (zasypana dziura) albo własnym."""
@@ -1767,7 +1831,7 @@ class Wypad:
                 for q in (tuple(e["stoi"]), (lad[0], lad[1], poz[2]), tuple(e["cel"])):
                     if q not in pola and cheb(poz, q) <= 1:
                         pola.append(q)
-                e["trzy_lista"] = proby_trzy_sposoby(poz, pola, lad[2]) or self._proby_drabiny(poz, e["cel"], e)
+                e["trzy_lista"] = powtorz_line(proby_trzy_sposoby(poz, pola, lad[2]) or self._proby_drabiny(poz, e["cel"], e))
             proby = e["trzy_lista"]
             while n < len(proby) - 1 and proby[n][0] == "lina" and e.get("bez_liny"):
                 n += 1                       # brak liny w tym etapie: następne próby liny pomijamy
@@ -1795,6 +1859,8 @@ class Wypad:
                 cel_l = pole if trzy else e["cel"]
                 if tuple(cel_l[:2]) == tuple(poz[:2]):
                     poz = self._zejdz_z_pola(poz)       # 21.10: z własnego pola liny jej nie użyjemy (dawajkesh z9 -> z8, 6 prób w miejscu)
+                elif trzy and any(t == "lina" and q == pole for t, q in proby[:n]):
+                    poz = _lina_powtorka(self, poz, cel_l)      # 22.10: kolejna próba liny na tym polu: korekta przed Use
                 self.ops.uzyj_line(cel_l, poz)
             else:
                 self.ops.uzyj_pole(pole, poz)

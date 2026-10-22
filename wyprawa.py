@@ -66,6 +66,12 @@ PLANY_PK = (
     # lina w górę pod dziurą z8 (33092,31837) (mapa: "pewne"); z8 dalej A* do nagranej trasy "do" (start (33106,31849,z8))
     {"nazwa": "gobliny_edron", "do": "gobliny_edron_do_depo.json", "z": "gobliny_edron_z_depo.json", "npc": None, "prefix": False,
      "wyjscia": (((33092, 31837, 9), (33092, 31838, 8), "gobliny_edron_do_depo.json"),)},
+    # 22.10: Thais północ, jaskinia trolli z8 (thais_pn_z8) — powrót do depo odwróconym dojściem (generuj_powrot_thais_pn.py):
+    # z8 -> pole stania (32347,32124,z8) obok pola liny/drabiny (32347,32123,z8), przejście w górę, lądowanie (32347,32124,z7), z7 do depo.
+    # WYŁĄCZONY od 21.10 (zgon kutangena w dziurze (32356,32122,z8)); przejście w górę NIEPRZETESTOWANE na żywo: włączyć dopiero po teście
+    # jedną postacią (dane_tibia/ruch/DIAGNOZA_kutangen_zgon_dziura_thais_pn_1021.md). Test: testy/test_powrot_thais_pn.py
+    {"nazwa": "thais_pn", "do": "thais_pn_z8_do_depo.json", "z": "thais_pn_z8_dojscie.json", "npc": None, "prefix": False,
+     "wyjscia": (((32347, 32123, 8), (32347, 32124, 7), "thais_pn_z8_do_depo.json", ((32347, 32124, 8),)),)},
     # 21.10: Rookgaard — powrót do miasta przez drabiny/schody (SPEC_powrot_rook_1020). Trasy odwrócone z dojść.
     # Cel: (32061,32180,7) Al Dee, STOP. "z" = nagrane dojście (miasto->spot) na wypadek powrotu po PK.
     # NIEZWERYFIKOWANE botem: przejście w górę (drabina/schody z8->z7 itd.) — ryzyko zapisane w specu.
@@ -126,7 +132,7 @@ DOMYSLNE = {                                             # gdy konf (cavebot) ni
     "WYPRAWA_JEDZ_NA_MIEJSCU": 1, "WYPRAWA_JEDZ_MAKS": 12, "WYPRAWA_BLANKI": 0, "WYPRAWA_BLANKI_PROG": 2,
     "WYPRAWA_BLANKI_MAX_KOSZT": 500, "WYPRAWA_POCHODNIE": 1, "WYPRAWA_CAP_REZERWA": 8, "WYPRAWA_ZLOTO_MIN": 30,
     "WYPRAWA_MIN_HP": 70, "WYPRAWA_CO_MIN": 20, "WYPRAWA_MAX_CZAS_S": 1800, "WYPRAWA_MAX_KROKOW": 6000,
-    "WYPRAWA_STOP_PRZY_UTKNIECIU": 1, "WYPRAWA_CZEKAJ_NA_GLOD": 0, "WYPRAWA_JEDZENIE": 1, "GLOD_ZAPAS_WAZNY_S": 120, "WYPRAWA_WZNOW_WALIDUJ": 1, "WYPRAWA_DEPO_W_WALCE": 1, "WYPRAWA_DEPO_ZLOZ": 0, "WYPRAWA_DOJSCIE_PATROLEM": 1, "WYPRAWA_TYLKO_DEPO": 0, "WYPRAWA_DEPO_POWROT": 0, "WYPRAWA_DEPO_POSTOJ_S": 0, "WYPRAWA_DEPO_BLANKI": 1, "WYPRAWA_PO_DEPO_S": 900, "WYPRAWA_PO_DOJSCIU_S": 300, "BLANKI_AUTO_BAG": 1, "BLANKI_AUTO_BAG_MIN": 10, "JEDZENIE_ZAPAS_MIN": 5, "WYPAD_ILE_TORCHY": 5,
+    "WYPRAWA_STOP_PRZY_UTKNIECIU": 1, "WYPRAWA_ROTACJA_NAPRAW": 3, "WYPRAWA_CZEKAJ_NA_GLOD": 0, "WYPRAWA_JEDZENIE": 1, "GLOD_ZAPAS_WAZNY_S": 120, "WYPRAWA_WZNOW_WALIDUJ": 1, "WYPRAWA_DEPO_W_WALCE": 1, "WYPRAWA_DEPO_ZLOZ": 0, "WYPRAWA_DOJSCIE_PATROLEM": 1, "WYPRAWA_TYLKO_DEPO": 0, "WYPRAWA_DEPO_POWROT": 0, "WYPRAWA_DEPO_POSTOJ_S": 0, "WYPRAWA_DEPO_BLANKI": 1, "WYPRAWA_PO_DEPO_S": 900, "WYPRAWA_PO_DOJSCIU_S": 300, "BLANKI_AUTO_BAG": 1, "BLANKI_AUTO_BAG_MIN": 10, "JEDZENIE_ZAPAS_MIN": 5, "WYPAD_ILE_TORCHY": 5,
 }
 
 POTWIERDZ = 2                  # kolejne odczyty z warunkiem = start
@@ -957,6 +963,8 @@ class Wyprawa(Wypad):
         if moby:
             return "moby"
         ja = getattr(getattr(cb, "postac", None), "nazwa", None)
+        if getattr(cb, "stanowisko", None) is not None:
+            return None                                # 22.10 stoj w mieście: obcy gracze są zawsze w pobliżu, nie blokują serwisu
         for s in lista or []:
             if s.get("gracz") and s.get("nazwa") != ja and s.get("z") == poz[2] and s.get("hp", 100) > 0 \
                     and cheb((s["x"], s["y"]), poz) <= 14:
@@ -1645,6 +1653,13 @@ class Wyprawa(Wypad):
 
     def _start_wyprawa(self, powod, dane, teraz, baza_nazwa=None, pk=None):
         cb = self.cb
+        st = getattr(cb, "stanowisko", None)
+        if st is not None:                             # 22.10 tryb stoj: serwis (marsz do depo i refill) robi stanowisko.py, nie plan wyprawy
+            self.glod_potw_do = float("-inf")
+            if st.zlec_serwis(powod, dane, teraz):
+                return True
+            self._odloz(teraz, "stanowisko: serwis trwa albo odroczony", 120.0)
+            return False
         self.glod_potw_do = float("-inf")
         poz = tuple(cb.postac.pozycja())
         depo_spota = bool(dane.get("depo"))      # 16.10: depo każdego spotu ma swój plan (Edron: PLANY_PK), nie tylko ucieczka PK
@@ -2378,8 +2393,106 @@ class Wyprawa(Wypad):
             pass
         return True
 
+    # --- rotacja napraw zamiast STOP (22.10, Karol: „naprawiaj, nie zatrzymuj”; dawajkesh z11 -> z10) ---
+
+    _rot = None                    # {"klucz": (faza, ei), "n": kolejna seria nieudanych prób tego przejścia}
+    _rot_alarm = float("-inf")     # kiedy ostatnio poszedł alarm „rotacja wyczerpana” (bez STOP)
+
+    def _rot_odejdz(self, poz, etap, ile):
+        """Odejście o `ile` pól na INNE wolne pole (nie pole przejścia ani lądowania, nie zajęte, przechodnie wg mapy)."""
+        cb = self.cb
+        poz = tuple(poz)
+        mapa = getattr(cb, "mapa", None)
+        zakaz = {tuple(etap[k][:2]) for k in ("cel", "ladunek", "dziura") if etap.get(k)}
+        for _ in range(ile):
+            zaj = self._zajete_pola(poz)
+            kand = []
+            for kier, dx, dy in (("Up", 0, -1), ("Left", -1, 0), ("Right", 1, 0), ("Down", 0, 1)):
+                q = (poz[0] + dx, poz[1] + dy)
+                if q in zaj or q in zakaz:
+                    continue
+                f = wypad._flaga(mapa, (q[0], q[1], poz[2])) if mapa is not None else 1
+                if f & (4 | 2) or not f & 1:
+                    continue
+                kand.append((kier, q))
+            if not kand:
+                break
+            kier, q = random.choice(kand)
+            self.log(f"Wyprawa: rotacja napraw, odchodzę {kier} na pole {q} (inne pole, potem ponowię przejście)")
+            try:
+                cb.postac.krok(kier)
+            except bot.Zatrzymano:
+                raise
+            except Exception:
+                break
+            cb.pauza(0.3, 0.5)
+            poz = tuple(cb.postac.pozycja())
+        return poz
+
+    def _rotacja_naprawy(self, typ, opis, etap):
+        """Nieudane przejście (LINA/DZIURA/DRZWI) w wyprawie do depo: zamiast ALARM + STOP kolejne naprawy.
+        1) odejście na inne pole i ponowienie, 2) zdjęcie rzeczy z pola liny (+ zejście ze skosu) i ponowienie,
+        3) odejście o 2 pola, lista sposobów przebudowana od zera (pamięć przejść), ponowienie,
+        4) po wyczerpaniu: sam alarm (bez STOP) i powrót na spot (faza "do": wracamy bez depo, następna wyprawa po
+        WYPRAWA_CO_MIN) albo ponawianie co AWARIA_PO_S w fazie powrotnej. Zagrożenie życia (PK, zgon) tej ścieżki nie dotyczy."""
+        cb = self.cb
+        teraz = cb.zegar()
+        poz = tuple(cb.postac.pozycja())
+        klucz = (self.faza, self.ei)
+        if self._rot is None or self._rot["klucz"] != klucz:
+            self._rot = {"klucz": klucz, "n": 0}
+        self._rot["n"] += 1
+        n = self._rot["n"]
+        limit = int(self._kw("WYPRAWA_ROTACJA_NAPRAW"))
+        self._blad(typ, opis=opis, rotacja=n)
+        self.dojscie = None
+        self.postep = None
+        self.utk = 0
+        self.pj = None
+        if n <= limit:
+            self.log(f"Wyprawa: rotacja napraw {n}/{limit} po '{typ}' ({opis}); STOP nie zapisuję")
+            self._powiadom("Wyprawa: naprawiam przejście", f"{typ}: {opis}. Próba naprawy {n}/{limit}, bot nie staje.",
+                           "normal", "wyprawa_rotacja")
+            if n == 2 and etap["typ"] == "LINA" and cheb(poz, etap["cel"]) == 1 and poz[2] == etap["cel"][2]:
+                poz = wypad._lina_powtorka(self, poz, etap["cel"])
+            else:
+                poz = self._rot_odejdz(poz, etap, 2 if n >= 3 else 1)
+            etap["proby"] = 0
+            etap.pop("trzy_lista", None)
+            etap["nast"] = teraz + random.uniform(15.0, 40.0)
+            cb._wypad_reset_klik()
+            return True
+        if teraz - self._rot_alarm > 600:
+            self._rot_alarm = teraz
+            self._alarm_utknieciu(f"{typ}: {opis} (rotacja napraw wyczerpana, poz {poz}; bot nie staje, ponawia)", stop=False)
+        self.log(f"Wyprawa: rotacja napraw wyczerpana ({typ}); bez STOP")
+        if self.faza in ("do", "sklep"):
+            # wracamy na łowisko (faza "z" po planie powrotnym); koniec powrotu = zwykły _koniec, następna wyprawa po
+            # WYPRAWA_CO_MIN. Gdy plan powrotny nie obejmuje tego piętra (resync nie wychodzi): zostajemy i ponawiamy, bez STOP.
+            stare = (self.faza, self.etapy, self.ei, self.pi, self.wynik)
+            try:
+                powrot = self._plan()[1]
+            except Exception:
+                powrot = None
+            if powrot:
+                self.faza, self.etapy, self.sklep, self.wynik = "z", powrot, None, "porazka_sklepu"
+                if self._resync_globalny(poz):
+                    self._rot = None
+                    self.log("Wyprawa: rotacja napraw wyczerpana, wracam na spot; wyprawę ponowię po przerwie")
+                    self.postep = None
+                    self.utk = 0
+                    cb._wypad_reset_klik()
+                    return True
+                self.faza, self.etapy, self.ei, self.pi, self.wynik = stare
+        etap["proby"] = 0
+        etap["nast"] = teraz + wypad.AWARIA_PO_S              # faza powrotna: ponawiamy cały etap po przerwie
+        return True
+
     def _awaria(self, typ, opis, etap=None):
         if self._w_depo():
+            if etap is not None and etap.get("typ") in ("LINA", "DZIURA", "DRZWI") \
+                    and not ((self.w.get("potrzeby") or {}).get("pk")) and int(self._kw("WYPRAWA_ROTACJA_NAPRAW")) > 0:
+                return self._rotacja_naprawy(typ, opis, etap)
             self._blad(typ, opis=opis)
             return self._koniec("blad", f"{typ}: {opis}")
         return super()._awaria(typ, opis, etap)
