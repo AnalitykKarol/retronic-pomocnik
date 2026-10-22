@@ -1,0 +1,4 @@
+Odchyd (lvl 6), strazniczka retronic-odchyd.sock, 22.10 ~21:24-21:44.
+Blok gracza: doubles (f8) od 0xb599090: +0x00 hp,+0x08 max_hp,+0x10 cap,+0x18 max_cap,+0x20 exp,+0x28 level,+0x30 procent,+0x38 mana,+0x40 max_mana
++0x48 (0.0) +0x50 (0.0) +0x58 (0.0) = kandydaci ML, ML%, baseML (kolejnosc OTClient); +0x60=100.0 (soul?); +0x68=0; +0x70 = 1357..1462 zmienne (nie skill); +0x78=0; +0x80=8.0
+Skille: nie znaleziono. Zrzuty: zrzut_*.bin (okno base-0x1000..+0x400), full_{A..E}.npz (1.7GB kazdy, pamiec 0..4GB w kawalkach 4MB).
