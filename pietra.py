@@ -105,6 +105,24 @@ def _domysl_ok(mapa, pole, poz, promien, flaga_tu, flaga_nad):
     return not flaga_nad or bool(_flaga(mapa, pole[0], pole[1], pole[2] - 1) & flaga_nad)
 
 
+def _pola_z_trasy(mapa, srodek, a, b, poz, promien, z):
+    """22.10 (odchyd, rook_kanaly_z11_dojscie z7 -> z8): gdy ani flaga 2, ani pole nad/pod punktem `b` nie daje kandydata
+    (kratka w ścianie wg mapy: (32060,32172,z7) ma flagę 5, a kratka leży o pole bliżej `a`, w (32060,32173,z7)), kandydatem
+    jest chodliwe pole obok `srodek` na piętrze `z`, najbliższe `srodek` (czyli pole między punktami trasy), potem `a`.
+    Zwraca najwyżej 2 pola (x, y), tylko w zasięgu max(promien, 3) od gracza (albo od `a`)."""
+    ref = poz or a
+    wyn = []
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            x, y = srodek[0] + dx, srodek[1] + dy
+            f = _flaga(mapa, x, y, z)
+            if f & 4 or not f & 1 or cheb((x, y), ref) > max(promien, 3):
+                continue
+            wyn.append((x, y))
+    wyn.sort(key=lambda p: ((p[0] - srodek[0]) ** 2 + (p[1] - srodek[1]) ** 2, cheb(p, (a[0], a[1]))))
+    return wyn[:2]
+
+
 def kandydaci(mapa, a, b, poz=None, promien=0):
     """Pola, którymi da się przejść z `a` (stoimy tu, piętro a[2]) na punkt `b` (inne piętro).
     Lista słowników {"pole": (x, y, z) na piętrze a, "pewne": bool, "lad": (x, y, z) lądowanie}, najlepsze pierwsze.
@@ -134,6 +152,10 @@ def kandydaci(mapa, a, b, poz=None, promien=0):
         # kandydata bierzemy pole nad b jako domysł (tryby "pewne"=False zaczynają od "use", czyli ctrl+klik na kratkę)
         if not wyn and cheb((b[0], b[1]), poz or a) <= max(promien, 3) and not _flaga(mapa, b[0], b[1], z) & 4:
             dodaj(b[0], b[1], False, (b[0], b[1], z + 1))
+        # 22.10: pole nad b to ściana wg mapy (kratka przy depo Rook), a trasa skacze piętro = kratka jest obok: pola z trasy
+        if not wyn and mapa is not None:
+            for x, y in _pola_z_trasy(mapa, (b[0], b[1]), a, b, poz, promien, z):
+                dodaj(x, y, False, (x, y, z + 1))
     else:                                           # w górę: R z dziurą nad sobą, lądowanie (R.x, R.y+1, z-1)
         for dx in range(-3, 4):
             for dy in range(-3, 4):
@@ -151,6 +173,9 @@ def kandydaci(mapa, a, b, poz=None, promien=0):
             dodaj(b[0], b[1] - 1, False, (b[0], b[1], z - 1))   # konwencja wypad.py: R = (b.x, b.y-1) na piętrze a
         if not wyn and cheb((b[0], b[1] - 1), poz or a) <= max(promien, 3) and not _flaga(mapa, b[0], b[1] - 1, z) & 4:   # 15.10: jak w dół, nagrana trasa = dowód
             dodaj(b[0], b[1] - 1, False, (b[0], b[1], z - 1))
+        if not wyn and mapa is not None:                # 22.10: jak w dół, pola z trasy zamiast pustej listy
+            for x, y in _pola_z_trasy(mapa, (b[0], b[1] - 1), a, b, poz, promien, z):
+                dodaj(x, y, False, (x, y + 1, z - 1))
     return wyn[:3]
 
 
@@ -250,6 +275,10 @@ class Pietra:
         if teraz - st["od"] > self._k("PIETRA_MAX_S", 150.0):
             return self._porazka(f"limit czasu {self._k('PIETRA_MAX_S', 150.0):.0f} s", poz)
         if st["ki"] >= len(st["kand"]):
+            if not st["kand"]:                  # 22.10: pusta lista od początku to brak danych, nie wyczerpane próby; jasny komunikat
+                self.log(f"Przejście pięter BEZ kandydatów: z{z} {tuple(poz)} -> z{cel[2]} {tuple(cel)}: mapa nie zna dziury/liny "
+                         f"i żadne chodliwe pole obok punktu trasy nie pasuje; sprawdź punkty {st['a']} -> {tuple(cel)} w trasie")
+                return self._porazka("brak pola przejścia (mapa i trasa nie dają kandydata)", poz)
             return self._porazka("wyczerpane pola przejścia", poz)
         k = st["kand"][st["ki"]]
         T = k["pole"]
