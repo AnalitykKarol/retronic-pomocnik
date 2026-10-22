@@ -88,5 +88,5 @@ if [ -n "${REFILL_LOG_PRACY:-}" ]; then
   [ -n "$powod" ] || powod=$(grep -hv '^REFILL:' "$REFILL_LOG_PRACY" 2>/dev/null | grep . | tail -1)
 fi
 echo "REFILL: BLAD ${powod:-kod $kod}"
-notify-send "$TYTUL" "Błąd: ${powod:-kod $kod}"
+notify-send -u critical "$TYTUL" "Błąd: ${powod:-kod $kod}"
 exit "$kod"

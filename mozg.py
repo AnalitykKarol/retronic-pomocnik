@@ -58,6 +58,7 @@ import cavebot  # noqa: E402
 import czaszka  # noqa: E402
 import instancja  # noqa: E402
 import powiadom  # noqa: E402
+import wznow_start  # noqa: E402
 import slepota  # noqa: E402
 
 KATALOG = Path(__file__).resolve().parent
@@ -3989,6 +3990,38 @@ def main(argv):
     punkty = json.loads((bot.TRASY / f"{a.trasa}.json").read_text())
     potwory = [n.strip() for n in a.potwory.split(",") if n.strip()] if a.potwory else None
     postac = bot.Postac()
+    # 22.10 (Karol: po padzie komputera klienci wystartowali z rozwiniętą minimapą i bez otwartego plecaka, bot chodził bez lootu):
+    # kontrola okien po starcie (okna_start.py). Domyślnie sprawdza i powiadamia (notify-send critical), klika tylko przy
+    # RETRONIC_OKNA_NAPRAWA=1 / pliku OKNA_NAPRAWA; RETRONIC_OKNA_START=0 wyłącza. Nigdy nie przerywa startu.
+    try:
+        import okna_start  # noqa: PLC0415
+        okna_start.przy_starcie(log)
+    except bot.Zatrzymano:
+        raise
+    except Exception as e:      # noqa: BLE001
+        log(f"Okna po starcie: kontrola pominięta ({e!r})")
+    # 22.10 (Karol: „po restarcie kontynuuj od momentu, w którym jesteś”): przerwana wyprawa (depo/refill/WROC), której powód
+    # nadal zachodzi, jest wznawiana od BIEŻĄCEJ pozycji (wznow_start.sprobuj -> Wyprawa._wznow); bez dojścia na spot.
+    # Nie da się = nic się nie zmienia (niżej: na spocie bez dojścia, w połowie dojścia od najbliższego punktu, w mieście dojście).
+    cb = None
+    wznowiona = False
+    if wznow_start.WLACZONE:
+        try:
+            import wyprawa as _wyprawa  # noqa: PLC0415
+            if wznow_start.jest_kandydat(_wyprawa.PLIK_STANU):
+                cb = CavebotMozgu(postac, punkty, None, 10 ** 9, a.prog_hp, a.jedzenie, potwory, not a.ignoruj_graczy,
+                                  nazwa_trasy=nazwa_trasy, stop_przy_graczach=a.stop_przy_graczach)
+                wznowiona = wznow_start.sprobuj(getattr(cb, "wyprawa", None), log)
+                if not wznowiona:
+                    cb = None                       # stara ścieżka buduje cavebota po dojściu, jak dotąd
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:
+            log(f"Start: wznowienie przerwanej wyprawy pominięte ({e!r}), startuję jak dotąd.")
+            cb, wznowiona = None, False
+    if wznowiona:
+        log(f"Start: wyprawa wznowiona z bieżącej pozycji, pomijam dojście {a.dojscie or '-'} i sprawdzanie spotu.")
+        a.dojscie = None
     if a.dojscie and a.dojscie_jesli_z7:
         try:
             z_start = tuple(postac.pozycja())[2]
@@ -4009,7 +4042,7 @@ def main(argv):
             raise
         except Exception as e:
             log(f"Dojście: nie sprawdziłem odległości od trasy ({e!r}), idę dojściem.")
-    if LINA_SPRAWDZ and not sprawdz_line(a, punkty, log):
+    if LINA_SPRAWDZ and not wznowiona and not sprawdz_line(a, punkty, log):
         return
     if a.dojscie:
         dojscie = json.loads((bot.TRASY / f"{a.dojscie}.json").read_text())
@@ -4029,8 +4062,9 @@ def main(argv):
             log(f"Dojście nieukończone, ale postać stoi przy trasie {a.trasa}: zaczynam główną trasę (patrol).")
         else:
             log("Dojście zakończone, zaczynam główną trasę.")
-    cb = CavebotMozgu(postac, punkty, None, 10 ** 9, a.prog_hp, a.jedzenie, potwory, not a.ignoruj_graczy,
-                      nazwa_trasy=nazwa_trasy, stop_przy_graczach=a.stop_przy_graczach)
+    if cb is None:
+        cb = CavebotMozgu(postac, punkty, None, 10 ** 9, a.prog_hp, a.jedzenie, potwory, not a.ignoruj_graczy,
+                          nazwa_trasy=nazwa_trasy, stop_przy_graczach=a.stop_przy_graczach)
     if a.dojscie:           # P7a: karencja wyprawy po dojściu (pierwsza ocena najwcześniej po WYPRAWA_PO_DOJSCIU_S)
         try:
             wp = getattr(cb, "wyprawa", None)

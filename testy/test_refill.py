@@ -191,6 +191,7 @@ try:
     sprawdz("3j porażka: BLAD z powodem w logu", czekaj(lambda: "REFILL: BLAD blanki: brak miejsca w plecaku" in log()), log())
     sprawdz("3k porażka zostawia serwis_stan.json (wznowienie)", (INST / "serwis_stan.json").exists())
     sprawdz("3l porażka: dymek", "Błąd: blanki: brak miejsca" in (tmp / "powiadomienia.txt").read_text())
+    sprawdz("3l2 porażka: dymek krytyczny (-u critical, przebija DND)", "-u critical" in (tmp / "powiadomienia.txt").read_text())
     st = panel.stan_serwisu(INST, dziala=False)
     sprawdz("3m panel czyta ten log: wynik blad + komunikat", st["serwis_wynik"] == "blad" and st["serwis_komunikat"].startswith("blanki:"), st)
 
