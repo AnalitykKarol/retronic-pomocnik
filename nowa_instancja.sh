@@ -10,6 +10,8 @@ ID="${1:-}"
 INST=$(RETRONIC_ID="$ID" python3 -I "$DIR/instancja.py" powloka) || exit 2; eval "$INST"
 ZRODLO="${2:-$GRA/prefix}"
 [ -d "$ZRODLO" ] || { echo "brak prefiksu źródłowego: $ZRODLO" >&2; exit 1; }
+SZABLON="$DIR/szablony/nowa_postac"      # pokrętła startowe świeżej postaci (22.10), patrz szablony/nowa_postac/OPIS.md
+[ -f "$SZABLON/na_zywo.json" ] && [ -f "$SZABLON/uciekanie.json" ] || { echo "brak szablonu ustawień: $SZABLON" >&2; exit 1; }
 
 mkdir -p "$INST_STAN" "$INST_LOGI" "$INST_WSPOLNE"
 
@@ -34,10 +36,12 @@ for f in "$GRA"/*.exe "$GRA"/*.dll; do
 done
 echo "gra: $INST_GRA"
 
-# 3) pokrętła startowe: kopia na_zywo.json i uciekanie.json domyślnej instancji (tylko gdy brak); stan postaci
-#    (uh_stan.json, mozg_pamiec.json) zaczyna się pusty. znane_pola.json i pochodnia_ids.json są wspólne.
+# 3) pokrętła startowe: kopia SZABLONU „nowa postać” (szablony/nowa_postac/: bez run, blanków, wypraw po blanki, many, pochodni),
+#    nie na_zywo.json/uciekanie.json domyślnej instancji (te są ustawieniami postaci z runami; 22.10 odchyd po nich szedł do depo
+#    po blanki). Tylko gdy brak pliku; stan postaci (uh_stan.json, mozg_pamiec.json) zaczyna się pusty.
+#    znane_pola.json i pochodnia_ids.json są wspólne.
 for f in na_zywo.json uciekanie.json; do
-  [ -f "$DIR/$f" ] && [ ! -e "$INST_STAN/$f" ] && cp "$DIR/$f" "$INST_STAN/$f"
+  if [ ! -e "$INST_STAN/$f" ]; then cp "$SZABLON/$f" "$INST_STAN/$f"; fi
 done
 [ -e "$INST_WSPOLNE/zajete.json" ] || echo '{}' > "$INST_WSPOLNE/zajete.json"
 
