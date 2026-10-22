@@ -173,6 +173,18 @@ class Dziennik:
     def zdarzenie(self, typ, **kw):
         self._dopisz("logowanie.jsonl", json.dumps({"t": round(time.time(), 2), "id": self.id, "akcja": self.akcja, "zdarzenie": typ, **kw},
                                                    ensure_ascii=False, default=str) + "\n")
+        self._ostatnie(typ, kw)
+
+    def _ostatnie(self, typ, kw):
+        """F1 Przegląd: wejście do gry i wylogowanie trafiają do instancje/<id>/ostatnie.json (bot może nie żyć). Nigdy nie rzuca;
+        nic poza prawdziwym katalogiem logi/ i poza testami (RETRONIC_TESTY)."""
+        if self.katalog is None or os.environ.get("RETRONIC_TESTY"):
+            return
+        try:
+            import ostatnie  # noqa: PLC0415
+            ostatnie.zdarzenie_logowania(self.katalog, self.akcja, typ, kw)
+        except Exception:                       # noqa: BLE001
+            pass
 
     def _dopisz(self, nazwa, tekst):
         if self.katalog is None:

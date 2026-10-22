@@ -3,7 +3,7 @@
 
 Okno (QML) tylko czyta JSON z tego CLI i woła jego polecenia; cała logika i zapis są tutaj. Stdlib, bez efektów
 ubocznych poza `ustaw`, `cofnij` i `ratunek-oznacz`. Nic nie wysyła do gry, nie uruchamia ani nie zatrzymuje procesów
-(jedyne procesy potomne: `panel.py --json` w `stan`, tylko odczyt).
+(jedyne procesy potomne: `panel.py --json` w `stan`, tylko odczyt). Drugi zapis poza `ustaw`/`cofnij`/`ratunek-oznacz`: `ml-ustaw`.
 
 Wynik: JSON na stdout; sukces `{"ok": true, ...}` i kod 0; błąd `{"ok": false, "blad": "..."}` i kod 1 (błędne użycie: 2).
 
@@ -19,6 +19,8 @@ Wynik: JSON na stdout; sukces `{"ok": true, ...}` i kod 0; błąd `{"ok": false,
                                                (domyślnie ostatnie 7 dni), nie z całej historii
   ratunek-oznacz --instancja ID --id X --falszywy|--prawdziwy   etykieta w logi/ratunek-etykiety.jsonl
   mapy-tryby [--instancja ID]                  mapy.json, tryby.json, ostatnia mapa/tryb instancji
+  ml-ustaw --instancja ID N                    ręczne ustawienie magic levelu (Przegląd, Q2): zapis TYLKO ml/ml_proc/ml_t/ml_zrodlo
+                                               w instancje/<id>/ostatnie.json; nic nie wysyła do gry ani do bota
   sesja --instancja ID                         sesja gry (F4): procesy, podgląd VNC, profil bez hasła (tylko odczyt, D-F4-1),
                                                tożsamość, czy start możliwy, ostatnie linie logu startu i wynik sprawdzenia IP.
                                                Uruchamianie i zamykanie gry robi sesja_gry.py, nie to CLI.
@@ -44,18 +46,30 @@ import subprocess
 import sys
 import time
 import tokenize
+from datetime import datetime
 from pathlib import Path
 
 WLASNY = Path(__file__).resolve().parent
 sys.path.insert(0, str(WLASNY))
 os.environ.pop("RETRONIC_ID", None)        # okno obsługuje wszystkie instancje; id zawsze jawnie
+import grafik  # noqa: E402
 import instancja  # noqa: E402
+import ostatnie  # noqa: E402
 import pokretla  # noqa: E402
 import profil  # noqa: E402
 import ratunek as modul_ratunek  # noqa: E402
 
-PANEL_LIMIT_S = 1.5        # twardy limit jednego `panel.py --json`
-CALOSC_LIMIT_S = 1.9       # limit całego `stan` (spec: < ~2 s także dla 10 instancji)
+def _limit_z_env(nazwa, domyslny):
+    """22.10: nadzór (tick co 5 min) podnosi limity przez środowisko (poziom postaci ginął w budżecie okna); zła wartość = domyślny."""
+    try:
+        v = float(os.environ.get(nazwa, ""))
+    except ValueError:
+        return domyslny
+    return v if 0.1 <= v <= 60 else domyslny
+
+
+PANEL_LIMIT_S = _limit_z_env("RETRONIC_OKNO_PANEL_LIMIT_S", 1.5)        # twardy limit jednego `panel.py --json`
+CALOSC_LIMIT_S = _limit_z_env("RETRONIC_OKNO_CALOSC_LIMIT_S", 1.9)      # limit całego `stan` (spec: < ~2 s także dla 10 instancji)
 DNI_RATUNKU = 7            # domyślne okno `ratunek` bez --od
 NAZWA_GLOWNEJ = "główna"
 
@@ -779,7 +793,83 @@ def pusty_stan(id_):
     return {"id": id_, "nazwa": id_ or NAZWA_GLOWNEJ, "blad": None, "panel": None, "klasa": None, "gracz": None,
             "level": None, "level_procent": None, "podglad": dict(PODGLAD_PUSTY),
             "gra": None, "sesja": None, "bot": None, "bot_procesy": [], "klient_pids": [], "nick": None,
-            "mapa": None, "tryb": [], "ratunek_dzis": None}
+            "mapa": None, "tryb": [], "ratunek_dzis": None,
+            "ostatnie": None, "przeglad": None}      # Przegląd (F1): ostatnie.json z wiek_s i pola wyliczone; None = brak pliku / nie policzone
+
+
+# --- Przegląd (F1): pola wyliczone z ostatnie.json, profilu i plików STOP; kontrakt zamrożony w specu przeglad §„Kontrakt `stan`” ---
+DANE_SWIEZE_S = 90.0        # zab_h/exp_h tylko z danych nie starszych (bot pisze co 60 s; spec mówił „≤ 60 s”, to za mało przy cyklu 60 s)
+MIN_SESJA_S = 60.0          # krótsza sesja nie daje sensownej średniej na godzinę
+ALARM_24H_S = 24 * 3600     # filtr „z alarmem” w Przeglądzie (Q4)
+STANY_PRZEGLADU = ("bot_dziala", "karol_gra", "zatrzymany", "zawieszony", "offline", "alarm")
+
+
+def _liczba(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def nadzor_przegladu(id_, kiedy):
+    """{aktywny, powod, do, zrodlo} wg grafik.poza_nadzorem / powod_poza_pula (jedyne źródło reguł, bez kopii). zrodlo: null (aktywny)
+    | "profil" | "konfiguracja" | "test" (nazwa test*) | "brak_profilu" | "glowna"."""
+    if not id_:
+        return {"aktywny": False, "powod": "instancja główna nie jest nadzorowana", "do": None, "zrodlo": "glowna"}
+    kat = katalog()
+    konf = grafik.wczytaj_konfig(kat)
+    dt = datetime.fromtimestamp(kiedy)
+    powod = grafik.powod_poza_pula(kat, konf, id_, dt)
+    if powod is None:
+        return {"aktywny": True, "powod": None, "do": None, "zrodlo": None}
+    if id_.startswith("test"):
+        return {"aktywny": False, "powod": powod, "do": None, "zrodlo": "test"}
+    profil_d, _ = czytaj_json_dict(kat / "instancje" / id_ / "profil.json")
+    wpis = (konf.get("postacie") or {}).get(id_)
+    if not profil_d and not (kat / "instancje" / id_ / "profil.json").exists():
+        return {"aktywny": False, "powod": powod, "do": None, "zrodlo": "brak_profilu"}
+    z_profilu = grafik.poza_nadzorem(profil_d, None, dt) is not None
+    zrodlo_d = profil_d if z_profilu else (wpis if isinstance(wpis, dict) else {})
+    do = zrodlo_d.get("nadzor_do")
+    return {"aktywny": False, "powod": powod, "do": str(do) if do and str(do) in powod else None,
+            "zrodlo": "profil" if z_profilu else "konfiguracja"}
+
+
+def przeglad_instancji(id_, w, sc, kiedy):
+    """Pola `stan.przeglad`. `w` = już zebrany stan instancji (panel, klasa, gra, sesja, bot, ostatnie)."""
+    ost = w.get("ostatnie") or {}
+    nadzor = nadzor_przegladu(id_, kiedy)
+    stop = {"auto": (Path(sc.stan) / "STOP").exists(), "reczny": (Path(sc.stan) / "STOP_RECZNY").exists()}
+    w_grze = bool(w.get("gra") or w.get("sesja"))
+    bot = bool(w.get("bot"))
+    klasa = w.get("klasa")
+    if klasa == "alarm":
+        stan = "alarm"
+    elif w_grze and not bot and stop["reczny"]:
+        stan = "karol_gra"
+    elif klasa == "dziala" or (klasa is None and bot):
+        stan = "bot_dziala"
+    elif w_grze:
+        stan = "zatrzymany"
+    elif nadzor["zrodlo"] in ("profil", "konfiguracja"):
+        stan = "zawieszony"
+    else:
+        stan = "offline"
+    sesja = ost.get("sesja") if isinstance(ost.get("sesja"), dict) else {}
+    dane_t = ost.get("dane_t") if _liczba(ost.get("dane_t")) else None
+    dane_wiek = round(max(0.0, kiedy - dane_t), 1) if dane_t is not None else None
+    zab_h = exp_h = None
+    start = sesja.get("start")
+    if stan in ("bot_dziala", "alarm") and bot and dane_wiek is not None and dane_wiek <= DANE_SWIEZE_S and _liczba(start):
+        godz = (dane_t - start) / 3600.0
+        if godz * 3600.0 >= MIN_SESJA_S and ost.get("koniec_sesji") is None:
+            if _liczba(sesja.get("zab")):
+                zab_h = round(sesja["zab"] / godz, 1)
+            if _liczba(ost.get("exp")) and _liczba(sesja.get("exp_start")):
+                exp_h = round(max(0, ost["exp"] - sesja["exp_start"]) / godz)
+    alarm = ost.get("alarm") if isinstance(ost.get("alarm"), dict) else None
+    alarm_t = alarm.get("t") if alarm else None
+    return {"stan": stan, "w_grze": w_grze, "test": id_.startswith("test"), "zab_h": zab_h, "exp_h": exp_h,
+            "dane_wiek_s": dane_wiek, "na_spocie_od": ost.get("na_spocie_od"), "ostatni_alarm": alarm,
+            "alarm_24h": bool(_liczba(alarm_t) and 0 <= kiedy - alarm_t <= ALARM_24H_S),
+            "koniec_sesji": ost.get("koniec_sesji"), "nadzor": nadzor, "stop": stop}
 
 
 def stan_instancji(id_, procesy):
@@ -834,6 +924,8 @@ def stan_instancji(id_, procesy):
     krok("procesy", procesy_i_pliki)
     krok("ostatni_start", ostatni)
     krok("ratunek", ratunek_dzis)
+    krok("ostatnie", lambda: w.__setitem__("ostatnie", ostatnie.dla_api(sc.stan, teraz())))
+    krok("przeglad", lambda: w.__setitem__("przeglad", przeglad_instancji(id_, w, sc, teraz())))
     w["blad"] = "; ".join(bledy) or None
     return w
 
@@ -861,6 +953,20 @@ def cmd_stan(id_=None):
     finally:
         ex.shutdown(wait=False, cancel_futures=True)
     return {"czas": teraz(), "czas_odczytu_s": round(time.monotonic() - t0, 3), "instancje": wynik}
+
+
+# ---------- ml-ustaw (Przegląd, Q2) ----------
+def cmd_ml_ustaw(id_, ml):
+    """Ręczny magic level (czat podaje tylko zmiany): TYLKO ml, ml_proc, ml_t, ml_zrodlo w instancje/<id>/ostatnie.json."""
+    if not id_:
+        raise Blad("ml-ustaw: wymagana konkretna instancja (nie główna)", kod=2)
+    try:
+        w = ostatnie.ml_ustaw(sciezki(id_).stan, ml, t=teraz())
+    except ValueError as e:
+        raise Blad(f"ml-ustaw: {e}", kod=2)
+    except OSError as e:
+        raise Blad(f"ml-ustaw: {e}")
+    return {"instancja": id_, "ml": w["ml"], "ml_t": w["ml_t"], "ml_zrodlo": w["ml_zrodlo"]}
 
 
 # ---------- sesja gry (F4) ----------
@@ -1007,6 +1113,7 @@ def zbuduj_parser():
     g = sp.add_mutually_exclusive_group(required=True)
     g.add_argument("--falszywy", action="store_true"); g.add_argument("--prawdziwy", action="store_true")
     sp = sub.add_parser("mapy-tryby"); inst(sp, False)
+    sp = sub.add_parser("ml-ustaw"); inst(sp, True); sp.add_argument("ml", type=int, metavar="N", help="magic level 0-999")
     sp = sub.add_parser("sesja"); inst(sp, True)
     return p
 
@@ -1030,6 +1137,8 @@ def wykonaj(a):
         return cmd_ratunek_oznacz(id_, a.sygnal, "falszywy" if a.falszywy else "prawdziwy")
     if c == "mapy-tryby":
         return cmd_mapy_tryby(id_)
+    if c == "ml-ustaw":
+        return cmd_ml_ustaw(id_, a.ml)
     if c == "sesja":
         return cmd_sesja(id_)
     raise Blad(f"nieznane polecenie {c}", kod=2)

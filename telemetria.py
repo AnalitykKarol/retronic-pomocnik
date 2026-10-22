@@ -13,6 +13,7 @@ from pathlib import Path
 
 import ekonomia
 import instancja
+import ostatnie
 
 LOGI = instancja.S.logi      # bez RETRONIC_ID: pomocnik/logi
 MAX_BAJTOW = 20 * 1024 * 1024      # plik dnia ponad tyle: rotacja do .1 (stary .1 znika)
@@ -81,6 +82,8 @@ class Telemetria:
         self._ruch = None                # R0b: stan okna ruchu (patrz ruch_tick)
         if self.zapis and self._blokada:
             self._zajmij_blokade()
+        # F1 Przegląd: ostatnio znane dane postaci (instancje/<id>/ostatnie.json); tylko dla prawdziwego katalogu logi/ i zapisu na żywo
+        self.ostatnie = ostatnie.Pisarz(self.katalog.parent) if self.zapis and self.katalog.name == "logi" else None
         self.rek = deque()               # rekordy z ostatniej godziny
         self.ostatnia_probka = float("-inf")
         self.cel_start = None
@@ -326,6 +329,7 @@ class Telemetria:
         if self.akcja and t - self.akcja[0] < 5:
             r["akcja"] = {"co": self.akcja[1], "wynik": self.akcja[2], "temu": round(t - self.akcja[0], 1)}
         self._zapisz(r)
+        self._ostatnie_tik(t, g, poz, cb.stan)
         self._utknięcie(r)
         if wczesna:              # R0b: próbka z wczesnego zakończenia obiegu tylko uzupełnia lukę, nie zasila epizodów
             return r
@@ -335,6 +339,30 @@ class Telemetria:
         except Exception:        # pomiar nigdy nie psuje bota
             pass
         return r
+
+    def _ostatnie_aktywne(self):
+        return self.ostatnie is not None and self.zapis and not self._postac_testowa()
+
+    def _ostatnie_tik(self, t, g, poz, stan):
+        """Zapis ostatnie.json co 60 s i przy zmianie levelu (ostatnie.Pisarz.tik). Nigdy nie rzuca do pętli bota."""
+        if not self._ostatnie_aktywne():
+            return
+        try:
+            self.ostatnie.tik(t, g, poz, stan if isinstance(stan, str) else None, self.nazwa_postaci,
+                              {"start": self.sesja, "zab": self.ekon_razem["zab"], "gold": self.ekon_razem["gold"],
+                               "uh": self.ekon_razem["uh"]})
+        except Exception as e:      # noqa: BLE001
+            print(f"telemetria: ostatnie.tik: {e!r}", flush=True)
+
+    def ostatnie_stop(self, powod=None):
+        """Hak mozg.py: bot kończy z powodu STOP / STOP_RECZNY / sygnału (ścieżki Zatrzymano nie przechodzą przez HAKI_LOGU)."""
+        if not self._ostatnie_aktywne():
+            return False
+        try:
+            return self.ostatnie.stop(powod)
+        except Exception as e:      # noqa: BLE001
+            print(f"telemetria: ostatnie.stop: {e!r}", flush=True)
+            return False
 
     # --- R0b: okno ruchu co RUCH_OKNO_S (czas marszu/stania, przyczyny, luki, kroki, kliki) ---
     def ruch_tick(self, t, poz, stan, powod, kliki=0, strzalki=0):
@@ -525,6 +553,11 @@ class Telemetria:
     # --- zdarzenia z linii logu ---
     def linia(self, txt):
         t = self.zegar()
+        if txt.startswith("ALARM") and self._ostatnie_aktywne():     # trwały „ostatni alarm” (panel pokazuje alarm tylko 60 s)
+            try:
+                self.ostatnie.alarm(txt)
+            except Exception as e:      # noqa: BLE001
+                print(f"telemetria: ostatnie.alarm: {e!r}", flush=True)
         m = RE_STAN.match(txt)
         if not m and not txt.startswith("debug:"):
             self.akcja_wykonana(txt[:60])

@@ -83,12 +83,19 @@ def _id_widgetu(p, adres):
     return _napis(p, b, 0) if len(b) == 0x18 else None
 
 
-def _deque(p, widget, przesuniecie=DZIECI):
-    """Lista wskaźników z std::deque<T*> leżącego w widgecie."""
+def _deque(p, widget, przesuniecie=DZIECI, puste_zero=False):
+    """Lista wskaźników z std::deque<T*> leżącego w widgecie.
+
+    puste_zero (tylko dla buforów konsoli, których widget jest już sprawdzony po vtable, id i rodzicu):
+    22.10 zmierzone na żywo (dawajkesh, gebelish) - deque świeżej, pustej zakładki Default to cztery zera
+    (mapa=0, rozmiar mapy=0, przesunięcie=0, liczba=0; MSVC alokuje mapę dopiero przy pierwszym push).
+    Wtedy wynik to [], a nie None."""
     b = p.czytaj(widget + przesuniecie, 16)
     if len(b) < 16:
         return None
     mapa, rozm_mapy, od, liczba = struct.unpack("<IIII", b)
+    if puste_zero and mapa == 0 and rozm_mapy == 0 and od == 0 and liczba == 0:
+        return []
     if not (_wsk(mapa) and 1 <= rozm_mapy <= 4096 and rozm_mapy & (rozm_mapy - 1) == 0
             and liczba <= min(MAKS_DZIECI, rozm_mapy * 4)):
         return None
@@ -123,7 +130,7 @@ def _poprawny_bufor(p, adres):
     rodzic = struct.unpack_from("<I", b, RODZIC)[0]
     if not _wsk(rodzic) or _id_widgetu(p, rodzic) != b"tabPanel":
         return False
-    return _deque(p, adres) is not None
+    return _deque(p, adres, puste_zero=True) is not None
 
 
 def _skan(p, regiony=None):
@@ -239,7 +246,7 @@ def _przypisz_kanaly(p, bufory, zakladki):
 
 
 def _pierwsza_tresc(p, bufor):
-    dzieci = _deque(p, bufor) or []
+    dzieci = _deque(p, bufor, puste_zero=True) or []
     if not dzieci:
         return None
     b = p.czytaj(dzieci[0], ROZMIAR_WIDGETU)
@@ -315,7 +322,7 @@ def _rozbij(tekst):
 
 
 def _odczytaj_bufor(p, bufor):
-    dzieci = _deque(p, bufor)
+    dzieci = _deque(p, bufor, puste_zero=True)
     if dzieci is None:
         return None
     wynik = []

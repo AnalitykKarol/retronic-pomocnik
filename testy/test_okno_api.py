@@ -530,6 +530,19 @@ with tempfile.TemporaryDirectory() as tmp:
     sprawdz("stan: przekroczony limit całości = blad 'limit', ale bot/sesja/nick z skanu procesów (nie null)", w["blad"] and "limit" in w["blad"] and w["panel"] is None
             and w["bot"] is True and w["sesja"] is True and w["nick"] == "Wolny" and w["bot_procesy"] == [{"pid": 201, "tryb": "mozg.py ml"}], w)
 
+# limity odczytu panelu: domyślne (okno/pasek) bez zmian; nadzór podnosi je przez środowisko (22.10: poziom postaci ginął przy 1.5/1.9 s)
+def limity(**env):
+    kod = f"import sys; sys.path.insert(0, {str(KAT)!r}); import okno_api; print(okno_api.PANEL_LIMIT_S, okno_api.CALOSC_LIMIT_S)"
+    e = {k: v for k, v in _os.environ.items() if not k.startswith("RETRONIC_OKNO_")}
+    e.update(env)
+    return subprocess.run([sys.executable, "-I", "-c", kod], capture_output=True, text=True, cwd=str(KAT), env=e, timeout=60).stdout.split()
+
+sprawdz("limity: domyślnie 1.5 / 1.9 s", limity() == ["1.5", "1.9"], limity())
+sprawdz("limity: RETRONIC_OKNO_PANEL_LIMIT_S / RETRONIC_OKNO_CALOSC_LIMIT_S je podnoszą", limity(RETRONIC_OKNO_PANEL_LIMIT_S="5", RETRONIC_OKNO_CALOSC_LIMIT_S="8") == ["5.0", "8.0"],
+        limity(RETRONIC_OKNO_PANEL_LIMIT_S="5", RETRONIC_OKNO_CALOSC_LIMIT_S="8"))
+sprawdz("limity: śmieci w środowisku = domyślne", limity(RETRONIC_OKNO_PANEL_LIMIT_S="x", RETRONIC_OKNO_CALOSC_LIMIT_S="-3") == ["1.5", "1.9"],
+        limity(RETRONIC_OKNO_PANEL_LIMIT_S="x", RETRONIC_OKNO_CALOSC_LIMIT_S="-3"))
+
 # ================= błędy użycia i JSON zawsze =================
 with tempfile.TemporaryDirectory() as tmp:
     zrob_korzen(tmp)
