@@ -3,6 +3,7 @@
 
   generuj_trase_miasta.py troll    [--zapisz]   troll_cave (z8/z9) -> Thais, sklep Gorna (z7) i z powrotem
   generuj_trase_miasta.py kanaly   [--zapisz]   kanały Thais (z8, lądowanie dziury (32360,32242)) -> Gorn i z powrotem
+  generuj_trase_miasta.py thais_pn [--zapisz]   Thais północ, jaskinia trolli z8 (odwrócone thais_pn_z8_dojscie) -> Gorn i z powrotem
 
 Bez --zapisz tylko raport (długości, przejścia). Zapisuje trasy/<prefiks>_do_miasta.json, <prefiks>_z_miasta.json
 (listy punktów x,y,z jak każda trasa) i .meta z przejściami pięter.
@@ -200,13 +201,50 @@ def zbuduj(nazwa, m):
             raise SystemExit("brak drogi powrotnej z Gorna do kanałów")
         z = scal(rzadko(powrot))
         prefiks = "thais_kanaly"
+    elif nazwa == "thais_pn":
+        # 21.10 (kutangen na thais_pn_z8 nie miał planu powrotu): do_miasta = droga A* z jaskini (koniec dojścia) do Gorna;
+        # odwrócone dojście odpada (zasypana dziura (32347,32123,z7) otwiera się tylko łopatą od góry), A* wychodzi liną
+        # przez otwartą dziurę nad jaskinią (R na z8 pod (32339,32135,z7)). z_miasta = dojście (łopata w dół).
+        doj = [tuple(p) for p in json.loads((TRASY / "thais_pn_z8_dojscie.json").read_text())]
+        wejscie = doj[-1]
+        # lina pod otworem (32339,32135,z8) nie działa w grze (kutangen 19:01, 4 próby); wychodzimy SCHODAMI w górę:
+        # pole z8 z flagą 2, nad którym (z7) jest chodliwe lądowanie (wypad.zbuduj_etapy: "schody leżą pod lądowaniem")
+        najl = None
+        for x in range(32270, 32370):
+            for y in range(32100, 32170):
+                f = m.flagi(x, y, 8)
+                if not (f & 1 and f & 2 and not f & 4) or not g.idzie(x, y, 7):
+                    continue
+                for ax, ay in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                    if not g.idzie(ax, ay, 8):
+                        continue
+                    d1 = g.astar(wejscie, (ax, ay, 8))
+                    if d1 is None:
+                        continue
+                    cel, d2 = stoisko(g, GORN_HOME, (x, y, 7))
+                    if d2 is None:
+                        continue
+                    koszt = len(d1) + len(d2)
+                    if najl is None or koszt < najl[0]:
+                        najl = (koszt, d1, d2, (x, y))
+        if najl is None:
+            raise SystemExit("brak schodów w górę z jaskini thais_pn do Gorna")
+        _, d1, d2, schody = najl
+        ostrz.append(f"wyjście z jaskini schodami (z8) {schody}")
+        droga = d1 + d2
+        do = scal(rzadko(droga))
+        powrot = g.astar(cel, doj[0])
+        if powrot is None:
+            raise SystemExit("brak drogi powrotnej z Gorna na początek dojścia thais_pn")
+        z = scal(rzadko(powrot), doj)
+        prefiks = "thais_pn"
     else:
         raise SystemExit(f"nieznana trasa {nazwa}")
     return prefiks, do, z, cel, ostrz
 
 
 def main(argv):
-    if not argv or argv[0] not in ("troll", "kanaly"):
+    if not argv or argv[0] not in ("troll", "kanaly", "thais_pn"):
         print(__doc__)
         return 1
     m = _mapa.Mapa()

@@ -1,0 +1,19 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "początek trasy"
+  },
+  {
+   "idx": 169,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 7, potem piętro 8"
+  },
+  {
+   "idx": 170,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 7 -> 8, z (32347,32123)"
+  }
+ ]
+}

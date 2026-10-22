@@ -16,8 +16,10 @@ from serwis_blad import SerwisBlad  # noqa: E402
 import widma  # noqa: E402
 
 ID_GOLD, ID_PLATINUM, ID_BLANK, ID_HAM = 3031, 3035, 3147, 3582
+SLOT_AMUNICJI = 10          # slot ekwipunku Tibii, w którym lądują monety po wymianie w banku (22.10 wydra)
 ID_BAGOW = {2868, 2869, 2854}               # purple / blue / zwykły plecak jako przedmiot w plecaku
 ID_UH = 3160
+ID_RUNY_BAGU = {ID_BLANK, ID_UH, 3198}      # blank / UH / HMM: to, co leży w worku na runy
 NAZWY_GLOWNE = ("backpack", "bag")          # tytuł okna głównego plecaka
 NAZWY_DEPO = ("locker", "depot chest")
 MIN_HP_PROC = 60                            # start serwisu tylko przy HP >= 60%
@@ -30,6 +32,8 @@ LIMITY_CENY = {"ham": 12, "blank rune": 12, "backpack": 25}   # gp za sztukę; d
 ODP_OFERTA = re.compile(r"do you want to buy (?:(\d+) |an? )?(.+?) for (\d+) gold", re.I)
 ODP_PYTANIE_PLATINUM = re.compile(r"how many platinum", re.I)
 ODP_SUKCES = re.compile(r"here you are|here it is|there you are", re.I)
+SKUTEK_CZEKAJ_S, SKUTEK_KROK_S = 3.0, 0.4   # 22.10: tyle czekamy, aż pamięć klienta pokaże skutek przeciągnięcia (jeden odczyt po 0,9 s bywał za wcześnie)
+SASIAD_PX = 40                              # sloty okna co 37 px: sąsiad (także po przekątnej) leży bliżej niż tyle
 ODP_BRAK = re.compile(r"not have enough|cannot carry|too heavy|do not have|don't have|no room|capacity", re.I)
 
 
@@ -65,14 +69,57 @@ def wolny_slot(okno, zajete):
     return next((i for i in range(len(okno.sloty)) if i not in zajete), None)
 
 
+def slot_w_pelni_widoczny(obraz, slot):
+    """False, gdy dół slotu wystaje poza zrzut (okno depot chest na dole panelu: piąty rząd ucięty; `loot.znajdz_okna` zostawia takie
+    sloty, a `czy_pusty` widzi w nich cudze piksele i daje „zajęte”). Bez zrzutu albo geometrii slotu: True (nie oceniamy)."""
+    rozmiar = getattr(obraz, "size", None)
+    y, bok = getattr(slot, "y", None), getattr(slot, "bok", None)
+    if rozmiar is None or y is None or bok is None:
+        return True
+    return y + bok <= rozmiar[1]
+
+
+def bezpieczny_wolny_slot(okno, kontener, pusty_na_ekranie=None, widoczny=None):
+    """Indeks slotu, na który wolno UPUŚCIĆ przedmiot w oknie `kontener`, albo None. 22.10 (dawajkesh, depo Edron): upuszczenie
+    na slot z kontenerem wkłada przedmiot do jego środka (licznik w skrzyni się nie zmienia), więc:
+    - slot musi być wolny w pamięci ORAZ (gdy podano `pusty_na_ekranie(slot)`) pusty na ekranie; slot zajęty na ekranie,
+      a wolny w pamięci, uchodzi za podejrzany (pamięć mogła nie nadążyć) i nie jest celem;
+    - wśród wolnych bierzemy pierwszy, który nie sąsiaduje (także po przekątnej) z bagiem/plecakiem ani z podejrzanym slotem
+      (zapas na przesunięcie okna o jedno pole); gdy takiego nie ma, pierwszy wolny;
+    - sloty, dla których `widoczny(slot)` jest False (ucięte dołem okna/zrzutu), nie są ani celem, ani sygnałem ryzyka."""
+    zajete = {q["slot"] for q in kontener.get("przedmioty", [])}
+    ryzyko = {q["slot"] for q in kontener.get("przedmioty", []) if q["id"] in ID_BAGOW}
+    wolne = []
+    for i, s in enumerate(okno.sloty):
+        if i in zajete or (widoczny is not None and not widoczny(s)):
+            continue
+        if pusty_na_ekranie is not None and not pusty_na_ekranie(s):
+            ryzyko.add(i)
+            continue
+        wolne.append(i)
+
+    def blisko(i, j):
+        (xi, yi), (xj, yj) = okno.sloty[i].srodek, okno.sloty[j].srodek
+        return abs(xi - xj) <= SASIAD_PX and abs(yi - yj) <= SASIAD_PX
+
+    dalekie = [i for i in wolne if not any(blisko(i, j) for j in ryzyko if j < len(okno.sloty))]
+    return (dalekie or wolne or [None])[0]
+
+
 # --- rozmowa z NPC ---------------------------------------------------------------------------------
 
 class Rozmowa:
     """Rozmowa z jednym NPC przez czat: wysłanie z weryfikacją echa, oczekiwanie na odpowiedź tego NPC (nie cudze krzyki)."""
 
-    def __init__(self, czat, wiadomosci, nick, log=print, czas=time.monotonic, spij=time.sleep, powtorz_echo=3):
+    def __init__(self, czat, wiadomosci, nick, log=print, czas=time.monotonic, spij=time.sleep, powtorz_echo=3,
+                 stan_zakladek=None, przelacz=None, pomin_zakladki=False):
+        """`stan_zakladek()` -> {"zakladki": [{"nazwa","rect","aktywna"}], "aktywny_bufor": adres|None} (odczyt pamięci klienta);
+        `przelacz(x, y)` klika zakładkę. 22.10: bez `stan_zakladek` Rozmowa niczego nie wyśle (`pomin_zakladki=True` tylko w
+        testach z atrapą czatu): tekst trafia do AKTYWNEJ zakładki, a bywa nią prywatna rozmowa z graczem."""
         self.czat, self.wiad, self.nick, self.log = czat, wiadomosci, nick, log
         self.czas, self.spij, self.powtorz_echo = czas, spij, powtorz_echo
+        self.stan_zakladek, self.przelacz, self.pomin_zakladki = stan_zakladek, przelacz, pomin_zakladki
+        self.bufor_default = None              # adres bufora aktywnej zakładki Default w chwili ostatniego wysłania
         self.bufor = []                        # wiadomości odczytane przy oczekiwaniu na echo, jeszcze nieprzetworzone
 
     def _pobierz(self):
@@ -86,14 +133,51 @@ class Rozmowa:
             if n < 50:
                 return
 
+    def _zakladka_default(self):
+        """Przed KAŻDYM wysłaniem: aktywna ma być zakładka Default, i to jedyna aktywna, a pamięć ma wskazywać jej bufor.
+        Inna aktywna (np. prywatna rozmowa z graczem, 22.10 "hi" poszło do Wrexa) = klik w kartę Default (rect z pamięci klienta),
+        potem ponowny odczyt. Brak pewności po kliku albo brak odczytu = SerwisBlad, nic nie jest wysyłane."""
+        if self.pomin_zakladki:
+            return
+        if self.stan_zakladek is None:
+            raise SerwisBlad("rozmowa", "brak odczytu zakładek czatu, nie wiem, gdzie trafi wiadomość (nie wysyłam)")
+        opis = "?"
+        for odczyt in range(5):
+            try:
+                st = self.stan_zakladek() or {}
+            except Exception as e:      # noqa: BLE001 - każdy błąd odczytu = brak pewności
+                raise SerwisBlad("rozmowa", f"odczyt zakładek czatu nie powiódł się ({e}); nie wysyłam") from e
+            zak = st.get("zakladki") or []
+            default = [z for z in zak if (z.get("nazwa") or "").casefold() == "default"]
+            aktywne = [z for z in zak if z.get("aktywna")]
+            opis = f"aktywne: {[z.get('nazwa') for z in aktywne]}, bufor: {st.get('aktywny_bufor')}"
+            if len(default) != 1:
+                raise SerwisBlad("rozmowa", f"na pasku czatu nie ma jednej zakładki Default ({len(default)}); nie wysyłam")
+            if aktywne == default and st.get("aktywny_bufor"):
+                self.bufor_default = st["aktywny_bufor"]
+                return
+            if odczyt == 0 and not aktywne == default:
+                # klikamy raz; kolejne odczyty tylko czekają na skutek (klient przełącza z opóźnieniem)
+                x1, y1, x2, y2 = default[0]["rect"]
+                if self.przelacz is None or not (0 <= x1 < x2 <= 3000 and 400 <= y1 < y2 <= 3000 and 8 <= y2 - y1 <= 60
+                                                 and 20 <= x2 - x1 <= 400):
+                    raise SerwisBlad("rozmowa", f"aktywna zakładka inna niż Default ({opis}), nie umiem jej przełączyć "
+                                                f"(rect Default {default[0].get('rect')}); nie wysyłam")
+                self.log(f"rozmowa: aktywna zakładka czatu to nie Default ({opis}), klikam kartę Default")
+                self.przelacz((x1 + x2) // 2, (y1 + y2) // 2)
+            self.spij(0.5)
+        raise SerwisBlad("rozmowa", f"nie potwierdzono aktywnej zakładki Default ({opis}); nie wysyłam")
+
     def powiedz(self, tekst, czekaj_echo_s=4.0):
         """Wysyła `tekst` i czeka, aż pojawi się własna linia na czacie (bez echa wysyła ponownie, do `powtorz_echo` razy).
-        Zakładka inna niż Default = błąd (nie wysyłamy dalej)."""
+        Zakładka inna niż Default = przełączenie albo błąd (nie wysyłamy dalej); echo w innym buforze niż aktywny Default
+        w chwili wysłania = natychmiastowe przerwanie (bez kolejnych prób)."""
         wlasne = lambda x: x["autor"] == self.nick and x["tekst"].strip().lower() == tekst.strip().lower()
         for proba in range(1, self.powtorz_echo + 1):
             self._nadrob()
             self._pobierz()
             self.bufor = [x for x in self.bufor if not wlasne(x)]      # stare echo tej samej wiadomości nie potwierdzi nowej
+            self._zakladka_default()
             self.czat(tekst)
             t0 = self.czas()
             while self.czas() - t0 < czekaj_echo_s:
@@ -102,6 +186,11 @@ class Rozmowa:
                     if w["autor"] == self.nick and w["tekst"].strip().lower() == tekst.strip().lower():
                         if w["kanal"].casefold() not in ("default", ""):
                             raise SerwisBlad("rozmowa", f"wiadomość poszła na kanał {w['kanal']!r}, przełącz zakładkę na Default")
+                        if not self.pomin_zakladki and self.bufor_default and w.get("bufor") \
+                                and str(w["bufor"]).casefold() != str(self.bufor_default).casefold():
+                            # 22.10: kanał bywa nieznany (None), ale bufor echa to twardy dowód: to nie Default
+                            raise SerwisBlad("rozmowa", f"{tekst!r} trafiło do bufora {w['bufor']} zamiast Default "
+                                                        f"({self.bufor_default}); przerywam, nie ponawiam")
                         # spóźnione echa wcześniejszych prób tej samej wiadomości nie mogą potwierdzić kolejnej
                         self.bufor = [x for x in self.bufor if not (x["autor"] == self.nick
                                                                      and x["tekst"].strip().lower() == tekst.strip().lower())]
@@ -203,14 +292,63 @@ def _nazwa(k):
     return (k.get("nazwa") or "").casefold()
 
 
-def _czy_glowny(k):
-    return _nazwa(k) in NAZWY_GLOWNE
+def _ma_bag(k):
+    """Czy w kontenerze leży przedmiot-bag (ID_BAGOW), czyli czy to plecak, w którym schowano worek na runy."""
+    return any(q["id"] in ID_BAGOW for q in k.get("przedmioty", []))
 
 
-def _czy_bag(k):
-    """Bag na runy: kontener inny niż główny plecak i depo, o nazwie plecaka/torby (np. "blue backpack", "purple backpack")."""
+def _runowy(k):
+    """Czy w kontenerze przeważają runy z bagu na runy (blank/UH/HMM), jak loot._wyglada_na_runy."""
+    przedm = k.get("przedmioty", [])
+    n_run = sum(1 for q in przedm if q["id"] in ID_RUNY_BAGU)
+    return n_run > 0 and n_run * 2 >= len(przedm)
+
+
+def _rozdziel_plecaki(kon):
+    """(plecak główny albo None, [worki na runy o nazwie plecaka]) wśród kontenerów `kon`.
+
+    Jedno okno o nazwie plecaka = plecak główny (jak dotąd). 22.10 (wydra, Thais): worek na runy to zwykły backpack (2854),
+    więc dwa okna noszą tę samą nazwę "backpack" (u postaci z Edronu worek to "blue backpack" i nazwa wystarcza). Pamięć kontenerów
+    nie podaje rodzica ani slotu ekwipunku (kontenery.py: numer, nazwa, id, pojemność, przedmioty; id obu to 2854), więc
+    rozstrzyga zawartość: główny = ten, w którym leży przedmiot-bag (ID_BAGOW); gdy żaden nie ma bagu w środku (worek już
+    przeniesiony do depo, a jego okno zostało), główny = jedyny bez przewagi run, a gdy obaj bez run, jedyny niepusty.
+    Więcej niż dwa okna albo brak jednoznacznego wyniku = SerwisBlad (nie zgadujemy)."""
+    grupa = [k for k in kon if _nazwa(k) in NAZWY_GLOWNE]
+    if len(grupa) <= 1:
+        return (grupa[0] if grupa else None), []
+    glowny = None
+    if len(grupa) == 2:
+        z_bagiem = [k for k in grupa if _ma_bag(k)]
+        if len(z_bagiem) == 1:
+            glowny = z_bagiem[0]
+        elif not z_bagiem:
+            kandydaci = [k for k in grupa if not _runowy(k)]
+            if len(kandydaci) > 1:
+                kandydaci = [k for k in kandydaci if k.get("przedmioty")]
+            if len(kandydaci) == 1:
+                glowny = kandydaci[0]
+    if glowny is None:
+        raise SerwisBlad("okna", f"dwa kontenery o nazwie plecaka ({[k.get('nazwa') for k in grupa]}): nie odróżnię plecaka od baga")
+    return glowny, [k for k in grupa if k is not glowny]
+
+
+def _ten_sam(a, b):
+    return a is b or (a.get("numer") is not None and a.get("numer") == b.get("numer"))
+
+
+def _czy_glowny(k, kon):
+    """Czy `k` (element listy `kon`) to główny plecak; rozróżnia też dwa okna o tej samej nazwie (`_rozdziel_plecaki`)."""
+    glowny, _ = _rozdziel_plecaki(kon)
+    return glowny is not None and _nazwa(k) in NAZWY_GLOWNE and _ten_sam(glowny, k)
+
+
+def _czy_bag(k, kon):
+    """Bag na runy: kontener inny niż główny plecak i depo, o nazwie plecaka/torby (np. "blue backpack", "purple backpack"),
+    albo drugie okno o nazwie plecaka, które nie jest głównym (zwykły backpack jako worek, Thais 22.10)."""
     n = _nazwa(k)
-    return n not in NAZWY_GLOWNE and n not in NAZWY_DEPO and ("backpack" in n or n.endswith("bag") or "pouch" in n)
+    if n in NAZWY_GLOWNE:
+        return any(_ten_sam(k, b) for b in _rozdziel_plecaki(kon)[1])
+    return n not in NAZWY_DEPO and ("backpack" in n or n.endswith("bag") or "pouch" in n)
 
 
 def _suma(k, ids):
@@ -227,8 +365,14 @@ class AkcjeZywe:
         self.postac, self.log, self.sprawdz_bota = postac, log, sprawdz_bota
         self.nick = postac.nazwa
         self._ops = wypad.OperacjeZywe(log=log, wyslij=lambda t: mozg.wpisz_na_czacie(t))
-        self.rozmowa = Rozmowa(self._ops.czat, self._ops.wiadomosci, self.nick, log=log)
+        self.rozmowa = Rozmowa(self._ops.czat, self._ops.wiadomosci, self.nick, log=log,
+                               stan_zakladek=self._ops.stan_zakladek, przelacz=self._kliknij_zakladke)
         self._bot = bot
+
+    def _kliknij_zakladke(self, x, y):
+        """Lewy klik w kartę zakładki czatu (pozycja z pamięci klienta, nie stała)."""
+        with self._mysz() as m:
+            m.klik(x, y, 1, None, drganie=1)
 
     # --- odczyt ---
 
@@ -245,17 +389,43 @@ class AkcjeZywe:
         """Suma sztuk przedmiotów o ID z `ids` we wszystkich otwartych kontenerach poza depo."""
         return sum(_suma(k, ids) for k in self.kontenery() if _nazwa(k) not in bez)
 
+    def _ekwipunek(self):
+        """{slot: {"id", "ilosc"}} slotów ekwipunku postaci albo None przy braku odczytu (jak w uh.py: komenda `kontenery` z
+        `ekwipunek`). Brak odczytu nie jest błędem: majątek liczy się wtedy tylko z kontenerów, jak dotąd."""
+        try:
+            e = self._bot._zapytaj_surowe({"cmd": "kontenery", "ekwipunek": True}).get("ekwipunek")
+        except self._bot.Zatrzymano:
+            raise
+        except Exception:
+            return None
+        return None if not isinstance(e, dict) else e
+
+    def majatek_w_ekwipunku(self):
+        """Gold + 100 * platinum + 10000 * crystal leżące w slocie 10 ekwipunku (amunicja). 22.10 wydra (Thais): bank zamienił
+        złoto w tym slocie na 6 platinum, a odczyt samych kontenerów widział 13 gp. Brak odczytu = 0."""
+        e = self._ekwipunek() or {}
+        q = e.get(str(SLOT_AMUNICJI)) or e.get(SLOT_AMUNICJI) or {}
+        wartosc = {ID_GOLD: 1, ID_PLATINUM: 100, 3043: 10000}.get(q.get("id"), 0)
+        return wartosc * max(1, q.get("ilosc", 1)) if wartosc else 0
+
+    def ilosc_w_plecaku(self, ids):
+        """Suma sztuk o ID z `ids` tylko w głównym plecaku (bez baga na runy, który depo odkłada razem z zawartością)."""
+        g = self._glowny()
+        return 0 if g is None else _suma(g, ids)
+
     def majatek(self, tylko_glowny=False):
-        """Gold + 100 * platinum + 10000 * crystal w otwartych kontenerach poza depo; `tylko_glowny`: tylko w plecaku
-        (pieniądze w bagu na runy odejdą z nim do depo)."""
+        """Gold + 100 * platinum + 10000 * crystal w otwartych kontenerach poza depo oraz w slocie 10 ekwipunku (depo go nie rusza);
+        `tylko_glowny`: z kontenerów tylko plecak (pieniądze w bagu na runy odejdą z nim do depo)."""
         if tylko_glowny:
             g = self._glowny()
-            return 0 if g is None else _suma(g, {ID_GOLD}) + 100 * _suma(g, {ID_PLATINUM}) + 10000 * _suma(g, {3043})
-        return self.ilosc({ID_GOLD}) + 100 * self.ilosc({ID_PLATINUM}) + 10000 * self.ilosc({3043})
+            return self.majatek_w_ekwipunku() + (0 if g is None else
+                                                 _suma(g, {ID_GOLD}) + 100 * _suma(g, {ID_PLATINUM}) + 10000 * _suma(g, {3043}))
+        return self.majatek_w_ekwipunku() + self.ilosc({ID_GOLD}) + 100 * self.ilosc({ID_PLATINUM}) + 10000 * self.ilosc({3043})
 
     def wolne_w_bagu(self):
         """Wolne sloty jedynego bagu na runy; 0, gdy bagu brak albo jest więcej niż jeden."""
-        bagi = [k for k in self.kontenery() if _czy_bag(k)]
+        kon = self.kontenery()
+        bagi = [k for k in kon if _czy_bag(k, kon)]
         if len(bagi) != 1:
             return 0
         return bagi[0].get("pojemnosc", 0) - len(bagi[0].get("przedmioty", []))
@@ -290,10 +460,7 @@ class AkcjeZywe:
         return ma + ile
 
     def _glowny(self, kon=None):
-        glowne = [k for k in (kon or self.kontenery()) if _czy_glowny(k)]
-        if len(glowne) > 1:
-            raise SerwisBlad("okna", f"dwa kontenery o nazwie plecaka ({[k.get('nazwa') for k in glowne]}): nie odróżnię plecaka od baga")
-        return glowne[0] if glowne else None
+        return _rozdziel_plecaki(kon or self.kontenery())[0]
 
     # --- start ---
 
@@ -364,13 +531,50 @@ class AkcjeZywe:
             raise SerwisBlad("okna", f"okien na ekranie {len(okna)}, kontenerów w pamięci {len(kon)}")
         # numer kontenera nie mówi o położeniu okna (świeżo otwarty locker dostaje numer 0, a leży pod plecakiem):
         # przypisanie po zawartości slotów i tytułach (loot.dopasuj_okna), numer tylko jako rezerwa
-        przypisane, _ = loot.dopasuj_okna(obraz, okna, kon)
+        przypisane, powod = loot.dopasuj_okna(obraz, okna, kon)
         if przypisane is not None:
             kon = list(przypisane)
+        else:
+            kon = self._okna_bez_dopasowania(obraz, okna, kon, powod)
+        if all(k.get("numer") is not None for k in kon):
+            self._kolejnosc_okien = [k["numer"] for k in kon]        # pamięć układu okien na wypadek niejednoznacznego odczytu
         for o, k in zip(okna, kon):
             if len(o.sloty) > max(k.get("pojemnosc", 0), 1):
                 raise SerwisBlad("okna", f"okno ma {len(o.sloty)} slotów, kontener {k.get('nazwa')!r} pojemność {k.get('pojemnosc')}")
         return list(zip(okna, kon))
+
+    def _okna_bez_dopasowania(self, obraz, okna, kon, powod):
+        """Kontenery w kolejności okien, gdy `loot.dopasuj_okna` zawiodło. 22.10 (invincible, wydra): przypisanie po numerze
+        kontenera zamieniało okna plecaka i baga (numer ≠ położenie), a bot chwytał przedmiot z niewłaściwego okna. Teraz:
+        - bez zrzutu (`obraz` None, tylko testy) jedyną rezerwą jest numer;
+        - ze zrzutem wolno zostać przy kolejności z ostatniego udanego dopasowania (okna się nie przesuwają, a bag wypełniony
+          po brzegi daje okna nie do odróżnienia po zajętości), ale tylko gdy ta kolejność zgadza się z ekranem lepiej niż każda
+          inna (albo idealnie, gdy inne też są idealne) i co najwyżej 3 sloty się różnią (pamięć klienta bywa o chwilę za ekranem);
+        - inaczej SerwisBlad: przerywamy PRZED pierwszym przeciągnięciem, nie zgadujemy."""
+        if obraz is None:
+            self.log(f"okna: dopasowanie po zawartości nie wyszło ({powod}), bez zrzutu: przypisuję po numerze kontenera")
+            return kon
+        import itertools
+        import loot
+        hist = getattr(self, "_kolejnosc_okien", None)
+        po_numerze = {k.get("numer"): k for k in kon}
+        if hist and len(hist) == len(okna) and set(hist) == set(po_numerze) and len(kon) <= 6:
+            koszt = {(i, j): loot._niezgodnosci(obraz, o, k) for i, o in enumerate(okna) for j, k in enumerate(kon)}
+            idx = {k.get("numer"): j for j, k in enumerate(kon)}
+            wybrana = tuple(idx[n] for n in hist)
+
+            def suma(perm):
+                c = [koszt[i, j] for i, j in enumerate(perm)]
+                return None if None in c else sum(c)
+
+            k0 = suma(wybrana)
+            inne = [c for perm in itertools.permutations(range(len(kon))) if perm != wybrana and (c := suma(perm)) is not None]
+            if k0 is not None and k0 <= 3 and (not inne or k0 < min(inne) or (k0 == 0 and min(inne) == 0)):
+                self.log(f"okna: dopasowanie po zawartości nie wyszło ({powod}), zostaję przy kolejności z poprzedniego odczytu "
+                         f"(różnic z ekranem: {k0})")
+                return [kon[j] for j in wybrana]
+        raise SerwisBlad("okna", f"nie przypiszę okien do kontenerów ({powod}); przerywam przed jakimkolwiek ruchem, "
+                                 "bo przypisanie po numerze kontenera mogłoby zamienić okna")
 
     # --- układ okien ---
 
@@ -378,6 +582,7 @@ class AkcjeZywe:
         """Minimapa zwinięta, zostawione depo zamknięte, bag na runy (jeśli jest) i plecak otwarte w osobnych oknach
         (bag wyżej, plecak niżej), oba rozciągnięte do 5 rzędów. Idempotentne."""
         import loot
+        self._kolejnosc_okien = None                    # okna będą otwierane i przesuwane: stara kolejność przestaje obowiązywać
         with self._mysz() as m:
             obraz = self._zrzut(m)
             u = uklad_panelu(obraz)
@@ -432,11 +637,11 @@ class AkcjeZywe:
 
     def _otworz_plecak_z_ekwipunku(self, m, u):
         """Ctrl+klik na plecaku w ekwipunku (pozycja z układu panelu, nie ze stałej); sprawdza, że przybył kontener plecaka."""
-        ile0 = len([k for k in self.kontenery() if _czy_glowny(k)])
+        ile0 = len([k for k in self.kontenery() if _nazwa(k) in NAZWY_GLOWNE])    # po nazwie: worek-backpack też jest takim oknem
         self.log("okna: otwieram plecak z ekwipunku")
         m.klik(*u["plecak_ekw"], 1, "Control_L", drganie=2)
         time.sleep(1.4)
-        ile1 = len([k for k in self.kontenery() if _czy_glowny(k)])
+        ile1 = len([k for k in self.kontenery() if _nazwa(k) in NAZWY_GLOWNE])
         if ile1 <= ile0:
             raise SerwisBlad("okna", "plecak z ekwipunku się nie otworzył")
 
@@ -464,9 +669,11 @@ class AkcjeZywe:
         kon = self.kontenery()
         glowny = self._glowny(kon)
         w_plecaku = [q for q in (glowny or {}).get("przedmioty", []) if q["id"] in ID_BAGOW]
-        return not any(_czy_bag(k) for k in kon) and not w_plecaku
+        return not any(_czy_bag(k, kon) for k in kon) and not w_plecaku
 
-    def kup(self, npc, co, docelowo):
+    def kup(self, npc, co, docelowo, prefiks=""):
+        """`prefiks`: słowo przed zamówieniem, gdy NPC go wymaga (Thais: Frodo i Xodet odpowiadają na „buy 3 ham”, zmierzone
+        13-14.10; Edron: samo „5 ham”). Ilość i cenę i tak sprawdzają oferta NPC oraz plecak po zakupie."""
         ids = {"ham": {ID_HAM}, "blank rune": {ID_BLANK}, "backpack": ID_BAGOW}[co]
         potrzeba = self.brakuje(co, docelowo)
         if potrzeba <= 0:
@@ -474,7 +681,7 @@ class AkcjeZywe:
             return 0
         ma, majatek0 = self.ilosc(ids), self.majatek()
         self.rozmowa.powitaj(npc)
-        tekst = co if co == "backpack" else f"{potrzeba} {co}"
+        tekst = prefiks + (co if co == "backpack" else f"{potrzeba} {co}")
         self.rozmowa.zamow(npc, tekst, LIMITY_CENY[co], ile=None if co == "backpack" else potrzeba,
                            slepy_yes=(co == "ham"))
         time.sleep(1.5)
@@ -545,11 +752,11 @@ class AkcjeZywe:
         if len(bagi) > 1:
             raise SerwisBlad("depo", f"w plecaku {len(bagi)} bagi, nie wiem, który jest bagiem na runy")
         for k in kon:
-            if _czy_bag(k) and _suma(k, {ID_BLANK}) > 0 and _suma(k, {ID_UH}) == 0:
+            if _czy_bag(k, kon) and _suma(k, {ID_BLANK}) > 0 and _suma(k, {ID_UH}) == 0:
                 raise SerwisBlad("depo", f"otwarty bag {k.get('nazwa')!r} ma blanki i nie ma UH: to nowy bag, nie odkładam")
         return bagi
 
-    def depo_zloz(self, zostaw_platinum=3):
+    def depo_zloz(self, zostaw_platinum=3, odejdz=None):
         """Otwiera depo (skrzynia obok), odkłada bag z runami z plecaka i platinum ponad `zostaw_platinum`, zamyka depo
         i każde okno poza plecakiem. Zwraca False tylko wtedy, gdy skrzynia się nie otworzyła (nic nie ruszone)."""
         with self._mysz() as m:
@@ -563,7 +770,7 @@ class AkcjeZywe:
             if bagi:
                 self._przenies_do_depo(m, bagi[0]["slot"])
             self._platinum_do_depo(m, zostaw_platinum)
-        self._zamknij_poza_plecakiem()
+        self._zamknij_poza_plecakiem(odejdz)
         plat = self.ilosc({ID_PLATINUM})
         glowny = self._glowny()
         if glowny is None or any(q["id"] in ID_BAGOW for q in glowny.get("przedmioty", [])):
@@ -573,10 +780,12 @@ class AkcjeZywe:
         self.log(f"depo: złożone (platinum w plecaku {plat})")
         return True
 
-    def _zamknij_poza_plecakiem(self):
-        """Zamyka depo i okno przeniesionego baga (klient może je trzymać otwarte); sprawdza w pamięci, że został tylko plecak."""
+    def _zamknij_poza_plecakiem(self, odejdz=None):
+        """Zamyka depo i okno przeniesionego baga (klient może je trzymać otwarte); sprawdza w pamięci, że został tylko plecak.
+        22.10 (Karol): gdy okna nie dają się zamknąć, `odejdz()` odsuwa postać od skrzyni (serwer sam zamyka depo i okna z niego)."""
         for _ in range(3):
-            reszta = [k for k in self.kontenery() if not _czy_glowny(k)]
+            kon = self.kontenery()
+            reszta = [k for k in kon if not _czy_glowny(k, kon)]
             if not reszta:
                 return
             for k in reszta:
@@ -586,43 +795,125 @@ class AkcjeZywe:
                     raise
                 except Exception as e:
                     self.log(f"depo: nie zamknąłem {k.get('nazwa')!r} ({e!r})")
-        reszta = [k.get("nazwa") for k in self.kontenery() if not _czy_glowny(k)]
+        kon = self.kontenery()
+        reszta = [k.get("nazwa") for k in kon if not _czy_glowny(k, kon)]
+        if reszta and odejdz is not None:
+            self.log(f"depo: okna {reszta} nadal otwarte, odchodzę od skrzyni")
+            odejdz()
+            time.sleep(1.0)
+            kon = self.kontenery()
+            reszta = [k.get("nazwa") for k in kon if not _czy_glowny(k, kon)]
         if reszta:
             raise SerwisBlad("depo", f"po składaniu zostały otwarte okna: {reszta}")
 
-    def _depo_i_glowny(self, m):
-        pary = self._okna_numery(self._zrzut(m))
-        g = next(((o, k) for o, k in pary if _czy_glowny(k)), None)
+    def _depo_i_glowny_z_obrazem(self, m):
+        """((okno, kontener) plecaka, (okno, kontener) depot chest, zrzut, z którego okna wzięto)."""
+        obraz = self._zrzut(m)
+        pary = self._okna_numery(obraz)
+        kon = [k for _, k in pary]
+        g = next(((o, k) for o, k in pary if _czy_glowny(k, kon)), None)
         d = next(((o, k) for o, k in pary if _nazwa(k) == "depot chest"), None)
         if g is None or d is None:
             raise SerwisBlad("depo", "brak okna plecaka albo depot chest na ekranie")
+        return g, d, obraz
+
+    def _depo_i_glowny(self, m):
+        g, d, _ = self._depo_i_glowny_z_obrazem(m)
         return g, d
+
+    def _sloty_rozjechane(self, obraz, okno, kontener):
+        """Indeksy slotów okna, w których ekran i pamięć kontenera się nie zgadzają (zajęty/pusty). Bez zrzutu: brak oceny.
+        Sloty ucięte dołem zrzutu pomijamy (13:13 invincible: sloty 16-19 depot chest na dole panelu dawały fałszywy rozjazd)."""
+        if obraz is None:
+            return []
+        zajete = {q["slot"] for q in kontener.get("przedmioty", [])}
+        return [i for i, s in enumerate(okno.sloty)
+                if slot_w_pelni_widoczny(obraz, s) and (not self._slot_pusty(obraz, s)) != (i in zajete)]
+
+    def _depo_i_glowny_spojne(self, m, proby=4):
+        """Jak `_depo_i_glowny_z_obrazem`, ale okno depot chest musi zgadzać się z pamięcią co do zajętych slotów: bez tego cel
+        upuszczenia liczymy z nieświeżych danych i można trafić w bag leżący w depo (22.10). Ponawia odczyt (pamięć klienta bywa
+        o chwilę za ekranem); gdy rozjazd trwa, błąd zamiast przeciągania na ślepo."""
+        rozjazd = []
+        for p in range(proby):
+            g, d, obraz = self._depo_i_glowny_z_obrazem(m)
+            rozjazd = self._sloty_rozjechane(obraz, d[0], d[1])
+            if not rozjazd:
+                return g, d, obraz
+            self.log(f"depo: ekran i pamięć depot chest różnią się w slotach {rozjazd} (odczyt {p + 1}/{proby}), czekam")
+            time.sleep(0.6)
+        raise SerwisBlad("depo", f"depot chest: ekran i pamięć klienta rozjeżdżają się w slotach {rozjazd}; nie przeciągam na ślepo "
+                                 "(upuszczenie na kontener w depo wkłada przedmiot do jego środka)")
+
+    def _slot_pusty(self, obraz, slot):
+        """Czy slot jest pusty NA EKRANIE (obraz None = brak zrzutu, nie oceniamy: True)."""
+        if obraz is None:
+            return True
+        import loot
+        return loot.czy_pusty(obraz, slot)
+
+    def _wolny_w_depo(self, obraz, okno, kontener):
+        """Slot depot chest, na który wolno upuścić przedmiot (`bezpieczny_wolny_slot`): wolny w pamięci i na ekranie, nie przy bagu."""
+        return bezpieczny_wolny_slot(okno, kontener, lambda s: self._slot_pusty(obraz, s),
+                                     lambda s: slot_w_pelni_widoczny(obraz, s))
+
+    def _poczekaj_na_skutek(self, num_z, num_d, ident, z_przed, d_przed):
+        """(kontener źródła, kontener celu) z pamięci po przeciągnięciu `ident` o jedną sztukę; czeka do SKUTEK_CZEKAJ_S, aż
+        źródło ma o 1 mniej, a cel o 1 więcej (pamięć klienta bywa o chwilę za ekranem). Zwraca ostatni odczyt, gdy skutku nie ma."""
+        t0 = time.monotonic()
+        while True:
+            z_po, d_po = self._kontener(num_z), self._kontener(num_d)
+            if z_po is not None and d_po is not None and _suma(z_po, {ident}) == z_przed - 1 and _suma(d_po, {ident}) == d_przed + 1:
+                return z_po, d_po
+            if time.monotonic() - t0 >= SKUTEK_CZEKAJ_S:
+                return z_po, d_po
+            time.sleep(SKUTEK_KROK_S)
 
     def _kontener(self, numer):
         return next((k for k in self.kontenery() if k.get("numer") == numer), None)
 
     def _przenies_do_depo(self, m, slot_zrodlowy):
         """Przeciąga przedmiot ze slotu plecaka na pierwsze wolne widoczne pole depot chest; weryfikacja na obu końcach."""
-        (o_z, k_z), (o_d, k_d) = self._depo_i_glowny(m)
+        (o_z, k_z), (o_d, k_d), obraz = self._depo_i_glowny_spojne(m)
         if slot_zrodlowy >= len(o_z.sloty):
             raise SerwisBlad("depo", f"slot {slot_zrodlowy} poza widocznym oknem plecaka")
         przedmiot = next((q for q in k_z.get("przedmioty", []) if q["slot"] == slot_zrodlowy), None)
         if przedmiot is None:
             raise SerwisBlad("depo", f"slot {slot_zrodlowy} plecaka jest pusty")
-        wolny = wolny_slot(o_d, {q["slot"] for q in k_d.get("przedmioty", [])})
+        # 22.10: cel nigdy nie jest slotem z kontenerem (upuszczenie na bag/plecak w depo wkłada przedmiot do jego środka)
+        wolny = self._wolny_w_depo(obraz, o_d, k_d)
         if wolny is None:
-            raise SerwisBlad("depo", "depot chest bez wolnego widocznego pola")
-        z_przed, d_przed = _suma(k_z, {przedmiot["id"]}), _suma(k_d, {przedmiot["id"]})
+            raise SerwisBlad("depo", "depot chest bez wolnego widocznego pola (wolne w pamięci i puste na ekranie)")
+        ident = przedmiot["id"]
+        z_przed, d_przed = _suma(k_z, {ident}), _suma(k_d, {ident})
         self._przeciagnij(m, o_z, slot_zrodlowy, o_d, wolny)
-        z_po, d_po = self._kontener(k_z.get("numer")), self._kontener(k_d.get("numer"))
-        if z_po is None or d_po is None or _suma(z_po, {przedmiot["id"]}) != z_przed - 1 or _suma(d_po, {przedmiot["id"]}) != d_przed + 1:
-            raise SerwisBlad("depo", "przeciągnięcie do depo nie dało skutku na obu końcach (przedmiot mógł spaść na podłogę)")
+        z_po, d_po = self._poczekaj_na_skutek(k_z.get("numer"), k_d.get("numer"), ident, z_przed, d_przed)
+        if z_po is not None and d_po is not None and _suma(z_po, {ident}) == z_przed - 1 and _suma(d_po, {ident}) == d_przed + 1:
+            return
+        raise SerwisBlad("depo", "przeciągnięcie do depo nie dało skutku na obu końcach: "
+                         + self._opis_nieudanego_przeciagniecia(ident, z_przed, d_przed, z_po, d_po, wolny))
+
+    @staticmethod
+    def _opis_nieudanego_przeciagniecia(ident, z_przed, d_przed, z_po, d_po, slot_celu):
+        """Precyzyjny komunikat zamiast zgadywania „spadł na podłogę” (22.10: ten sam symptom daje też wpadnięcie do kontenera w depo)."""
+        if z_po is None or d_po is None:
+            return "po przeciągnięciu zniknął z pamięci plecak albo depot chest (okno zamknięte?), nie wiadomo, gdzie jest przedmiot"
+        z, d = _suma(z_po, {ident}), _suma(d_po, {ident})
+        if z == z_przed and d == d_przed:
+            return (f"przedmiot {ident} nie ruszył się z plecaka (upuszczenie na slot {slot_celu} nie zadziałało albo pamięć "
+                    f"nie pokazała skutku w {SKUTEK_CZEKAJ_S:g} s)")
+        if z == z_przed - 1 and d == d_przed:
+            w_srodku = sorted(q["slot"] for q in d_po.get("przedmioty", []) if q["id"] in ID_BAGOW)
+            return (f"przedmiot {ident} zniknął z plecaka ({z_przed} -> {z}), a w depot chest nie przybył ({d_przed} -> {d}); "
+                    f"upuszczony na slot {slot_celu}: najpewniej wpadł do kontenera leżącego w depo (bag/plecak w slotach {w_srodku}) "
+                    "albo leży na podłodze; pamięć klienta tego nie rozróżnia — sprawdź ręcznie, nie ponawiaj")
+        return f"plecak {z_przed} -> {z}, depot chest {d_przed} -> {d} (przedmiot {ident}, cel slot {slot_celu}): skutek niezgodny z jedną sztuką"
 
     def _platinum_do_depo(self, m, zostaw):
         """Platinum ponad `zostaw` do depo: stos po stosie (na istniejący stos w depo, jeśli jest miejsce); ostatni, częściowy
         stos przez okno ilości. Każdy ruch weryfikowany na obu końcach."""
         for _ in range(6):
-            (o_z, k_z), (o_d, k_d) = self._depo_i_glowny(m)
+            (o_z, k_z), (o_d, k_d), obraz = self._depo_i_glowny_spojne(m)
             stosy = [q for q in k_z.get("przedmioty", []) if q["id"] == ID_PLATINUM and q["slot"] < len(o_z.sloty)]
             razem = _suma(k_z, {ID_PLATINUM})
             nadmiar = razem - zostaw
@@ -633,7 +924,7 @@ class AkcjeZywe:
             przenosi = min(ile, nadmiar)
             cel = next((q for q in k_d.get("przedmioty", []) if q["id"] == ID_PLATINUM and q.get("ilosc", 1) + przenosi <= 100
                         and q["slot"] < len(o_d.sloty)), None)
-            slot_do = cel["slot"] if cel else wolny_slot(o_d, {q["slot"] for q in k_d.get("przedmioty", [])})
+            slot_do = cel["slot"] if cel else self._wolny_w_depo(obraz, o_d, k_d)     # 22.10: nie na bag/plecak w depo
             if slot_do is None:
                 raise SerwisBlad("depo", "depot chest bez wolnego widocznego pola na platinum")
             d_przed = _suma(k_d, {ID_PLATINUM})
@@ -653,8 +944,9 @@ class AkcjeZywe:
         with self._mysz() as m:
             for _ in range(40):
                 pary = self._okna_numery(self._zrzut(m))
-                glowny = next(((o, k) for o, k in pary if _czy_glowny(k)), None)
-                bagi = [(o, k) for o, k in pary if _czy_bag(k)]
+                kon = [k for _, k in pary]
+                glowny = next(((o, k) for o, k in pary if _czy_glowny(k, kon)), None)
+                bagi = [(o, k) for o, k in pary if _czy_bag(k, kon)]
                 if glowny is None or len(bagi) != 1:
                     raise SerwisBlad("blanki", f"oczekiwano jednego plecaka i jednego bagu na runy ({len(bagi)} bagów)")
                 o_z, k_z = glowny

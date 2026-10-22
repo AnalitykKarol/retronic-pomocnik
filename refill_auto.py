@@ -5,7 +5,8 @@ Bot, który dochodzi do depo w „Wróć do miasta” (wroc.sh) albo w wyprawie 
 wyprawa.py (`_zakoncz_depo`) woła `zlec()`: gdy miasto ma plan serwisu (trasy/serwis_<miasto>.json obsługiwane przez serwis.py)
 i nic innego nie trwa, rusza odłączony „czekacz” (`refill_auto.py czekaj`). Czekacz czeka, aż proces bota tej instancji zniknie
 (refill.sh odmawia przy działającym bocie), sprawdza jeszcze raz STOP_RECZNY / serwis, zwalnia wejście i wykonuje
-`refill.sh --tlo` (jedzenie, backpack, blanki, wyjście, potem start bota na spot; log `refill.log`).
+`refill.sh --tlo` (bank, depo, jedzenie, backpack, blanki, wyjście, potem start bota na spot; log `refill.log`; miasto z pozycji
+postaci, kroków, których miasto nie ma, np. banku w Thais, serwis pomija).
 
 Pierwszeństwo ma człowiek: STOP_RECZNY (guzik Stop, zatrzymaj.sh, refill.sh --przerwij) = bez auto-refillu. Anulowanie:
 `refill_auto.py anuluj` (woła je `wroc.sh --anuluj` i `refill.sh --przerwij`). Decyzje i powody w pliku stanu instancji
@@ -29,7 +30,7 @@ import instancja  # noqa: E402
 
 TRASY = KATALOG / "trasy"
 PLIK = "wroc_refill.json"
-MIASTA_SERWISU = ("edron",)                             # miasta, które serwis.py umie obsłużyć (jego argparse: choices)
+MIASTA_SERWISU = ("edron", "thais")                     # miasta, które serwis.py umie obsłużyć (jego argparse: choices); Thais od 22.10 (drzwi sklepów)
 WZOR_BOT = r"(mozg|cavebot)\.py"
 WZOR_SERWIS = r"(^|[ /])serwis\.py "
 WZOR_REFILL = r"^(\S*/)?bash (\S*/)?refill\.sh *$"

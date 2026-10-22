@@ -525,7 +525,11 @@ def _niezgodnosci(obraz, okno, kontener):
     if len(okno.sloty) > kontener.get("pojemnosc", 0):
         return None
     zajete = {p["slot"] for p in kontener.get("przedmioty", [])}
-    return sum((not czy_pusty(obraz, s)) != (i in zajete) for i, s in enumerate(okno.sloty))
+    # 22.10 (invincible, Edron): dół okna depot chest wystaje poza zrzut (piąty rząd ucięty), a `czy_pusty` widzi w nim cudze
+    # piksele i daje „zajęte": 4 fałszywe niezgodności unieważniały całe dopasowanie. Slotów ściętych dołem zrzutu nie oceniamy.
+    wys = getattr(obraz, "size", (0, 0))[1]
+    return sum((not czy_pusty(obraz, s)) != (i in zajete) for i, s in enumerate(okno.sloty)
+               if not (wys and getattr(s, "y", None) is not None and getattr(s, "bok", None) is not None and s.y + s.bok > wys))
 
 
 def dopasuj_okna(obraz, okna, kontenery):

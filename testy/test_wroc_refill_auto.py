@@ -80,6 +80,7 @@ sprawdz("1o przerwij() zwraca False = marsz trwa do pola kliku", r == "ruch")
 
 # ---------------------------------------------------------------- 2. refill_auto: decyzja, czekacz, anulowanie
 EDRON_DEPO, EDRON_ULICA, THAIS, ROOK = (33173, 31796, 8), (33170, 31810, 7), (32366, 32215, 7), (32097, 32219, 7)
+THAIS_DEPO = (32348, 32225, 7)          # przybycie wyprawy do depo Thais (start trasy depo_troll_cave)
 tmp = Path(tempfile.mkdtemp(prefix="test_wroc_refill_auto_"))
 stan = tmp / "stan"; stan.mkdir()
 def cz(): return refill_auto.czytaj_stan(stan)
@@ -88,16 +89,24 @@ def czysc():
 nic = lambda wzor, **kw: []
 starty = []
 sprawdz("2a miasto_serwisu: depo Edron = (edron, w depo)", refill_auto.miasto_serwisu(EDRON_DEPO) == ("edron", True))
-sprawdz("2b ulica Edron = (edron, nie w depo); Thais, Rook, brak = (None, False)",
+sprawdz("2b ulica Edron = (edron, nie w depo); depo Thais = (thais, w depo), ulica Thais = (thais, nie w depo) (22.10); Rook, brak = (None, False)",
         refill_auto.miasto_serwisu(EDRON_ULICA) == ("edron", False)
-        and all(refill_auto.miasto_serwisu(p) == (None, False) for p in (THAIS, ROOK, (0, 0, 7))))
+        and refill_auto.miasto_serwisu(THAIS_DEPO) == ("thais", True) and refill_auto.miasto_serwisu(THAIS) == ("thais", False)
+        and all(refill_auto.miasto_serwisu(p) == (None, False) for p in (ROOK, (0, 0, 7))))
 r = refill_auto.zlec(EDRON_DEPO, stan, start=lambda: starty.append(1), procesy=nic)
 sprawdz("2c depo Edron, nic nie trwa: start czekacza raz, decyzja czeka", r[0] == "czeka" and starty == [1] and cz()["stan"] == "czeka", (r, starty))
 czysc(); starty.clear()
-r = refill_auto.zlec(THAIS, stan, start=lambda: starty.append(1), procesy=nic)
-sprawdz("2d Thais: brak_planu, czytelny powód (miasto, pozycja, które miasta mają plan), start NIE rusza",
+r = refill_auto.zlec(ROOK, stan, start=lambda: starty.append(1), procesy=nic)
+sprawdz("2d Rook: brak_planu, czytelny powód (miasto, pozycja, które miasta mają plan), start NIE rusza",
         r[0] == "brak_planu" and starty == [] and "brak planu serwisu" in cz()["powod"] and "edron" in cz()["powod"]
-        and "32366" in cz()["powod"], (r, cz()))
+        and "thais" in cz()["powod"] and "32097" in cz()["powod"], (r, cz()))
+czysc()
+r = refill_auto.zlec(THAIS_DEPO, stan, start=lambda: starty.append(1), procesy=nic)
+sprawdz("2d2 depo Thais, nic nie trwa: start czekacza raz, decyzja czeka (22.10: Thais ma plan serwisu)",
+        r[0] == "czeka" and starty == [1] and cz()["stan"] == "czeka" and "thais" in cz()["powod"], (r, starty, cz()))
+czysc(); starty.clear()
+r = refill_auto.zlec(THAIS, stan, start=lambda: starty.append(1), procesy=nic)
+sprawdz("2d3 ulica Thais (poza depo): pominiety, start nie rusza", r[0] == "pominiety" and starty == [] and "depo thais" in cz()["powod"], (r, cz()))
 czysc()
 r = refill_auto.zlec(EDRON_ULICA, stan, start=lambda: starty.append(1), procesy=nic)
 sprawdz("2e Edron, ale poza depo: pominiety, start nie rusza", r[0] == "pominiety" and starty == [] and "depo" in cz()["powod"], r)
@@ -280,8 +289,8 @@ try:
     time.sleep(1.2)
     sprawdz("4c dopóki bot żyje: refill nie ruszył", "serwis.sh" not in wyw() and cz_.poll() is None)
     bot.kill(); bot.wait()
-    sprawdz("4d po zniknięciu bota: zwolnienie wejścia, potem serwis.sh STARTUJ=1 z krokami refillu (bez banku i depo)",
-            czekaj_na(lambda: "serwis.sh STARTUJ=1 --kroki jedzenie,backpack,blanki,wyjscie" in wyw())
+    sprawdz("4d po zniknięciu bota: zwolnienie wejścia, potem serwis.sh STARTUJ=1 z krokami refillu (pełna lista, brakujące w mieście pomijane)",
+            czekaj_na(lambda: "serwis.sh STARTUJ=1 --kroki bank,depo,jedzenie,backpack,blanki,wyjscie --pomin-brakujace" in wyw())
             and "zwolnij_wejscie" in wyw() and wyw().index("zwolnij_wejscie") < wyw().index("serwis.sh"), wyw())
     sprawdz("4e refill.log ma START i OK, decyzja uruchomiony, czekacz zakończył się sam",
             czekaj_na(lambda: "REFILL: OK" in (INST / "refill.log").read_text() if (INST / "refill.log").exists() else False)

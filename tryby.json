@@ -32,7 +32,7 @@
   }
  },
  "runy": {
-  "opis": "Robienie run w spokoju (adori gran, F6, 70 many, start przy mana >= 70, HP >= 90%, bez stworów w widoku): tarcza do plecaka, blank do ręki, rzut, runa do plecaka, tarcza z powrotem. ML (utevo lux) wyłączone, mana idzie w runy. Wymaga blank run w plecaku i hotkeya F6 = adori gran w kliencie. Tylko runy: bez exevo pan (JEDZENIE_CZAR_AKTYWNY=0, jedzenie wyłącznie z plecaka przy głodzie), bez exura (ZDROWIE_CZAR_AKTYWNY=0) i bez ML; cała mana idzie w adori gran.",
+  "opis": "Robienie run w spokoju (adori gran, F6, 70 many, start przy mana >= 70, HP >= 90%, bez stworów w widoku): tarcza do plecaka, blank do ręki, rzut, runa do plecaka, tarcza z powrotem. ML (utevo lux) wyłączone, mana idzie w runy. Wymaga blank run w plecaku i hotkeya F6 = adori gran w kliencie. Tylko runy: bez exevo pan (JEDZENIE_CZAR_AKTYWNY=0, jedzenie wyłącznie z plecaka przy głodzie), exura przy HP < 80% (ZDROWIE_CZAR_AKTYWNY=1, 21.10 po ucieczce invincible przy HP 14%), bez ML; reszta many idzie w adori gran. 22.10 (Karol): każda postać robiąca runy sama wraca do depo po blanki (WYPRAWA_DEPO_BLANKI=1, WYPRAWA_BLANKI=20) i robi refill (WROC_REFILL=1).",
   "pokretla": {
    "UH_AKTYWNY": 1,
    "ML_CZAR_AKTYWNY": 0,
@@ -43,7 +43,11 @@
    "UH_MIN_HP": 90,
    "UH_MOB_DYSTANS": 3,
    "JEDZENIE_CZAR_AKTYWNY": 0,
-   "ZDROWIE_CZAR_AKTYWNY": 0
+   "ZDROWIE_CZAR_AKTYWNY": 1,
+   "ZDROWIE_CZAR_HP": 80,
+   "WYPRAWA_DEPO_BLANKI": 1,
+   "WYPRAWA_BLANKI": 20,
+   "WROC_REFILL": 1
   }
  },
  "uh": {

@@ -180,8 +180,8 @@ try:
     sprawdz("3e --tlo wraca od razu z kodem 0", r.returncode == 0 and "refill ruszył" in r.stdout, r.stderr[-200:])
     sprawdz("3f sukces: znacznik OK w logu", czekaj(lambda: "REFILL: OK" in log()), log())
     wyw = (tmp / "wywolania.txt").read_text()
-    sprawdz("3g serwis.sh dostaje STARTUJ=1 i kroki bez banku i depo",
-            "serwis.sh STARTUJ=1 --kroki jedzenie,backpack,blanki,wyjscie" in wyw and "bank" not in wyw and "depo" not in wyw, wyw)
+    sprawdz("3g serwis.sh dostaje STARTUJ=1 i pełny serwis z bankiem i depo (Karol 22.10)",
+            "serwis.sh STARTUJ=1 --kroki bank,depo,jedzenie,backpack,blanki,wyjscie" in wyw, wyw)
     sprawdz("3h sukces kasuje serwis_stan.json (następny refill nie pomija zakupów)", not (INST / "serwis_stan.json").exists())
     sprawdz("3i po sukcesie nic nie trwa", czekaj(lambda: not pidy(r"^(\S*/)?bash (\S*/)?refill\.sh *$", skrypt=True)))
 
@@ -259,7 +259,7 @@ try:
     r = refill("--spot", STUB_TRYB="ok")
     sprawdz("3zc --spot: kod 0 i OK w logu", r.returncode == 0 and czekaj(lambda: "REFILL: OK" in log()), log())
     wyw = (tmp / "wywolania.txt").read_text()
-    sprawdz("3zd --spot: serwis.sh dostaje STARTUJ=1 i wyłącznie krok wyjscie", "serwis.sh STARTUJ=1 --kroki wyjscie\n" in wyw
+    sprawdz("3zd --spot: serwis.sh dostaje STARTUJ=1 i wyłącznie krok wyjscie", "serwis.sh STARTUJ=1 --kroki wyjscie --pomin-brakujace\n" in wyw
             and "jedzenie" not in wyw and "bank" not in wyw, wyw)
     sprawdz("3ze --spot: znacznik START z trybem spot", "REFILL: START" in log() and log().split("\n")[0].endswith(" spot"), log())
     (INST / "STOP").unlink(missing_ok=True)

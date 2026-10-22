@@ -4,8 +4,11 @@
   python3 -I serwis.py [edron|thais|auto] [--kroki bank,depo,jedzenie,backpack,blanki,wyjscie] [--na-sucho] [--bez-stop]
 
 Miasto = plik `trasy/serwis_<miasto>.json`; bez argumentu edron (jak dotąd), `auto` = miasto z bieżącej pozycji postaci
-(panel.miasto_pozycji; z `--na-sucho --od x,y,z` z podanego pola). Kroki z polem `drzwi` w danych (Thais: Frodo, Xodet) serwis
-odrzuca przed pierwszym ruchem, bo drzwi sklepów nie są jeszcze obsługiwane (SPEC_serwis_thais_1021).
+(panel.miasto_pozycji; z `--na-sucho --od x,y,z` z podanego pola). Bez argumentu: miasto z pozycji postaci, gdy stoi w mieście
+z planem (Thais), inaczej edron (jak dotąd). Kroki z polem `drzwi` w danych (Thais: Frodo, Xodet) serwis przechodzi przez zamknięte
+drzwi własnym marszem (22.10): stoi przed drzwiami, czeka na stojącą pozycję, krok, Use, krok (`przejdz_drzwi`); brak otwarcia
+po DRZWI_PROB próbach = SerwisBlad. `--pomin-brakujace`: kroki, których miasto nie ma (bank w Thais), są pomijane z notatką
+(używa tego refill.sh), bez tej flagi nieznany krok to błąd startu.
 
 Kolejność kroków jest w `trasy/serwis_<miasto>.json` ("kolejnosc") albo w `--kroki`. Chodzenie: A* po piętrze
 (wyprawa.Trasownik) i łączniki pięter z nagrania Karola (laczniki); akcje na żywo (UI plecaków, rozmowa z NPC, depo)
@@ -27,6 +30,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 KATALOG = Path(__file__).resolve().parent
 TRASY = KATALOG / "trasy"
 KOSZT_LACZNIKA = 6.0                    # w "polach": przejście piętra
+DRZWI_PROB = 3                          # tyle prób przejścia przez jedne drzwi (Use + krok), potem SerwisBlad (jak wypad.DRZWI_PROB, ale krócej)
+DRZWI_CZEKAJ_S = (0.6, 1.0)             # po Use czekamy, aż drzwi się otworzą (jak wypad._drzwi)
+SKLADOWA_MAKS_POL = 400000              # zalew spójności większy niż to = nie odrzucamy pary (A* sam zdecyduje)
+DRZWI_SPOKOJ_S = 0.4                    # odstęp dwóch odczytów pozycji „postać stoi” (jak cavebot._drzwi_spokoj)
 
 import marsz_klik  # noqa: E402
 from serwis_blad import SerwisBlad, cheb  # noqa: E402
@@ -38,9 +45,17 @@ def miasta(katalog=TRASY):
 
 
 def wybierz_miasto(arg, poz=None, katalog=TRASY):
-    """Nazwa miasta do serwisu: `arg` z wiersza poleceń (domyślnie edron) albo przy "auto" miasto z pozycji `poz` (x, y, z).
-    SerwisBlad, gdy miasta nie ma wśród planów albo pozycja nie leży w żadnym z nich."""
-    arg = arg or "edron"
+    """Nazwa miasta do serwisu: `arg` z wiersza poleceń albo przy "auto" miasto z pozycji `poz` (x, y, z).
+    Bez argumentu (None; 22.10 Karol: refill ma działać w każdym mieście z planem): miasto z pozycji, gdy postać stoi w mieście
+    z planem serwisu, inaczej edron (jak dotąd: Edron startuje też z jaskini czy z z5). Jawne miasto, a postać w INNYM mieście
+    z planem = błąd startu. SerwisBlad, gdy miasta nie ma wśród planów albo przy "auto" pozycja nie leży w żadnym z nich."""
+    if arg is None:
+        if poz is not None:
+            import panel  # noqa: PLC0415
+            miasto, _w_depo = panel.miasto_pozycji(tuple(poz), panel.dane_serwisu(katalog))
+            if miasto is not None:
+                return miasto
+        arg = "edron"
     if arg != "auto":
         if arg not in miasta(katalog):
             raise SerwisBlad("start", f"brak planu serwisu dla miasta {arg!r} (są: {', '.join(miasta(katalog))})")
@@ -73,16 +88,124 @@ def wczytaj(miasto, katalog=TRASY):
     return dane
 
 
+def drzwi_miasta(dane):
+    """Wszystkie pola drzwi z pola `drzwi` przystanków planu (Thais: Frodo, Xodet) jako krotki (x, y, z), bez powtórzeń."""
+    wynik = []
+    for p in dane.get("przystanki", {}).values():
+        for h in p.get("drzwi") or []:
+            h = tuple(int(v) for v in h)
+            if h not in wynik:
+                wynik.append(h)
+    return wynik
+
+
+def boki_drzwi(mapa, h):
+    """Dwa pola po obu stronach drzwi `h` w jednej osi: (przed, za) albo None. Oba chodliwe (mapa widzi sam kafelek drzwi jako
+    ścianę), a pola prostopadłe do osi to ściana (drzwi w murze). Frodo: oś x (32364|32366, 32208), Xodet: oś y (32400, 32216|32218)."""
+    h = tuple(h)
+    wolne = []
+    for dx, dy in ((1, 0), (0, 1)):
+        a, b = (h[0] - dx, h[1] - dy, h[2]), (h[0] + dx, h[1] + dy, h[2])
+        if all(int(mapa.flagi(*q)) & 1 and not int(mapa.flagi(*q)) & 4 for q in (a, b)):
+            bok = [(h[0] + dy, h[1] + dx, h[2]), (h[0] - dy, h[1] - dx, h[2])]
+            w_murze = all(not (int(mapa.flagi(*q)) & 1) or int(mapa.flagi(*q)) & 4 for q in bok)
+            wolne.append((w_murze, (a, b)))
+    if not wolne:
+        return None
+    return sorted(wolne, key=lambda w: not w[0])[0][1]
+
+
 class Planer:
     """Droga między dowolnymi dwoma polami: odcinki na jednym piętrze z A*, przejścia pięter tylko po łącznikach z nagrania.
 
     Odcinek A* liczy się tylko wtedy, gdy cała jego droga leży na jednym piętrze (graf mapy bywa niepełny co do schodów,
-    a łączniki z nagrania są sprawdzone na żywo). Dijkstra po węzłach: start, cel i końce łączników."""
+    a łączniki z nagrania są sprawdzone na żywo). Dijkstra po węzłach: start, cel i końce łączników.
 
-    def __init__(self, trasownik, laczniki):
+    `drzwi` + `mapa` (22.10, Thais): zamknięte drzwi sklepów to dla A* ściana, więc każde drzwi to dwie krawędzie między polami
+    po ich obu stronach (koszt 2); droga przez nie zawiera pole drzwi jako zwykły punkt [... przed, drzwi, za ...]. Marsz dzieli ją
+    na tym punkcie (`podziel_na_drzwiach`). Drzwi NIE są łącznikami (`self.lacz` idzie do marszu jako pola do omijania)."""
+
+    def __init__(self, trasownik, laczniki, drzwi=(), mapa=None):
         self.tr = trasownik
         self.lacz = [(tuple(l["z"]), tuple(l["do"])) for l in laczniki]
         self._cache = {}
+        self._sklad = {}                    # pole -> numer składowej spójności (zalew, patrz _ta_sama_skladowa)
+        self.drzwi = {}                     # pole drzwi -> (przed, za)
+        for h in drzwi:
+            h = tuple(int(v) for v in h)
+            boki = boki_drzwi(mapa, h) if mapa is not None else None
+            if boki is None:
+                raise SerwisBlad("start", f"drzwi {h} nie mają po obu stronach pola do stania (mapa?)")
+            self.drzwi[h] = boki
+
+    def _ta_sama_skladowa(self, a, b):
+        """Szybkie odrzucenie par pól bez drogi po jednym piętrze: zalew po polach, po których chodzi A* (Graf.idzie, te same ruchy),
+        liczony raz na składową. A* z pola odciętego drzwiami przeszukiwałby całą mapę (ok. 3 s na parę, z drzwiami ponad 10 s na
+        trasę), a odpowiedź to i tak None. True = nie wiadomo albo jest w tej samej składowej (wtedy decyduje A*)."""
+        graf = getattr(self.tr, "graf", None)
+        ruchy = getattr(getattr(self.tr, "g", None), "RUCHY", None)
+        if graf is None or ruchy is None or not self.drzwi:
+            return True
+        for pole in (a, b):
+            if pole not in self._sklad:
+                if not graf.idzie(*pole):
+                    return True                                  # pole poza grafem (np. schody): niech rozstrzygnie A*
+                id_ = len(self._sklad) + 1
+                kol, widziane = [pole], {pole}
+                while kol and len(widziane) <= SKLADOWA_MAKS_POL:
+                    x, y, z = kol.pop()
+                    for dx, dy, _c in ruchy:
+                        q = (x + dx, y + dy, z)
+                        if q not in widziane and graf.idzie(*q):
+                            widziane.add(q)
+                            kol.append(q)
+                if kol:                                          # zalew za duży: nie wiemy, nie odrzucamy
+                    return True
+                for q in widziane:
+                    self._sklad[q] = id_
+        return self._sklad[a] == self._sklad[b]
+
+    def _mapa(self):
+        graf = getattr(self.tr, "graf", None)
+        return getattr(graf, "m", None)
+
+    def _schody(self, pole):
+        """True = pole chodliwe z flagą 2 (schody, rampa, dziura): krok na nie zmienia piętro. W obrębie jednego piętra nieprzechodnie
+        (A* w Graf.idzie też je pomija); wyjątek robią tylko łączniki planu (`self.lacz`). Brak mapy = False."""
+        mp = self._mapa()
+        if mp is None:
+            return False
+        return pole_schodow_lub_dziur(mp, pole[0], pole[1], pole[2])
+
+    def _odcinek_czysty(self, p, q):
+        """Prosty odcinek p->q (w osi albo po przekątnej) bez pola, na które nie wolno wejść; inny kształt = False (marsz ma
+        iść po sąsiednich polach, a nie po linii „na oko” przez róg ściany albo schodów). Brak grafu = True (atrapy)."""
+        graf = getattr(self.tr, "graf", None)
+        if graf is None:
+            return True
+        dx, dy = q[0] - p[0], q[1] - p[1]
+        if dx and dy and abs(dx) != abs(dy):
+            return False
+        d = max(abs(dx), abs(dy))
+        sx, sy = (dx > 0) - (dx < 0), (dy > 0) - (dy < 0)
+        return all(graf.idzie(p[0] + sx * i, p[1] + sy * i, p[2]) for i in range(1, d))
+
+    def _zagesc(self, o):
+        """Rzadkie punkty odcinka A* (`Trasownik.odcinek` przerzedza drogę co 3. pole) mogą ciąć róg ściany albo pole schodów: marsz
+        idzie wtedy wprost między punktami. Każdy nieczysty odcinek zastępujemy gęstą ścieżką A* (pole po polu)."""
+        graf = getattr(self.tr, "graf", None)
+        if graf is None or len(o) < 2:
+            return o
+        wynik = [o[0]]
+        for p, q in zip(o, o[1:]):
+            if self._odcinek_czysty(p, q):
+                wynik.append(q)
+                continue
+            gesta = graf.astar(p, q)
+            if gesta is None:
+                return None
+            wynik.extend(tuple(x) for x, _t in gesta[1:])
+        return wynik
 
     def _odcinek(self, a, b):
         """Punkty a..b po jednym piętrze (A*) albo None."""
@@ -90,9 +213,11 @@ class Planer:
             return [a]
         klucz = (a, b)
         if klucz not in self._cache:
-            o = self.tr.odcinek(a, b) if a[2] == b[2] else None
+            o = self.tr.odcinek(a, b) if a[2] == b[2] and self._ta_sama_skladowa(a, b) else None
             if o is not None and any(p[2] != a[2] for p in o):
                 o = None
+            if o is not None:
+                o = self._zagesc(o)
             self._cache[klucz] = o
         return self._cache[klucz]
 
@@ -108,6 +233,14 @@ class Planer:
         wyjscie = {}                      # a -> [b]
         for a, b in self.lacz:
             wyjscie.setdefault(a, []).append(b)
+        przez_drzwi = {}                  # a -> [(drzwi, b)]: krok przez drzwi w obie strony
+        for h, (a, b) in self.drzwi.items():
+            wezly.add(a)
+            wezly.add(b)
+            przez_drzwi.setdefault(a, []).append((h, b))
+            przez_drzwi.setdefault(b, []).append((h, a))
+            if od == h:                   # stoimy na kafelku drzwi: obie strony o krok
+                przez_drzwi.setdefault(od, []).extend([(h, a), (h, b)])
         d, skad = {od: 0.0}, {od: None}
         pq = [(0.0, od)]
         while pq:
@@ -120,6 +253,16 @@ class Planer:
                 nc = c + KOSZT_LACZNIKA
                 if nc < d.get(b, 1 << 60):
                     d[b], skad[b] = nc, (p, None)
+                    heapq.heappush(pq, (nc, b))
+            for h, b in przez_drzwi.get(p, ()):
+                nc = c + 2.0
+                if p == h:
+                    o = [p, b]
+                    nc = c + 1.0
+                else:
+                    o = [p, h, b]
+                if nc < d.get(b, 1 << 60):
+                    d[b], skad[b] = nc, (p, o)
                     heapq.heappush(pq, (nc, b))
             for q in wezly:
                 if q == p or q[2] != p[2]:
@@ -141,7 +284,24 @@ class Planer:
         wynik = [od]
         for o in reversed(odcinki):
             wynik.extend(o[1:] if o and o[0] == wynik[-1] else o)
+        if self._schody_na_drodze(wynik):
+            return None
         return wynik
+
+    def _schody_na_drodze(self, droga):
+        """True, gdy droga w obrębie jednego piętra prowadzi przez pole schodów/dziury, które nie jest zamierzonym przejściem planu
+        (początek i koniec drogi oraz pola łączników są dozwolone). Pole ze zmianą piętra w drodze (łącznik) nie liczy się."""
+        dozwolone = {tuple(droga[0]), tuple(droga[-1])}
+        for a, b in self.lacz:
+            dozwolone.update((a, b))
+        for i, p in enumerate(droga):
+            p = tuple(p)
+            if p in dozwolone:
+                continue
+            ma_pietro = (i > 0 and droga[i - 1][2] != p[2]) or (i + 1 < len(droga) and droga[i + 1][2] != p[2])
+            if not ma_pietro and self._schody(p):
+                return True
+        return False
 
 
 def plecak_ilosc(plecak, ids):
@@ -151,12 +311,20 @@ def plecak_ilosc(plecak, ids):
     return sum(v for k, v in plecak.get("id", {}).items() if k in ids)
 
 
+ID_BLANK_RUNY = 3147     # blank rune (jak serwis_akcje.ID_BLANK)
+
+# kroki, których wynik cofa depo (odkłada bag z runami razem z blankami); przy wznawianiu oceniane na nowo (Serwis._stan_zmieniony)
+KROKI_ZALEZNE_OD_DEPO = ("backpack", "blanki")
+
+
 class Serwis:
     """Orkiestrator kroków. `akcje` = obiekt z metodami z serwis_akcje.AkcjeZywe (w testach atrapa); `chodz(punkty)` -> bool."""
 
     def __init__(self, dane, akcje, planer, pozycja, chodz, log=print, cele=None, spij=time.sleep, stan_plik=None,
-                 teraz=time.time):
+                 teraz=time.time, obsluga_drzwi=None):
         self.d = dane
+        # None = serwis przechodzi przez drzwi, gdy planer je zna (Planer(drzwi=...)); marsz `chodz` musi je wtedy obsłużyć
+        self.obsluga_drzwi = bool(getattr(planer, "drzwi", None)) if obsluga_drzwi is None else bool(obsluga_drzwi)
         self.stan_plik = Path(stan_plik) if stan_plik else None
         self.teraz = teraz
         self.akcje = akcje
@@ -169,8 +337,9 @@ class Serwis:
         self.wynik = {}
         self.kroki_przebiegu = []
 
-    # Drzwi sklepów (Thais: Frodo, Xodet) mapa widzi jako ścianę, a serwis nie umie ich otworzyć: krok z polem "drzwi" w danych
-    # jest odrzucany PRZED pierwszym ruchem i inputem (inaczej A* przeszukiwałby minutami całą mapę, a potem i tak zgłosił brak drogi).
+    # Drzwi sklepów (Thais: Frodo, Xodet) mapa widzi jako ścianę. Planer bez drzwi (`Planer(drzwi=...)`) ich nie przejdzie: krok z polem
+    # "drzwi" w danych jest wtedy odrzucany PRZED pierwszym ruchem i inputem (inaczej A* przeszukiwałby minutami całą mapę, a potem
+    # i tak zgłosił brak drogi). Z drzwiami w planerze marsz otwiera je sam (przejdz_drzwi, 22.10).
     obsluga_drzwi = False
 
     def _za_drzwiami(self, krok):
@@ -241,7 +410,13 @@ class Serwis:
         if "backpack" in kroki:
             k += 20 * (1 if depo_przed else self.akcje.brakuje("backpack", 1))
         if "blanki" in kroki:
-            k += 10 * (self.cele["blanki"] if depo_przed else self.akcje.brakuje("blank rune", self.cele["blanki"]))
+            if depo_przed:
+                # depo zabierze blanki z baga na runy; te luzem w plecaku zostają i nie wymagają zakupu (22.10 wydra: nie żądaj
+                # pieniędzy na to, czego nie trzeba kupować); atrapa bez odczytu = pełny cel jak dotąd
+                luzem = getattr(self.akcje, "ilosc_w_plecaku", lambda _ids: 0)({ID_BLANK_RUNY})
+                k += 10 * max(0, self.cele["blanki"] - luzem)
+            else:
+                k += 10 * self.akcje.brakuje("blank rune", self.cele["blanki"])
         return k
 
     def _kontrola_budzetu(self, kroki, ukonczone):
@@ -252,19 +427,28 @@ class Serwis:
         majatek = self.akcje.majatek(tylko_glowny=depo_przed)       # pieniądze w bagu na runy odejdą z nim do depo
         zostaje = majatek
         if depo_przed:
-            zostaje = min(majatek, 100 * self.cele["platinum_zostaw"] + majatek % 100)
+            # monety ze slotu ekwipunku depo zostawia w całości; platinum ponad „zostaw” odkłada tylko z plecaka
+            ekw = getattr(self.akcje, "majatek_w_ekwipunku", lambda: 0)()
+            plecak = majatek - ekw
+            zostaje = min(plecak, 100 * self.cele["platinum_zostaw"] + plecak % 100) + ekw
         if zostaje < koszt:
             raise SerwisBlad("start", f"za mało pieniędzy: po depo zostanie {zostaje} gp, kolejka kosztuje ok. {koszt} gp "
                                       f"(majątek {majatek} gp)")
         self.log(f"serwis: budżet ok (majątek {majatek} gp, po depo {zostaje} gp, koszt ok. {koszt} gp)")
 
-    def uruchom(self, kroki=None, od_nowa=False):
+    def uruchom(self, kroki=None, od_nowa=False, pomin_brakujace=False):
         """Wykonuje kroki po kolei. Gdy poprzedni przebieg przerwał się błędem (do 3 h temu, bez względu na listę kroków),
         kroki już zakończone są pomijane: ponowne uruchomienie nie kupuje drugi raz i nie odkłada nowego baga do depo.
-        Przebieg jest „zakończony”, gdy ukończono wszystkie kroki domyślnej kolejności; `od_nowa` ignoruje stan."""
+        Przebieg jest „zakończony”, gdy ukończono wszystkie kroki domyślnej kolejności; `od_nowa` ignoruje stan.
+        `pomin_brakujace`: kroki, których miasto nie ma w danych (Thais nie ma kroku bank), są pomijane z wpisem w logu zamiast
+        błędu startu (refill zleca jedną listę kroków dla każdego miasta)."""
         kroki = list(kroki or self.d["kolejnosc"])
-        self.kroki_przebiegu = kroki
         nieznane = [k for k in kroki if k not in self.d["przystanki"] and k != "wyjscie"]
+        if nieznane and pomin_brakujace:
+            self.log(f"serwis: miasto nie ma kroków {nieznane}, pomijam je")
+            kroki = [k for k in kroki if k not in nieznane]
+            nieznane = []
+        self.kroki_przebiegu = kroki
         if nieznane:
             raise SerwisBlad("start", f"nieznane kroki {nieznane}")
         za_drzwiami = {k: self._za_drzwiami(k) for k in kroki if self._za_drzwiami(k)}
@@ -278,7 +462,9 @@ class Serwis:
             self.log(f"serwis: wznawiam przerwany przebieg, już wykonane: {ukonczone}")
         self.akcje.sprawdz_start()
         self.akcje.przygotuj_okna()
-        self._kontrola_budzetu(kroki, ukonczone)
+        # krok zależny od stanu, który depo jeszcze zmieni (odłoży bag z blankami), liczymy do kosztu jak niezrobiony
+        zaleznosc = [k for k in ukonczone if k in KROKI_ZALEZNE_OD_DEPO] if "depo" in kroki and "depo" not in ukonczone else []
+        self._kontrola_budzetu(kroki, [k for k in ukonczone if k not in zaleznosc])
 
         def zapisz():
             pelny = set(self.d["kolejnosc"]) - {"wyjscie"} <= set(ukonczone)
@@ -286,6 +472,9 @@ class Serwis:
 
         zapisz()
         for k in kroki:
+            if k in ukonczone and self._stan_zmieniony(k):
+                self.log(f"serwis: krok {k} był wykonany, ale stan się zmienił (np. depo odłożyło bag), wykonuję ponownie")
+                ukonczone.remove(k)
             if k in ukonczone:
                 self.log(f"serwis: krok {k} już wykonany, pomijam")
                 self.wynik[k] = "pominięty"
@@ -298,6 +487,17 @@ class Serwis:
             zapisz()
         self.log(f"serwis: koniec {self.wynik}")
         return self.wynik
+
+    def _stan_zmieniony(self, k):
+        """Czy krok zaliczony w tym lub poprzednim przebiegu znów jest potrzebny, bo zmienił się stan, od którego zależy.
+        22.10 invincible: backpack zaliczono bez zakupu (postać miała bag), potem depo odłożyło ten bag i „pomijam” zostawiło
+        blanki bez miejsca. Dotyczy kroków, które depo cofa: backpack (bag poszedł do depo) i blanki (leżały w tym bagu).
+        Jedzenie zostaje: depo nie rusza ham (tylko bag i platinum). Odczyt ze stanu gry, bez ruchu."""
+        if k == "backpack":
+            return bool(self.akcje.potrzeba_baga())
+        if k == "blanki":
+            return self.akcje.brakuje("blank rune", self.cele["blanki"]) > 0
+        return False
 
     def _krok_bank(self):
         self._idz("bank", self.d["przystanki"]["bank"]["stoi"])
@@ -319,10 +519,30 @@ class Serwis:
                 self.log(f"serwis[depo]: stanowisko {stoisko} zajęte, następne")
                 continue
             self._idz("depo", stoisko, tolerancja=0)
-            if self.akcje.depo_zloz(zostaw_platinum=self.cele["platinum_zostaw"]):
+            if self.akcje.depo_zloz(zostaw_platinum=self.cele["platinum_zostaw"],
+                                    odejdz=lambda st=stoisko: self._odejdz_od_depo(st)):
                 return
             self.log(f"serwis[depo]: skrzynia przy {stoisko} się nie otworzyła, następne stanowisko")
         raise SerwisBlad("depo", "wszystkie stanowiska zajęte albo skrzynie się nie otworzyły")
+
+    def _odejdz_od_depo(self, stoisko):
+        """Krok na najbliższe wolne pole obok stanowiska, z którego jest droga (serwer zamyka depo, gdy odejdziesz od skrzyni)."""
+        poz = tuple(self.pozycja())
+        for dx, dy in ((0, 1), (-1, 0), (1, 0), (0, -1), (-1, 1), (1, 1), (-1, -1), (1, -1)):
+            pole = (stoisko[0] + dx, stoisko[1] + dy, stoisko[2])
+            if self.akcje.pole_zajete(pole):
+                continue
+            dr = self.planer.droga(poz, pole)
+            if dr is not None and len(dr) <= 3:
+                self.log(f"serwis[depo]: odchodzę od skrzyni na {pole}")
+                self._idz("depo", pole, tolerancja=0)
+                return
+        raise SerwisBlad("depo", f"nie mam gdzie odejść od skrzyni przy {tuple(stoisko)}")
+
+    @staticmethod
+    def _kup_kw(przystanek):
+        """Argumenty kup() z danych przystanku: `zakup_prefiks` (Thais „buy ”) tylko gdy ustawiony, żeby atrapy i Edron zostały bez zmian."""
+        return {"prefiks": przystanek["zakup_prefiks"]} if przystanek.get("zakup_prefiks") else {}
 
     def _krok_jedzenie(self):
         s = self.d["przystanki"]["jedzenie"]
@@ -330,7 +550,7 @@ class Serwis:
         cel = self.cele["ham"]
         if "blanki" in self.kroki_przebiegu:
             cel = self.akcje.cel_ham(cel, self.akcje.rezerwa_na_blanki(self.cele["blanki"]))   # ham nie może zabrać capa bagu z blankami
-        self.akcje.kup(s["npc"], "ham", cel)
+        self.akcje.kup(s["npc"], "ham", cel, **self._kup_kw(s))
 
     def _krok_backpack(self):
         s = self.d["przystanki"]["backpack"]
@@ -338,7 +558,7 @@ class Serwis:
             self.log("serwis[backpack]: bag na runy już jest, nie kupuję")
             return
         self._idz("backpack", s["stoi"])
-        self.akcje.kup(s["npc"], "backpack", 1)
+        self.akcje.kup(s["npc"], "backpack", 1, **self._kup_kw(s))
         self.akcje.przygotuj_okna()        # nowy bag staje się osobnym oknem, zanim kupione blanki trafią do plecaka
 
     def _krok_blanki(self):
@@ -349,7 +569,7 @@ class Serwis:
             raise SerwisBlad("blanki", f"w bagu na runy jest miejsce na {self.akcje.wolne_w_bagu()} blanków, a brakuje {brak}: "
                                        "najpierw krok backpack (albo zrób miejsce), nic nie kupiłem")
         self._idz("blanki", s["stoi"])
-        self.akcje.kup(s["npc"], "blank rune", self.cele["blanki"])
+        self.akcje.kup(s["npc"], "blank rune", self.cele["blanki"], **self._kup_kw(s))
         self.akcje.przenies_blanki()
         self.akcje.przygotuj_okna()
 
@@ -370,6 +590,27 @@ def powiadom(tytul, tresc):
 
 def _cheb(a, b):
     return max(abs(a[0] - b[0]), abs(a[1] - b[1]))
+
+
+def pole_schodow_lub_dziur(mp, x, y, z):
+    """Pole chodliwe z flagą 2 (schody, rampa, dziura): krok na nie zmienia piętro (22.10, wydra Thais: depo). Nie wchodzimy w nie
+    „przy okazji” drogi po jednym piętrze, a klik w mapę nie może prowadzić przez prostokąt, w którym takie pole leży."""
+    f = int(mp.flagi(x, y, z))
+    return bool(f & marsz_klik.FLAGA_CHODLIWE and f & marsz_klik.FLAGA_SCHODY and not f & marsz_klik.FLAGA_BLOK)
+
+
+def schody_w_prostokacie(mp, a, b, margines=1, wyjatek=()):
+    """True, gdy w prostokącie pól a..b (+ `margines`) na piętrze a[2] leży pole schodów/dziury z `pole_schodow_lub_dziur`. Klient
+    prowadzi klik własną drogą po 8 kierunkach (skos przez róg), więc sprawdzamy cały prostokąt, nie tylko pola naszej ścieżki.
+    `wyjatek` = pola (x, y), które wolno (cel marszu)."""
+    x0, x1 = sorted((a[0], b[0]))
+    y0, y1 = sorted((a[1], b[1]))
+    z = a[2]
+    for x in range(x0 - margines, x1 + margines + 1):
+        for y in range(y0 - margines, y1 + margines + 1):
+            if (x, y) not in wyjatek and pole_schodow_lub_dziur(mp, x, y, z):
+                return True
+    return False
 
 
 def pola_schodow(mp, a, zb, promien=3):
@@ -393,6 +634,50 @@ def pola_startowe(mp, T):
         if f & 1 and not f & 4 and not f & 2:
             wyn.append(((x, y, T[2]), kier))
     return wyn
+
+
+def fabryka_dojscia_bez_schodow(mp, laczniki=()):
+    """Fabryka dla `mozg.przejdz_dojscie` (zapasowy chodzik serwisu): CavebotDojscie, dla którego pola schodów/dziur z mapy (flaga 2)
+    są ścianą drogi i kroku (jak nauczone dziury), a klik nie prowadzi przez prostokąt z takim polem. Wcześniej strażnik schodów
+    w `Cavebot.krok_do` działał tylko na trasie wielopiętrowej (TRASA_PIETRA=2), a serwis Thais chodzi po jednym piętrze (22.10).
+    Dozwolone (zamierzone przejście planu): pola punktów trasy dojścia i końce łączników planu (`laczniki` = [(z, do)]), a dla KLIKU
+    także pola schodów w Chebyshev <= 1 od celu dojścia (ostatni punkt trasy): ostatni odcinek do wejścia przy schodach (przejdz_schody, Edron
+    (33257,31843,5) -> (33258,31841,5), 22.10 13:24) nie ma innej drogi niż klik klienta po skosie, krok strzałką na samo pole schodów
+    zostaje zakazany."""
+    import cavebot  # noqa: PLC0415
+
+    konce = {(int(p[0]), int(p[1])) for l in laczniki for p in l}
+
+    class DojscieBezSchodow(cavebot.CavebotDojscie):
+        mapa = None     # cavebot.py ustawia self.mapa dopiero po pierwszym _ogien_stale_wczytaj() (bez tego AttributeError w logu)
+
+        def _punkty_xy(self):
+            return {(int(p[0]), int(p[1])) for p in (getattr(self, "punkty", None) or [])}
+
+        def _dozwolone_xy(self):
+            return self._punkty_xy() | konce
+
+        def _dozwolone_klik_xy(self):
+            wyn = set(self._dozwolone_xy())
+            punkty = getattr(self, "punkty", None) or []
+            if punkty:                       # tylko cel dojścia (wejście przy schodach), nie punkty pośrednie: te mogą leżeć obok obcych schodów
+                x, y = int(punkty[-1][0]), int(punkty[-1][1])
+                wyn.update((x + dx, y + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1))
+            return wyn
+
+        def dziura_nauczona(self, pole):
+            if super().dziura_nauczona(pole):
+                return True
+            if len(pole) < 3 or (pole[0], pole[1]) in self._dozwolone_xy():
+                return False
+            return pole_schodow_lub_dziur(mp, pole[0], pole[1], pole[2])
+
+        def _dziura_na_drodze(self, poz, cel_xy):
+            if super()._dziura_na_drodze(poz, cel_xy):
+                return True
+            return schody_w_prostokacie(mp, poz, (cel_xy[0], cel_xy[1], poz[2]), wyjatek=self._dozwolone_klik_xy())
+
+    return DojscieBezSchodow
 
 
 def przejdz_schody(postac, mp, akcje, chodz1, a, zb, maks_s=90.0, log=print):
@@ -529,6 +814,125 @@ def idz_krokami(postac, tr, cel, tolerancja=0, maks_zlych=5, log=print):
     return poz[2] == cel[2] and _cheb(poz, cel) <= tolerancja
 
 
+def _klawisz_ruchu(a, b):
+    """Strzałka na sąsiednie pole `b` z `a` (jedna oś) albo None."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    if abs(dx) + abs(dy) != 1:
+        return None
+    return ("Right" if dx > 0 else "Left") if dx else ("Down" if dy > 0 else "Up")
+
+
+def _postac_stoi(postac, spij=time.sleep, maks_s=4.0):
+    """Czeka, aż pozycja postaci przestanie się zmieniać (dwa odczyty w odstępie DRZWI_SPOKOJ_S dają to samo pole) i ją zwraca.
+    Wzór: cavebot._drzwi_spokoj; krok wysłany w trakcie trwającego kroku bywa odrzucany. Po maks_s zwraca ostatni odczyt."""
+    ost = tuple(postac.pozycja())
+    t0 = time.monotonic()
+    while time.monotonic() - t0 < maks_s:
+        spij(DRZWI_SPOKOJ_S)
+        nowa = tuple(postac.pozycja())
+        if nowa == ost:
+            return nowa
+        ost = nowa
+    return ost
+
+
+_DRZWI_OTWARTE = set()       # drzwi, przez które ten proces już przeszedł (zostają otwarte): nie dostają Use na początku, bo Use zamyka otwarte
+
+
+def przejdz_drzwi(postac, przed, drzwi, za, log=print, otworz=None, spij=time.sleep):
+    """Przejście przez zamknięte drzwi sklepu (22.10, Thais): stoimy na `przed` (pole przed drzwiami), czekamy aż postać
+    stoi, Use na drzwiach (Ctrl+klik), pauza, krok na kafelek drzwi, krok na `za`; po każdym kroku sprawdzamy pozycję.
+    Do DRZWI_PROB prób. Drzwi, przez które już przeszliśmy, zaczynają od samego kroku (Use na otwartych drzwiach by je zamknęło),
+    nieznane od Use; kolejne próby zmieniają tryb (Use / sam krok). Bez powodzenia SerwisBlad("drzwi"). True = stoimy na `za`.
+    Wzór: cavebot._drzwi_trasa_tick, pietra._przed_use, wypad._drzwi."""
+    przed, h, za = tuple(przed), tuple(drzwi), tuple(za)
+    k_h, k_za = (_klawisz_ruchu(przed, h) if przed != h else "-"), _klawisz_ruchu(h, za)
+    if k_h is None or k_za is None:
+        raise SerwisBlad("drzwi", f"drzwi {h[:2]}: pola {przed[:2]} -> {za[:2]} nie leżą w jednej osi przez drzwi")
+    if otworz is None:
+        import ekran  # noqa: PLC0415
+        otworz = ekran.otworz
+    dx, dy = h[0] - przed[0], h[1] - przed[1]
+    poz = _postac_stoi(postac, spij)
+    if poz == za:
+        return True
+    if poz not in (przed, h):
+        raise SerwisBlad("drzwi", f"drzwi {h[:2]}: stoję w {poz[:2]}, a powinienem na {przed[:2]} (przed drzwiami)")
+    tryby = ("krok", "use", "krok") if h in _DRZWI_OTWARTE else ("use", "krok", "use")
+    for n in range(DRZWI_PROB):
+        tryb = tryby[n % len(tryby)]
+        poz = _postac_stoi(postac, spij)
+        if poz == za:
+            _DRZWI_OTWARTE.add(h)
+            return True
+        if poz == przed:
+            log(f"serwis: drzwi {h[:2]} próba {n + 1}/{DRZWI_PROB} ({tryb}) z {przed[:2]}")
+            if tryb == "use":
+                otworz(dx, dy)
+                spij(random.uniform(*DRZWI_CZEKAJ_S))
+                poz = _postac_stoi(postac, spij)
+                if poz != przed:
+                    log(f"serwis: drzwi {h[:2]}: po Use stoję w {poz[:2]}, nie w {przed[:2]}")
+                    continue
+            _czekaj_koniec_kroku()
+            nowa = postac.krok(k_h)
+            poz = tuple(nowa) if nowa is not None else _postac_stoi(postac, spij)
+            if poz != h:
+                log(f"serwis: drzwi {h[:2]}: krok na drzwi bez skutku (stoję w {poz[:2]})")
+                continue
+            _po_kroku()
+        if poz == h:                       # stoimy na kafelku drzwi (drzwi puszczają): krok dalej
+            _czekaj_koniec_kroku()
+            nowa = postac.krok(k_za)
+            poz = tuple(nowa) if nowa is not None else _postac_stoi(postac, spij)
+            if poz == za:
+                _po_kroku()
+                _DRZWI_OTWARTE.add(h)
+                log(f"serwis: drzwi {h[:2]} przeszedłem, stoję w {poz[:2]}")
+                return True
+            log(f"serwis: drzwi {h[:2]}: krok na {za[:2]} bez skutku (stoję w {poz[:2]})")
+    _DRZWI_OTWARTE.discard(h)
+    raise SerwisBlad("drzwi", f"drzwi {h[:2]}: nie przeszedłem po {DRZWI_PROB} próbach (stoję w {tuple(postac.pozycja())[:2]})")
+
+
+def podziel_na_drzwiach(punkty, drzwi):
+    """Dzieli trasę z Planera na części: [("idz", [pkt...])] i [("drzwi", przed, drzwi, za)] w miejscu, gdzie punkt trasy to
+    pole drzwi z `drzwi`. Część „idz” przed drzwiami kończy się na polu `przed`, następna zaczyna na `za`. Trasa zaczynająca
+    się na kafelku drzwi daje najpierw część „drzwi” z przed == drzwi (przejdz_drzwi wtedy robi sam krok)."""
+    drzwi = {tuple(h) for h in drzwi}
+    punkty = [tuple(p) for p in punkty]
+    czesci, biezaca, i = [], [], 0
+    while i < len(punkty):
+        p = punkty[i]
+        if p in drzwi and i + 1 < len(punkty):
+            przed = punkty[i - 1] if i > 0 else p
+            if biezaca:
+                czesci.append(("idz", biezaca))
+            czesci.append(("drzwi", przed, p, punkty[i + 1]))
+            biezaca = [punkty[i + 1]]
+            i += 2
+            continue
+        biezaca.append(p)
+        i += 1
+    if len(biezaca) > 1 or (biezaca and not czesci):
+        czesci.append(("idz", biezaca))
+    return czesci
+
+
+def idz_z_drzwiami(postac, punkty, drzwi, chodz1, tolerancja=0, log=print, otworz=None, spij=time.sleep):
+    """Trasa z drzwiami: odcinki „idz” przez `chodz1(punkty, tolerancja)` (przed drzwiami dokładnie na polu `przed`),
+    drzwi przez przejdz_drzwi. False, gdy odcinek marszu się nie udał; porażka drzwi to SerwisBlad."""
+    czesci = podziel_na_drzwiach(punkty, drzwi)
+    for n, c in enumerate(czesci):
+        if c[0] == "idz":
+            ostatnia = n == len(czesci) - 1
+            if len(c[1]) > 1 and not chodz1(c[1], tolerancja if ostatnia else 0):
+                return False
+        else:
+            przejdz_drzwi(postac, c[1], c[2], c[3], log=log, otworz=otworz, spij=spij)
+    return True
+
+
 KLIK_MAKS_POL = marsz_klik.KLIK_MAKS_POL      # ile pól naprzód klikamy naraz (widok mapy ma ±7 x ±5 pól)
 
 
@@ -628,6 +1032,11 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
         # klik w mapę (klient sam idzie ciągiem, kilka razy szybciej niż krok po kroku): najdalsze pole ścieżki w zasięgu
         # widoku, do którego wszystkie pola są zwykłe (bez flagi 2) i wolne
         dalej = marsz_klik.dalej_klik(sciezka, koszt, poz[2], KLIK_MAKS_POL)
+        # 22.10 (wydra, depo Thais): klient prowadzi klik własną drogą (8 kierunków, skos przez róg), więc pole schodów NIE na naszej
+        # ścieżce, ale w prostokącie poz-klik, potrafi wciągnąć postać na inne piętro. Przy schodach idziemy strzałkami po naszej ścieżce.
+        wyjatek = {(cel[0], cel[1])}
+        while dalej >= 2 and schody_w_prostokacie(mp, (poz[0], poz[1], poz[2]), sciezka[dalej] + (poz[2],), wyjatek=wyjatek):
+            dalej -= 1
         if dalej >= 2:
             import ekran
             cel_kl = sciezka[dalej]
@@ -740,13 +1149,15 @@ def _ratunek_porazka(postac, krok, powod, e, bot):
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    p.add_argument("miasto", nargs="?", default="edron", choices=miasta() + ["auto"],
-                   help="edron (domyślnie), thais albo auto = miasto z pozycji postaci")
+    p.add_argument("miasto", nargs="?", default=None, choices=miasta() + ["auto"],
+                   help="edron, thais albo auto = miasto z pozycji postaci; bez argumentu też z pozycji (poza miastami edron)")
     p.add_argument("--kroki", help="lista kroków po przecinku (domyślnie z pliku danych)")
     p.add_argument("--na-sucho", action="store_true", help="tylko plan dróg, bez inputu do gry")
     p.add_argument("--od", help="x,y,z: plan na sucho z tego pola zamiast z bieżącej pozycji")
     p.add_argument("--bez-stop", action="store_true", help="po błędzie nie zapisuj pliku STOP")
     p.add_argument("--od-nowa", action="store_true", help="ignoruj stan poprzedniego przerwanego przebiegu (zrób wszystkie kroki)")
+    p.add_argument("--pomin-brakujace", action="store_true",
+                   help="kroków, których miasto nie ma w danych (np. bank w Thais), nie traktuj jako błąd: pomiń je")
     a = p.parse_args(argv)
     import bot
     import mapa as mapa_mod
@@ -757,6 +1168,11 @@ def main(argv=None):
         poz_auto = None
         if a.miasto == "auto":
             poz_auto = od_pola if (a.na_sucho and od_pola) else postac.pozycja()
+        elif a.miasto is None:                     # bez miasta: z pozycji postaci; brak odczytu = dawny domyślny edron
+            try:
+                poz_auto = od_pola if (a.na_sucho and od_pola) else postac.pozycja()
+            except Exception:
+                poz_auto = None
         elif not a.na_sucho:
             try:                                   # jawne miasto: tylko sprawdzenie, że postać nie stoi w innym mieście
                 poz_auto = postac.pozycja()
@@ -769,7 +1185,7 @@ def main(argv=None):
     print(f"serwis: miasto {miasto}", flush=True)
     dane = wczytaj(miasto)
     mp = mapa_mod.mapa()
-    planer = Planer(wyprawa.Trasownik(mp), dane["laczniki"])
+    planer = Planer(wyprawa.Trasownik(mp), dane["laczniki"], drzwi=drzwi_miasta(dane), mapa=mp)
     kroki = a.kroki.split(",") if a.kroki else None
     if a.na_sucho:
         s = Serwis(dane, None, planer, postac.pozycja, None)
@@ -786,9 +1202,15 @@ def main(argv=None):
         return marsz(postac, mp, akcje, planer.lacz, punkty, tolerancja, log=print,
                      zapasowy=lambda pts, tol: mozg.przejdz_dojscie(postac, pts, prog_hp=40, jedzenie=None, potwory=None,
                                                                     graczy=True, stop_przy_graczach=False, tolerancja=tol,
-                                                                    proby=4))
+                                                                    proby=4, fabryka=fabryka_dojscia_bez_schodow(mp, planer.lacz)))
 
     def chodz(punkty, tolerancja=0):
+        """Trasa z drzwiami sklepów (Thais) dzielona na odcinki i przejścia przez drzwi (przejdz_drzwi), reszta jak chodz_pietra."""
+        if planer.drzwi and any(tuple(p) in planer.drzwi for p in punkty):
+            return idz_z_drzwiami(postac, punkty, planer.drzwi, chodz_pietra, tolerancja, log=print)
+        return chodz_pietra(punkty, tolerancja)
+
+    def chodz_pietra(punkty, tolerancja=0):
         """Trasa z przejściami pięter: dojście do okolicy schodów, przejście własnym kodem (wiele pól i stron wejścia,
         omija zajęte przez graczy), reszta trasy na nowym piętrze. Bez schodów na mapie: stary chodzik na całości."""
         punkty = [tuple(p) for p in punkty]
@@ -800,12 +1222,12 @@ def main(argv=None):
         r = przejdz_schody(postac, mp, akcje, lambda pts, tol: chodz_proste(pts, tol), a, zb)
         if r is None:
             return chodz_proste(punkty, tolerancja) or idz_krokami(postac, planer.tr, punkty[-1], tolerancja)
-        return bool(r) and chodz(punkty[j:], tolerancja)
+        return bool(r) and chodz_pietra(punkty[j:], tolerancja)
 
     import instancja
     s = Serwis(dane, akcje, planer, postac.pozycja, chodz, log=print, stan_plik=instancja.S.stan / "serwis_stan.json")
     try:
-        s.uruchom(kroki, od_nowa=a.od_nowa)
+        s.uruchom(kroki, od_nowa=a.od_nowa, pomin_brakujace=a.pomin_brakujace)
         powiadom("Serwis: gotowe", "Kroki: " + ", ".join(f"{k}={v}" for k, v in s.wynik.items()))
     except Exception as e:                   # SerwisBlad i wszystko inne (Zatrzymano, IndexError...): zawsze STOP i dymek
         krok = getattr(e, "krok", "?")

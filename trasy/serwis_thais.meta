@@ -29,19 +29,21 @@
   "frodo": "wyprawa_sklepy.json: pole stania zmierzone na żywo 13.10; drzwi z mapy ∩ nagrane dojście",
   "xodet": "wyprawa_sklepy.json: pole stania zmierzone na żywo 14.10; drzwi z mapy ∩ nagrany powrót",
   "gorn": "ostatni punkt troll_do_miasta.json, NPC (32377,32200,7) z npc_pelne.json; dialog niezmierzony",
-  "bank_suzy": "npc_pelne.json (32320,32258,7); pole stania, wejście i dialog niezmierzone"
+  "bank_suzy": "npc_pelne.json (32320,32258,7); pole stania, drzwi i dialog zmierzone na żywo 22.10 13:32 (nagranie wydra_do_suzy_20261022.jsonl)"
  },
  "niezmierzone_na_zywo": [
   "wnęki depo inne niż (32343,32226,7): że na ich północnym polu stoi skrzynia, nie ściana",
   "dialog 'backpack' u Gorna (oferta 20 gp jest w danych serwera)",
   "cała droga serwisu po mieście botem (A* sprawdzony tylko offline na mapie)",
-  "bank Suzy: pole stania, wejście, dialog",
-  "otwieranie drzwi sklepów w serwisie (kod nie istnieje)"
+  "przejście przez drzwi banku (32319,32253,7) marszem serwisu (przejdz_drzwi; zmierzone tylko ręcznym marszem wydry 22.10)",
+  "przejście przez drzwi Frodo (32365,32208,7) i Xodeta (32400,32217,7) marszem serwisu (przejdz_drzwi, 22.10; offline sprawdzone na atrapie)",
+  "dialog zakupu 'buy N ham' / 'buy N blank rune' z poziomu serwisu (wyprawa mierzyła go własnym kodem 13-14.10)"
  ],
  "kroki": {
   "depo": false,
   "jedzenie": true,
   "backpack": false,
-  "blanki": true
+  "blanki": true,
+  "bank": true
  }
 }

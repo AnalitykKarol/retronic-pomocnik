@@ -1,7 +1,9 @@
 #!/bin/bash
 # Serwis w mieście (Edron, Thais): wymiana gold, depo (bag z UH + platinum ponad 3), ham, backpack, blanki, wyjście z depo.
-#   SERWIS_MIASTO=thais ./serwis.sh   miasto z trasy/serwis_<miasto>.json (domyślnie edron; "auto" = z bieżącej pozycji postaci)
-#                                     Thais: kroki depo,backpack,wyjscie; Frodo i Xodet (jedzenie, blanki) czekają na obsługę drzwi
+#   SERWIS_MIASTO=thais ./serwis.sh   miasto z trasy/serwis_<miasto>.json; BEZ zmiennej miasto wynika z pozycji postaci (22.10:
+#                                     Edron albo Thais), poza miastami z planem dawny domyślny edron; "auto" = tylko z pozycji
+#                                     Thais: depo, jedzenie, backpack, blanki, wyjscie; drzwi Frodo i Xodeta serwis otwiera sam
+#   ./serwis.sh --pomin-brakujace     kroków, których miasto nie ma (np. bank w Thais), nie traktuje jako błąd (używa tego refill.sh)
 #   ./serwis.sh                       cały serwis w domyślnej kolejności (trasy/serwis_edron.json)
 #   ./serwis.sh --kroki bank,depo     tylko wybrane kroki (kolejność jak podasz)
 #   ./serwis.sh --na-sucho [--od x,y,z]   tylko plan dróg, zero inputu do gry
@@ -21,7 +23,7 @@ if [ "$SUCHO" = 0 ]; then
   rm -f "$INST_STOP" "$INST_STOP_RECZNY" "$INST_STAN/WROC"        # STOP blokuje każdy input do gry; po zatrzymanym bocie nic innego nie działa
 fi
 export RETRONIC_POSTAC="${RETRONIC_POSTAC:-$(python3 -I -c "import sys; sys.path.insert(0,'$DIR'); import bot; print(bot.Postac().nazwa)" 2>/dev/null)}"
-python3 -I -u serwis.py "${SERWIS_MIASTO:-edron}" "$@"
+python3 -I -u serwis.py ${SERWIS_MIASTO:+"$SERWIS_MIASTO"} "$@"
 kod=$?
 if [ "$SUCHO" = 0 ] && [ "$kod" != 0 ]; then
   touch "$INST_STOP"; echo "serwis: porażka (kod $kod), zostawiam plik STOP" >&2; exit "$kod"

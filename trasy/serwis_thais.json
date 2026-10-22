@@ -1,5 +1,5 @@
 {
- "_opis": "Serwis Thais (K3, 21.10): generuj_serwis_thais.py z mapy klienta i danych repo. Kolejność edytowalna; stoi = pole stania, depo.stoi = przybycie wyprawy (stanowiska przy skrzyniach w depo_stoiska). Kroki z polem 'drzwi' wymagają obsługi drzwi.",
+ "_opis": "Serwis Thais (K3, 21.10): generuj_serwis_thais.py z mapy klienta i danych repo. Kolejność edytowalna; stoi = pole stania, depo.stoi = przybycie wyprawy (stanowiska przy skrzyniach w depo_stoiska). Kroki z polem 'drzwi' serwis.py przechodzi sam (przejdz_drzwi, 22.10); zakup_prefiks = słowo przed zamówieniem. Bank Suzy zmierzony 22.10 (pierwszy krok, drzwi).",
  "miasto": "thais",
  "przystanki": {
   "depo": {
@@ -36,7 +36,8 @@
      32208,
      7
     ]
-   ]
+   ],
+   "zakup_prefiks": "buy "
   },
   "backpack": {
    "rodzaj": "kup",
@@ -79,7 +80,30 @@
      32217,
      7
     ]
-   ]
+   ],
+   "zakup_prefiks": "buy "
+  },
+  "bank": {
+   "rodzaj": "bank",
+   "npc": "Suzy",
+   "stoi": [
+    32319,
+    32256,
+    7
+   ],
+   "npc_poz": [
+    32320,
+    32258,
+    7
+   ],
+   "drzwi": [
+    [
+     32319,
+     32253,
+     7
+    ]
+   ],
+   "status": "zmierzone na żywo 22.10 13:32 (wydra: hi/change gold/6/yes, Here you are)"
   }
  },
  "wyjscie": [
@@ -111,11 +135,7 @@
   ]
  ],
  "kolejnosc": [
-  "depo",
-  "backpack",
-  "wyjscie"
- ],
- "kolejnosc_po_drzwiach": [
+  "bank",
   "depo",
   "jedzenie",
   "backpack",
@@ -123,20 +143,6 @@
   "wyjscie"
  ],
  "do_pomiaru": {
-  "bank": {
-   "npc": "Suzy",
-   "npc_poz": [
-    32320,
-    32258,
-    7
-   ],
-   "brak": [
-    "pole stania",
-    "drzwi/wejście do banku",
-    "dialog (czy 'change gold' jak u Ebenizera w Edronie)"
-   ],
-   "uwaga": "w danych serwera Suzy ma tylko tematy bye/farewell/job/name/time, jak Ebenizer; mapa nie pokazuje wejścia (zamknięty budynek)"
-  },
   "rook": "patrz dane_tibia/SPEC_serwis_thais_1021.md, część Rook"
  }
 }

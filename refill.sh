@@ -1,7 +1,8 @@
 #!/bin/bash
 # Refill (guzik paska charlie.retronic): zakupy w mieście (jedzenie, backpack, blanki, wyjście z miasta) i powrót na spot.
-# Kroki bank i depo POMIJAMY (decyzja Karola 19.10): po „Wróć do miasta” (wroc.sh) bot stoi już w depo.
-#   ./refill.sh              praca w pierwszym planie: STARTUJ=1 ./serwis.sh --kroki jedzenie,backpack,blanki,wyjscie
+# Pełny refill (decyzja Karola 22.10, wcześniej 19.10 bez banku i depo): bank, depo, jedzenie, backpack, blanki, wyjście. Miasto z pozycji
+# postaci (Edron, Thais); kroków, których miasto nie ma (Thais: bank, niezmierzony), serwis pomija (--pomin-brakujace).
+#   ./refill.sh              praca w pierwszym planie: STARTUJ=1 ./serwis.sh --kroki bank,depo,jedzenie,backpack,blanki,wyjscie --pomin-brakujace
 #   ./refill.sh --tlo        to samo odłączone (setsid), log w <stan>/refill.log; wraca od razu (używa go guzik paska)
 #   ./refill.sh --spot       jak --tlo, ale BEZ zakupów: tylko krok „wyjscie” (serwis prowadzi postać do wyjścia z miasta, potem
 #                            STARTUJ=1 rusza bota ostatnią mapą i trybem; uruchom.sh dodaje dojście na spot, gdy postać stoi na z7).
@@ -13,15 +14,15 @@
 # Porażka serwisu = plik STOP (robi to serwis.sh), znacznik `REFILL: BLAD <powód>` w logu, nic nie ponawia się po cichu.
 # Ponowne wywołanie po porażce wznawia przerwany serwis (kroki już zrobione serwis pomija; serwis.py pamięta je do 3 h, ale
 # --tlo kasuje stan starszy niż REFILL_WZNOW_MIN=15 min: wznowienie ma służyć natychmiastowemu ponowieniu, nie po cichu pomijać zakupy).
-# REFILL_KROKI (env, domyślnie jedzenie,backpack,blanki,wyjscie) zmienia listę kroków; REFILL_CZEKAJ_STOP_S (domyślnie 5) = ile
+# REFILL_KROKI (env, domyślnie bank,depo,jedzenie,backpack,blanki,wyjscie) zmienia listę kroków; REFILL_CZEKAJ_STOP_S (domyślnie 5) = ile
 # --przerwij czeka, aż serwis.py sam wyjdzie po STOP, zanim ubije go TERM.
-# Po sukcesie kasujemy serwis_stan.json: kroki bank/depo nie są tu robione, więc serwis.py nie uznałby przebiegu za
-# zakończony i następny refill pomijałby wszystkie kroki (zakupy tylko raz na 3 h).
+# Po sukcesie kasujemy serwis_stan.json: przy skróconej liście kroków (REFILL_KROKI, --spot) serwis.py nie uznałby przebiegu za
+# zakończony i następny refill pomijałby kroki (zakupy tylko raz na 3 h).
 # Znaczniki w logu (czyta je panel.py --json): `REFILL: START <czas>`, potem `REFILL: OK` | `REFILL: BLAD <powód>` | `REFILL: PRZERWANO`.
 DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 INST=$(python3 -I "$DIR/instancja.py" powloka) || exit 1; eval "$INST"   # RETRONIC_ID -> INST_* (bez ID: dzisiejsze ścieżki)
 TYTUL="Refill Retronic${RETRONIC_ID:+ [$RETRONIC_ID]}"
-KROKI="${REFILL_KROKI:-jedzenie,backpack,blanki,wyjscie}"
+KROKI="${REFILL_KROKI:-bank,depo,jedzenie,backpack,blanki,wyjscie}"   # 22.10 Karol: pełny refill (bank i depo też)
 LOG="$INST_STAN/refill.log"
 pidy() { python3 -I "$DIR/instancja.py" pidy '(mozg|cavebot)\.py'; }                           # bot tej instancji
 pidy_serwis() { python3 -I "$DIR/instancja.py" pidy '(^|[ /])serwis\.py '; }                    # serwis.py tej instancji
@@ -71,7 +72,7 @@ esac
 cd "$DIR" || exit 1
 echo "REFILL: START $(date +%s) ${REFILL_TRYB:-refill}"
 trap 'echo "REFILL: PRZERWANO"; exit 143' TERM INT HUP
-STARTUJ=1 "$DIR/serwis.sh" --kroki "$KROKI" &
+STARTUJ=1 "$DIR/serwis.sh" --kroki "$KROKI" --pomin-brakujace &
 wait $!
 kod=$?
 if [ "$kod" = 0 ]; then

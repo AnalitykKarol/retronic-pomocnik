@@ -12,8 +12,10 @@ Wyjście `trasy/serwis_thais.json` ma ten sam układ co `serwis_edron.json` (czy
 informacyjne (`status`, `zrodlo`, `drzwi`, `do_pomiaru`), których serwis.py nie wymaga. Źródło każdej współrzędnej i to,
 czego nikt nie zmierzył na żywo, opisuje `trasy/serwis_thais.meta` i dane_tibia/SPEC_serwis_thais_1021.md.
 
-Czego NIE robi: nie otwiera drzwi (Frodo i Xodet stoją w sklepach za drzwiami, które mapa widzi jako ścianę; serwis.py
-odmawia kroków z polem `drzwi`), nie zgaduje dialogu banku Suzy (pole stania i słowa niezmierzone: `do_pomiaru`).
+Drzwi sklepów (Frodo, Xodet) mapa widzi jako ścianę: pole `drzwi` w przystanku czyta serwis.py (`drzwi_miasta`) i przechodzi
+przez nie własnym marszem (`przejdz_drzwi`, 22.10). Frodo i Xodet dostają `zakup_prefiks` „buy ” (zmierzone 13-14.10).
+Bank Suzy ZMIERZONY na żywo 22.10 13:32 (stała BANK): pierwszy krok planu, drzwi (32319,32253,7), pole stania (32319,32256,7).
+Czego NIE robi: nie zgaduje niczego, czego nikt nie zmierzył (lista w `.meta`, `niezmierzone_na_zywo`).
 """
 import argparse
 import json
@@ -45,10 +47,14 @@ KROKI_NPC = {
     "backpack": {"npc": "Gorn", "sklep": None},
     "blanki": {"npc": "Xodet", "sklep": "xodet", "trasa": "powrot", "odwroc": True},
 }
-# Kolejność domyślna: tylko kroki, które serwis.py umie dziś wykonać (bez drzwi). Pełną podaje `kolejnosc_po_drzwiach`.
-KOLEJNOSC = ["depo", "backpack", "wyjscie"]
-KOLEJNOSC_PO_DRZWIACH = ["depo", "jedzenie", "backpack", "blanki", "wyjscie"]
-BANK = {"npc": "Suzy"}                              # bank Thais: dialog i pole stania niezmierzone
+# Kolejność domyślna (22.10): serwis przechodzi przez drzwi sklepów; bank Suzy zmierzony na żywo 22.10 13:32 (Karol prowadził wydrę).
+KOLEJNOSC = ["bank", "depo", "jedzenie", "backpack", "blanki", "wyjscie"]
+ZAKUP_PREFIKS = {"frodo": "buy ", "xodet": "buy "}      # słowo przed zamówieniem: Thais zmierzone 13.10 (3 ham) i 14.10 (20 blank rune)
+# Bank Thais ZMIERZONY 22.10 13:32 (wydra, Karol prowadził; nagranie trasy/nagrania/wydra_do_suzy_20261022.jsonl):
+# wejście drzwiami (32319,32253,7) od północy z (32319,32252,7), pole stania (32319,32256,7) przy ladzie, dialog jak u Ebenizera
+# (hi -> change gold -> liczba platinum -> yes: „So I should change 600 of your gold coins to 6 platinum coins” -> „Here you are.”).
+BANK = {"npc": "Suzy", "stoi": [32319, 32256, 7], "drzwi": [[32319, 32253, 7]],
+        "status": "zmierzone na żywo 22.10 13:32 (wydra: hi/change gold/6/yes, Here you are)"}
 
 
 def _t(p):
@@ -173,6 +179,8 @@ def zbuduj(mapa=None, npc=None, sklepy=None, do_miasta=None):
         }
         if drzwi:
             wpis["drzwi"] = [list(d) for d in drzwi]
+        if opis["npc"].lower() in ZAKUP_PREFIKS:
+            wpis["zakup_prefiks"] = ZAKUP_PREFIKS[opis["npc"].lower()]
         przystanki[krok] = wpis
         bez = osiagalne(mapa, PRZYBYCIE, [stoi])
         z_drzwiami = osiagalne(mapa, PRZYBYCIE, [stoi], otwarte=drzwi)
@@ -183,24 +191,22 @@ def zbuduj(mapa=None, npc=None, sklepy=None, do_miasta=None):
         zastrzezenia[krok] = {"drzwi": bool(drzwi)}
 
     n = npc[BANK["npc"]]
+    przystanki["bank"] = {"rodzaj": "bank", "npc": BANK["npc"], "stoi": list(BANK["stoi"]),
+                          "npc_poz": [n["pozycja"]["x"], n["pozycja"]["y"], n["pozycja"]["z"]],
+                          "drzwi": [list(d) for d in BANK["drzwi"]], "status": BANK["status"]}
     do_pomiaru = {
-        "bank": {
-            "npc": BANK["npc"], "npc_poz": [n["pozycja"]["x"], n["pozycja"]["y"], n["pozycja"]["z"]],
-            "brak": ["pole stania", "drzwi/wejście do banku", "dialog (czy 'change gold' jak u Ebenizera w Edronie)"],
-            "uwaga": "w danych serwera Suzy ma tylko tematy bye/farewell/job/name/time, jak Ebenizer; mapa nie pokazuje wejścia (zamknięty budynek)",
-        },
         "rook": "patrz dane_tibia/SPEC_serwis_thais_1021.md, część Rook",
     }
     return {
         "_opis": "Serwis Thais (K3, 21.10): generuj_serwis_thais.py z mapy klienta i danych repo. Kolejność edytowalna; stoi = pole stania, "
-                 "depo.stoi = przybycie wyprawy (stanowiska przy skrzyniach w depo_stoiska). Kroki z polem 'drzwi' wymagają obsługi drzwi.",
+                 "depo.stoi = przybycie wyprawy (stanowiska przy skrzyniach w depo_stoiska). Kroki z polem 'drzwi' serwis.py przechodzi sam "
+                 "(przejdz_drzwi, 22.10); zakup_prefiks = słowo przed zamówieniem. Bank Suzy zmierzony 22.10 (pierwszy krok, drzwi).",
         "miasto": MIASTO,
         "przystanki": przystanki,
         "wyjscie": list(PRZYBYCIE),
         "laczniki": [],
         "depo_stoiska": [list(s) for s in stoiska],
         "kolejnosc": KOLEJNOSC,
-        "kolejnosc_po_drzwiach": KOLEJNOSC_PO_DRZWIACH,
         "do_pomiaru": do_pomiaru,
     }
 
@@ -219,14 +225,15 @@ def meta(dane, mapa):
             "frodo": "wyprawa_sklepy.json: pole stania zmierzone na żywo 13.10; drzwi z mapy ∩ nagrane dojście",
             "xodet": "wyprawa_sklepy.json: pole stania zmierzone na żywo 14.10; drzwi z mapy ∩ nagrany powrót",
             "gorn": "ostatni punkt troll_do_miasta.json, NPC (32377,32200,7) z npc_pelne.json; dialog niezmierzony",
-            "bank_suzy": "npc_pelne.json (32320,32258,7); pole stania, wejście i dialog niezmierzone",
+            "bank_suzy": "npc_pelne.json (32320,32258,7); pole stania, drzwi i dialog zmierzone na żywo 22.10 13:32 (nagranie wydra_do_suzy_20261022.jsonl)",
         },
         "niezmierzone_na_zywo": [
             "wnęki depo inne niż (32343,32226,7): że na ich północnym polu stoi skrzynia, nie ściana",
             "dialog 'backpack' u Gorna (oferta 20 gp jest w danych serwera)",
             "cała droga serwisu po mieście botem (A* sprawdzony tylko offline na mapie)",
-            "bank Suzy: pole stania, wejście, dialog",
-            "otwieranie drzwi sklepów w serwisie (kod nie istnieje)",
+            "przejście przez drzwi banku (32319,32253,7) marszem serwisu (przejdz_drzwi; zmierzone tylko ręcznym marszem wydry 22.10)",
+            "przejście przez drzwi Frodo (32365,32208,7) i Xodeta (32400,32217,7) marszem serwisu (przejdz_drzwi, 22.10; offline sprawdzone na atrapie)",
+            "dialog zakupu 'buy N ham' / 'buy N blank rune' z poziomu serwisu (wyprawa mierzyła go własnym kodem 13-14.10)",
         ],
         "kroki": {k: ("drzwi" in v) for k, v in dane["przystanki"].items()},
     }
