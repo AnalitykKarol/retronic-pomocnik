@@ -24,6 +24,8 @@ po angielsku, bez tłumaczenia się dalej. Potem sam odejdź na bok i dopiero wt
 
 - Gotowej odpowiedzi na pytanie „czy jesteś botem”. Nie piszę zaprzeczeń; to Twoja decyzja w danej chwili.
 - Niczego, co ma wysłać bot sam: `CZAT_SPOT_AKTYWNY` zostaje 0, odpowiada tylko człowiek.
+  **Wyjątek (23.10, zgoda Karola):** bot uruchomiony w trybie STÓJ (`./stoj.sh <id> on`, mózg `hybryda`, model haiku) odpisuje
+  graczom na czacie automatycznie. Pozostałe boty (`skrypt`) bez zmian: nie odpisują.
 
 ## Skąd się biorą takie sytuacje (diagnoza 19.10, Mastafian + Raczek)
 
