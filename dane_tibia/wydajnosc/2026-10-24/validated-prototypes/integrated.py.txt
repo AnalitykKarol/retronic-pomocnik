@@ -1,0 +1,47 @@
+import sys,os,ctypes,subprocess,time,statistics,json,struct,random
+from pathlib import Path
+os.environ['RETRONIC_TESTY']='1';sys.dont_write_bytecode=True
+root=Path('/home/charlie/Games/Retronic/pomocnik');sys.path.insert(0,str(root));import rdzen,numpy as np
+lib=ctypes.CDLL('/tmp/retronic-cpu-validation-20261024/filter.so');P=ctypes.POINTER(ctypes.c_uint64)
+lib.scan.argtypes=[ctypes.c_void_p,ctypes.c_size_t,ctypes.POINTER(P),ctypes.POINTER(ctypes.c_size_t)];lib.scan.restype=ctypes.c_int;lib.release.argtypes=[ctypes.c_void_p]
+def native(b):
+ if len(b)//4<12:return []
+ ptr=ctypes.cast(ctypes.c_char_p(b),ctypes.c_void_p) if isinstance(b,bytes) else ctypes.addressof(ctypes.c_ubyte.from_buffer(b))
+ out=P();count=ctypes.c_size_t()
+ if lib.scan(ptr,len(b),ctypes.byref(out),ctypes.byref(count)):raise MemoryError
+ try:return np.ctypeslib.as_array(out,shape=(count.value,)).tolist() if count.value else []
+ finally:lib.release(out)
+code='''import ctypes,struct,sys
+size=64*1024*1024
+b=ctypes.create_string_buffer(size)
+for i,pos in enumerate(range(0,size-512,262144)):
+ p=bytearray(512);n=84;p[64:80]=struct.pack('<4f',1,1,1,1);struct.pack_into('<I',p,80,0x40000001+i)
+ p[n:n+7]=b'Goblin\\0';struct.pack_into('<II',p,n+16,6,15);struct.pack_into('<IIB',p,n-0x24,32000,32001,7);p[n+0x18]=73
+ ctypes.memmove(ctypes.addressof(b)+pos,bytes(p),512)
+print(ctypes.addressof(b),size,flush=True)
+sys.stdin.buffer.read(1)
+'''
+child=subprocess.Popen([sys.executable,'-c',code],stdin=subprocess.PIPE,stdout=subprocess.PIPE)
+try:
+ addr,size=map(int,child.stdout.readline().split());fd=os.open(f'/proc/{child.pid}/mem',os.O_RDONLY)
+ class Mem(rdzen.Pamiec):
+  def __init__(self,opt):
+   super().__init__();self.opt=opt;self.mem=object();self.buffer=bytearray(size) if opt else None;self.reads=0
+   if opt:self._kandydaci_stworow=native
+  def regiony(self):return [(addr,addr+size)]
+  def czytaj(self,a,n):
+   self.reads+=1
+   if self.opt:
+    got=os.preadv(fd,[self.buffer],a);return memoryview(self.buffer)[:got]
+   return os.pread(fd,n,a)
+ a=Mem(False);b=Mem(True);x=a._skanuj_stwory(True)[0];y=b._skanuj_stwory(True)[0];assert x==y
+ samples={'old':[],'new':[]};rng=random.Random(2410)
+ for _ in range(13):
+  order=[('old',a),('new',b)];rng.shuffle(order)
+  for label,p in order:
+   start=time.process_time_ns();res=p._skanuj_stwory(True)[0];samples[label].append((time.process_time_ns()-start)/1e6);assert res==x
+ result={'method':'complete _skanuj_stwory on /proc/mem of own synthetic child; same 64MiB range, same decoding, same read count; no live game','bytes':size,'objects':len(x),'outputs_equal':x==y,'reads_old':a.reads,'reads_new':b.reads,'rounds':13,'cpu_median_ms':{n:round(statistics.median(v),4) for n,v in samples.items()},'cpu_samples_ms':samples}
+ os.close(fd)
+finally:
+ child.stdin.write(b'x');child.stdin.flush();child.stdin.close();child.wait(timeout=5)
+out=root/'dane_tibia/wydajnosc/2026-10-24/validated-prototypes/integrated-results.json';out.write_text(json.dumps(result,indent=2)+'\n');print(json.dumps({k:v for k,v in result.items() if k!='cpu_samples_ms'},indent=2))

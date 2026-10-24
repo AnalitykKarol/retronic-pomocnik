@@ -1,0 +1,90 @@
+{
+  "method": "synthetic bytes only; candidate defined in temporary diagnostic script; no game memory, RPC or production changes",
+  "python": "3.14.7",
+  "numpy": "2.5.2",
+  "small_parity_cases": 603,
+  "large_parity_cases": 5,
+  "repeats": 5,
+  "results": [
+    {
+      "corpus": "zeros",
+      "bytes": 8388608,
+      "matches": 0,
+      "timings": {
+        "numpy_current": {
+          "median_cpu_ms": 5.765,
+          "median_wall_ms": 6.528
+        },
+        "bytes_find_candidate": {
+          "median_cpu_ms": 22.023,
+          "median_wall_ms": 26.347
+        }
+      },
+      "speedup_cpu": 0.262
+    },
+    {
+      "corpus": "random",
+      "bytes": 8388608,
+      "matches": 0,
+      "timings": {
+        "numpy_current": {
+          "median_cpu_ms": 5.222,
+          "median_wall_ms": 5.348
+        },
+        "bytes_find_candidate": {
+          "median_cpu_ms": 2.773,
+          "median_wall_ms": 2.799
+        }
+      },
+      "speedup_cpu": 1.883
+    },
+    {
+      "corpus": "sparse",
+      "bytes": 8388608,
+      "matches": 128,
+      "timings": {
+        "numpy_current": {
+          "median_cpu_ms": 3.161,
+          "median_wall_ms": 3.18
+        },
+        "bytes_find_candidate": {
+          "median_cpu_ms": 20.784,
+          "median_wall_ms": 20.846
+        }
+      },
+      "speedup_cpu": 0.152
+    },
+    {
+      "corpus": "dense",
+      "bytes": 8388608,
+      "matches": 131072,
+      "timings": {
+        "numpy_current": {
+          "median_cpu_ms": 12.783,
+          "median_wall_ms": 12.855
+        },
+        "bytes_find_candidate": {
+          "median_cpu_ms": 48.131,
+          "median_wall_ms": 48.382
+        }
+      },
+      "speedup_cpu": 0.266
+    },
+    {
+      "corpus": "marker_only",
+      "bytes": 8388608,
+      "matches": 0,
+      "timings": {
+        "numpy_current": {
+          "median_cpu_ms": 70.225,
+          "median_wall_ms": 70.655
+        },
+        "bytes_find_candidate": {
+          "median_cpu_ms": 612.142,
+          "median_wall_ms": 624.095
+        }
+      },
+      "speedup_cpu": 0.115
+    }
+  ]
+}

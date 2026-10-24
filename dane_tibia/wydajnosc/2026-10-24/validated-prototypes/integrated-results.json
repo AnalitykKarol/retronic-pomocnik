@@ -1,0 +1,45 @@
+{
+  "method": "complete _skanuj_stwory on /proc/mem of own synthetic child; same 64MiB range, same decoding, same read count; no live game",
+  "bytes": 67108864,
+  "objects": 256,
+  "outputs_equal": true,
+  "reads_old": 14,
+  "reads_new": 14,
+  "rounds": 13,
+  "cpu_median_ms": {
+    "old": 97.0449,
+    "new": 40.3856
+  },
+  "cpu_samples_ms": {
+    "old": [
+      184.621578,
+      195.863179,
+      105.158123,
+      67.870044,
+      82.707275,
+      111.838416,
+      78.387068,
+      147.58036,
+      86.08004,
+      55.32944,
+      60.122643,
+      103.178967,
+      97.044937
+    ],
+    "new": [
+      122.819639,
+      120.406036,
+      37.580459,
+      33.973374,
+      50.662313,
+      36.724958,
+      43.024337,
+      44.406491,
+      40.385605,
+      26.67442,
+      32.177332,
+      34.743914,
+      52.005989
+    ]
+  }
+}

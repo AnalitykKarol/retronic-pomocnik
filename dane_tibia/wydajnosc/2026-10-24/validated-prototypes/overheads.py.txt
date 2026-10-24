@@ -1,0 +1,45 @@
+import os,sys,time,json,subprocess,ctypes,statistics,importlib,tempfile
+from pathlib import Path
+root=Path('/home/charlie/Games/Retronic/pomocnik');sys.path.insert(0,str(root));sys.dont_write_bytecode=True;os.environ['RETRONIC_TESTY']='1'
+import rdzen,wiadomosci
+out=root/'dane_tibia/wydajnosc/2026-10-24/validated-prototypes';out.mkdir(exist_ok=True)
+# Controlled child only, not a game process. Parent is permitted to read it.
+code='import ctypes,sys; b=ctypes.create_string_buffer(64*1024*1024); print(ctypes.addressof(b),len(b),flush=True); sys.stdin.buffer.read(1)'
+child=subprocess.Popen([sys.executable,'-c',code],stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=False)
+try:
+ addr,size=map(int,child.stdout.readline().split());fd=os.open(f'/proc/{child.pid}/mem',os.O_RDONLY);buf=bytearray(size)
+ try:
+  samples={'pread_allocating':[],'preadv_reuse':[]};lengths={}
+  for _ in range(11):
+   for mode in samples:
+    start=time.process_time_ns()
+    if mode=='pread_allocating':v=os.pread(fd,size,addr);lengths[mode]=len(v)
+    else:lengths[mode]=os.preadv(fd,[buf],addr)
+    samples[mode].append((time.process_time_ns()-start)/1e6)
+  identical=bytes(buf)==v
+ finally:os.close(fd)
+finally:
+ if child.stdin:child.stdin.write(b'x');child.stdin.flush();child.stdin.close()
+ child.wait(timeout=5)
+read={'bytes':size,'rounds':11,'equal':identical,'lengths':lengths,'median_cpu_ms':{k:round(statistics.median(v),4) for k,v in samples.items()},'method':'/proc/mem of own idle synthetic child; child terminated normally'}
+# Compare same /proc discovery work with validating known real PID and starttime; no game descendants queried.
+pid=os.getpid()
+def identity(pid):
+ p=Path('/proc')/str(pid)
+ try:return (int(p.name),p.joinpath('stat').read_text().rsplit(')',1)[1].split()[19])
+ except OSError:return None
+known=identity(pid)
+scan=[];cached=[]
+for _ in range(15):
+ t=time.process_time_ns();rdzen.potomkowie(pid);scan.append((time.process_time_ns()-t)/1e6)
+ t=time.process_time_ns();assert identity(pid)==known;cached.append((time.process_time_ns()-t)/1e6)
+proc={'rounds':15,'full_proc_discovery_median_cpu_ms':round(statistics.median(scan),4),'cached_pid_starttime_median_cpu_ms':round(statistics.median(cached),4),'scope':'CPU of discovery vs identity validation; launcher and PID reuse behavior need regression tests at integration'}
+# Measure module reload itself, no wiadomosci handler call / sockets / memory.
+a=[];b=[];path=Path(wiadomosci.__file__);last=path.stat().st_mtime_ns
+for _ in range(30):
+ t=time.process_time_ns();importlib.reload(wiadomosci);a.append((time.process_time_ns()-t)/1e6)
+ t=time.process_time_ns();now=path.stat().st_mtime_ns
+ if now!=last:importlib.reload(wiadomosci);last=now
+ b.append((time.process_time_ns()-t)/1e6)
+reload={'rounds':30,'always_reload_median_cpu_ms':round(statistics.median(a),4),'mtime_check_median_cpu_ms':round(statistics.median(b),4),'scope':'module reload overhead only, not full chat RPC'}
+result={'read':read,'proc':proc,'reload':reload};(out/'overheads-results.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result,indent=2))

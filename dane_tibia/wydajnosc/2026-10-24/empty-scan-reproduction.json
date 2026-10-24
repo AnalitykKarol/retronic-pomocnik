@@ -1,0 +1,71 @@
+{
+  "method": "offline scheduling reproduction; stub memory and scanner; simulated 0.2s scans; no sockets, game memory or writes",
+  "results": [
+    {
+      "empty": true,
+      "known_region": false,
+      "iterations": 12,
+      "scan_count": 12,
+      "full_count": 12,
+      "elapsed_simulated_s": 2.52,
+      "sleeps": [
+        0.01,
+        0.01,
+        0.01,
+        0.01,
+        0.01,
+        0.01,
+        0.01,
+        0.01,
+        0.01,
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "empty": true,
+      "known_region": true,
+      "iterations": 12,
+      "scan_count": 6,
+      "full_count": 1,
+      "elapsed_simulated_s": 3.31,
+      "sleeps": [
+        0.35,
+        0.01,
+        0.34,
+        0.01,
+        0.34,
+        0.01,
+        0.34,
+        0.01,
+        0.34,
+        0.01,
+        0.34,
+        0.01
+      ]
+    },
+    {
+      "empty": false,
+      "known_region": true,
+      "iterations": 12,
+      "scan_count": 6,
+      "full_count": 1,
+      "elapsed_simulated_s": 3.31,
+      "sleeps": [
+        0.35,
+        0.01,
+        0.34,
+        0.01,
+        0.34,
+        0.01,
+        0.34,
+        0.01,
+        0.34,
+        0.01,
+        0.34,
+        0.01
+      ]
+    }
+  ]
+}

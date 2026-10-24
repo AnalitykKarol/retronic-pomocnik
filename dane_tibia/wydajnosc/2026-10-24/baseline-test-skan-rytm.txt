@@ -1,0 +1,33 @@
+OK   rdzeń: zapytanie bez rytmu nie ustawia rytmu 
+OK   rdzeń bez rytmu: cache 0,1 s przy limicie 0,5 s = bez skanu, sen > 0 sen=0.250
+OK   rdzeń: rytm 0,15 zapamiętany 
+OK   rdzeń rytm 0,15: cache 0,1 s już do odświeżenia (skan w tle) 
+OK   rdzeń rytm 1,0: cache 0,6 s bez skanu (dawniej limit 0,5 = skan) sen=0.250
+OK   rdzeń bez rytmu: cache 0,6 s = skan (kontrola) 
+OK   rdzeń: rytm starszy niż RYTM_WAZNY_S = jak dotąd (bez skanu przy cache 0,1 s) 
+OK   rdzeń: rytm 0 przycięty do 0,05 
+OK   rdzeń: rytm 99 przycięty do 2,0 
+OK   rdzeń: rytm nie-liczba / NaN / inf ignorowany {2.0: 11487.101654894}
+OK   rdzeń: obsluz({'cmd':'stwory','rytm':0.2}) ustawia rytm 
+OK   rdzeń: 0,3 potem 1,0 w 2 s = plan pod 0,3 (nie ostatni) 
+OK   rdzeń: cache 0,35 s przy rytmie 0,3 = skan w tle 
+OK   rdzeń: kontrola: sam rytm 1,0 przy cache 0,35 s = bez skanu 
+OK   rdzeń: walka wygasła po 2 s = spokój 1,0 
+OK   cavebot domyślnie: walka bez pola rytm i bez maks_wiek (jak dotąd) {'cmd': 'stwory'}
+OK   cavebot domyślnie: jawne maks_wiek bez zmian {'cmd': 'stwory', 'maks_wiek': 0.3}
+OK   cavebot WALKA: rytm 0,15 i maks_wiek 0,15 {'cmd': 'stwory', 'rytm': 0.15, 'maks_wiek': 0.15}
+OK   cavebot POGON: rytm 0,15 i maks_wiek 0,15 {'cmd': 'stwory', 'rytm': 0.15, 'maks_wiek': 0.15}
+OK   cavebot WALKA_PVP: rytm 0,15 i maks_wiek 0,15 {'cmd': 'stwory', 'rytm': 0.15, 'maks_wiek': 0.15}
+OK   cavebot UCIECZKA: rytm 0,15 i maks_wiek 0,15 {'cmd': 'stwory', 'rytm': 0.15, 'maks_wiek': 0.15}
+OK   cavebot ZDROWIE: rytm 0,15 i maks_wiek 0,15 {'cmd': 'stwory', 'rytm': 0.15, 'maks_wiek': 0.15}
+OK   cavebot LOOT: rytm 0,15 i maks_wiek 0,15 {'cmd': 'stwory', 'rytm': 0.15, 'maks_wiek': 0.15}
+OK   cavebot IDZ z ustawionym celem = walka (0,15) {'cmd': 'stwory', 'rytm': 0.15, 'maks_wiek': 0.15}
+OK   cavebot IDZ bez celu: rytm 1,0 i maks_wiek 1,0 {'cmd': 'stwory', 'rytm': 1.0, 'maks_wiek': 1.0}
+OK   cavebot IDZ stwory(0.3) w spokoju: rytm 0,3 (skaner nadąża za marszem) {'cmd': 'stwory', 'rytm': 0.3, 'maks_wiek': 0.3}
+OK   cavebot IDZ stwory(0.0): rytm spokoju, nie 0 {'cmd': 'stwory', 'rytm': 1.0, 'maks_wiek': 0.0}
+OK   cavebot LOOT = walka (0,15) {'cmd': 'stwory', 'rytm': 0.15, 'maks_wiek': 0.15}
+OK   cavebot jawne stwory(0.0) zostaje świeżym skanem (maks_wiek 0) z rytmem walki {'cmd': 'stwory', 'rytm': 0.15, 'maks_wiek': 0.0}
+OK   pokretla: 0,15 / 1,0 poprawne ({'SKAN_WIEK_WALKA': 0.15, 'SKAN_WIEK_SPOKOJ': 1.0}, [])
+OK   pokretla: poza zakresem odrzucone ['SKAN_WIEK_WALKA=0.05: poza zakresem (0.1, 0.5)', 'SKAN_WIEK_SPOKOJ=3.0: poza zakresem (0.5, 1.5)']
+
+31/31 OK

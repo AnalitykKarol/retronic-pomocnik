@@ -1,0 +1,55 @@
+import sys,os,time,struct,statistics,json,random,platform
+from pathlib import Path
+sys.path.insert(0,str(Path.cwd()));os.environ['RETRONIC_TESTY']='1'
+import rdzen,numpy as np
+old=rdzen.Pamiec._kandydaci_stworow
+marker=rdzen.ZNACZNIK_STWORA
+
+def candidate(buf):
+ n=len(buf)//4;k=n-11
+ if n<12:return []
+ result=[];pos=0
+ while True:
+  p=buf.find(marker,pos)
+  if p<0:break
+  pos=p+4 if p%4==0 else p+1
+  if p%4 or p//4>=k:continue
+  ident=buf[p+19]
+  if not 0x10<=ident<=0x4f:continue
+  size,cap=struct.unpack_from('<II',buf,p+36)
+  if cap==15 and 1<=size<=15:result.append(p+20)
+ return result
+
+def block():
+ b=bytearray(64);b[:16]=marker;struct.pack_into('<I',b,16,0x40000001);b[20:27]=b'Goblin\0';struct.pack_into('<II',b,36,6,15);return bytes(b)
+rng=random.Random(20261024);cases=[]
+for length in range(0,100):
+ for offset in range(4):
+  b=bytearray(rng.randbytes(length));s=block()
+  if offset+64<=length:b[offset:offset+64]=s
+  cases.append(bytes(b))
+for i in range(200):
+ b=bytearray(rng.randbytes(rng.randrange(100,6000)))
+ for j in range(rng.randrange(12)):
+  pos=rng.randrange(len(b)-64);b[pos:pos+64]=block()
+ cases.append(bytes(b))
+cases.extend([marker*100,bytes(10000),b'\xff'*10000])
+for i,b in enumerate(cases):
+ if old(b)!=candidate(b):raise SystemExit('PARITY FAIL '+str(i))
+size=8*1024*1024
+sparse=bytearray(size)
+for pos in range(0,size-64,65536):sparse[pos:pos+64]=block()
+buffers={'zeros':bytes(size),'random':rng.randbytes(size),'sparse':bytes(sparse),'dense':block()*(size//64),'marker_only':marker*(size//16)}
+rows=[]
+for label,b in buffers.items():
+ a=old(b);c=candidate(b)
+ assert a==c,label
+ timings={}
+ for name,fn in [('numpy_current',old),('bytes_find_candidate',candidate)]:
+  fn(b);cpu=[];wall=[]
+  for _ in range(5):
+   t=time.perf_counter();p=time.process_time();fn(b);cpu.append(time.process_time()-p);wall.append(time.perf_counter()-t)
+  timings[name]={'median_cpu_ms':round(statistics.median(cpu)*1000,3),'median_wall_ms':round(statistics.median(wall)*1000,3)}
+ rows.append({'corpus':label,'bytes':len(b),'matches':len(a),'timings':timings,'speedup_cpu':round(timings['numpy_current']['median_cpu_ms']/timings['bytes_find_candidate']['median_cpu_ms'],3)})
+out={'method':'synthetic bytes only; candidate defined in temporary diagnostic script; no game memory, RPC or production changes','python':platform.python_version(),'numpy':np.__version__,'small_parity_cases':len(cases),'large_parity_cases':len(buffers),'repeats':5,'results':rows}
+Path('dane_tibia/wydajnosc/2026-10-24/synthetic-scanner-bench.json').write_text(json.dumps(out,indent=2)+'\n');print(json.dumps(out,indent=2))

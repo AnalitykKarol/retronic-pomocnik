@@ -1,0 +1,102 @@
+import os,sys,time,random,statistics,ctypes,struct,json,hashlib,runpy,contextlib,io
+from pathlib import Path
+os.environ['RETRONIC_TESTY']='1';sys.dont_write_bytecode=True
+root=Path('/home/charlie/Games/Retronic/pomocnik');sys.path.insert(0,str(root))
+import rdzen,numpy as np
+old=rdzen.Pamiec._kandydaci_stworow
+lib=ctypes.CDLL('/tmp/retronic-cpu-validation-20261024/filter.so');P=ctypes.POINTER(ctypes.c_uint64)
+lib.scan.argtypes=[ctypes.c_char_p,ctypes.c_size_t,ctypes.POINTER(P),ctypes.POINTER(ctypes.c_size_t)];lib.scan.restype=ctypes.c_int
+lib.release.argtypes=[ctypes.c_void_p]
+def native(b):
+ out=P();count=ctypes.c_size_t()
+ if lib.scan(b,len(b),ctypes.byref(out),ctypes.byref(count)):raise MemoryError
+ try:return np.ctypeslib.as_array(out,shape=(count.value,)).tolist() if count.value else []
+ finally:lib.release(out)
+class Reuse:
+ def __init__(self):self.x=np.empty(0,bool);self.y=np.empty(0,bool)
+ def __call__(self,b):
+  n=len(b)//4;k=n-11
+  if n<12:return []
+  if len(self.x)<k:self.x=np.empty(k,bool);self.y=np.empty(k,bool)
+  x=self.x[:k];y=self.y[:k];a=np.frombuffer(b,'<u4',count=n)
+  np.equal(a[:k],0x3f800000,out=x)
+  for j in (1,2,3):np.equal(a[j:j+k],0x3f800000,out=y);np.logical_and(x,y,out=x)
+  idx=np.nonzero(x)[0]
+  if len(idx)==0:return []
+  ident=a[idx+4]>>24;size=a[idx+9]
+  good=(ident>=0x10)&(ident<=0x4f)&(a[idx+10]==15)&(size>=1)&(size<=15)
+  return ((idx[good]+5)*4).tolist()
+reuse=Reuse()
+def selective(b):
+ n=len(b)//4;k=n-11
+ if n<12:return []
+ a=np.frombuffer(b,'<u4',count=n);idx=np.nonzero(a[10:10+k]==15)[0]
+ for offset,predicate in [(9,lambda x:(x>=1)&(x<=15)),(4,lambda x:((x>>24)>=0x10)&((x>>24)<=0x4f)),(0,lambda x:x==0x3f800000),(1,lambda x:x==0x3f800000),(2,lambda x:x==0x3f800000),(3,lambda x:x==0x3f800000)]:
+  if len(idx)==0:return []
+  idx=idx[predicate(a[idx+offset])]
+ return ((idx+5)*4).tolist()
+def block():
+ b=bytearray(64);b[:16]=struct.pack('<4f',1,1,1,1);struct.pack_into('<I',b,16,0x40000001);b[20:27]=b'Goblin\0';struct.pack_into('<II',b,36,6,15);return bytes(b)
+rng=random.Random(24102026);cases=[]
+for length in range(180):
+ for offset in range(4):
+  b=bytearray(rng.randbytes(length))
+  if offset+64<=length:b[offset:offset+64]=block()
+  cases.append(bytes(b))
+for _ in range(1000):
+ b=bytearray(rng.randbytes(rng.randrange(64,20000)))
+ for j in range(rng.randrange(30)):
+  pos=rng.randrange(len(b)-63);b[pos:pos+64]=block()
+  if rng.random()<.5:
+   at=pos+rng.randrange(44);b[at]=rng.randrange(256)
+ cases.append(bytes(b))
+size=8*1024*1024;sparse=bytearray(size)
+for pos in range(0,size-64,65536):sparse[pos:pos+64]=block()
+large={'zeros':bytes(size),'random':rng.randbytes(size),'sparse':bytes(sparse),'dense':block()*(size//64),'marker_only':rdzen.ZNACZNIK_STWORA*(size//16),'capacity_only':struct.pack('<I',15)*(size//4),'ones_invalid_capacity':struct.pack('<I',0x3f800000)*(size//4)}
+variants={'reuse_masks':reuse,'selective_numpy':selective,'native_scalar':native}
+for label,fn in variants.items():
+ for i,b in enumerate(cases):assert old(b)==fn(b),(label,i)
+ for label2,b in large.items():assert old(b)==fn(b),(label,label2)
+rows=[]
+for label,b in large.items():
+ timings={};fns={'old':old,**variants};samples={n:[] for n in fns}
+ for fn in fns.values():fn(b)
+ for _ in range(9):
+  names=list(fns);rng.shuffle(names)
+  for name in names:
+   start=time.process_time_ns();fns[name](b);samples[name].append((time.process_time_ns()-start)/1e6)
+ for name,vals in samples.items():timings[name]={'cpu_median_ms':round(statistics.median(vals),4),'min':round(min(vals),4),'max':round(max(vals),4)}
+ rows.append({'corpus':label,'bytes':len(b),'matches':len(old(b)),'timings':timings,'speedups':{n:round(timings['old']['cpu_median_ms']/timings[n]['cpu_median_ms'],3) for n in variants}})
+# Full production decoder, synthetic region data, no game memory access.
+class Mem(rdzen.Pamiec):
+ def __init__(self,b,fn):
+  super().__init__();self.b=b;self.mem=object();self._kandydaci_stworow=fn;self.reads=0
+ def regiony(self):return [(0x100000,0x100000+len(self.b))]
+ def czytaj(self,a,n):self.reads+=1;return self.b[a-0x100000:a-0x100000+n]
+# Make realistic valid coordinates/frames using helper-like layout.
+def object_block(idx,ident):
+ b=bytearray(512);n=(idx+5)*4
+ b[idx*4:idx*4+16]=rdzen.ZNACZNIK_STWORA;struct.pack_into('<I',b,idx*4+16,ident)
+ b[n:n+7]=b'Goblin\0';struct.pack_into('<II',b,n+16,6,15);struct.pack_into('<IIB',b,n+rdzen.POZYCJA_STWORA,32000,32001,7);b[n+rdzen.HP_STWORA]=73
+ return b
+full=bytearray(32*1024*1024)
+for i,pos in enumerate(range(0,len(full)-512,262144)):full[pos:pos+512]=object_block(16,0x40000001+i)
+full=bytes(full);a=Mem(full,old);b=Mem(full,native)
+x=a._skanuj_stwory(True)[0];y=b._skanuj_stwory(True)[0];assert x==y
+fulltime={'old':[],'native':[]}
+for _ in range(9):
+ for name,p in [('old',a),('native',b)]:
+  start=time.process_time_ns();p._skanuj_stwory(True);fulltime[name].append((time.process_time_ns()-start)/1e6)
+# Existing regression suite with replacement in this process only.
+rdzen.Pamiec._kandydaci_stworow=staticmethod(native)
+stream=io.StringIO()
+with contextlib.redirect_stdout(stream):
+ try:
+  test=runpy.run_path(str(root/'testy/test_rdzen_stwory.py'),run_name='__main__')
+ except SystemExit as e:
+  assert e.code in (None,0),e.code
+log=stream.getvalue();assert 'FAIL' not in log,log
+result={'small_parity_cases':len(cases),'large_parity_cases':len(large),'rows':rows,'full_decoder':{'bytes':len(full),'objects':len(x),'outputs_equal':x==y,'reads_old':a.reads,'reads_native':b.reads,'cpu_ms':{n:round(statistics.median(v),4) for n,v in fulltime.items()}},'existing_tests_summary':log.splitlines()[-1],'environment':{'python':sys.version.split()[0],'numpy':np.__version__},'note':'offline diagnostic prototypes only; no production edits or live game memory reads'}
+out=root/'dane_tibia/wydajnosc/2026-10-24/validated-prototypes';out.mkdir(exist_ok=True)
+(out/'filter-results.json').write_text(json.dumps(result,indent=2)+'\n');(out/'native-test-rdzen.txt').write_text(log)
+print(json.dumps({'parity':len(cases)+len(large),'speedups':[{r['corpus']:r['speedups']} for r in rows],'decoder':result['full_decoder'],'tests':result['existing_tests_summary']},indent=2))

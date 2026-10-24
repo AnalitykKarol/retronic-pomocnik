@@ -1,0 +1,250 @@
+10:45:50 pelny 0.262s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:50 pelny 0.251s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:51 pelny 0.241s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:51 pelny 0.417s regiony=174 stwory=9 (poza graczem 8) nowe_regiony=0 suma_regionow=5
+10:45:51 pelny 0.282s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:51 pelny 0.220s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:51 pelny 0.203s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:52 pelny 0.341s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:52 pelny 0.167s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:52 pelny 0.303s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:45:52 pelny 0.237s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:52 [gebelish] szybki x22 w 10s srednio=0.243s max=0.387s regiony=5 zapytania=36 z_cache=31
+10:45:52 pelny 0.230s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:52 [marianni] szybki x17 w 11s srednio=0.009s max=0.029s regiony=1 zapytania=7 z_cache=7
+10:45:53 pelny 0.319s regiony=175 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=6
+10:45:53 pelny 0.224s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:53 pelny 0.198s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:53 pelny 0.307s regiony=173 stwory=10 (poza graczem 9) nowe_regiony=0 suma_regionow=5
+10:45:53 pelny 0.222s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:53 pelny 0.309s regiony=174 stwory=7 (poza graczem 6) nowe_regiony=0 suma_regionow=8
+10:45:53 pelny 0.200s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:53 pelny 0.173s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:54 pelny 0.220s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:54 pelny 0.156s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:54 pelny 0.180s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:54 pelny 0.287s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:55 pelny 0.250s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:55 pelny 0.440s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:45:55 [dawajkesh] szybki x22 w 10s srednio=0.253s max=0.500s regiony=5 zapytania=56 z_cache=43
+10:45:55 pelny 0.336s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:55 pelny 0.543s regiony=175 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=6
+10:45:55 pelny 0.436s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:56 pelny 0.190s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:56 pelny 0.167s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:56 pelny 0.183s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:56 pelny 0.172s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:56 pelny 0.284s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:57 pelny 0.213s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:57 pelny 0.168s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:57 pelny 0.227s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:57 pelny 0.394s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:45:57 pelny 0.253s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:57 pelny 0.187s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:58 pelny 0.238s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:58 pelny 0.286s regiony=175 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=6
+10:45:58 [odchyd] szybki x24 w 10s srednio=0.148s max=0.265s regiony=2 zapytania=13 z_cache=11
+10:45:58 pelny 0.161s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:58 pelny 0.214s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:58 [borsuk] szybki x18 w 10s srednio=0.354s max=0.576s regiony=8 zapytania=19 z_cache=16
+10:45:58 pelny 0.207s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:59 pelny 0.179s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:59 pelny 0.173s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:59 pelny 0.174s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:59 [invincible] szybki x20 w 10s srednio=0.244s max=0.403s regiony=6 zapytania=25 z_cache=24
+10:45:59 pelny 0.220s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:45:59 pelny 0.228s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:00 pelny 0.168s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:00 pelny 0.353s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:00 pelny 0.713s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:46:00 pelny 0.501s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:01 pelny 0.571s regiony=175 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=6
+10:46:01 pelny 0.222s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:01 pelny 0.211s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:01 pelny 0.517s regiony=175 stwory=6 (poza graczem 5) nowe_regiony=0 suma_regionow=2
+10:46:01 pelny 0.266s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:01 pelny 0.269s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:02 pelny 0.232s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:02 pelny 0.206s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:02 pelny 0.196s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:02 pelny 0.184s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:02 [gebelish] szybki x23 w 10s srednio=0.228s max=0.417s regiony=5 zapytania=38 z_cache=36
+10:46:03 pelny 0.202s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:03 pelny 0.317s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:03 pelny 0.467s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:46:03 pelny 0.207s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:03 pelny 0.423s regiony=175 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=6
+10:46:03 pelny 0.183s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:03 [marianni] szybki x16 w 11s srednio=0.008s max=0.018s regiony=1 zapytania=6 z_cache=5
+10:46:03 pelny 0.125s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:04 pelny 0.224s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:04 pelny 0.143s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:04 pelny 0.119s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:04 pelny 0.275s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:04 pelny 0.154s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:05 pelny 0.217s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:05 [dawajkesh] szybki x23 w 10s srednio=0.228s max=0.478s regiony=5 zapytania=68 z_cache=52
+10:46:05 pelny 0.458s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:06 pelny 0.469s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:06 pelny 0.565s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:46:06 pelny 0.514s regiony=175 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=6
+10:46:06 pelny 0.310s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:06 pelny 0.197s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:07 pelny 0.443s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:07 pelny 0.195s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:07 pelny 0.141s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:07 pelny 0.221s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:07 pelny 0.198s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:07 pelny 0.167s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:08 pelny 0.259s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:08 pelny 0.131s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:08 pelny 0.228s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:08 [odchyd] szybki x21 w 10s srednio=0.157s max=0.364s regiony=2 zapytania=9 z_cache=9
+10:46:08 pelny 0.451s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:46:08 pelny 0.301s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:08 pelny 0.505s regiony=175 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=6
+10:46:09 pelny 0.222s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:09 pelny 0.205s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:09 [borsuk] szybki x20 w 11s srednio=0.337s max=0.749s regiony=8 zapytania=44 z_cache=41
+10:46:09 pelny 0.245s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:09 [invincible] szybki x17 w 10s srednio=0.241s max=0.383s regiony=6 zapytania=15 z_cache=13
+10:46:09 pelny 0.154s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:10 pelny 0.207s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:10 pelny 0.187s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:10 pelny 0.379s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:10 pelny 0.248s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:11 pelny 0.217s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:11 pelny 0.262s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:11 pelny 0.468s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:46:11 pelny 0.524s regiony=175 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=6
+10:46:11 pelny 0.348s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:11 pelny 0.423s regiony=174 stwory=8 (poza graczem 7) nowe_regiony=0 suma_regionow=5
+10:46:11 pelny 0.246s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:12 pelny 0.227s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:12 pelny 0.284s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:12 pelny 0.133s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:12 pelny 0.175s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:13 [gebelish] szybki x22 w 10s srednio=0.222s max=0.505s regiony=5 zapytania=41 z_cache=39
+10:46:13 pelny 0.298s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:13 pelny 0.178s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:13 pelny 0.271s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:13 pelny 0.308s regiony=173 stwory=10 (poza graczem 9) nowe_regiony=0 suma_regionow=5
+10:46:13 pelny 0.199s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:13 pelny 0.332s regiony=175 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=6
+10:46:14 pelny 0.293s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:14 pelny 0.469s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:46:14 pelny 0.307s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:14 pelny 0.632s regiony=174 stwory=7 (poza graczem 6) nowe_regiony=0 suma_regionow=8
+10:46:14 pelny 0.197s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:14 [marianni] szybki x16 w 10s srednio=0.010s max=0.023s regiony=1 zapytania=6 z_cache=6
+10:46:14 pelny 0.285s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:15 pelny 0.115s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:15 pelny 0.420s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:15 pelny 0.380s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:16 [dawajkesh] szybki x22 w 10s srednio=0.253s max=0.538s regiony=5 zapytania=65 z_cache=51
+10:46:16 pelny 0.198s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:16 pelny 0.326s regiony=175 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=6
+10:46:16 pelny 0.270s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:16 pelny 0.118s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:16 pelny 0.356s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:17 pelny 0.502s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:46:17 pelny 0.255s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:17 pelny 0.223s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:17 pelny 0.212s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:17 pelny 0.239s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:18 pelny 0.161s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:18 pelny 0.217s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:18 pelny 0.189s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:18 pelny 0.230s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:18 pelny 0.190s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:19 [odchyd] szybki x23 w 10s srednio=0.178s max=0.379s regiony=2 zapytania=6 z_cache=6
+10:46:19 pelny 0.241s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:19 pelny 0.285s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:19 pelny 0.414s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:19 [borsuk] szybki x17 w 10s srednio=0.360s max=0.645s regiony=8 zapytania=27 z_cache=21
+10:46:20 pelny 0.809s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:46:20 [invincible] szybki x19 w 10s srednio=0.271s max=0.514s regiony=6 zapytania=16 z_cache=15
+10:46:20 pelny 0.325s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:20 pelny 0.398s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:20 pelny 0.371s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:21 pelny 0.521s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:21 pelny 0.254s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:21 pelny 0.351s regiony=175 stwory=6 (poza graczem 5) nowe_regiony=0 suma_regionow=2
+10:46:22 pelny 0.289s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:22 pelny 0.290s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:22 pelny 0.529s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:46:22 pelny 0.511s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:23 pelny 0.250s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:23 pelny 0.235s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:23 [gebelish] szybki x21 w 10s srednio=0.277s max=0.633s regiony=5 zapytania=17 z_cache=15
+10:46:23 pelny 0.154s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:23 pelny 0.246s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:24 pelny 0.180s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:24 pelny 0.238s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:24 pelny 0.193s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:24 pelny 0.349s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:25 pelny 0.188s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:25 pelny 0.558s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:25 pelny 0.652s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:46:25 pelny 0.282s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:26 [marianni] szybki x16 w 11s srednio=0.010s max=0.020s regiony=1 zapytania=8 z_cache=6
+10:46:26 pelny 0.316s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:26 [dawajkesh] szybki x22 w 10s srednio=0.258s max=0.503s regiony=5 zapytania=54 z_cache=45
+10:46:26 pelny 0.410s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:26 pelny 0.293s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:27 pelny 0.337s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:27 pelny 0.324s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:27 pelny 0.213s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:28 pelny 0.242s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:28 pelny 0.418s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:46:28 pelny 0.425s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:28 pelny 0.265s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:29 pelny 0.249s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:29 pelny 0.139s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:29 pelny 0.174s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:29 [odchyd] szybki x22 w 10s srednio=0.189s max=0.398s regiony=2 zapytania=7 z_cache=7
+10:46:29 pelny 0.205s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:29 pelny 0.158s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:30 pelny 0.235s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:30 pelny 0.330s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:30 [borsuk] szybki x18 w 11s srednio=0.398s max=0.627s regiony=8 zapytania=42 z_cache=36
+10:46:30 [invincible] szybki x22 w 10s srednio=0.281s max=0.701s regiony=6 zapytania=44 z_cache=40
+10:46:30 pelny 0.405s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:31 pelny 0.405s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:46:31 pelny 0.292s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:31 pelny 0.190s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:31 pelny 0.184s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:31 pelny 0.323s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:32 pelny 0.206s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:32 pelny 0.414s regiony=174 stwory=9 (poza graczem 8) nowe_regiony=0 suma_regionow=5
+10:46:32 pelny 0.250s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:32 pelny 0.160s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:32 pelny 0.210s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:33 pelny 0.349s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:33 pelny 0.242s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:33 pelny 0.285s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:33 pelny 0.420s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:46:33 pelny 0.208s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:33 [gebelish] szybki x23 w 10s srednio=0.220s max=0.347s regiony=5 zapytania=22 z_cache=22
+10:46:34 pelny 0.228s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:34 pelny 0.256s regiony=173 stwory=8 (poza graczem 7) nowe_regiony=0 suma_regionow=5
+10:46:34 pelny 0.206s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:34 pelny 0.197s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:34 pelny 0.248s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:34 pelny 0.218s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:35 pelny 0.472s regiony=174 stwory=6 (poza graczem 5) nowe_regiony=0 suma_regionow=8
+10:46:35 pelny 0.134s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:35 pelny 0.255s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:35 pelny 0.314s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:35 pelny 0.204s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:36 pelny 0.214s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:36 pelny 0.218s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:36 pelny 0.424s regiony=174 stwory=1 (poza graczem 0) nowe_regiony=0 suma_regionow=1
+10:46:36 pelny 0.219s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:36 [dawajkesh] szybki x22 w 10s srednio=0.230s max=0.374s regiony=5 zapytania=33 z_cache=29
+10:46:36 [marianni] szybki x16 w 10s srednio=0.010s max=0.040s regiony=1 zapytania=8 z_cache=8
+10:46:36 pelny 0.391s regiony=175 stwory=3 (poza graczem 2) nowe_regiony=0 suma_regionow=6
+10:46:36 pelny 0.361s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:37 pelny 0.338s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:37 pelny 0.322s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0
+10:46:37 pelny 0.254s regiony=166 stwory=0 (poza graczem 0) nowe_regiony=0 suma_regionow=0

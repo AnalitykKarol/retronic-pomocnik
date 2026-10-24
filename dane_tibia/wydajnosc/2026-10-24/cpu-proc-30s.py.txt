@@ -1,0 +1,56 @@
+import os,time,json,datetime
+from pathlib import Path
+HZ=os.sysconf('SC_CLK_TCK')
+root=Path('/home/charlie/Games/Retronic/pomocnik')
+meta={}
+for p in Path('/proc').iterdir():
+ if not p.name.isdigit() or int(p.name)==os.getpid():continue
+ try:
+  cmd=(p/'cmdline').read_bytes().split(b'\0')
+  env=(p/'environ').read_bytes().split(b'\0')
+  ident=next((e.split(b'=',1)[1].decode() for e in env if e.startswith(b'RETRONIC_ID=')),None)
+  cwd=os.readlink(p/'cwd')
+  parts=[s.decode(errors='replace') for s in cmd if s]
+  if cwd!=str(root) and not ident and not any('retronic-sesja-' in s or 'RetronicGL-' in s or str(root)+'/okno' in s for s in parts):continue
+  if parts and ('bash' in parts[0] or 'timeout' in parts[0]) and any('python3 -' in s for s in parts):continue
+  if any('RetronicGL-' in s for s in parts):role='game'
+  elif any('straznik.py' in s for s in parts):role='guard'
+  elif any('mozg.py' in s for s in parts):role='bot'
+  else:role=Path(parts[0]).name if parts else 'unknown'
+  if not ident:
+   for s in parts:
+    if 'retronic-sesja-' in s:ident=s.split('retronic-sesja-',1)[1].split('/')[0]
+  # Only allowlisted identity/role; never store cmdline or other environment.
+  meta[int(p.name)]={'pid':int(p.name),'instance':ident,'role':role}
+ except (OSError,StopIteration):pass
+
+def snapshot():
+ result={}
+ for pid in meta:
+  p=Path('/proc')/str(pid)
+  try:
+   st=(p/'stat').read_text().rsplit(')',1)[1].split()
+   tasks={}
+   for t in (p/'task').iterdir():
+    try:
+     s=(t/'stat').read_text().rsplit(')',1)[1].split()
+     status=(t/'status').read_text().splitlines()
+     ctx=sum(int(x.split(':')[1]) for x in status if x.startswith(('voluntary_ctxt_switches:','nonvoluntary_ctxt_switches:')))
+     tasks[int(t.name)]={'ticks':int(s[11])+int(s[12]),'comm':(t/'comm').read_text().strip(),'ctx':ctx}
+    except OSError:pass
+   result[pid]={'ticks':int(st[11])+int(st[12]),'start':st[19],'tasks':tasks}
+  except OSError:pass
+ return result
+started=datetime.datetime.now().astimezone().isoformat();a=snapshot();t0=time.monotonic();time.sleep(30);b=snapshot();dt=time.monotonic()-t0
+rows=[]
+for pid,m in meta.items():
+ if pid not in a or pid not in b or a[pid]['start']!=b[pid]['start']:continue
+ row={**m,'cpu_percent':round(100*(b[pid]['ticks']-a[pid]['ticks'])/HZ/dt,3),'threads':[]}
+ for tid,y in b[pid]['tasks'].items():
+  x=a[pid]['tasks'].get(tid)
+  if x:row['threads'].append({'tid':tid,'comm':y['comm'],'cpu_percent':round(100*(y['ticks']-x['ticks'])/HZ/dt,3),'context_switches_per_s':round((y['ctx']-x['ctx'])/dt,2)})
+ row['threads'].sort(key=lambda z:z['cpu_percent'],reverse=True);rows.append(row)
+rows.sort(key=lambda z:z['cpu_percent'],reverse=True)
+out={'started':started,'duration_s':dt,'hz':HZ,'logical_cpus':os.cpu_count(),'unit':'100% = one logical CPU','method':'two /proc snapshots, existing persistent processes only; no attach, RPC, signals or input','processes':rows}
+f=root/'dane_tibia/wydajnosc/2026-10-24/cpu-proc-30s.json';f.write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
+print(json.dumps({'file':str(f),'duration':dt,'top':[ {k:v for k,v in r.items() if k!='threads'} for r in rows[:35]]},ensure_ascii=False,indent=2))

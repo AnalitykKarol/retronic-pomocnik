@@ -1,0 +1,12 @@
+{
+  "scope": "isolated diagnostic prototypes; no production edits",
+  "source_sha256": {
+    "filter.c": "f4ba5b2437f7fec0c826b63e7fddd0f3157242d295326ed373dde0cb30b32c82",
+    "validate.py": "065828412bee65b86bba193b8871828aec59dbb44a23a59f3ef1bd4cee976a5c",
+    "overheads.py": "59211b05d28d0341db3cbb96b116cc29211d2d91ee082403517b6606b6b72d46",
+    "integrated.py": "110712ff656310cba5c2188094e5a89ac0a3e0cc6cddcda29f927b84e638c207",
+    "bounds.c": "61d8ef7a7e4b0ce492c695a9aeba38a34b8dfd77a90a6f00ec7204cbccbd71ea"
+  },
+  "compile_filter": "cc -std=c11 -O3 -fPIC -shared filter.c -o filter.so",
+  "compile_bounds": "cc -std=c11 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer bounds.c -o bounds"
+}

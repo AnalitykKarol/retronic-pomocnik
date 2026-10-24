@@ -1,0 +1,28 @@
+{
+  "read": {
+    "bytes": 67108864,
+    "rounds": 11,
+    "equal": true,
+    "lengths": {
+      "pread_allocating": 67108864,
+      "preadv_reuse": 67108864
+    },
+    "median_cpu_ms": {
+      "pread_allocating": 53.4885,
+      "preadv_reuse": 36.3947
+    },
+    "method": "/proc/mem of own idle synthetic child; child terminated normally"
+  },
+  "proc": {
+    "rounds": 15,
+    "full_proc_discovery_median_cpu_ms": 13.3047,
+    "cached_pid_starttime_median_cpu_ms": 0.1045,
+    "scope": "CPU of discovery vs identity validation; launcher and PID reuse behavior need regression tests at integration"
+  },
+  "reload": {
+    "rounds": 30,
+    "always_reload_median_cpu_ms": 4.2997,
+    "mtime_check_median_cpu_ms": 0.0317,
+    "scope": "module reload overhead only, not full chat RPC"
+  }
+}

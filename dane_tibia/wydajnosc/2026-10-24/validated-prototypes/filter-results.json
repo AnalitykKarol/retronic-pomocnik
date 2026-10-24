@@ -1,0 +1,247 @@
+{
+  "small_parity_cases": 1720,
+  "large_parity_cases": 7,
+  "rows": [
+    {
+      "corpus": "zeros",
+      "bytes": 8388608,
+      "matches": 0,
+      "timings": {
+        "old": {
+          "cpu_median_ms": 3.1531,
+          "min": 1.2575,
+          "max": 3.4798
+        },
+        "reuse_masks": {
+          "cpu_median_ms": 6.9106,
+          "min": 4.1452,
+          "max": 13.9503
+        },
+        "selective_numpy": {
+          "cpu_median_ms": 1.6787,
+          "min": 0.8176,
+          "max": 3.0246
+        },
+        "native_scalar": {
+          "cpu_median_ms": 1.2713,
+          "min": 0.5334,
+          "max": 1.9848
+        }
+      },
+      "speedups": {
+        "reuse_masks": 0.456,
+        "selective_numpy": 1.878,
+        "native_scalar": 2.48
+      }
+    },
+    {
+      "corpus": "random",
+      "bytes": 8388608,
+      "matches": 0,
+      "timings": {
+        "old": {
+          "cpu_median_ms": 2.0145,
+          "min": 1.7075,
+          "max": 3.2572
+        },
+        "reuse_masks": {
+          "cpu_median_ms": 6.1643,
+          "min": 4.8314,
+          "max": 9.5826
+        },
+        "selective_numpy": {
+          "cpu_median_ms": 1.571,
+          "min": 1.0163,
+          "max": 2.1759
+        },
+        "native_scalar": {
+          "cpu_median_ms": 1.219,
+          "min": 0.5957,
+          "max": 1.8572
+        }
+      },
+      "speedups": {
+        "reuse_masks": 0.327,
+        "selective_numpy": 1.282,
+        "native_scalar": 1.653
+      }
+    },
+    {
+      "corpus": "sparse",
+      "bytes": 8388608,
+      "matches": 128,
+      "timings": {
+        "old": {
+          "cpu_median_ms": 4.9817,
+          "min": 3.0682,
+          "max": 8.9767
+        },
+        "reuse_masks": {
+          "cpu_median_ms": 15.6277,
+          "min": 11.1515,
+          "max": 20.1648
+        },
+        "selective_numpy": {
+          "cpu_median_ms": 3.7144,
+          "min": 2.4874,
+          "max": 6.5213
+        },
+        "native_scalar": {
+          "cpu_median_ms": 2.2334,
+          "min": 1.7011,
+          "max": 3.3145
+        }
+      },
+      "speedups": {
+        "reuse_masks": 0.319,
+        "selective_numpy": 1.341,
+        "native_scalar": 2.231
+      }
+    },
+    {
+      "corpus": "dense",
+      "bytes": 8388608,
+      "matches": 131072,
+      "timings": {
+        "old": {
+          "cpu_median_ms": 16.0529,
+          "min": 13.495,
+          "max": 25.1769
+        },
+        "reuse_masks": {
+          "cpu_median_ms": 26.0469,
+          "min": 19.3183,
+          "max": 34.8315
+        },
+        "selective_numpy": {
+          "cpu_median_ms": 25.3791,
+          "min": 20.1663,
+          "max": 44.7639
+        },
+        "native_scalar": {
+          "cpu_median_ms": 6.2791,
+          "min": 4.5786,
+          "max": 9.5777
+        }
+      },
+      "speedups": {
+        "reuse_masks": 0.616,
+        "selective_numpy": 0.633,
+        "native_scalar": 2.557
+      }
+    },
+    {
+      "corpus": "marker_only",
+      "bytes": 8388608,
+      "matches": 0,
+      "timings": {
+        "old": {
+          "cpu_median_ms": 58.2009,
+          "min": 45.736,
+          "max": 120.8082
+        },
+        "reuse_masks": {
+          "cpu_median_ms": 69.8488,
+          "min": 53.4781,
+          "max": 95.264
+        },
+        "selective_numpy": {
+          "cpu_median_ms": 2.3667,
+          "min": 2.0171,
+          "max": 3.4592
+        },
+        "native_scalar": {
+          "cpu_median_ms": 2.0215,
+          "min": 1.2146,
+          "max": 2.9397
+        }
+      },
+      "speedups": {
+        "reuse_masks": 0.833,
+        "selective_numpy": 24.592,
+        "native_scalar": 28.791
+      }
+    },
+    {
+      "corpus": "capacity_only",
+      "bytes": 8388608,
+      "matches": 0,
+      "timings": {
+        "old": {
+          "cpu_median_ms": 6.3648,
+          "min": 4.4604,
+          "max": 9.0594
+        },
+        "reuse_masks": {
+          "cpu_median_ms": 12.2524,
+          "min": 9.5196,
+          "max": 19.5849
+        },
+        "selective_numpy": {
+          "cpu_median_ms": 59.0818,
+          "min": 45.6896,
+          "max": 67.5099
+        },
+        "native_scalar": {
+          "cpu_median_ms": 2.4288,
+          "min": 1.7902,
+          "max": 3.0651
+        }
+      },
+      "speedups": {
+        "reuse_masks": 0.519,
+        "selective_numpy": 0.108,
+        "native_scalar": 2.621
+      }
+    },
+    {
+      "corpus": "ones_invalid_capacity",
+      "bytes": 8388608,
+      "matches": 0,
+      "timings": {
+        "old": {
+          "cpu_median_ms": 64.6861,
+          "min": 49.1532,
+          "max": 126.123
+        },
+        "reuse_masks": {
+          "cpu_median_ms": 91.6204,
+          "min": 51.5781,
+          "max": 106.0839
+        },
+        "selective_numpy": {
+          "cpu_median_ms": 2.7926,
+          "min": 1.9983,
+          "max": 3.2919
+        },
+        "native_scalar": {
+          "cpu_median_ms": 2.0865,
+          "min": 1.3222,
+          "max": 2.4043
+        }
+      },
+      "speedups": {
+        "reuse_masks": 0.706,
+        "selective_numpy": 23.163,
+        "native_scalar": 31.002
+      }
+    }
+  ],
+  "full_decoder": {
+    "bytes": 33554432,
+    "objects": 128,
+    "outputs_equal": true,
+    "reads_old": 10,
+    "reads_native": 10,
+    "cpu_ms": {
+      "old": 14.9843,
+      "native": 4.9183
+    }
+  },
+  "existing_tests_summary": "34/34 OK",
+  "environment": {
+    "python": "3.14.7",
+    "numpy": "2.5.2"
+  },
+  "note": "offline diagnostic prototypes only; no production edits or live game memory reads"
+}

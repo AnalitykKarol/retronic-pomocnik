@@ -1,0 +1,19 @@
+#include <stdio.h>
+#include "filter.c"
+int main(void) {
+ uint32_t seed=24102026;size_t runs=0;
+ for(size_t len=0;len<8192;len++) {
+  unsigned char *b=malloc(len?len:1); if(!b)return 2;
+  for(size_t j=0;j<len;j++){seed=1664525*seed+1013904223;b[j]=(unsigned char)(seed>>24);}
+  if(len>=48) {
+   size_t off=((len-48)/4)*4;uint32_t one=0x3f800000,id=0x40000001,sz=6,cap=15;
+   for(size_t j=0;j<4;j++)memcpy(b+off+4*j,&one,4);
+   memcpy(b+off+16,&id,4);memcpy(b+off+36,&sz,4);memcpy(b+off+40,&cap,4);
+  }
+  uint64_t *out=NULL;size_t count=0;
+  if(scan(b,len,&out,&count))return 3;
+  for(size_t j=0;j<count;j++) if(out[j]<20 || out[j]+24>len)return 4;
+  release(out);free(b);runs++;
+ }
+ printf("PASS: %zu exact-size buffers; ASan+UBSan\n",runs);return 0;
+}

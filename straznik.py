@@ -29,6 +29,7 @@ sys.dont_write_bytecode = True
 
 import instancja  # noqa: E402
 import rdzen  # noqa: E402
+from proces_gry import ProcesGry  # noqa: E402
 
 GNIAZDO = str(instancja.gniazdo())     # bez RETRONIC_ID: $XDG_RUNTIME_DIR/retronic-pomocnik.sock
 LOG = str(instancja.S.straznik_log)    # bez RETRONIC_ID: pomocnik/straznik.log
@@ -91,6 +92,7 @@ def main():
 
     glowny_zakonczony = False
     puste = 0
+    proces_gry = ProcesGry(lambda: rdzen.znajdz_gre())
     while True:
         # zbieranie zakończonych potomków (jesteśmy subreaperem)
         try:
@@ -104,7 +106,11 @@ def main():
             pass
         if glowny_zakonczony or gra.poll() is not None:
             glowny_zakonczony = True
-            puste = puste + 1 if rdzen.znajdz_gre() is None else 0
+            # Manifest pozwala wdrożyć optymalizację na jednej instancji.
+            pid_gry = (proces_gry.sprawdz() if (getattr(rdzen, "CPU_OPTYMALIZACJE", True)
+                                             and getattr(rdzen, "CPU_PID", True))
+                       else rdzen.znajdz_gre())
+            puste = puste + 1 if pid_gry is None else 0
             if puste >= 3:
                 break
         time.sleep(1)

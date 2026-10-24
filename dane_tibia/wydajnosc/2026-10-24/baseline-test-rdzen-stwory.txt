@@ -1,0 +1,36 @@
+OK   pelny skan: 2 stwory
+OK   skan=pelny
+OK   regiony zebrane (2)
+OK   szybki skan: 2 regiony
+OK   skan=szybki
+OK   suma regionów 3
+OK   region bez stworów zostaje w sumie
+OK   limit 12 regionów
+OK   najstarsze wypchnięte
+OK   pusto: pełny po >2 s
+OK   walka: pełny dopiero po >20 s
+OK   cache: brak odczytów przy świeżym wyniku
+OK   stary cache w walce: szybki skan
+OK   cmd stwory: pola zgodne + nowe
+OK   wątek tła wykrył nowego stwora <3 s
+OK   wątek żyje po błędzie skanu
+OK   wątek kończy się po zmianie tokenu
+OK   stwor: stare pola (id, x, y, z, hp)
+OK   stwor: bez ramek atakowany=False, bije_nas=False
+OK   stwor: stała czerwona ramka = atakowany
+OK   stwor: ramka chwilowa = bije_nas
+OK   stwor: bije_nas bez atakowany
+OK   stwor: zły id = None
+OK   stwor: krótki odczyt -> pozycja i HP bez flag
+OK   stwor: wyjątek w _ramka nie wywraca odpowiedzi
+OK   poscig: pozycja gracza i stwór w jednej odpowiedzi
+OK   poscig: zły id stwora = stwor None, pozycja jest
+OK   stwor: stara komenda bez zmian
+OK   stwory: maks_wiek przekazany do cache skanera
+OK   urosły region: stary zakres w sumie przed zmianą map
+OK   po pełnym skanie stary zakres wypada, jest nowy
+OK   szybki skan czyta tylko bieżące regiony (1)
+OK   szybki skan 12 regionów offline < 0,5 s (0.015 s)
+OK   skan w toku: odpowiedź po ~0,2 s ze świeżym cache (wiek 0.0, czekanie 0.20 s)
+
+34/34 OK

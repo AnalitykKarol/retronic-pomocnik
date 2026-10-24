@@ -1,0 +1,21 @@
+{
+  "head": "0d3295c",
+  "branch": "ruch-r1-1014",
+  "worktree": "dirty; baseline is working copy, not HEAD alone",
+  "python": "3.14.7",
+  "files": {
+    "rdzen.py": "a984e690d28da199343e01c1e68195fde78283ef4dfd568e6997a00662214de4",
+    "straznik.py": "701b182ec3a73a94e0d41c2009868a4aaa47830dd9d7252f5f2434f1ef325e05",
+    "bot.py": "11058b6992fcdf58d0449b6c07a0c0c2a30bba39443c6216bc73eec4790cd8d9",
+    "ekran.py": "33a732aec4e43000f5fab182fac6e2e8437782993de9c17653ff5651eb2d95ff",
+    "cavebot.py": "9ff39f34ecc3bfe1d2624c04bbee9fef15371e47c2134771434568aff31a2550",
+    "mozg.py": "0b6ea7b96a22d646096f6b573675b561320a14597c6a6e902f0170c1dd7f6de5",
+    "okno_api.py": "473bcb2c3e4fb1f9196c927fe4042552f83106c82272f10d5a4460bdd201e312",
+    "panel.py": "2a7d837812f35d5cd46df1b06f41837df9f9296678be06a0a0e5fd09749bad1a",
+    "telemetria.py": "ddefcc419a0b515da99b690de1c0a89274479dd63653823bbfcd7eed27c38a19",
+    "wiadomosci.py": "d25b1fd0726150fc3978f2df1319aa57d87c1b8d38c4954beeccb0df49cac96b",
+    "okno/Backend.qml": "61a3ddf818bdb1e80eb08fe0b943f0c59bba8e6adba6af8d24f8e184668187cd",
+    "sesja.sh": "70f378380ecddcf761c2b8a254093ffb6b914f999557ba5dbce6fd1c9b8cbd8b",
+    "uruchom_gre.sh": "1e3305469a8c48ad1a5f5140be212f0292e86310470fa9b1ab3f123b724da38d"
+  }
+}

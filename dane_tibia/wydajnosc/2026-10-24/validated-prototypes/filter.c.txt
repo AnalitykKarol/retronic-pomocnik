@@ -1,0 +1,29 @@
+#include <stdint.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+static inline uint32_t rd(const unsigned char *p) { uint32_t x; memcpy(&x,p,4); return x; }
+int scan(const unsigned char *b, size_t len, uint64_t **out, size_t *count) {
+    *out=NULL; *count=0;
+    size_t n=len/4, cap=0;
+    if(n<12) return 0;
+    for(size_t i=0; i<n-11; i++) {
+        const unsigned char *p=b+4*i;
+        if(rd(p+40)!=15) continue;
+        uint32_t size=rd(p+36);
+        if(size<1 || size>15) continue;
+        uint32_t id=rd(p+16)>>24;
+        if(id<0x10 || id>0x4f) continue;
+        if(rd(p)!=0x3f800000 || rd(p+4)!=0x3f800000 || rd(p+8)!=0x3f800000 || rd(p+12)!=0x3f800000) continue;
+        if(*count==cap) {
+            size_t nc=cap ? cap*2 : 16;
+            if(nc<cap || nc>SIZE_MAX/sizeof(uint64_t)) { free(*out);*out=NULL;*count=0;return -1; }
+            uint64_t *q=realloc(*out,nc*sizeof(uint64_t));
+            if(!q) {free(*out);*out=NULL;*count=0;return -1;}
+            *out=q;cap=nc;
+        }
+        (*out)[(*count)++]=(i+5)*4;
+    }
+    return 0;
+}
+void release(void *p) { free(p); }

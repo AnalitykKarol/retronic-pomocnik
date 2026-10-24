@@ -1,0 +1,7218 @@
+{
+  "started": "2026-10-24T10:44:34.045514+02:00",
+  "duration_s": 30.044041995999578,
+  "hz": 100,
+  "logical_cpus": 20,
+  "unit": "100% = one logical CPU",
+  "method": "two /proc snapshots, existing persistent processes only; no attach, RPC, signals or input",
+  "processes": [
+    {
+      "pid": 1353264,
+      "instance": "wydra",
+      "role": "guard",
+      "cpu_percent": 96.026,
+      "threads": [
+        {
+          "tid": 1353648,
+          "comm": "Thread-2 (_petl",
+          "cpu_percent": 91.865,
+          "context_switches_per_s": 155.87
+        },
+        {
+          "tid": 1353415,
+          "comm": "Thread-1 (serwe",
+          "cpu_percent": 2.696,
+          "context_switches_per_s": 16.44
+        },
+        {
+          "tid": 1353264,
+          "comm": "python3",
+          "cpu_percent": 1.498,
+          "context_switches_per_s": 39.14
+        }
+      ]
+    },
+    {
+      "pid": 1257094,
+      "instance": "borsuk",
+      "role": "guard",
+      "cpu_percent": 63.507,
+      "threads": [
+        {
+          "tid": 1257546,
+          "comm": "Thread-2 (_petl",
+          "cpu_percent": 59.446,
+          "context_switches_per_s": 124.78
+        },
+        {
+          "tid": 1257151,
+          "comm": "Thread-1 (serwe",
+          "cpu_percent": 2.43,
+          "context_switches_per_s": 16.34
+        },
+        {
+          "tid": 1257094,
+          "comm": "python3",
+          "cpu_percent": 1.598,
+          "context_switches_per_s": 11.15
+        }
+      ]
+    },
+    {
+      "pid": 1306379,
+      "instance": "invincible",
+      "role": "guard",
+      "cpu_percent": 55.685,
+      "threads": [
+        {
+          "tid": 1306788,
+          "comm": "Thread-2 (_petl",
+          "cpu_percent": 51.857,
+          "context_switches_per_s": 121.42
+        },
+        {
+          "tid": 1306382,
+          "comm": "Thread-1 (serwe",
+          "cpu_percent": 2.297,
+          "context_switches_per_s": 29.06
+        },
+        {
+          "tid": 1306379,
+          "comm": "python3",
+          "cpu_percent": 1.564,
+          "context_switches_per_s": 9.09
+        }
+      ]
+    },
+    {
+      "pid": 1282490,
+      "instance": "dawajkesh",
+      "role": "guard",
+      "cpu_percent": 49.161,
+      "threads": [
+        {
+          "tid": 1282673,
+          "comm": "Thread-2 (_petl",
+          "cpu_percent": 46.731,
+          "context_switches_per_s": 89.47
+        },
+        {
+          "tid": 1282490,
+          "comm": "python3",
+          "cpu_percent": 1.465,
+          "context_switches_per_s": 15.18
+        },
+        {
+          "tid": 1282492,
+          "comm": "Thread-1 (serwe",
+          "cpu_percent": 0.965,
+          "context_switches_per_s": 23.17
+        }
+      ]
+    },
+    {
+      "pid": 1328387,
+      "instance": "gebelish",
+      "role": "guard",
+      "cpu_percent": 47.164,
+      "threads": [
+        {
+          "tid": 1328472,
+          "comm": "Thread-2 (_petl",
+          "cpu_percent": 44.768,
+          "context_switches_per_s": 92.43
+        },
+        {
+          "tid": 1328387,
+          "comm": "python3",
+          "cpu_percent": 1.365,
+          "context_switches_per_s": 6.32
+        },
+        {
+          "tid": 1328389,
+          "comm": "Thread-1 (serwe",
+          "cpu_percent": 0.999,
+          "context_switches_per_s": 28.56
+        }
+      ]
+    },
+    {
+      "pid": 1231481,
+      "instance": "odchyd",
+      "role": "guard",
+      "cpu_percent": 36.912,
+      "threads": [
+        {
+          "tid": 1232125,
+          "comm": "Thread-2 (_petl",
+          "cpu_percent": 33.051,
+          "context_switches_per_s": 92.76
+        },
+        {
+          "tid": 1231486,
+          "comm": "Thread-1 (serwe",
+          "cpu_percent": 2.363,
+          "context_switches_per_s": 11.12
+        },
+        {
+          "tid": 1231481,
+          "comm": "python3",
+          "cpu_percent": 1.564,
+          "context_switches_per_s": 8.35
+        }
+      ]
+    },
+    {
+      "pid": 1257548,
+      "instance": "borsuk",
+      "role": "game",
+      "cpu_percent": 22.068,
+      "threads": [
+        {
+          "tid": 1257548,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 9.786,
+          "context_switches_per_s": 1032.65
+        },
+        {
+          "tid": 1257689,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 9.752,
+          "context_switches_per_s": 988.78
+        },
+        {
+          "tid": 1257651,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 1.065,
+          "context_switches_per_s": 438.49
+        },
+        {
+          "tid": 1257659,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.632,
+          "context_switches_per_s": 242.68
+        },
+        {
+          "tid": 1257660,
+          "comm": "alsoft-mixer",
+          "cpu_percent": 0.366,
+          "context_switches_per_s": 110.94
+        },
+        {
+          "tid": 1257550,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.3,
+          "context_switches_per_s": 238.02
+        },
+        {
+          "tid": 1257575,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.2,
+          "context_switches_per_s": 100.29
+        },
+        {
+          "tid": 1257572,
+          "comm": "[vkrt] Analysis",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 10.12
+        },
+        {
+          "tid": 1257666,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 2.86
+        },
+        {
+          "tid": 1257549,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.23
+        },
+        {
+          "tid": 1257569,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.5
+        },
+        {
+          "tid": 1257570,
+          "comm": "[vkcf] Analysis",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257573,
+          "comm": "[vkps] Update",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 4.13
+        },
+        {
+          "tid": 1257576,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257661,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257677,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 1257679,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.2
+        },
+        {
+          "tid": 1258609,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 6.82
+        },
+        {
+          "tid": 1258610,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1306501,
+      "instance": "invincible",
+      "role": "game",
+      "cpu_percent": 22.034,
+      "threads": [
+        {
+          "tid": 1306501,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 9.819,
+          "context_switches_per_s": 1057.71
+        },
+        {
+          "tid": 1306724,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 9.652,
+          "context_switches_per_s": 989.58
+        },
+        {
+          "tid": 1306639,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 1.032,
+          "context_switches_per_s": 417.79
+        },
+        {
+          "tid": 1306646,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.599,
+          "context_switches_per_s": 248.17
+        },
+        {
+          "tid": 1306647,
+          "comm": "alsoft-mixer",
+          "cpu_percent": 0.366,
+          "context_switches_per_s": 111.54
+        },
+        {
+          "tid": 1306506,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.266,
+          "context_switches_per_s": 247.04
+        },
+        {
+          "tid": 1306530,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.2,
+          "context_switches_per_s": 100.02
+        },
+        {
+          "tid": 1308475,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 7.12
+        },
+        {
+          "tid": 1306505,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306524,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.5
+        },
+        {
+          "tid": 1306525,
+          "comm": "[vkcf] Analysis",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306527,
+          "comm": "[vkrt] Analysis",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 10.09
+        },
+        {
+          "tid": 1306528,
+          "comm": "[vkps] Update",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 3.99
+        },
+        {
+          "tid": 1306531,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306648,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306654,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.93
+        },
+        {
+          "tid": 1306720,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 1306721,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.2
+        },
+        {
+          "tid": 1308476,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1282645,
+      "instance": "dawajkesh",
+      "role": "game",
+      "cpu_percent": 21.801,
+      "threads": [
+        {
+          "tid": 1282645,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 9.852,
+          "context_switches_per_s": 1006.92
+        },
+        {
+          "tid": 1282780,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 9.42,
+          "context_switches_per_s": 995.84
+        },
+        {
+          "tid": 1282760,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 1.032,
+          "context_switches_per_s": 439.42
+        },
+        {
+          "tid": 1282767,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.632,
+          "context_switches_per_s": 246.7
+        },
+        {
+          "tid": 1282769,
+          "comm": "alsoft-mixer",
+          "cpu_percent": 0.366,
+          "context_switches_per_s": 111.14
+        },
+        {
+          "tid": 1282652,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.233,
+          "context_switches_per_s": 246.4
+        },
+        {
+          "tid": 1282681,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.166,
+          "context_switches_per_s": 100.49
+        },
+        {
+          "tid": 1282677,
+          "comm": "[vkrt] Analysis",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 10.05
+        },
+        {
+          "tid": 1282651,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282674,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.5
+        },
+        {
+          "tid": 1282675,
+          "comm": "[vkcf] Analysis",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282678,
+          "comm": "[vkps] Update",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 4.03
+        },
+        {
+          "tid": 1282682,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282771,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282772,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.86
+        },
+        {
+          "tid": 1282778,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 1282779,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.2
+        },
+        {
+          "tid": 1284676,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 7.39
+        },
+        {
+          "tid": 1284677,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 748232,
+      "instance": "marianni",
+      "role": "guard",
+      "cpu_percent": 21.502,
+      "threads": [
+        {
+          "tid": 748659,
+          "comm": "Thread-2 (_petl",
+          "cpu_percent": 17.108,
+          "context_switches_per_s": 34.68
+        },
+        {
+          "tid": 748506,
+          "comm": "Thread-1 (serwe",
+          "cpu_percent": 2.696,
+          "context_switches_per_s": 6.59
+        },
+        {
+          "tid": 748232,
+          "comm": "python3",
+          "cpu_percent": 1.664,
+          "context_switches_per_s": 8.95
+        }
+      ]
+    },
+    {
+      "pid": 1328532,
+      "instance": "gebelish",
+      "role": "game",
+      "cpu_percent": 21.003,
+      "threads": [
+        {
+          "tid": 1328532,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 9.353,
+          "context_switches_per_s": 1015.24
+        },
+        {
+          "tid": 1328947,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 9.087,
+          "context_switches_per_s": 1006.56
+        },
+        {
+          "tid": 1328920,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 1.032,
+          "context_switches_per_s": 439.82
+        },
+        {
+          "tid": 1328933,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.599,
+          "context_switches_per_s": 245.67
+        },
+        {
+          "tid": 1328934,
+          "comm": "alsoft-mixer",
+          "cpu_percent": 0.399,
+          "context_switches_per_s": 111.6
+        },
+        {
+          "tid": 1328541,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.3,
+          "context_switches_per_s": 292.97
+        },
+        {
+          "tid": 1328726,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.2,
+          "context_switches_per_s": 100.42
+        },
+        {
+          "tid": 1328697,
+          "comm": "[vkps] Update",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 3.99
+        },
+        {
+          "tid": 1328540,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328683,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.5
+        },
+        {
+          "tid": 1328684,
+          "comm": "[vkcf] Analysis",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328696,
+          "comm": "[vkrt] Analysis",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 10.12
+        },
+        {
+          "tid": 1328733,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328935,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328936,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328943,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328944,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1331196,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 7.29
+        },
+        {
+          "tid": 1331197,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1231638,
+      "instance": "odchyd",
+      "role": "game",
+      "cpu_percent": 20.603,
+      "threads": [
+        {
+          "tid": 1231638,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 9.652,
+          "context_switches_per_s": 1050.03
+        },
+        {
+          "tid": 1231859,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 8.454,
+          "context_switches_per_s": 996.14
+        },
+        {
+          "tid": 1231796,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 1.065,
+          "context_switches_per_s": 436.26
+        },
+        {
+          "tid": 1231809,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.632,
+          "context_switches_per_s": 245.51
+        },
+        {
+          "tid": 1231810,
+          "comm": "alsoft-mixer",
+          "cpu_percent": 0.399,
+          "context_switches_per_s": 112.14
+        },
+        {
+          "tid": 1231681,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.233,
+          "context_switches_per_s": 225.64
+        },
+        {
+          "tid": 1231705,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.2,
+          "context_switches_per_s": 100.72
+        },
+        {
+          "tid": 1231680,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231699,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.5
+        },
+        {
+          "tid": 1231700,
+          "comm": "[vkcf] Analysis",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231702,
+          "comm": "[vkrt] Analysis",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 10.12
+        },
+        {
+          "tid": 1231703,
+          "comm": "[vkps] Update",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 4.09
+        },
+        {
+          "tid": 1231706,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231811,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231812,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231855,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231856,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1234325,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 6.62
+        },
+        {
+          "tid": 1234326,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 748767,
+      "instance": "marianni",
+      "role": "game",
+      "cpu_percent": 11.017,
+      "threads": [
+        {
+          "tid": 748767,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 5.459,
+          "context_switches_per_s": 1080.78
+        },
+        {
+          "tid": 748936,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 3.295,
+          "context_switches_per_s": 998.63
+        },
+        {
+          "tid": 748922,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 1.065,
+          "context_switches_per_s": 434.4
+        },
+        {
+          "tid": 748928,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.632,
+          "context_switches_per_s": 243.44
+        },
+        {
+          "tid": 748929,
+          "comm": "alsoft-mixer",
+          "cpu_percent": 0.399,
+          "context_switches_per_s": 112.5
+        },
+        {
+          "tid": 748854,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.2,
+          "context_switches_per_s": 100.69
+        },
+        {
+          "tid": 748832,
+          "comm": "[vkrt] Analysis",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 10.12
+        },
+        {
+          "tid": 748833,
+          "comm": "[vkps] Update",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 4.03
+        },
+        {
+          "tid": 748769,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748770,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 30.39
+        },
+        {
+          "tid": 748829,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.5
+        },
+        {
+          "tid": 748830,
+          "comm": "[vkcf] Analysis",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748855,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748930,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748931,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.76
+        },
+        {
+          "tid": 748932,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 748933,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.2
+        },
+        {
+          "tid": 750713,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.5
+        },
+        {
+          "tid": 750714,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1353653,
+      "instance": "wydra",
+      "role": "game",
+      "cpu_percent": 9.786,
+      "threads": [
+        {
+          "tid": 1353653,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 4.56,
+          "context_switches_per_s": 1098.42
+        },
+        {
+          "tid": 1353804,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 2.996,
+          "context_switches_per_s": 991.44
+        },
+        {
+          "tid": 1353776,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 1.032,
+          "context_switches_per_s": 441.82
+        },
+        {
+          "tid": 1353784,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.632,
+          "context_switches_per_s": 244.77
+        },
+        {
+          "tid": 1353786,
+          "comm": "alsoft-mixer",
+          "cpu_percent": 0.366,
+          "context_switches_per_s": 111.97
+        },
+        {
+          "tid": 1353682,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.2,
+          "context_switches_per_s": 100.29
+        },
+        {
+          "tid": 1353679,
+          "comm": "[vkrt] Analysis",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 10.12
+        },
+        {
+          "tid": 1353655,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353656,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353676,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.5
+        },
+        {
+          "tid": 1353677,
+          "comm": "[vkcf] Analysis",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353680,
+          "comm": "[vkps] Update",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 3.99
+        },
+        {
+          "tid": 1353683,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353789,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353790,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353800,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353801,
+          "comm": "RetronicGL-1792",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1282341,
+      "instance": "dawajkesh",
+      "role": "wayvnc",
+      "cpu_percent": 9.253,
+      "threads": [
+        {
+          "tid": 1282341,
+          "comm": "wayvnc",
+          "cpu_percent": 6.49,
+          "context_switches_per_s": 170.65
+        },
+        {
+          "tid": 1282353,
+          "comm": "wayvnc",
+          "cpu_percent": 0.166,
+          "context_switches_per_s": 2.13
+        },
+        {
+          "tid": 1282354,
+          "comm": "wayvnc",
+          "cpu_percent": 0.166,
+          "context_switches_per_s": 2.06
+        },
+        {
+          "tid": 1282348,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 2.06
+        },
+        {
+          "tid": 1282349,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 1.86
+        },
+        {
+          "tid": 1282350,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 1.9
+        },
+        {
+          "tid": 1282351,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 1.7
+        },
+        {
+          "tid": 1282352,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 2.0
+        },
+        {
+          "tid": 1282355,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 2.36
+        },
+        {
+          "tid": 1282356,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 1.9
+        },
+        {
+          "tid": 1282357,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 1.8
+        },
+        {
+          "tid": 1282358,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 2.3
+        },
+        {
+          "tid": 1282359,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 3.53
+        },
+        {
+          "tid": 1282360,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 1.93
+        },
+        {
+          "tid": 1282361,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 1.96
+        },
+        {
+          "tid": 1282362,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 2.03
+        },
+        {
+          "tid": 1282363,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 1.8
+        },
+        {
+          "tid": 1282366,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 1.8
+        },
+        {
+          "tid": 1282367,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 2.03
+        },
+        {
+          "tid": 1282364,
+          "comm": "wayvnc",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 2.0
+        },
+        {
+          "tid": 1282365,
+          "comm": "wayvnc",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 1.93
+        }
+      ]
+    },
+    {
+      "pid": 1327884,
+      "instance": "gebelish",
+      "role": "wayvnc",
+      "cpu_percent": 8.121,
+      "threads": [
+        {
+          "tid": 1327884,
+          "comm": "wayvnc",
+          "cpu_percent": 6.291,
+          "context_switches_per_s": 166.22
+        },
+        {
+          "tid": 1327936,
+          "comm": "wayvnc",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 2.26
+        },
+        {
+          "tid": 1327926,
+          "comm": "wayvnc",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 1.73
+        },
+        {
+          "tid": 1327927,
+          "comm": "wayvnc",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 1.73
+        },
+        {
+          "tid": 1327929,
+          "comm": "wayvnc",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 1.66
+        },
+        {
+          "tid": 1327932,
+          "comm": "wayvnc",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 2.4
+        },
+        {
+          "tid": 1327933,
+          "comm": "wayvnc",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 1.8
+        },
+        {
+          "tid": 1327934,
+          "comm": "wayvnc",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 1.9
+        },
+        {
+          "tid": 1327935,
+          "comm": "wayvnc",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 1.76
+        },
+        {
+          "tid": 1327938,
+          "comm": "wayvnc",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 1.9
+        },
+        {
+          "tid": 1327939,
+          "comm": "wayvnc",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 2.03
+        },
+        {
+          "tid": 1327940,
+          "comm": "wayvnc",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 1.9
+        },
+        {
+          "tid": 1327944,
+          "comm": "wayvnc",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 1.46
+        },
+        {
+          "tid": 1327925,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 2.0
+        },
+        {
+          "tid": 1327928,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.76
+        },
+        {
+          "tid": 1327930,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.76
+        },
+        {
+          "tid": 1327931,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.8
+        },
+        {
+          "tid": 1327937,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.8
+        },
+        {
+          "tid": 1327941,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 2.13
+        },
+        {
+          "tid": 1327942,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.8
+        },
+        {
+          "tid": 1327943,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.8
+        }
+      ]
+    },
+    {
+      "pid": 1259154,
+      "instance": "borsuk",
+      "role": "bot",
+      "cpu_percent": 7.289,
+      "threads": [
+        {
+          "tid": 1259154,
+          "comm": "python3",
+          "cpu_percent": 7.156,
+          "context_switches_per_s": 71.86
+        },
+        {
+          "tid": 1259343,
+          "comm": "Thread-3 (_watc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 2.2
+        },
+        {
+          "tid": 1259789,
+          "comm": "klawisz-strazni",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 5.26
+        },
+        {
+          "tid": 1259345,
+          "comm": "Thread-4 (_slep",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.2
+        }
+      ]
+    },
+    {
+      "pid": 1256803,
+      "instance": "borsuk",
+      "role": "wayvnc",
+      "cpu_percent": 6.89,
+      "threads": [
+        {
+          "tid": 1256803,
+          "comm": "wayvnc",
+          "cpu_percent": 5.692,
+          "context_switches_per_s": 147.82
+        },
+        {
+          "tid": 1256811,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.13
+        },
+        {
+          "tid": 1256812,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 0.97
+        },
+        {
+          "tid": 1256813,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.36
+        },
+        {
+          "tid": 1256814,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 0.9
+        },
+        {
+          "tid": 1256815,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.16
+        },
+        {
+          "tid": 1256816,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.16
+        },
+        {
+          "tid": 1256819,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.1
+        },
+        {
+          "tid": 1256820,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.13
+        },
+        {
+          "tid": 1256823,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.1
+        },
+        {
+          "tid": 1256824,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.03
+        },
+        {
+          "tid": 1256826,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.07
+        },
+        {
+          "tid": 1256828,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.33
+        },
+        {
+          "tid": 1256829,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 0.97
+        },
+        {
+          "tid": 1256830,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.23
+        },
+        {
+          "tid": 1256817,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 1.16
+        },
+        {
+          "tid": 1256818,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 1.3
+        },
+        {
+          "tid": 1256821,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 1.0
+        },
+        {
+          "tid": 1256822,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.93
+        },
+        {
+          "tid": 1256825,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.9
+        },
+        {
+          "tid": 1256827,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.93
+        }
+      ]
+    },
+    {
+      "pid": 1306251,
+      "instance": "invincible",
+      "role": "wayvnc",
+      "cpu_percent": 6.49,
+      "threads": [
+        {
+          "tid": 1306251,
+          "comm": "wayvnc",
+          "cpu_percent": 5.825,
+          "context_switches_per_s": 156.97
+        },
+        {
+          "tid": 1306287,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.2
+        },
+        {
+          "tid": 1306295,
+          "comm": "wayvnc",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 1.2
+        },
+        {
+          "tid": 1306278,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 1.03
+        },
+        {
+          "tid": 1306279,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 1.07
+        },
+        {
+          "tid": 1306280,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.93
+        },
+        {
+          "tid": 1306282,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.93
+        },
+        {
+          "tid": 1306283,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 1.16
+        },
+        {
+          "tid": 1306284,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.9
+        },
+        {
+          "tid": 1306285,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 1.1
+        },
+        {
+          "tid": 1306286,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.93
+        },
+        {
+          "tid": 1306288,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 1.0
+        },
+        {
+          "tid": 1306289,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.83
+        },
+        {
+          "tid": 1306290,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 1.1
+        },
+        {
+          "tid": 1306291,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.97
+        },
+        {
+          "tid": 1306292,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.9
+        },
+        {
+          "tid": 1306293,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 1.0
+        },
+        {
+          "tid": 1306294,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 1.1
+        },
+        {
+          "tid": 1306296,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 1.13
+        },
+        {
+          "tid": 1306297,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.9
+        },
+        {
+          "tid": 1306281,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 1.07
+        }
+      ]
+    },
+    {
+      "pid": 1231334,
+      "instance": "odchyd",
+      "role": "wayvnc",
+      "cpu_percent": 6.257,
+      "threads": [
+        {
+          "tid": 1231334,
+          "comm": "wayvnc",
+          "cpu_percent": 6.091,
+          "context_switches_per_s": 142.49
+        },
+        {
+          "tid": 1231347,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.8
+        },
+        {
+          "tid": 1231351,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.83
+        },
+        {
+          "tid": 1231354,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 1.0
+        },
+        {
+          "tid": 1231355,
+          "comm": "wayvnc",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.8
+        },
+        {
+          "tid": 1231342,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.9
+        },
+        {
+          "tid": 1231343,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 1.03
+        },
+        {
+          "tid": 1231344,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.77
+        },
+        {
+          "tid": 1231345,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.8
+        },
+        {
+          "tid": 1231346,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.8
+        },
+        {
+          "tid": 1231348,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.77
+        },
+        {
+          "tid": 1231349,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.73
+        },
+        {
+          "tid": 1231350,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.77
+        },
+        {
+          "tid": 1231352,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.77
+        },
+        {
+          "tid": 1231353,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.77
+        },
+        {
+          "tid": 1231356,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.8
+        },
+        {
+          "tid": 1231357,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.83
+        },
+        {
+          "tid": 1231358,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.77
+        },
+        {
+          "tid": 1231359,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.7
+        },
+        {
+          "tid": 1231360,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.83
+        },
+        {
+          "tid": 1231361,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.73
+        }
+      ]
+    },
+    {
+      "pid": 1352985,
+      "instance": "wydra",
+      "role": "wayvnc",
+      "cpu_percent": 5.791,
+      "threads": [
+        {
+          "tid": 1352985,
+          "comm": "wayvnc",
+          "cpu_percent": 5.825,
+          "context_switches_per_s": 119.79
+        },
+        {
+          "tid": 1353012,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 1353013,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 1353014,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 1353015,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 1353016,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 1353017,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 1353018,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.1
+        },
+        {
+          "tid": 1353019,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 1353020,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 1353021,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 1353022,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.1
+        },
+        {
+          "tid": 1353023,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 1353024,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 1353025,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 1353026,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 1353027,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 1353028,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 1353029,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 1353030,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 1353031,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        }
+      ]
+    },
+    {
+      "pid": 747898,
+      "instance": "marianni",
+      "role": "wayvnc",
+      "cpu_percent": 5.525,
+      "threads": [
+        {
+          "tid": 747898,
+          "comm": "wayvnc",
+          "cpu_percent": 5.525,
+          "context_switches_per_s": 113.8
+        },
+        {
+          "tid": 747906,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 747907,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 747908,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 747909,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 747910,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 747911,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 747912,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 747913,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 747914,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 747915,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 747916,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 747917,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 747918,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 747919,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 747920,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 747921,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 747922,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 747923,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 747924,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 747925,
+          "comm": "wayvnc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        }
+      ]
+    },
+    {
+      "pid": 705796,
+      "instance": null,
+      "role": "quickshell",
+      "cpu_percent": 4.493,
+      "threads": [
+        {
+          "tid": 705796,
+          "comm": "quickshell",
+          "cpu_percent": 4.394,
+          "context_switches_per_s": 31.22
+        },
+        {
+          "tid": 705849,
+          "comm": "WaylandEventThr",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 51.42
+        },
+        {
+          "tid": 705850,
+          "comm": "WaylandEventThr",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 31.62
+        },
+        {
+          "tid": 705840,
+          "comm": "QThread",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 705841,
+          "comm": "QDBusConnection",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.6
+        },
+        {
+          "tid": 705842,
+          "comm": "[pango] fontcon",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 705844,
+          "comm": "pool-spawner",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 705845,
+          "comm": "gmain",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 705847,
+          "comm": "dconf worker",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 705848,
+          "comm": "gdbus",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 705851,
+          "comm": "QQmlThread",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1286638,
+      "instance": "dawajkesh",
+      "role": "bot",
+      "cpu_percent": 3.994,
+      "threads": [
+        {
+          "tid": 1286638,
+          "comm": "python3",
+          "cpu_percent": 3.994,
+          "context_switches_per_s": 70.33
+        },
+        {
+          "tid": 1297347,
+          "comm": "klawisz-strazni",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 5.56
+        },
+        {
+          "tid": 1286667,
+          "comm": "Thread-2 (_watc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.0
+        },
+        {
+          "tid": 1286668,
+          "comm": "Thread-3 (_slep",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.2
+        }
+      ]
+    },
+    {
+      "pid": 1333394,
+      "instance": "gebelish",
+      "role": "bot",
+      "cpu_percent": 3.761,
+      "threads": [
+        {
+          "tid": 1333394,
+          "comm": "python3",
+          "cpu_percent": 3.728,
+          "context_switches_per_s": 85.54
+        },
+        {
+          "tid": 1333519,
+          "comm": "klawisz-strazni",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 5.43
+        },
+        {
+          "tid": 1333441,
+          "comm": "Thread-2 (_watc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.1
+        },
+        {
+          "tid": 1333443,
+          "comm": "Thread-3 (_slep",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.2
+        }
+      ]
+    },
+    {
+      "pid": 1288722,
+      "instance": null,
+      "role": "ghostty",
+      "cpu_percent": 3.528,
+      "threads": [
+        {
+          "tid": 1288722,
+          "comm": "ghostty",
+          "cpu_percent": 3.462,
+          "context_switches_per_s": 93.96
+        },
+        {
+          "tid": 1288781,
+          "comm": "renderer",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 3.16
+        },
+        {
+          "tid": 1288782,
+          "comm": "io",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 4.06
+        },
+        {
+          "tid": 1288747,
+          "comm": "pool-spawner",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1288748,
+          "comm": "gmain",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1288749,
+          "comm": "gdbus",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 1288750,
+          "comm": "[pango] fontcon",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1288753,
+          "comm": "dconf worker",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1288784,
+          "comm": "io-reader",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 1.03
+        }
+      ]
+    },
+    {
+      "pid": 1310459,
+      "instance": "invincible",
+      "role": "bot",
+      "cpu_percent": 3.428,
+      "threads": [
+        {
+          "tid": 1310459,
+          "comm": "python3",
+          "cpu_percent": 3.395,
+          "context_switches_per_s": 88.2
+        },
+        {
+          "tid": 1311762,
+          "comm": "klawisz-strazni",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 5.19
+        },
+        {
+          "tid": 1310545,
+          "comm": "Thread-2 (_watc",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.1
+        },
+        {
+          "tid": 1310547,
+          "comm": "Thread-3 (_slep",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.27
+        }
+      ]
+    },
+    {
+      "pid": 748559,
+      "instance": "marianni",
+      "role": "C:\\windows\\system32\\winedevice.exe",
+      "cpu_percent": 1.132,
+      "threads": [
+        {
+          "tid": 748577,
+          "comm": "winedevice.exe",
+          "cpu_percent": 1.132,
+          "context_switches_per_s": 977.23
+        },
+        {
+          "tid": 748559,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748573,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748575,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748576,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748578,
+          "comm": "libusb_event",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748579,
+          "comm": "libusb",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 748581,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748582,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748658,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748668,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748669,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        }
+      ]
+    },
+    {
+      "pid": 1231524,
+      "instance": "odchyd",
+      "role": "C:\\windows\\system32\\winedevice.exe",
+      "cpu_percent": 1.132,
+      "threads": [
+        {
+          "tid": 1231529,
+          "comm": "winedevice.exe",
+          "cpu_percent": 1.065,
+          "context_switches_per_s": 977.86
+        },
+        {
+          "tid": 1231524,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231526,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231527,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231528,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231530,
+          "comm": "libusb_event",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231531,
+          "comm": "libusb",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231533,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231534,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231559,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231563,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231564,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1306352,
+      "instance": "invincible",
+      "role": "tun2socks",
+      "cpu_percent": 1.132,
+      "threads": [
+        {
+          "tid": 1306355,
+          "comm": "tun2socks",
+          "cpu_percent": 0.266,
+          "context_switches_per_s": 945.84
+        },
+        {
+          "tid": 1306360,
+          "comm": "tun2socks",
+          "cpu_percent": 0.2,
+          "context_switches_per_s": 36.75
+        },
+        {
+          "tid": 1306378,
+          "comm": "tun2socks",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 28.23
+        },
+        {
+          "tid": 1306358,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 29.99
+        },
+        {
+          "tid": 1308549,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 32.02
+        },
+        {
+          "tid": 1308550,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 25.43
+        },
+        {
+          "tid": 1308553,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 21.7
+        },
+        {
+          "tid": 1306362,
+          "comm": "tun2socks",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 13.38
+        },
+        {
+          "tid": 1306363,
+          "comm": "tun2socks",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 20.5
+        },
+        {
+          "tid": 1308552,
+          "comm": "tun2socks",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 17.27
+        },
+        {
+          "tid": 1306352,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306356,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306357,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 1306361,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1308551,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1306425,
+      "instance": "invincible",
+      "role": "C:\\windows\\system32\\winedevice.exe",
+      "cpu_percent": 1.132,
+      "threads": [
+        {
+          "tid": 1306430,
+          "comm": "winedevice.exe",
+          "cpu_percent": 1.098,
+          "context_switches_per_s": 977.0
+        },
+        {
+          "tid": 1306425,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306427,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306428,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306429,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306431,
+          "comm": "libusb_event",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306432,
+          "comm": "libusb",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306434,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306435,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306479,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306484,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306485,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1328318,
+      "instance": "gebelish",
+      "role": "tun2socks",
+      "cpu_percent": 1.132,
+      "threads": [
+        {
+          "tid": 1328321,
+          "comm": "tun2socks",
+          "cpu_percent": 0.233,
+          "context_switches_per_s": 1019.1
+        },
+        {
+          "tid": 1331198,
+          "comm": "tun2socks",
+          "cpu_percent": 0.2,
+          "context_switches_per_s": 44.93
+        },
+        {
+          "tid": 1328322,
+          "comm": "tun2socks",
+          "cpu_percent": 0.166,
+          "context_switches_per_s": 38.61
+        },
+        {
+          "tid": 1328329,
+          "comm": "tun2socks",
+          "cpu_percent": 0.166,
+          "context_switches_per_s": 35.18
+        },
+        {
+          "tid": 1328328,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 37.71
+        },
+        {
+          "tid": 1331216,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 29.79
+        },
+        {
+          "tid": 1331219,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 30.92
+        },
+        {
+          "tid": 1331215,
+          "comm": "tun2socks",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 28.99
+        },
+        {
+          "tid": 1328318,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328323,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328324,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328326,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328327,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328386,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1331199,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1331214,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1331217,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1331218,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1331220,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1256994,
+      "instance": "borsuk",
+      "role": "tun2socks",
+      "cpu_percent": 1.098,
+      "threads": [
+        {
+          "tid": 1256997,
+          "comm": "tun2socks",
+          "cpu_percent": 0.266,
+          "context_switches_per_s": 1002.0
+        },
+        {
+          "tid": 1257006,
+          "comm": "tun2socks",
+          "cpu_percent": 0.166,
+          "context_switches_per_s": 37.31
+        },
+        {
+          "tid": 1258621,
+          "comm": "tun2socks",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 25.36
+        },
+        {
+          "tid": 1256999,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 23.9
+        },
+        {
+          "tid": 1257003,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 28.09
+        },
+        {
+          "tid": 1258614,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 33.62
+        },
+        {
+          "tid": 1258619,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 24.26
+        },
+        {
+          "tid": 1257000,
+          "comm": "tun2socks",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 20.64
+        },
+        {
+          "tid": 1258611,
+          "comm": "tun2socks",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 12.55
+        },
+        {
+          "tid": 1258612,
+          "comm": "tun2socks",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 5.09
+        },
+        {
+          "tid": 1256994,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1256998,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257005,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257026,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.1
+        },
+        {
+          "tid": 1258615,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 9.99
+        },
+        {
+          "tid": 1258616,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1258618,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.17
+        },
+        {
+          "tid": 1258620,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1257453,
+      "instance": "borsuk",
+      "role": "C:\\windows\\system32\\winedevice.exe",
+      "cpu_percent": 1.098,
+      "threads": [
+        {
+          "tid": 1257458,
+          "comm": "winedevice.exe",
+          "cpu_percent": 1.098,
+          "context_switches_per_s": 976.87
+        },
+        {
+          "tid": 1257453,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257455,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257456,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257457,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257459,
+          "comm": "libusb_event",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257460,
+          "comm": "libusb",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 1257461,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257463,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257489,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257495,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257496,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        }
+      ]
+    },
+    {
+      "pid": 1282528,
+      "instance": "dawajkesh",
+      "role": "C:\\windows\\system32\\winedevice.exe",
+      "cpu_percent": 1.098,
+      "threads": [
+        {
+          "tid": 1282533,
+          "comm": "winedevice.exe",
+          "cpu_percent": 1.132,
+          "context_switches_per_s": 978.2
+        },
+        {
+          "tid": 1282528,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282530,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282531,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282532,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282534,
+          "comm": "libusb_event",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282535,
+          "comm": "libusb",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        },
+        {
+          "tid": 1282537,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282538,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282584,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282588,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282589,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.03
+        }
+      ]
+    },
+    {
+      "pid": 1328464,
+      "instance": "gebelish",
+      "role": "C:\\windows\\system32\\winedevice.exe",
+      "cpu_percent": 1.065,
+      "threads": [
+        {
+          "tid": 1328469,
+          "comm": "winedevice.exe",
+          "cpu_percent": 1.065,
+          "context_switches_per_s": 975.23
+        },
+        {
+          "tid": 1328464,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328466,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328467,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328468,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328470,
+          "comm": "libusb_event",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328471,
+          "comm": "libusb",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328473,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328475,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328505,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328509,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328510,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1353524,
+      "instance": "wydra",
+      "role": "C:\\windows\\system32\\winedevice.exe",
+      "cpu_percent": 1.065,
+      "threads": [
+        {
+          "tid": 1353529,
+          "comm": "winedevice.exe",
+          "cpu_percent": 1.065,
+          "context_switches_per_s": 976.93
+        },
+        {
+          "tid": 1353524,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353526,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353527,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353528,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353530,
+          "comm": "libusb_event",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353531,
+          "comm": "libusb",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353534,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353535,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353608,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353612,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353613,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1257451,
+      "instance": "borsuk",
+      "role": "Xwayland",
+      "cpu_percent": 0.999,
+      "threads": [
+        {
+          "tid": 1257451,
+          "comm": "Xwayland",
+          "cpu_percent": 0.999,
+          "context_switches_per_s": 197.94
+        }
+      ]
+    },
+    {
+      "pid": 1282403,
+      "instance": "dawajkesh",
+      "role": "tun2socks",
+      "cpu_percent": 0.965,
+      "threads": [
+        {
+          "tid": 1282406,
+          "comm": "tun2socks",
+          "cpu_percent": 0.266,
+          "context_switches_per_s": 895.52
+        },
+        {
+          "tid": 1282414,
+          "comm": "tun2socks",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 32.72
+        },
+        {
+          "tid": 1285388,
+          "comm": "tun2socks",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 35.98
+        },
+        {
+          "tid": 1286146,
+          "comm": "tun2socks",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 30.02
+        },
+        {
+          "tid": 1282407,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 30.75
+        },
+        {
+          "tid": 1286066,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 31.05
+        },
+        {
+          "tid": 1286144,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 29.52
+        },
+        {
+          "tid": 1286147,
+          "comm": "tun2socks",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 25.63
+        },
+        {
+          "tid": 1282403,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282408,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282409,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282411,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282412,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282413,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1286145,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 748554,
+      "instance": "marianni",
+      "role": "Xwayland",
+      "cpu_percent": 0.932,
+      "threads": [
+        {
+          "tid": 748554,
+          "comm": "Xwayland",
+          "cpu_percent": 0.932,
+          "context_switches_per_s": 179.37
+        }
+      ]
+    },
+    {
+      "pid": 1231522,
+      "instance": "odchyd",
+      "role": "Xwayland",
+      "cpu_percent": 0.932,
+      "threads": [
+        {
+          "tid": 1231522,
+          "comm": "Xwayland",
+          "cpu_percent": 0.932,
+          "context_switches_per_s": 180.1
+        }
+      ]
+    },
+    {
+      "pid": 1306419,
+      "instance": "invincible",
+      "role": "Xwayland",
+      "cpu_percent": 0.932,
+      "threads": [
+        {
+          "tid": 1306419,
+          "comm": "Xwayland",
+          "cpu_percent": 0.932,
+          "context_switches_per_s": 191.52
+        }
+      ]
+    },
+    {
+      "pid": 1231410,
+      "instance": "odchyd",
+      "role": "tun2socks",
+      "cpu_percent": 0.899,
+      "threads": [
+        {
+          "tid": 1231413,
+          "comm": "tun2socks",
+          "cpu_percent": 0.166,
+          "context_switches_per_s": 811.58
+        },
+        {
+          "tid": 1231415,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 29.82
+        },
+        {
+          "tid": 1231417,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 21.6
+        },
+        {
+          "tid": 1231421,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 27.56
+        },
+        {
+          "tid": 1234915,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 26.53
+        },
+        {
+          "tid": 1234919,
+          "comm": "tun2socks",
+          "cpu_percent": 0.1,
+          "context_switches_per_s": 31.82
+        },
+        {
+          "tid": 1234917,
+          "comm": "tun2socks",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 27.99
+        },
+        {
+          "tid": 1234921,
+          "comm": "tun2socks",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 23.43
+        },
+        {
+          "tid": 1231410,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231414,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.57
+        },
+        {
+          "tid": 1231416,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231419,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231420,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231470,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.23
+        },
+        {
+          "tid": 1234916,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1234918,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1234920,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1234922,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1282526,
+      "instance": "dawajkesh",
+      "role": "Xwayland",
+      "cpu_percent": 0.899,
+      "threads": [
+        {
+          "tid": 1282526,
+          "comm": "Xwayland",
+          "cpu_percent": 0.899,
+          "context_switches_per_s": 184.56
+        }
+      ]
+    },
+    {
+      "pid": 1328461,
+      "instance": "gebelish",
+      "role": "Xwayland",
+      "cpu_percent": 0.865,
+      "threads": [
+        {
+          "tid": 1328461,
+          "comm": "Xwayland",
+          "cpu_percent": 0.865,
+          "context_switches_per_s": 177.44
+        }
+      ]
+    },
+    {
+      "pid": 1353521,
+      "instance": "wydra",
+      "role": "Xwayland",
+      "cpu_percent": 0.832,
+      "threads": [
+        {
+          "tid": 1353521,
+          "comm": "Xwayland",
+          "cpu_percent": 0.832,
+          "context_switches_per_s": 178.6
+        }
+      ]
+    },
+    {
+      "pid": 1306384,
+      "instance": "invincible",
+      "role": "wineserver",
+      "cpu_percent": 0.632,
+      "threads": [
+        {
+          "tid": 1306384,
+          "comm": "wineserver",
+          "cpu_percent": 0.632,
+          "context_switches_per_s": 491.08
+        }
+      ]
+    },
+    {
+      "pid": 1328391,
+      "instance": "gebelish",
+      "role": "wineserver",
+      "cpu_percent": 0.632,
+      "threads": [
+        {
+          "tid": 1328391,
+          "comm": "wineserver",
+          "cpu_percent": 0.632,
+          "context_switches_per_s": 499.7
+        }
+      ]
+    },
+    {
+      "pid": 1257156,
+      "instance": "borsuk",
+      "role": "wineserver",
+      "cpu_percent": 0.599,
+      "threads": [
+        {
+          "tid": 1257156,
+          "comm": "wineserver",
+          "cpu_percent": 0.599,
+          "context_switches_per_s": 458.19
+        }
+      ]
+    },
+    {
+      "pid": 1282494,
+      "instance": "dawajkesh",
+      "role": "wineserver",
+      "cpu_percent": 0.566,
+      "threads": [
+        {
+          "tid": 1282494,
+          "comm": "wineserver",
+          "cpu_percent": 0.566,
+          "context_switches_per_s": 451.14
+        }
+      ]
+    },
+    {
+      "pid": 1231488,
+      "instance": "odchyd",
+      "role": "wineserver",
+      "cpu_percent": 0.499,
+      "threads": [
+        {
+          "tid": 1231488,
+          "comm": "wineserver",
+          "cpu_percent": 0.499,
+          "context_switches_per_s": 419.02
+        }
+      ]
+    },
+    {
+      "pid": 748508,
+      "instance": "marianni",
+      "role": "wineserver",
+      "cpu_percent": 0.3,
+      "threads": [
+        {
+          "tid": 748508,
+          "comm": "wineserver",
+          "cpu_percent": 0.3,
+          "context_switches_per_s": 208.39
+        }
+      ]
+    },
+    {
+      "pid": 1353417,
+      "instance": "wydra",
+      "role": "wineserver",
+      "cpu_percent": 0.266,
+      "threads": [
+        {
+          "tid": 1353417,
+          "comm": "wineserver",
+          "cpu_percent": 0.266,
+          "context_switches_per_s": 173.94
+        }
+      ]
+    },
+    {
+      "pid": 748034,
+      "instance": "marianni",
+      "role": "tun2socks",
+      "cpu_percent": 0.133,
+      "threads": [
+        {
+          "tid": 748036,
+          "comm": "tun2socks",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 165.42
+        },
+        {
+          "tid": 751348,
+          "comm": "tun2socks",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 3.63
+        },
+        {
+          "tid": 748228,
+          "comm": "tun2socks",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 7.26
+        },
+        {
+          "tid": 748034,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748037,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748039,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748040,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748042,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748043,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748044,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 6.72
+        },
+        {
+          "tid": 748045,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 5.23
+        },
+        {
+          "tid": 750842,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.7
+        },
+        {
+          "tid": 751347,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 5.89
+        },
+        {
+          "tid": 751349,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 751350,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 751351,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 751352,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 751353,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 751354,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 5.56
+        }
+      ]
+    },
+    {
+      "pid": 1259790,
+      "instance": "borsuk",
+      "role": "python3",
+      "cpu_percent": 0.133,
+      "threads": [
+        {
+          "tid": 1259790,
+          "comm": "python3",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 7.56
+        }
+      ]
+    },
+    {
+      "pid": 1311763,
+      "instance": "invincible",
+      "role": "python3",
+      "cpu_percent": 0.133,
+      "threads": [
+        {
+          "tid": 1311763,
+          "comm": "python3",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 7.36
+        }
+      ]
+    },
+    {
+      "pid": 1333520,
+      "instance": "gebelish",
+      "role": "python3",
+      "cpu_percent": 0.133,
+      "threads": [
+        {
+          "tid": 1333520,
+          "comm": "python3",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 7.19
+        }
+      ]
+    },
+    {
+      "pid": 1258622,
+      "instance": "borsuk",
+      "role": "socat",
+      "cpu_percent": 0.1,
+      "threads": [
+        {
+          "tid": 1258622,
+          "comm": "socat",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 13.85
+        }
+      ]
+    },
+    {
+      "pid": 1297348,
+      "instance": "dawajkesh",
+      "role": "python3",
+      "cpu_percent": 0.1,
+      "threads": [
+        {
+          "tid": 1297348,
+          "comm": "python3",
+          "cpu_percent": 0.133,
+          "context_switches_per_s": 7.16
+        }
+      ]
+    },
+    {
+      "pid": 1234329,
+      "instance": "odchyd",
+      "role": "socat",
+      "cpu_percent": 0.067,
+      "threads": [
+        {
+          "tid": 1234329,
+          "comm": "socat",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 12.88
+        }
+      ]
+    },
+    {
+      "pid": 1235854,
+      "instance": "odchyd",
+      "role": "socat",
+      "cpu_percent": 0.067,
+      "threads": [
+        {
+          "tid": 1235854,
+          "comm": "socat",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 12.91
+        }
+      ]
+    },
+    {
+      "pid": 1259058,
+      "instance": "borsuk",
+      "role": "socat",
+      "cpu_percent": 0.067,
+      "threads": [
+        {
+          "tid": 1259058,
+          "comm": "socat",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 6.72
+        }
+      ]
+    },
+    {
+      "pid": 1284683,
+      "instance": "dawajkesh",
+      "role": "socat",
+      "cpu_percent": 0.067,
+      "threads": [
+        {
+          "tid": 1284683,
+          "comm": "socat",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 0.83
+        }
+      ]
+    },
+    {
+      "pid": 1306409,
+      "instance": "invincible",
+      "role": "C:\\windows\\system32\\explorer.exe",
+      "cpu_percent": 0.067,
+      "threads": [
+        {
+          "tid": 1306409,
+          "comm": "explorer.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.27
+        },
+        {
+          "tid": 1306456,
+          "comm": "explorer.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.9
+        },
+        {
+          "tid": 1306457,
+          "comm": "wine_explorer_d",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306458,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1308483,
+      "instance": "invincible",
+      "role": "socat",
+      "cpu_percent": 0.067,
+      "threads": [
+        {
+          "tid": 1308483,
+          "comm": "socat",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 9.82
+        }
+      ]
+    },
+    {
+      "pid": 1308484,
+      "instance": "invincible",
+      "role": "socat",
+      "cpu_percent": 0.067,
+      "threads": [
+        {
+          "tid": 1308484,
+          "comm": "socat",
+          "cpu_percent": 0.067,
+          "context_switches_per_s": 13.95
+        }
+      ]
+    },
+    {
+      "pid": 750715,
+      "instance": "marianni",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 750715,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.9
+        }
+      ]
+    },
+    {
+      "pid": 750720,
+      "instance": "marianni",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 750720,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 0.9
+        }
+      ]
+    },
+    {
+      "pid": 1234333,
+      "instance": "odchyd",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1234333,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 12.75
+        }
+      ]
+    },
+    {
+      "pid": 1258625,
+      "instance": "borsuk",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1258625,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 7.86
+        }
+      ]
+    },
+    {
+      "pid": 1258626,
+      "instance": "borsuk",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1258626,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 13.38
+        }
+      ]
+    },
+    {
+      "pid": 1258627,
+      "instance": "borsuk",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1258627,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 7.66
+        }
+      ]
+    },
+    {
+      "pid": 1284678,
+      "instance": "dawajkesh",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1284678,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 14.68
+        }
+      ]
+    },
+    {
+      "pid": 1284681,
+      "instance": "dawajkesh",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1284681,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 14.31
+        }
+      ]
+    },
+    {
+      "pid": 1284682,
+      "instance": "dawajkesh",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1284682,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 12.68
+        }
+      ]
+    },
+    {
+      "pid": 1284685,
+      "instance": "dawajkesh",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1284685,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 11.95
+        }
+      ]
+    },
+    {
+      "pid": 1308480,
+      "instance": "invincible",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1308480,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 10.09
+        }
+      ]
+    },
+    {
+      "pid": 1308481,
+      "instance": "invincible",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1308481,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 5.23
+        }
+      ]
+    },
+    {
+      "pid": 1308482,
+      "instance": "invincible",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1308482,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 14.48
+        }
+      ]
+    },
+    {
+      "pid": 1309971,
+      "instance": "invincible",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1309971,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.8
+        }
+      ]
+    },
+    {
+      "pid": 1328431,
+      "instance": "gebelish",
+      "role": "C:\\windows\\system32\\explorer.exe",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1328431,
+          "comm": "explorer.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328499,
+          "comm": "explorer.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.53
+        },
+        {
+          "tid": 1328500,
+          "comm": "wine_explorer_d",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328501,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1331200,
+      "instance": "gebelish",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1331200,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 9.82
+        }
+      ]
+    },
+    {
+      "pid": 1331202,
+      "instance": "gebelish",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1331202,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 11.58
+        }
+      ]
+    },
+    {
+      "pid": 1331206,
+      "instance": "gebelish",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1331206,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 11.58
+        }
+      ]
+    },
+    {
+      "pid": 1332742,
+      "instance": "gebelish",
+      "role": "socat",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1332742,
+          "comm": "socat",
+          "cpu_percent": 0.033,
+          "context_switches_per_s": 5.66
+        }
+      ]
+    },
+    {
+      "pid": 1353081,
+      "instance": "wydra",
+      "role": "tun2socks",
+      "cpu_percent": 0.033,
+      "threads": [
+        {
+          "tid": 1353081,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353084,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.03
+        },
+        {
+          "tid": 1353085,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353086,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353087,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353089,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 1.66
+        },
+        {
+          "tid": 1353090,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353091,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.33
+        },
+        {
+          "tid": 1353092,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353172,
+          "comm": "tun2socks",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 747792,
+      "instance": "marianni",
+      "role": "bash",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 747792,
+          "comm": "sesja.sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 747874,
+      "instance": "marianni",
+      "role": "swaybg",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 747874,
+          "comm": "swaybg",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 747899,
+      "instance": "marianni",
+      "role": "sh",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 747899,
+          "comm": "sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 747900,
+      "instance": "marianni",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 747900,
+          "comm": "siec_proxy.sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 747995,
+      "instance": "marianni",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 747995,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        }
+      ]
+    },
+    {
+      "pid": 748023,
+      "instance": "marianni",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 748023,
+          "comm": "unshare",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 748024,
+      "instance": "marianni",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 748024,
+          "comm": "bash",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 748033,
+      "instance": "marianni",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 748033,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        }
+      ]
+    },
+    {
+      "pid": 748527,
+      "instance": "marianni",
+      "role": "C:\\windows\\system32\\services.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 748527,
+          "comm": "services.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748528,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748531,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748535,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748543,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748550,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748571,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748612,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748666,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748670,
+          "comm": "services.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748675,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 750812,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 748530,
+      "instance": "marianni",
+      "role": "C:\\windows\\system32\\winedevice.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 748530,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748533,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748534,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748536,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748537,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748555,
+          "comm": "wine_nsi_notifi",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 748540,
+      "instance": "marianni",
+      "role": "C:\\windows\\system32\\plugplay.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 748540,
+          "comm": "plugplay.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748544,
+          "comm": "plugplay.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748546,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748547,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748583,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 748542,
+      "instance": "marianni",
+      "role": "C:\\windows\\system32\\explorer.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 748542,
+          "comm": "explorer.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748607,
+          "comm": "explorer.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.6
+        },
+        {
+          "tid": 748608,
+          "comm": "wine_explorer_d",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748611,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 748549,
+      "instance": "marianni",
+      "role": "C:\\windows\\system32\\svchost.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 748549,
+          "comm": "svchost.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748551,
+          "comm": "svchost.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748553,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 748673,
+      "instance": "marianni",
+      "role": "C:\\windows\\system32\\rpcss.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 748673,
+          "comm": "rpcss.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748676,
+          "comm": "rpcss.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748677,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748678,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748680,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 748685,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 750716,
+      "instance": "marianni",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 750716,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.9
+        }
+      ]
+    },
+    {
+      "pid": 750717,
+      "instance": "marianni",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 750717,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.97
+        }
+      ]
+    },
+    {
+      "pid": 750718,
+      "instance": "marianni",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 750718,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.87
+        }
+      ]
+    },
+    {
+      "pid": 750719,
+      "instance": "marianni",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 750719,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.83
+        }
+      ]
+    },
+    {
+      "pid": 750721,
+      "instance": "marianni",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 750721,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.83
+        }
+      ]
+    },
+    {
+      "pid": 750722,
+      "instance": "marianni",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 750722,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.9
+        }
+      ]
+    },
+    {
+      "pid": 1231256,
+      "instance": "odchyd",
+      "role": "bash",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1231256,
+          "comm": "sesja.sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1231331,
+      "instance": "odchyd",
+      "role": "swaybg",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1231331,
+          "comm": "swaybg",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1231335,
+      "instance": "odchyd",
+      "role": "sh",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1231335,
+          "comm": "sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1231336,
+      "instance": "odchyd",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1231336,
+          "comm": "siec_proxy.sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1231388,
+      "instance": "odchyd",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1231388,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1231400,
+      "instance": "odchyd",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1231400,
+          "comm": "unshare",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1231401,
+      "instance": "odchyd",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1231401,
+          "comm": "bash",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1231409,
+      "instance": "odchyd",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1231409,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1231496,
+      "instance": "odchyd",
+      "role": "C:\\windows\\system32\\services.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1231496,
+          "comm": "services.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231497,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231500,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231511,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231517,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231525,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231558,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231562,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231565,
+          "comm": "services.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231568,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1235837,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1231499,
+      "instance": "odchyd",
+      "role": "C:\\windows\\system32\\winedevice.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1231499,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231502,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231503,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231504,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231505,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231520,
+          "comm": "wine_nsi_notifi",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1231508,
+      "instance": "odchyd",
+      "role": "C:\\windows\\system32\\plugplay.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1231508,
+          "comm": "plugplay.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231512,
+          "comm": "plugplay.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231513,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231514,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231535,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1231510,
+      "instance": "odchyd",
+      "role": "C:\\windows\\system32\\explorer.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1231510,
+          "comm": "explorer.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231555,
+          "comm": "explorer.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.4
+        },
+        {
+          "tid": 1231556,
+          "comm": "wine_explorer_d",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231557,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1231516,
+      "instance": "odchyd",
+      "role": "C:\\windows\\system32\\svchost.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1231516,
+          "comm": "svchost.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231518,
+          "comm": "svchost.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231519,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1231567,
+      "instance": "odchyd",
+      "role": "C:\\windows\\system32\\rpcss.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1231567,
+          "comm": "rpcss.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231569,
+          "comm": "rpcss.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231570,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231571,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231572,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1231573,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1234327,
+      "instance": "odchyd",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1234327,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.8
+        }
+      ]
+    },
+    {
+      "pid": 1234328,
+      "instance": "odchyd",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1234328,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.9
+        }
+      ]
+    },
+    {
+      "pid": 1234330,
+      "instance": "odchyd",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1234330,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.83
+        }
+      ]
+    },
+    {
+      "pid": 1234331,
+      "instance": "odchyd",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1234331,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.8
+        }
+      ]
+    },
+    {
+      "pid": 1234332,
+      "instance": "odchyd",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1234332,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.83
+        }
+      ]
+    },
+    {
+      "pid": 1234334,
+      "instance": "odchyd",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1234334,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.8
+        }
+      ]
+    },
+    {
+      "pid": 1235855,
+      "instance": "odchyd",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1235855,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 12.42
+        }
+      ]
+    },
+    {
+      "pid": 1256783,
+      "instance": "borsuk",
+      "role": "bash",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1256783,
+          "comm": "sesja.sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1256800,
+      "instance": "borsuk",
+      "role": "swaybg",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1256800,
+          "comm": "swaybg",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1256804,
+      "instance": "borsuk",
+      "role": "sh",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1256804,
+          "comm": "sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1256805,
+      "instance": "borsuk",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1256805,
+          "comm": "siec_proxy.sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1256914,
+      "instance": "borsuk",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1256914,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        }
+      ]
+    },
+    {
+      "pid": 1256970,
+      "instance": "borsuk",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1256970,
+          "comm": "unshare",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1256975,
+      "instance": "borsuk",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1256975,
+          "comm": "bash",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1256993,
+      "instance": "borsuk",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1256993,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        }
+      ]
+    },
+    {
+      "pid": 1257230,
+      "instance": "borsuk",
+      "role": "C:\\windows\\system32\\services.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1257230,
+          "comm": "services.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257305,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257358,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257436,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257446,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257454,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257488,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257492,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257497,
+          "comm": "services.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257500,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1259022,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1257334,
+      "instance": "borsuk",
+      "role": "C:\\windows\\system32\\winedevice.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1257334,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257360,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257364,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257366,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257375,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257449,
+          "comm": "wine_nsi_notifi",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1257393,
+      "instance": "borsuk",
+      "role": "C:\\windows\\system32\\plugplay.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1257393,
+          "comm": "plugplay.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257440,
+          "comm": "plugplay.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257441,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257442,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257464,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1257415,
+      "instance": "borsuk",
+      "role": "C:\\windows\\system32\\explorer.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1257415,
+          "comm": "explorer.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 1257485,
+          "comm": "explorer.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.53
+        },
+        {
+          "tid": 1257486,
+          "comm": "wine_explorer_d",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257487,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1257445,
+      "instance": "borsuk",
+      "role": "C:\\windows\\system32\\svchost.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1257445,
+          "comm": "svchost.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257447,
+          "comm": "svchost.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257448,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1257499,
+      "instance": "borsuk",
+      "role": "C:\\windows\\system32\\rpcss.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1257499,
+          "comm": "rpcss.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257501,
+          "comm": "rpcss.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257502,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257503,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257504,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1257505,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1258613,
+      "instance": "borsuk",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1258613,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.93
+        }
+      ]
+    },
+    {
+      "pid": 1258617,
+      "instance": "borsuk",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1258617,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.97
+        }
+      ]
+    },
+    {
+      "pid": 1258623,
+      "instance": "borsuk",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1258623,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 1.1
+        }
+      ]
+    },
+    {
+      "pid": 1258624,
+      "instance": "borsuk",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1258624,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 1.03
+        }
+      ]
+    },
+    {
+      "pid": 1259059,
+      "instance": "borsuk",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1259059,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 6.79
+        }
+      ]
+    },
+    {
+      "pid": 1282320,
+      "instance": "dawajkesh",
+      "role": "bash",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1282320,
+          "comm": "sesja.sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1282338,
+      "instance": "dawajkesh",
+      "role": "swaybg",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1282338,
+          "comm": "swaybg",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1282342,
+      "instance": "dawajkesh",
+      "role": "sh",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1282342,
+          "comm": "sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1282343,
+      "instance": "dawajkesh",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1282343,
+          "comm": "siec_proxy.sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1282379,
+      "instance": "dawajkesh",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1282379,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        }
+      ]
+    },
+    {
+      "pid": 1282393,
+      "instance": "dawajkesh",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1282393,
+          "comm": "unshare",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1282394,
+      "instance": "dawajkesh",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1282394,
+          "comm": "bash",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1282402,
+      "instance": "dawajkesh",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1282402,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        }
+      ]
+    },
+    {
+      "pid": 1282500,
+      "instance": "dawajkesh",
+      "role": "C:\\windows\\system32\\services.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1282500,
+          "comm": "services.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282501,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282504,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282515,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282521,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282529,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282578,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282587,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282590,
+          "comm": "services.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282593,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1286100,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1282503,
+      "instance": "dawajkesh",
+      "role": "C:\\windows\\system32\\winedevice.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1282503,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282506,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282507,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282508,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282509,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282524,
+          "comm": "wine_nsi_notifi",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1282512,
+      "instance": "dawajkesh",
+      "role": "C:\\windows\\system32\\plugplay.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1282512,
+          "comm": "plugplay.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282516,
+          "comm": "plugplay.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282517,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282518,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282539,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1282514,
+      "instance": "dawajkesh",
+      "role": "C:\\windows\\system32\\explorer.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1282514,
+          "comm": "explorer.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        },
+        {
+          "tid": 1282559,
+          "comm": "explorer.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.56
+        },
+        {
+          "tid": 1282560,
+          "comm": "wine_explorer_d",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282577,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1282520,
+      "instance": "dawajkesh",
+      "role": "C:\\windows\\system32\\svchost.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1282520,
+          "comm": "svchost.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282522,
+          "comm": "svchost.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282523,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1282592,
+      "instance": "dawajkesh",
+      "role": "C:\\windows\\system32\\rpcss.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1282592,
+          "comm": "rpcss.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282594,
+          "comm": "rpcss.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282595,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282596,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282597,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1282598,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1284679,
+      "instance": "dawajkesh",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1284679,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.83
+        }
+      ]
+    },
+    {
+      "pid": 1284680,
+      "instance": "dawajkesh",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1284680,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 3.26
+        }
+      ]
+    },
+    {
+      "pid": 1284684,
+      "instance": "dawajkesh",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1284684,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 3.13
+        }
+      ]
+    },
+    {
+      "pid": 1286148,
+      "instance": "dawajkesh",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1286148,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.83
+        }
+      ]
+    },
+    {
+      "pid": 1286149,
+      "instance": "dawajkesh",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1286149,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.8
+        }
+      ]
+    },
+    {
+      "pid": 1288783,
+      "instance": null,
+      "role": "bash",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1288783,
+          "comm": "podglad_nadzoru",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1306189,
+      "instance": "invincible",
+      "role": "bash",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1306189,
+          "comm": "sesja.sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1306248,
+      "instance": "invincible",
+      "role": "swaybg",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1306248,
+          "comm": "swaybg",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1306252,
+      "instance": "invincible",
+      "role": "sh",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1306252,
+          "comm": "sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1306253,
+      "instance": "invincible",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1306253,
+          "comm": "siec_proxy.sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1306332,
+      "instance": "invincible",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1306332,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        }
+      ]
+    },
+    {
+      "pid": 1306342,
+      "instance": "invincible",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1306342,
+          "comm": "unshare",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1306343,
+      "instance": "invincible",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1306343,
+          "comm": "bash",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1306351,
+      "instance": "invincible",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1306351,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.07
+        }
+      ]
+    },
+    {
+      "pid": 1306391,
+      "instance": "invincible",
+      "role": "C:\\windows\\system32\\services.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1306391,
+          "comm": "services.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306394,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306397,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306412,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306420,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306426,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306459,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306482,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306486,
+          "comm": "services.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306489,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1309968,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1306396,
+      "instance": "invincible",
+      "role": "C:\\windows\\system32\\winedevice.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1306396,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306399,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306400,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306401,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306402,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306423,
+          "comm": "wine_nsi_notifi",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1306405,
+      "instance": "invincible",
+      "role": "C:\\windows\\system32\\plugplay.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1306405,
+          "comm": "plugplay.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306413,
+          "comm": "plugplay.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306414,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306415,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306436,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1306417,
+      "instance": "invincible",
+      "role": "C:\\windows\\system32\\svchost.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1306417,
+          "comm": "svchost.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306421,
+          "comm": "svchost.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306422,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1306488,
+      "instance": "invincible",
+      "role": "C:\\windows\\system32\\rpcss.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1306488,
+          "comm": "rpcss.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306490,
+          "comm": "rpcss.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306491,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306492,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306493,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1306494,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1308477,
+      "instance": "invincible",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1308477,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.83
+        }
+      ]
+    },
+    {
+      "pid": 1308478,
+      "instance": "invincible",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1308478,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 5.43
+        }
+      ]
+    },
+    {
+      "pid": 1308479,
+      "instance": "invincible",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1308479,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.83
+        }
+      ]
+    },
+    {
+      "pid": 1309970,
+      "instance": "invincible",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1309970,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.87
+        }
+      ]
+    },
+    {
+      "pid": 1327864,
+      "instance": "gebelish",
+      "role": "bash",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1327864,
+          "comm": "sesja.sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1327881,
+      "instance": "gebelish",
+      "role": "swaybg",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1327881,
+          "comm": "swaybg",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1327885,
+      "instance": "gebelish",
+      "role": "sh",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1327885,
+          "comm": "sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1327886,
+      "instance": "gebelish",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1327886,
+          "comm": "siec_proxy.sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1328247,
+      "instance": "gebelish",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1328247,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1328306,
+      "instance": "gebelish",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1328306,
+          "comm": "unshare",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1328307,
+      "instance": "gebelish",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1328307,
+          "comm": "bash",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1328317,
+      "instance": "gebelish",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1328317,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1328413,
+      "instance": "gebelish",
+      "role": "C:\\windows\\system32\\services.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1328413,
+          "comm": "services.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328414,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328420,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328433,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328457,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328465,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328502,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328508,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328511,
+          "comm": "services.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328514,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1332728,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1328418,
+      "instance": "gebelish",
+      "role": "C:\\windows\\system32\\winedevice.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1328418,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328423,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328424,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328425,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328426,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328462,
+          "comm": "wine_nsi_notifi",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1328429,
+      "instance": "gebelish",
+      "role": "C:\\windows\\system32\\plugplay.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1328429,
+          "comm": "plugplay.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328434,
+          "comm": "plugplay.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328435,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328436,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328476,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1328438,
+      "instance": "gebelish",
+      "role": "C:\\windows\\system32\\svchost.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1328438,
+          "comm": "svchost.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328459,
+          "comm": "svchost.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328460,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1328513,
+      "instance": "gebelish",
+      "role": "C:\\windows\\system32\\rpcss.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1328513,
+          "comm": "rpcss.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328515,
+          "comm": "rpcss.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328516,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328517,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328518,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1328519,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1331201,
+      "instance": "gebelish",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1331201,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.8
+        }
+      ]
+    },
+    {
+      "pid": 1331203,
+      "instance": "gebelish",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1331203,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 6.89
+        }
+      ]
+    },
+    {
+      "pid": 1331204,
+      "instance": "gebelish",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1331204,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 9.42
+        }
+      ]
+    },
+    {
+      "pid": 1331205,
+      "instance": "gebelish",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1331205,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.8
+        }
+      ]
+    },
+    {
+      "pid": 1331207,
+      "instance": "gebelish",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1331207,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 6.82
+        }
+      ]
+    },
+    {
+      "pid": 1332741,
+      "instance": "gebelish",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1332741,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 5.66
+        }
+      ]
+    },
+    {
+      "pid": 1352872,
+      "instance": "wydra",
+      "role": "bash",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1352872,
+          "comm": "sesja.sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1352982,
+      "instance": "wydra",
+      "role": "swaybg",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1352982,
+          "comm": "swaybg",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1352986,
+      "instance": "wydra",
+      "role": "sh",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1352986,
+          "comm": "sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1352987,
+      "instance": "wydra",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1352987,
+          "comm": "siec_proxy.sh",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1353055,
+      "instance": "wydra",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1353055,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1353071,
+      "instance": "wydra",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1353071,
+          "comm": "unshare",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1353072,
+      "instance": "wydra",
+      "role": "guard",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1353072,
+          "comm": "bash",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1353080,
+      "instance": "wydra",
+      "role": "socat",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1353080,
+          "comm": "socat",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1353494,
+      "instance": "wydra",
+      "role": "C:\\windows\\system32\\services.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1353494,
+          "comm": "services.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353495,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353498,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353511,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353517,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353525,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353606,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353611,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353614,
+          "comm": "services.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353617,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1353497,
+      "instance": "wydra",
+      "role": "C:\\windows\\system32\\winedevice.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1353497,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353500,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353501,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353502,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353503,
+          "comm": "winedevice.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353522,
+          "comm": "wine_nsi_notifi",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1353506,
+      "instance": "wydra",
+      "role": "C:\\windows\\system32\\plugplay.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1353506,
+          "comm": "plugplay.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353512,
+          "comm": "plugplay.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353513,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353514,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353536,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1353508,
+      "instance": "wydra",
+      "role": "C:\\windows\\system32\\explorer.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1353508,
+          "comm": "explorer.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353603,
+          "comm": "explorer.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 2.53
+        },
+        {
+          "tid": 1353604,
+          "comm": "wine_explorer_d",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353605,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1353516,
+      "instance": "wydra",
+      "role": "C:\\windows\\system32\\svchost.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1353516,
+          "comm": "svchost.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353518,
+          "comm": "svchost.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353519,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1353616,
+      "instance": "wydra",
+      "role": "C:\\windows\\system32\\rpcss.exe",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1353616,
+          "comm": "rpcss.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353618,
+          "comm": "rpcss.exe",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353619,
+          "comm": "wine_sechost_se",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353620,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353621,
+          "comm": "wine_rpcrt4_ser",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        },
+        {
+          "tid": 1353622,
+          "comm": "wine_rpcrt4_io",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    },
+    {
+      "pid": 1392119,
+      "instance": null,
+      "role": "sleep",
+      "cpu_percent": 0.0,
+      "threads": [
+        {
+          "tid": 1392119,
+          "comm": "sleep",
+          "cpu_percent": 0.0,
+          "context_switches_per_s": 0.0
+        }
+      ]
+    }
+  ]
+}

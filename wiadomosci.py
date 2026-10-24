@@ -1,7 +1,7 @@
 """Odczyt wiadomości z konsoli gry (zakładki czatu OTClienta) z pamięci procesu.
 
-Ładowany przez rdzen.py przy każdym poleceniu "wiadomosci" (importlib.reload),
-więc zmiany działają bez restartu strażnika. Tylko odczyt.
+Ładowany przez rdzen.py z aktualnego źródła po zmianie (mtime_ns, size).
+Każde polecenie nadal czyta wiadomości; zmiany kodu działają bez restartu strażnika. Tylko odczyt.
 
 Układ w pamięci (OTClient 32-bit, std::string i std::deque z MSVC):
 

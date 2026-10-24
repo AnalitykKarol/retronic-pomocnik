@@ -10,10 +10,19 @@ import re
 import struct
 import sys
 import time
+import threading
+
+import rdzen_skan
+import cpu_wdrozenie
 
 import numpy as np
 
 np.seterr(invalid="ignore", over="ignore")
+_CPU_KOMPONENTY = cpu_wdrozenie.konfiguracja()
+CPU_OPTYMALIZACJE = bool(_CPU_KOMPONENTY)
+CPU_SKAN = "scan" in _CPU_KOMPONENTY
+CPU_PID = "pid" in _CPU_KOMPONENTY
+CPU_CZAT = "chat" in _CPU_KOMPONENTY
 
 LIMIT_ADRESU = int(os.environ.get("POMOCNIK_LIMIT", 1 << 32))  # kod i dane gry (x86) leżą poniżej 4 GB
 
@@ -134,6 +143,54 @@ RAMKA_CHWILOWA = 0xE0          # u8 (bool m_showTimedSquare)
 RAMKA_STWORA = 0xE1            # u8 (bool m_showStaticSquare)
 
 
+_WIADOMOSCI_ZAMEK = threading.RLock()
+
+
+def _modul_wiadomosci():
+    """Ładuje aktualne źródło raz na (mtime_ns, size), z pominięciem cache .pyc.
+
+    Znacznik na module opisuje kod, który naprawdę wykonaliśmy, także gdy
+    Pamiec/rdzen jest przeładowany lub moduł zaimportował wcześniej ktoś inny.
+    Błędy wychodzą jak dotąd do osłony RPC; nie udają pustej listy wiadomości.
+    """
+    import importlib.util
+    with _WIADOMOSCI_ZAMEK:
+        modul = sys.modules.get("wiadomosci")
+        plik = (modul.__file__ if modul is not None
+                else os.path.join(os.path.dirname(__file__), "wiadomosci.py"))
+        stat = os.stat(plik)
+        sygnatura = (stat.st_mtime_ns, stat.st_size)
+        if (modul is not None
+                and getattr(modul, "_retronic_zrodlo_sygnatura", None) == sygnatura):
+            return modul
+        with open(plik, "rb") as f:
+            przed = os.fstat(f.fileno())
+            zrodlo = f.read()
+            po = os.fstat(f.fileno())
+        # Nie podpisuj kodu sygnaturą zmiany wykonanej w trakcie odczytu.
+        if ((przed.st_mtime_ns, przed.st_size) != (po.st_mtime_ns, po.st_size)
+                or len(zrodlo) != po.st_size):
+            raise RuntimeError("wiadomosci.py zmienił się w trakcie odczytu; ponów żądanie")
+        kod = compile(zrodlo, plik, "exec")
+        nowy = modul is None
+        if nowy:
+            spec = importlib.util.spec_from_file_location("wiadomosci", plik)
+            modul = importlib.util.module_from_spec(spec)
+            sys.modules["wiadomosci"] = modul
+        # exec może częściowo zmienić istniejący słownik i dopiero potem rzucić.
+        # Stara sygnatura nie może wtedy podpisywać częściowo wykonanego kodu,
+        # nawet po przywróceniu starego źródła wraz z jego metadanymi.
+        modul.__dict__.pop("_retronic_zrodlo_sygnatura", None)
+        try:
+            exec(kod, modul.__dict__)
+        except BaseException:
+            if nowy:
+                sys.modules.pop("wiadomosci", None)
+            raise
+        modul._retronic_zrodlo_sygnatura = (po.st_mtime_ns, po.st_size)
+        return modul
+
+
 class Pamiec:
     def __init__(self):
         self.pid = None
@@ -144,6 +201,9 @@ class Pamiec:
         self.adres_gracza = None
         self.regiony_stworow = None
         self.pelny_skan_stworow = 0.0
+        self._bufor_stworow = bytearray()
+        # Kopiowany razem ze stanem przy hot-reloadzie; obejmuje C zwalniające GIL.
+        self._bufor_stworow_zamek = threading.Lock()
 
     def _pid_z_cache(self):
         """Tania walidacja znanego PID gry (1 odczyt cmdline) zamiast skanu /proc przy każdym RPC.
@@ -324,22 +384,35 @@ class Pamiec:
 
     @staticmethod
     def _kandydaci_stworow(bufor):
-        """Przesunięcia nazw stworów w buforze: 4 x float 1.0, ID 0x10-0x4F......,
-        potem std::string o rozmiarze 1-15 i pojemności 15. Filtr hurtowy w numpy."""
-        n = len(bufor) // 4
-        if n < 12:
-            return []
-        a = np.frombuffer(bufor, "<u4", count=n)
-        jeden = a == 0x3F800000
-        k = n - 11
-        m = jeden[:k] & jeden[1:k + 1] & jeden[2:k + 2] & jeden[3:k + 3]
-        idx = np.nonzero(m)[0]
-        if len(idx) == 0:
-            return []
-        ident = a[idx + 4] >> 24
-        rozmiar = a[idx + 9]
-        dobre = (ident >= 0x10) & (ident <= 0x4F) & (a[idx + 10] == 15) & (rozmiar >= 1) & (rozmiar <= 15)
-        return ((idx[dobre] + 5) * 4).tolist()
+        """Dokładnie te same przesunięcia; natywny filtr albo zgodny NumPy."""
+        if CPU_OPTYMALIZACJE and CPU_SKAN:
+            return rdzen_skan.kandydaci(bufor)
+        return rdzen_skan.kandydaci_numpy(bufor)
+
+    def _czytaj_region_stworow(self, adres, dlugosc):
+        """Odczyt tylko dla skanera, pod _bufor_stworow_zamek.
+
+        Nie przechowywać widoku po dekodowaniu regionu. czytaj() pozostaje bytes
+        i punktem rozszerzenia dla atrap/podklas. Krótki odczyt nie odsłania ogona.
+        """
+        if (not CPU_OPTYMALIZACJE or not CPU_SKAN
+                or getattr(self.czytaj, "__func__", None) is not _CZYTAJ_PAMIEC
+                or not hasattr(os, "preadv")):
+            return self.czytaj(adres, dlugosc)
+        bufor = self._bufor_stworow
+        if len(bufor) < dlugosc:
+            # Nowa alokacja zamiast resize: poprzedni widok może jeszcze istnieć
+            # jako lokalna zmienna poprzedniego obiegu.
+            bufor = self._bufor_stworow = bytearray(dlugosc)
+        try:
+            n = os.preadv(self.mem.fileno(), [memoryview(bufor)[:dlugosc]], adres)
+        except OSError as e:
+            if e.errno in (errno.ENOSYS, errno.ENOTSUP):
+                return self.czytaj(adres, dlugosc)
+            if e.errno == errno.ESRCH:
+                self._wymus_skan = True
+            return b""
+        return memoryview(bufor)[:n]
 
     # --- skan stworów: wynik w pamięci podręcznej, odświeżany w wątku w tle ---------------
     REGIONY_STWOROW_MAX = 12      # suma regionów ze stworami (najstarsze wypadają)
@@ -394,12 +467,18 @@ class Pamiec:
         return teraz - c[3] > okres
 
     def _skanuj_stwory(self, pelny):
-        """Jeden skan pamięci; aktualizuje sumę regionów i pamięć podręczną."""
+        """Jeden właściciel bufora aż do publikacji kompletnego wyniku."""
+        with self._bufor_stworow_zamek:
+            if not (CPU_OPTYMALIZACJE and CPU_SKAN) and self._bufor_stworow:
+                self._bufor_stworow = bytearray()  # rollback nie zachowuje dużej alokacji
+            return self._skanuj_stwory_pod_zamkiem(pelny)
+
+    def _skanuj_stwory_pod_zamkiem(self, pelny):
         t0 = time.monotonic()
         regiony = self.regiony() if pelny else (self.regiony_stworow or [])
         znalezione, uzyte, kopie = {}, set(), {}
         for start, koniec in regiony:
-            bufor = self.czytaj(start, koniec - start)
+            bufor = self._czytaj_region_stworow(start, koniec - start)
             for n in self._kandydaci_stworow(bufor):
                 if n + RAMKA_STWORA + 1 > len(bufor) or n + POZYCJA_STWORA < 0:
                     continue
@@ -807,14 +886,24 @@ class Pamiec:
         if cmd == "gracz":
             return {"gracz": self.gracz()}
         if cmd == "wiadomosci":
-            import importlib
-            import wiadomosci
-            importlib.reload(wiadomosci)  # nowy moduł doczytywany na żywo
+            if not (CPU_OPTYMALIZACJE and CPU_CZAT):
+                import importlib
+                import wiadomosci
+                # Stary reload nie gwarantuje świeżego source względem .pyc.
+                # Może też częściowo wykonać moduł i rzucić: unieważnij PRZED nim.
+                # Ponowne włączenie musi jeszcze raz podpisać wykonany kod.
+                wiadomosci.__dict__.pop("_retronic_zrodlo_sygnatura", None)
+                importlib.reload(wiadomosci)
+                return wiadomosci.obsluz(self, zadanie)
+            wiadomosci = _modul_wiadomosci()
+            self.wiadomosci_sygnatura = wiadomosci._retronic_zrodlo_sygnatura
             return wiadomosci.obsluz(self, zadanie)
         if cmd == "kontenery":
             return self.kontenery(zadanie)
         raise RuntimeError(f"nieznane polecenie: {cmd}")
 
+
+_CZYTAJ_PAMIEC = Pamiec.czytaj  # nie omijaj czytaj nadpisanego przez podklasę/atrapę
 
 _TOKEN = object()  # nowy przy każdym (prze)ładowaniu modułu; stary wątek skanera sam się kończy
 
