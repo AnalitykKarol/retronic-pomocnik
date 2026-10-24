@@ -1157,10 +1157,45 @@ TRADE_MOB_ODL = 7                  # pola: żywy potwór bliżej = odroczenie
 TRADE_HP_MIN = 70                  # % HP gracza
 TRADE_PO_PIETRZE_S = 8             # s po zmianie piętra bez ogłoszeń
 TRADE_ZREDUKUJ_LOG_S = 120         # s: ten sam powód odroczenia logujemy najwyżej tak często
-# Zakładki czatu jako UŁAMKI rozmiaru ekranu (wzorzec: zrzut sesji 734x910, pasek zakładek nad polem czatu)
-TRADE_PASEK_Y = (768 / 910, 786 / 910)
-TRADE_ZAKLADKI_X = {"Default": (36 / 734, 104 / 734), "Trade": (280 / 734, 332 / 734)}
-TRADE_KLIK = {"Default": (70 / 734, 776 / 910), "Trade": (306 / 734, 776 / 910)}
+# Zakładki czatu jako UŁAMKI rozmiaru ekranu, liczone względem ekranu WZORCOWEGO układu (UKLADY_PASKA).
+# 23.10 (sklep na kutangenie): ułamki "/734" i "/910" były zmierzone na zrzucie sesji 734x910 (14.10, wąski ekran; "/910" to
+# jego wysokość, "/734" szerokość) postaci z CZTEMA zakładkami (Default, Server Log, jeszcze jedna, Trade). Sesje mają 1175x910
+# (sesja.sh) i klient trzyma zakładki w stałych pikselach od lewej, więc stare ułamki na 1175 trafiały w Server Log. Nowy wzorzec
+# 1175x910 zmierzony na żywym zrzucie kutangena i odchyda: Default | Server Log | Trade (tekst: Default x 51-93, Server Log
+# 116-178, Trade 201-235, wiersze tekstu y 766-777, ramka zakładki y 764-783). UWAGA: położenie Trade zależy od liczby
+# kanałów postaci (4. zakładka przesuwa Trade na x 288-322): układ jest skalibrowany pod postaci z trzema zakładkami.
+# Układ wybiera rozmiar ekranu (uklad_paska); rozmiar bez kalibracji = zakładki "brak" / odmowa wysyłki, nigdy zgadywanie.
+def _uklad(rozmiar, pasek_y, zakladki_x, klik, tab_pasek_x, tab_gap, tab_klik_y):
+    w, h = rozmiar
+    return {"rozmiar": rozmiar,
+            "pasek_y": (pasek_y[0] / h, pasek_y[1] / h),
+            "zakladki_x": {n: (x0 / w, x1 / w) for n, (x0, x1) in zakladki_x.items()},
+            "klik": {n: (cx / w, klik[1] / h) for n, cx in klik[0].items()},
+            "tab_pasek_x": (tab_pasek_x[0] / w, tab_pasek_x[1] / w), "tab_gap": tab_gap / w, "tab_klik_y": tab_klik_y / h}
+
+
+UKLADY_PASKA = {
+    (1175, 910): _uklad((1175, 910), pasek_y=(765, 783), zakladki_x={"Default": (46, 100), "Trade": (196, 240)},
+                        klik=({"Default": 72, "Trade": 218}, 773), tab_pasek_x=(40, 885), tab_gap=13, tab_klik_y=773),
+    # stary wzorzec (zrzut 734x910, 4 zakładki): zostaje dla obrazów tego rozmiaru (testy, ewentualna sesja 734)
+    (734, 910): _uklad((734, 910), pasek_y=(768, 786), zakladki_x={"Default": (36, 104), "Trade": (280, 332)},
+                       klik=({"Default": 70, "Trade": 306}, 776), tab_pasek_x=(40, 452), tab_gap=13, tab_klik_y=776),
+}
+UKLAD_DOMYSLNY = UKLADY_PASKA[(1175, 910)]
+TRADE_PASEK_Y = UKLAD_DOMYSLNY["pasek_y"]
+TRADE_ZAKLADKI_X = UKLAD_DOMYSLNY["zakladki_x"]
+TRADE_KLIK = UKLAD_DOMYSLNY["klik"]
+
+
+def uklad_paska(rozmiar):
+    """Układ paska zakładek dla ekranu (szer, wys) albo None. Pasuje ekran o rozmiarze wzorca albo jego skalowaniu
+    (ułamki są niezmiennicze względem skali, tolerancja 1% szerokości)."""
+    w, h = rozmiar
+    for (rw, rh), u in UKLADY_PASKA.items():
+        s = h / rh
+        if s > 0 and abs(w - rw * s) <= max(2.0, 0.01 * w):
+            return u
+    return None
 TRADE_MYSZ_PO = (0.30, 0.935)      # spokojny punkt (historia czatu): kursor nie wisi nad zakładką (hover)
 TRADE_PROG_PIKSELI = 30            # tyle jasnych pikseli tekstu zakładki, by uznać jej kolor
 
@@ -1176,22 +1211,30 @@ def atak_pk(tekst):
 
 
 def klasyfikuj_zakladke(obraz, nazwa):
-    """"aktywna" (biały/jasnoszary tekst), "nieaktywna" (czerwony tekst) albo "brak" (ani jedno, ani drugie)."""
+    """"aktywna" (biały/jasnoszary tekst), "nieaktywna" (czerwony = nowe wiadomości albo szary 127 = bez nowych) albo "brak"
+    (ani jedno, ani drugie, albo rozmiar ekranu bez kalibracji, patrz UKLADY_PASKA)."""
     w, h = obraz.size
-    x0, x1 = TRADE_ZAKLADKI_X[nazwa]
-    y0, y1 = TRADE_PASEK_Y
+    uklad = uklad_paska((w, h))
+    if uklad is None:
+        return "brak"          # rozmiar ekranu bez kalibracji: nie zgadujemy
+    x0, x1 = uklad["zakladki_x"][nazwa]
+    y0, y1 = uklad["pasek_y"]
     pole = obraz.convert("RGB").crop((int(x0 * w), int(y0 * h), int(x1 * w) + 1, int(y1 * h) + 1))
-    biale = czerwone = 0
+    biale = czerwone = szare = 0
     for r, g, b in pole.getdata():
-        if max(r, g, b) < 150:
+        mx, mn = max(r, g, b), min(r, g, b)
+        if mx < 100:
             continue
-        if min(r, g, b) >= 150 and max(r, g, b) - min(r, g, b) <= 70:
+        if mx < 150:
+            if mx - mn <= 30:          # 23.10: szary (127) tekst zakładki bez nowych wiadomości = nieaktywna
+                szare += 1
+        elif mn >= 150 and mx - mn <= 70:
             biale += 1
         elif r >= 150 and g <= 120 and b <= 120:
             czerwone += 1
     if biale >= TRADE_PROG_PIKSELI and biale > czerwone:
         return "aktywna"
-    if czerwone >= TRADE_PROG_PIKSELI:
+    if czerwone >= TRADE_PROG_PIKSELI or szare >= TRADE_PROG_PIKSELI:
         return "nieaktywna"
     return "brak"
 
@@ -1458,10 +1501,12 @@ KUPNO = re.compile(
     r"\b(?:buy\w*|wtb|want\w*|wanna|need\w*|uh+s?|rune?s?|run[yaeo]|price\w*|cost\w*|how much|much|ile|kup\w*|"
     r"sprzed\w*|sell\w*|selling|still|bp+s?|bags?|backpacks?|avail\w*|offer\w*|stock|sztuk\w*|cena|cene|ceny)\b",
     re.IGNORECASE)
-TAB_OCR_GAP = 13 / 734             # przerwa (ułamek szerokości ekranu) rozdzielająca napisy zakładek
+# Przerwa między napisami, zakres poziomy zakładek (między strzałkami przewijania) i y kliknięcia: w UKLADY_PASKA (wzorzec 1175x910);
+# poniższe stałe to wartości układu domyślnego (kompatybilność), a kod bierze układ z uklad_paska(rozmiar ekranu).
+TAB_OCR_GAP = UKLAD_DOMYSLNY["tab_gap"]
 TAB_PROG_JASNOSCI = 100            # piksel tekstu zakładki: max(R,G,B) >= tyle
-TAB_PASEK_X = (40 / 734, 452 / 734)   # zakres poziomy zakładek (między strzałkami przewijania)
-TAB_KLIK_Y = 776 / 910
+TAB_PASEK_X = UKLAD_DOMYSLNY["tab_pasek_x"]
+TAB_KLIK_Y = UKLAD_DOMYSLNY["tab_klik_y"]
 
 
 def intencja_kupna(tekst):
@@ -1538,14 +1583,17 @@ def zakladki_paska(obraz, ocr=ocr_tesseract):
     import numpy as np  # noqa: PLC0415
     from PIL import Image as _Img, ImageOps as _Ops  # noqa: PLC0415
     w, h = obraz.size
+    uklad = uklad_paska((w, h))
+    if uklad is None:
+        return []              # rozmiar ekranu bez kalibracji: brak zakładek = nic nie klikamy ani nie wpisujemy
     a = np.asarray(obraz.convert("RGB"), dtype=np.int16)
-    y0, y1 = int(TRADE_PASEK_Y[0] * h), int(TRADE_PASEK_Y[1] * h) + 1
-    xs0, xs1 = int(TAB_PASEK_X[0] * w), int(TAB_PASEK_X[1] * w)
+    y0, y1 = int(uklad["pasek_y"][0] * h), int(uklad["pasek_y"][1] * h) + 1
+    xs0, xs1 = int(uklad["tab_pasek_x"][0] * w), int(uklad["tab_pasek_x"][1] * w)
     pas = a[y0:y1, xs0:xs1]
     jasne = pas.max(axis=2) >= TAB_PROG_JASNOSCI
     kol = jasne.any(axis=0)
     grupy, start, ost = [], None, None
-    luka = max(4, int(round(TAB_OCR_GAP * w)))
+    luka = max(4, int(round(uklad["tab_gap"] * w)))
     for i, c in enumerate(kol):
         if c:
             if start is None:
@@ -2331,6 +2379,40 @@ class Mozg:
             czaszka.CzytnikCzaszki(Claude(model=czaszka.MODEL_CZASZKI, timeout=czaszka.TIMEOUT_MODELU_S),
                                    katalog=LOGI / "zrzuty", log=self.log)
             if isinstance(self.model, Claude) and cb is not None else None)
+        self._podepnij_czytnik_czaszki()
+
+    # --- potwierdzanie groźnej czaszki (23.10, czaszka.py) ---
+
+    CZASZKA_POZYCJA_WIEK_S = 2.5     # s: odczyt stworów starszy niż tyle nie nadaje się do wycinka wokół postaci
+
+    def _podepnij_czytnik_czaszki(self):
+        """Czytnik dostaje pozycję postaci z najświeższego odczytu stworów i pokrętło cavebot.CZASZKA_POTWIERDZ
+        (hot-reload z na_zywo.json); ustawienie z konstruktora/env zostaje alternatywą włączenia."""
+        cz = self.czytnik_czaszki
+        if cz is None or not hasattr(cz, "potwierdz"):
+            return
+        cz.pozycja = self._pozycja_czaszki
+        wczesniej = cz.potwierdz
+        cz.potwierdz = lambda: bool(cavebot.CZASZKA_POTWIERDZ) or bool(wczesniej() if callable(wczesniej) else wczesniej)
+
+    def _pozycja_czaszki(self, nick):
+        """(dx, dy) obcego gracza `nick` względem nas z NAJŚWIEŻSZEGO odczytu stworów cavebota (wątek czytnika czaszki
+        woła to z drugiego wątku: krotka odczytu jest podmieniana atomowo) albo None: brak odczytu, odczyt starszy niż
+        CZASZKA_POZYCJA_WIEK_S, gracza nie ma w widoku (inne piętro, poza polem |dx|<=7, |dy|<=5)."""
+        odczyt = getattr(self.cb, "odczyt_stworow", None) if self.cb is not None else None
+        if not odczyt or self.zegar() - odczyt[0] > self.CZASZKA_POZYCJA_WIEK_S:
+            return None
+        ja = next((s for s in odczyt[1] if s["nazwa"] == self.nazwa), None)
+        if not ja:
+            return None
+        klucz = " ".join(str(nick or "").casefold().split())
+        for s in odczyt[1]:
+            if not s.get("gracz") or " ".join(str(s["nazwa"]).casefold().split()) != klucz or s["z"] != ja["z"]:
+                continue
+            dx, dy = s["x"] - ja["x"], s["y"] - ja["y"]
+            if abs(dx) <= cavebot.ZASIEG_X and abs(dy) <= cavebot.ZASIEG_Y:
+                return dx, dy
+        return None
 
     # --- stan ---
 
@@ -2957,9 +3039,12 @@ class Mozg:
         with ekran.Mysz(ekran_x) as mysz:
             scr = mysz.dpy.screen()
             szer, wys = scr.width_in_pixels, scr.height_in_pixels
+            uklad = uklad_paska((szer, wys))
+            if uklad is None:       # 23.10: ułamki zakładek są skalibrowane tylko dla znanych rozmiarów ekranu (UKLADY_PASKA)
+                return False, f"brak kalibracji zakladek dla ekranu {szer}x{wys}", True
 
             def kliknij(nazwa):
-                fx, fy = TRADE_KLIK[nazwa]
+                fx, fy = uklad["klik"][nazwa]
                 mysz.lewy(round(fx * szer), round(fy * wys))
 
             def rusz_mysz():
@@ -2995,12 +3080,15 @@ class Mozg:
         with ekran.Mysz(ekran_x) as mysz:
             scr = mysz.dpy.screen()
             szer, wys = scr.width_in_pixels, scr.height_in_pixels
+            uklad = uklad_paska((szer, wys))
+            if uklad is None:       # 23.10: patrz trade_wyslij; powód zaczyna się od "brak zakladki" = bez liczenia porażek
+                return False, f"brak zakladki: ekran {szer}x{wys} bez kalibracji", True
 
             def kliknij_x(fx):
-                mysz.lewy(round(fx * szer), round(TAB_KLIK_Y * wys))
+                mysz.lewy(round(fx * szer), round(uklad["tab_klik_y"] * wys))
 
             def kliknij_default():
-                fx, fy = TRADE_KLIK["Default"]
+                fx, fy = uklad["klik"]["Default"]
                 mysz.lewy(round(fx * szer), round(fy * wys))
 
             def rusz_mysz():
@@ -3562,6 +3650,17 @@ class Mozg:
         except Exception as e:
             self.log(f"Analityk pościgu niedostępny: {e!r}")
 
+    def tik_bez_ruchu(self, spij=time.sleep):
+        """Jeden obieg pętli w trybie --bez-ruchu (cavebot.tick() nie działa). 23.10: plik STOP zatrzymuje proces TU (zwykle robi to
+        cb.tick(); samo trade_tick/priv_tick sprawdzało STOP tylko, gdy ogłoszenia/priv były włączone i nie wyłączone alarmem)."""
+        bot.sprawdz_stop()
+        cb = self.cb
+        # bez cb.tick() nikt nie czyta na_zywo.json: pokrętła (TRADE_*) zostawały na domyślnych 0
+        if cb.pokretla and self.zegar() - cb.pokretla_ost >= 2.0:
+            cb.pokretla_ost = self.zegar()
+            cb.pokretla.odswiez()
+        spij(0.3)
+
     def uruchom_hybryde(self):
         cb = self.cb
         cb.ustaw_najblizszy()
@@ -3604,6 +3703,16 @@ class Mozg:
             while not self.koniec:
                 time.sleep(5.0)
                 try:
+                    if getattr(cb, "zwiecha_restart", False):     # 23.10: szczebel 3 zwiechy walki (zwiecha.py, cavebot._zwiecha_napraw)
+                        self.log("ZWIECHA: restart procesu mozg.py (walka bez zabicia mimo napraw 1-2).")
+                        powiadom.powiadom("Bot: zwiecha walki, restart", "Walka bez zabicia mimo napraw, restartuję mozg.py",
+                                          "normal", klucz="zwiecha")
+                        self.slepota_restart = True            # ten sam tor co ślepota: os.execv, ta sama mapa i tryb
+                        self.koniec = True
+                        break
+                except Exception as e:      # noqa: BLE001
+                    self.log(f"debug: zwiecha restart błąd {e!r}")
+                try:
                     det.ustaw(float(cavebot.SLEPOTA_DIAG_S), float(cavebot.SLEPOTA_RESTART_S))
                     lista = getattr(cb, "stwory_surowe", None) or []
                     n = sum(1 for s in lista if not s.get("gracz"))
@@ -3631,11 +3740,7 @@ class Mozg:
                     break
                 try:
                     if self.bez_ruchu:
-                        # bez cb.tick() nikt nie czyta na_zywo.json: pokrętła (TRADE_*) zostawały na domyślnych 0
-                        if cb.pokretla and self.zegar() - cb.pokretla_ost >= 2.0:
-                            cb.pokretla_ost = self.zegar()
-                            cb.pokretla.odswiez()
-                        time.sleep(0.3)
+                        self.tik_bez_ruchu()
                     else:
                         zawieszka_t[0] = time.time()     # 18.10: watchdog ticka (znaczniki czasu, stos wątku głównego)
                         try:
@@ -3681,7 +3786,9 @@ class Mozg:
                     cb.pauza(1.0, 2.0)
                 getattr(cb, "pauza_po_ticku", lambda: cb.pauza(0.05, 0.15))()   # Q5 11.10: WALKA i odl > 1 = prawie bez pauzy
             self.log("Koniec.")
-            if not getattr(self, "slepota_restart", False):
+            if getattr(cb, "wylogowany", False):
+                self.log("Koniec: wylogowanie (znacznik wylogowany.json), proces kończy się; relog uruchomi bota od nowa.")
+            elif not getattr(self, "slepota_restart", False):
                 powiadom.stop("Koniec (limit, koniec trasy albo polecenie modelu)")
         except bot.Zatrzymano:
             self.log("Zatrzymano (plik STOP).")
@@ -3815,12 +3922,37 @@ def dojscie_od_pozycji(punkty, poz):
     return p[i:]
 
 
+_dojscie_wroc_przerwane = False       # 24.10: ostatnie przejdz_dojscie przerwało ręczne WROC (wyprawa do depo z dojścia)
+
+
+def dojscie_przerwane_wroc():
+    return _dojscie_wroc_przerwane
+
+
+def po_dojsciu_przez_wroc(log=print):
+    """24.10: dojście przerwane ręcznym „Wróć do miasta” i wyprawa do depo skończona STOP-em w depo = zwykłe zatrzymanie, nie porażka
+    dojścia (bez alarmu „dojście nieudane”). True = main kończy proces (jak po STOP na pętli). Bez STOP: False, zwykłe reguły po dojściu."""
+    if not _dojscie_wroc_przerwane:
+        return False
+    try:
+        stop = bot.STOP.exists()
+    except Exception:       # noqa: BLE001
+        stop = False
+    if stop:
+        log("Dojście przerwane ręcznym „Wróć do miasta”: wyprawa do depo zakończona (STOP), kończę proces bez alarmu.")
+        return True
+    log("Dojście przerwane ręcznym „Wróć do miasta”, wyprawa skończona bez STOP: dalej według zwykłych reguł po dojściu.")
+    return False
+
+
 def przejdz_dojscie(postac, punkty, prog_hp=40, jedzenie=None, potwory=None, graczy=True,
                     stop_przy_graczach=False, fabryka=None, tolerancja=2, proby=None):
     """Dojście przed główną trasą (cavebot.CavebotDojscie): bez patrolu, lootu i walki po drodze (biegnie,
     DOJSCIE_BIEGNIJ), z ucieczką/leczeniem jak zawsze. Trasa jest upraszczana do jednego przejścia od aktualnej
     pozycji; po przerwaniu ponawiana (`proby` razy). True, gdy postać stoi przy ostatnim punkcie
     (<= tolerancja pól, to samo piętro)."""
+    global _dojscie_wroc_przerwane
+    _dojscie_wroc_przerwane = False
     fabryka = fabryka or cavebot.CavebotDojscie
     proby = int(getattr(cavebot, "DOJSCIE_PROBY", DOJSCIE_PROBY)) if proby is None else proby   # P7e: pokrętło
     punkty = [tuple(p) for p in punkty]
@@ -3829,14 +3961,24 @@ def przejdz_dojscie(postac, punkty, prog_hp=40, jedzenie=None, potwory=None, gra
         poz = tuple(postac.pozycja())
         if poz[2] == cel[2] and max(abs(poz[0] - cel[0]), abs(poz[1] - cel[1])) <= tolerancja:
             return True
+        if _stoj_wlaczony():
+            print("Dojście: włączony STÓJ (stoj.py), kończę dojście bez porażki: stoję tam, gdzie jestem.", flush=True)
+            return True                # 23.10 STÓJ: nie chodzimy; True = brak alarmu „dojście nieudane” i brak wyjścia procesu
         trasa = dojscie_od_pozycji(punkty, poz)
         if nr > 1:
             print(f"Dojście: próba {nr}/{proby} od {poz}, {len(trasa)} pkt.", flush=True)
-        fabryka(postac, trasa, 1, None, prog_hp, jedzenie, potwory, graczy,
-                stop_przy_graczach=stop_przy_graczach, tolerancja=tolerancja).uruchom()
+        dojscie = fabryka(postac, trasa, 1, None, prog_hp, jedzenie, potwory, graczy,
+                          stop_przy_graczach=stop_przy_graczach, tolerancja=tolerancja)
+        dojscie.uruchom()
         x, y, z = postac.pozycja()
         if z == cel[2] and max(abs(x - cel[0]), abs(y - cel[1])) <= tolerancja:
             return True
+        if getattr(dojscie, "dojscie_wroc", False):
+            _dojscie_wroc_przerwane = True      # 24.10: ręczne WROC przerwało dojście wyprawą do depo: nie wracamy do dojścia
+            print("Dojście: przerwane ręcznym „Wróć do miasta” (wyprawa do depo), nie ponawiam.", flush=True)
+            break
+        if _wylogowany_w_procesie():
+            break                      # 23.10: wylogowanie w trakcie dojścia: nie ponawiamy (proces się kończy)
         try:
             if bot.STOP.exists() and not os.environ.get("RETRONIC_TESTY"):
                 break                  # STOP: nie ponawiamy
@@ -3909,6 +4051,83 @@ def blisko_trasy(postac, punkty, odl=DOJSCIE_BLISKO_TRASY):
     """True, gdy postać stoi na piętrze trasy w odległości <= odl pól (Chebyshev) od któregoś jej punktu."""
     x, y, z = postac.pozycja()
     return any(p[2] == z and max(abs(p[0] - x), abs(p[1] - y)) <= odl for p in punkty)
+
+
+def _stoj_wlaczony():
+    """23.10: plik-flaga instancje/<id>/STOJ (stoj.py). Błąd odczytu = False (zwykłe dojście)."""
+    try:
+        import stoj  # noqa: PLC0415
+        return stoj.wlaczony()
+    except Exception:       # noqa: BLE001
+        return False
+
+
+def _wylogowany_w_procesie():
+    try:
+        import wylogowanie  # noqa: PLC0415
+        return wylogowanie.ogloszone() is not None
+    except Exception:       # noqa: BLE001
+        return False
+
+
+def poza_pietrem_blisko_trasy(poz, punkty, odl=None):
+    """23.10: punkt pętli, jeśli postać stoi na piętrze, którego pętla NIE ma, 1-2 piętra POD nią i do `odl` pól poziomo od jej punktu
+    (Chebyshev): to upadek w dziurę, nie dojście (Dawajkesh po relogu: z10 (33084,31743), pętla na z9). None, gdy nie."""
+    odl = int(getattr(cavebot, "START_UPADEK_ODL", 12)) if odl is None else odl
+    x, y, z = poz[0], poz[1], poz[2]
+    if any(p[2] == z for p in punkty):
+        return None
+    kand = [p for p in punkty if 1 <= z - p[2] <= 2 and max(abs(p[0] - x), abs(p[1] - y)) <= odl]
+    if not kand:
+        return None
+    return min(kand, key=lambda p: (z - p[2], max(abs(p[0] - x), abs(p[1] - y))))
+
+
+def start_po_upadku(cb, postac, punkty, log=print):
+    """23.10 (START_PO_UPADKU): start na piętrze spoza pętli, tuż pod nią = upadek: wyjście w górę (wpadniecie.z_kieszeni: lina/schody po
+    mapie) ZANIM ruszy pętla; bez tego dojście biegło po ścianach (KROK_ZLY ... mapa przechodnie False). True = stan wyjścia ustawiony."""
+    if not getattr(cavebot, "START_PO_UPADKU", 1):
+        return False
+    try:
+        poz = tuple(postac.pozycja())
+        cel = poza_pietrem_blisko_trasy(poz, punkty)
+        if cel is None:
+            return False
+        wp = cb._wp()
+        if wp is None:
+            return False
+        log(f"Start: postać na z{poz[2]} {poz[:2]}, a pętla jest na z{cel[2]} (najbliższy punkt {cel[:2]}, "
+            f"{max(abs(cel[0] - poz[0]), abs(cel[1] - poz[1]))} pól): traktuję jako upadek w dziurę, wychodzę w górę przed pętlą.")
+        return bool(wp.z_kieszeni(poz, cb.zegar()))
+    except bot.Zatrzymano:
+        raise
+    except Exception as e:      # noqa: BLE001  start nigdy nie pada przez tę kontrolę
+        log(f"Start: kontrola upadku pominięta ({e!r}).")
+        return False
+
+
+def postac_widoczna(postac, log=print, zegar=time.monotonic, spij=time.sleep, limit_s=None):
+    """23.10: start bota dopiero, gdy strażnik widzi postać (do START_CZEKAJ_POSTAC_S, RETRONIC_CZEKAJ_POSTAC_S nadpisuje). True =
+    widzi; False = głośna odmowa (wpis `ODMOWA STARTU`, powiadomienie critical), bez Traceback. Po `zaloguj.sh` strażnik widzi postać
+    dopiero po chwili: 23.10 10:19:50 Traceback „nie widzę postaci Dawajkesh” w pierwszej odczytanej pozycji."""
+    import wylogowanie  # noqa: PLC0415
+    if limit_s is None:
+        try:
+            limit_s = float(os.environ.get("RETRONIC_CZEKAJ_POSTAC_S", getattr(cavebot, "START_CZEKAJ_POSTAC_S", 60)))
+        except ValueError:
+            limit_s = 60.0
+    poz = wylogowanie.czekaj_na_postac(postac.pozycja, limit_s=limit_s, zegar=zegar, spij=spij, log=log, przepusc=(bot.Zatrzymano,))
+    if poz is not None:
+        return True
+    nick = getattr(postac, "nazwa", None) or "?"
+    log(f"ODMOWA STARTU: strażnik nie widzi postaci {nick} przez {limit_s:.0f} s (niezalogowana albo klient się nie załadował). "
+        f"Bot nie startuje; znacznik wylogowany.json zostaje, jeśli był.")
+    try:
+        powiadom.powiadom("Bot: start odmówiony", f"Strażnik nie widzi postaci {nick} przez {limit_s:.0f} s. Zaloguj postać i uruchom bota.",
+                          "critical", "start")
+    except Exception:           # noqa: BLE001
+        pass
+    return False
 
 
 def rozwiaz_patrol(trasa):
@@ -3990,6 +4209,14 @@ def main(argv):
     punkty = json.loads((bot.TRASY / f"{a.trasa}.json").read_text())
     potwory = [n.strip() for n in a.potwory.split(",") if n.strip()] if a.potwory else None
     postac = bot.Postac()
+    if not postac_widoczna(postac, log):
+        return
+    try:
+        import wylogowanie  # noqa: PLC0415
+        if wylogowanie.usun(instancja.S.stan):          # relog dotarł: stary znacznik wylogowania nieaktualny
+            log("Start: postać widoczna, kasuję znacznik wylogowany.json (relog zakończony).")
+    except Exception:       # noqa: BLE001
+        pass
     # 22.10 (Karol: po padzie komputera klienci wystartowali z rozwiniętą minimapą i bez otwartego plecaka, bot chodził bez lootu):
     # kontrola okien po starcie (okna_start.py). Domyślnie sprawdza i powiadamia (notify-send critical), klika tylko przy
     # RETRONIC_OKNA_NAPRAWA=1 / pliku OKNA_NAPRAWA; RETRONIC_OKNA_START=0 wyłącza. Nigdy nie przerywa startu.
@@ -4005,7 +4232,7 @@ def main(argv):
     # Nie da się = nic się nie zmienia (niżej: na spocie bez dojścia, w połowie dojścia od najbliższego punktu, w mieście dojście).
     cb = None
     wznowiona = False
-    if wznow_start.WLACZONE:
+    if wznow_start.WLACZONE and not _stoj_wlaczony() and not a.bez_ruchu:      # 23.10 STÓJ i --bez-ruchu: bez wznawiania wyprawy (chodzenie)
         try:
             import wyprawa as _wyprawa  # noqa: PLC0415
             if wznow_start.jest_kandydat(_wyprawa.PLIK_STANU):
@@ -4033,6 +4260,26 @@ def main(argv):
         if z_start is not None and z_start != 7:
             log(f"Dojście: postać na z{z_start}, pomijam dojście {a.dojscie}.")
             a.dojscie = None
+    upadek_na_starcie = False
+    if not wznowiona and cavebot.START_PO_UPADKU and not _stoj_wlaczony() and not a.bez_ruchu:      # 23.10 STÓJ i --bez-ruchu: bez wyjścia po upadku
+        try:
+            cel_upadku = poza_pietrem_blisko_trasy(tuple(postac.pozycja()), punkty)
+        except bot.Zatrzymano:
+            raise
+        except Exception as e:      # noqa: BLE001
+            cel_upadku = None
+            log(f"Start: kontrola upadku pominięta ({e!r}).")
+        if cel_upadku is not None:
+            upadek_na_starcie = True
+            if a.dojscie:
+                log(f"Start: postać pod pętlą {a.trasa} (upadek), pomijam dojście {a.dojscie}: najpierw wyjście w górę.")
+                a.dojscie = None
+    if a.dojscie and a.bez_ruchu:
+        log(f"Dojście: tryb --bez-ruchu, pomijam dojście {a.dojscie}: postać stoi, gdzie jest.")
+        a.dojscie = None
+    if a.dojscie and _stoj_wlaczony():
+        log(f"Dojście: włączony STÓJ (stoj.py), pomijam dojście {a.dojscie}: stoję tam, gdzie jestem.")
+        a.dojscie = None
     if a.dojscie and DOJSCIE_POMIN_ODL > 0:
         try:
             if blisko_trasy(postac, punkty, DOJSCIE_POMIN_ODL):
@@ -4049,6 +4296,11 @@ def main(argv):
         log(f"Dojście: trasa {a.dojscie} ({len(dojscie)} pkt), potem {a.trasa}.")
         if not przejdz_dojscie(postac, dojscie, a.prog_hp, a.jedzenie, potwory, not a.ignoruj_graczy,
                                a.stop_przy_graczach):
+            if _wylogowany_w_procesie():
+                log("Dojście przerwane wylogowaniem (WYLOGOWANY), kończę proces: relog uruchomi bota od nowa.")
+                return
+            if po_dojsciu_przez_wroc(log):
+                return
             ratunek_porazka(postac, "dojscie", log=log, trasa=a.dojscie)
             if not blisko_trasy(postac, punkty):
                 log("Dojście nieukończone (przerwane albo nie dotarłem do końca) i postać jest daleko od trasy "
@@ -4065,6 +4317,8 @@ def main(argv):
     if cb is None:
         cb = CavebotMozgu(postac, punkty, None, 10 ** 9, a.prog_hp, a.jedzenie, potwory, not a.ignoruj_graczy,
                           nazwa_trasy=nazwa_trasy, stop_przy_graczach=a.stop_przy_graczach)
+    if upadek_na_starcie and not wznowiona:
+        start_po_upadku(cb, postac, punkty, log)
     if a.dojscie:           # P7a: karencja wyprawy po dojściu (pierwsza ocena najwcześniej po WYPRAWA_PO_DOJSCIU_S)
         try:
             wp = getattr(cb, "wyprawa", None)

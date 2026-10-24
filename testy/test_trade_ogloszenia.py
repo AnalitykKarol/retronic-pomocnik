@@ -24,7 +24,8 @@ def obraz_trade():
     im = DEFAULT.copy()
     w, h = im.size
     for nazwa, do in (("Default", "czerwony"), ("Trade", "bialy")):
-        x0, x1 = mozg.TRADE_ZAKLADKI_X[nazwa]; y0, y1 = mozg.TRADE_PASEK_Y
+        u = mozg.uklad_paska(im.size)     # 23.10: układ wg rozmiaru obrazu (fixture 734x910 = stary wzorzec)
+        x0, x1 = u["zakladki_x"][nazwa]; y0, y1 = u["pasek_y"]
         for x in range(int(x0 * w), int(x1 * w) + 1):
             for y in range(int(y0 * h), int(y1 * h) + 1):
                 r, g, b = im.getpixel((x, y))
