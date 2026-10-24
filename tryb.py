@@ -32,6 +32,15 @@ def wczytaj(nazwa):
     return {k: v for k, v in d.items() if not k.startswith("_")}
 
 
+def ostrzezenia(po):
+    """Ostrzeżenia o scalonych pokrętłach (23.10, zgon odchyda: ML 1 przy wyłączonym leczeniu exura). Lista tekstów, pusta = ok."""
+    wyn = []
+    if po.get("ML_CZAR_AKTYWNY") and not po.get("ZDROWIE_CZAR_AKTYWNY"):
+        wyn.append("UWAGA: ML_CZAR_AKTYWNY=1 przy ZDROWIE_CZAR_AKTYWNY=0: trening ML bez leczenia exura (odchyd zginął tak 23.10); "
+                   "tryb ostrozny/ml ustawia ZDROWIE_CZAR_AKTYWNY=1")
+    return wyn
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--mapa", default="raty")
@@ -91,6 +100,8 @@ def main(argv=None):
         except (OSError, ValueError):
             przed = {}
         po = {**przed, **ok}
+        for w in ostrzezenia(po):
+            log(w, a.log)
         zmiany = {k: (przed.get(k, "(brak)"), v) for k, v in ok.items() if przed.get(k, "\0") != v}
         log(f"tryb {'+'.join(nazwy)}: pokrętła {json.dumps(ok, ensure_ascii=False)}", a.log)
         if not zmiany:

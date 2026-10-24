@@ -40,6 +40,7 @@ from PIL import Image, ImageDraw  # noqa: E402
 
 import bot  # noqa: E402
 import ekran  # noqa: E402
+import straz_ekw  # noqa: E402   # 23.10: cel przeciągnięcia nie może być slotem ekwipunku; [EKW] po ruchu
 
 KATALOG = Path(__file__).resolve().parent
 IKONY = KATALOG / "ikony"
@@ -161,7 +162,7 @@ NIESTOSOWE_ID = {NAZWA_ID["rope"], NAZWA_ID["bag"]}
 PEWNE_STOSY_ID = {NAZWA_ID["gold coin"]}   # nigdy nie uczymy się, że się nie stackuje (np. chybiony drop)
 MAKS_STOSU = 100
 MAKS_SCALEN = 2                  # ile scaleń rozbitych stosów w plecaku przy jednym zbieraniu
-PLECAKI = ("bag", "backpack")    # nazwy wzorców tytułu, które oznaczają plecak gracza
+PLECAKI = ("bag", "backpack", "blue backpack")    # nazwy wzorców tytułu, które oznaczają plecak gracza (23.10: odchyd ma Blue backpack)
 ID_PLECAKOW = {NAZWA_ID["bag"]}  # ID przedmiotu-kontenera, który jest plecakiem gracza
 # Pojemnik na runy (np. Purple backpack): drugi kontener obok plecaka, NIE zwłoki i NIE plecak lootu.
 ID_MONET_W_POJEMNIKU = {3031, 3035, 3043}   # gold, platinum, crystal coin
@@ -179,6 +180,7 @@ PROG_TYTULU = 10.0
 MAKS_RUCHOW = 12                 # ile przedmiotów maks. w jednym zbieraniu
 PRZERWIJ = None                  # opcjonalne wywołanie() -> True: przerwij zbieranie (cavebot: żywy potwór obok)
 DRABINY = set()                  # 21.10 (LOOT_BEZ_DRABIN): pola (x, y, z) drabin bez Ctrl+klik (Use wspina postać piętro wyżej); wypełnia cavebot
+POLE_ZAKAZANE = None             # 23.10 (zgon odchyda, LOOT_BEZ_DZIUR): wywołanie (x, y, z, glowne=False) -> True = pole to dziura/ściana wg mapy, loot NIE robi na nim Ctrl+klik (postać by w nie weszła i spadła); ustawia cavebot
 
 
 # --- wykrywanie okien i slotów ----------------------------------------------
@@ -903,6 +905,27 @@ def _pauza(a=0.3, b=0.7):
     time.sleep(random.uniform(a, b))
 
 
+# --- straż ekwipunku (23.10, ślad: lina invincible znikła ze slotu 10, gold wydry wpadał na slot 10) ------------------
+def _straznik(log):
+    """Straznik ekwipunku jednej sesji zbierania (odczyt przez `_zapytaj`, w testach podmienianą atrapą)."""
+    return straz_ekw.Straznik(lambda z: _zapytaj(z), log)
+
+
+def _przeciagnij_pewnie(mysz, od, do, obraz, log, straznik, co):
+    """Przeciąga `od` -> `do` tylko gdy `do` jest slotem okna kontenera na ŚWIEŻYM zrzucie `obraz` (zrobionym tuż przed
+    ruchem) i nie slotem ekwipunku (głowa, ręce, slot 10...). False = odmowa, nic nie wysłano do gry (log [EKW] +
+    powiadomienie). Przed ruchem zapamiętuje ekwipunek, po nim woła się `straznik.po(co)` (zmiana = [EKW])."""
+    ok, powod = straz_ekw.ocen_cel(obraz, do)
+    if not ok:
+        straz_ekw.odmowa(log, co, powod)
+        return False
+    if powod:
+        log(f"[EKW] uwaga: {powod}")
+    straznik.przed()
+    mysz.przeciagnij(*od, *do, drganie=4)
+    return True
+
+
 def zamknij_okno(mysz, okno):
     """Klik w X okna kontenera. Zwraca True, gdy znamy położenie przycisku."""
     p = okno.przycisk_zamkniecia
@@ -1020,6 +1043,7 @@ def przenies_do_runow(ids=tuple(sorted(ID_RUN_W_POJEMNIKU)), maks=30, log=print)
     (drugi bag, tylko z runami): drag z slotu na pierwszy wolny widoczny slot. Zwraca liczbę przeniesionych sztuk.
     Bez otwartego pojemnika na runy (albo bez wolnego widocznego slotu) nic nie robi."""
     ruszono = 0
+    straz = _straznik(log)
     with ekran.Mysz() as mysz:
         for _ in range(maks):
             bot.sprawdz_stop()
@@ -1041,9 +1065,12 @@ def przenies_do_runow(ids=tuple(sorted(ID_RUN_W_POJEMNIKU)), maks=30, log=print)
                 log("przenoszenie run: brak wolnego widocznego pola w pojemniku na runy")
                 break
             przed = sum(1 for q in k.get("przedmioty", []))
-            mysz.przeciagnij(*plecak.sloty[zrodlo[0]["slot"]].srodek, *runy.sloty[wolny].srodek, drganie=4)
+            if not _przeciagnij_pewnie(mysz, plecak.sloty[zrodlo[0]["slot"]].srodek, runy.sloty[wolny].srodek, obraz, log, straz,
+                                       nazwa_id(zrodlo[0]["id"])):
+                break
             _pauza(0.4, 0.7)
             _okno_ilosci_ok(mysz, "runy", log, obraz)
+            straz.po(nazwa_id(zrodlo[0]["id"]))
             po = kontenery_z_pamieci()[0]
             kon = next((c for c in (po or []) if c.get("numer") == k.get("numer")), None)
             if kon is None or len(kon.get("przedmioty", [])) <= przed:
@@ -1071,6 +1098,7 @@ def przenies_miedzy(ids, skad, dokad, maks=25, log=print):
     pole okna spełniającego `dokad(kontener)`. Po każdym ruchu weryfikuje w pamięci (ubyło w źródle, przybyło w celu).
     Zwraca (przeniesione, powód_stopu albo None)."""
     ruszono = 0
+    straz = _straznik(log)
     with ekran.Mysz() as mysz:
         for _ in range(maks):
             bot.sprawdz_stop()
@@ -1093,9 +1121,12 @@ def przenies_miedzy(ids, skad, dokad, maks=25, log=print):
                 return ruszono, "cel pełny albo bez wolnego widocznego pola"
             przed_cel = len(kd.get("przedmioty", []))
             przed_zrodlo = len(kz.get("przedmioty", []))
-            mysz.przeciagnij(*oz.sloty[zrodlo[0]["slot"]].srodek, *od.sloty[wolny].srodek, drganie=4)
+            if not _przeciagnij_pewnie(mysz, oz.sloty[zrodlo[0]["slot"]].srodek, od.sloty[wolny].srodek, obraz, log, straz,
+                                       nazwa_id(zrodlo[0]["id"])):
+                return ruszono, "cel poza slotami okna kontenera albo na slocie ekwipunku"
             _pauza(0.4, 0.7)
             _okno_ilosci_ok(mysz, "przenoszenie", log, obraz)
+            straz.po(nazwa_id(zrodlo[0]["id"]))
             kon, _ = kontenery_z_pamieci()
             kz2 = next((c for c in (kon or []) if c.get("numer") == kz.get("numer")), None)
             kd2 = next((c for c in (kon or []) if c.get("numer") == kd.get("numer")), None)
@@ -1169,6 +1200,65 @@ def zjedz(ile=2, log=print):
 
 
 zjedz.ostatni_powod = None
+
+STRZALKA_ILOSCI_LEWO = (-50, 1)     # środek okna "Move Objects" -> strzałka suwaka w lewo (kalibracja 19.10, jak serwis_akcje.STRZALKA_LEWA)
+
+
+def _ilosc_stosu(numer, ident):
+    """Sztuk w STOSIE, który `_jedzenie_z_pamieci` wybiera (najniższy slot z tym ID w kontenerze `numer`); None: nie wiadomo."""
+    kontenery, _ = kontenery_z_pamieci()
+    k = next((k for k in (kontenery or []) if k.get("numer") == numer), None)
+    stosy = sorted((p["slot"], max(1, p.get("ilosc", 1))) for p in (k or {}).get("przedmioty", []) if p["id"] == ident)
+    return stosy[0][1] if stosy else None
+
+
+def wyrzuc_jedzenie(log=print):
+    """24.10 (cap 0 po zakupie ham): wyrzuca JEDNĄ sztukę jedzenia z plecaka na ziemię pod postacią (przeciągnięcie slotu na własne
+    pole; okno "Move Objects" dla stosu > 1: ilość 1 = (stos-1) kliknięć strzałki w lewo, potem Ok). Po ruchu sprawdza w pamięci,
+    czy ubyło. Zwraca (wyrzucono 0/1, sztuk jedzenia po ruchu albo None, powód porażki albo None). Nic nie robi, gdy pamięć plecaka
+    nie działa, jedzenia nie ma albo cel upuszczenia leży na slocie ekwipunku."""
+    with ekran.Mysz() as mysz:
+        bot.sprawdz_stop()
+        obraz = _zrzut(mysz)
+        try:
+            znalezione = _jedzenie_z_pamieci(obraz)
+        except _BezPamieci as e:
+            return 0, None, f"pamięć: {e}"
+        if znalezione is None:
+            return 0, 0, "brak jedzenia w plecaku"
+        slot, nazwa, ident, numer = znalezione
+        przed = _ile_w_kontenerze(numer, ident)
+        stos = _ilosc_stosu(numer, ident)
+        if przed is None or stos is None:
+            return 0, None, "nie znam liczby sztuk"
+        cel = ekran.pole_na_ekran(0, 0, ekran.aktualny_prostokat(mysz.ekran))
+        if not mysz._cel_poza_ekwipunkiem(*cel, f"wyrzucenie {nazwa}"):
+            return 0, przed, "cel upuszczenia na slocie ekwipunku"
+        straznik = _straznik(log)
+        straznik.przed()
+        mysz.przeciagnij(*slot.srodek, *cel, drganie=3)
+        if stos > 1:
+            poz, t0 = None, time.monotonic()
+            while poz is None and time.monotonic() - t0 < 2.0:
+                _pauza(0.12, 0.2)
+                poz = znajdz_okno_ilosci(_zrzut(mysz))
+            if poz is None:
+                return 0, przed, "brak okna ilości po przeciągnięciu stosu"
+            sx, sy = poz[0] + 60, poz[1] + 66
+            for _ in range(stos - 1):
+                bot.sprawdz_stop()
+                mysz.lewy(sx + STRZALKA_ILOSCI_LEWO[0], sy + STRZALKA_ILOSCI_LEWO[1], drganie=1)
+                _pauza(0.12, 0.22)
+            mysz.lewy(sx + OK_DX, sy + OK_DY, drganie=2)
+        _pauza(0.7, 1.0)
+        po = _ile_w_kontenerze(numer, ident)
+        straznik.po(f"wyrzucenie {nazwa}")
+        if po is None:
+            return 0, None, "po ruchu nie wiem, ile zostało"
+        if po >= przed:
+            return 0, po, f"{nazwa} nie ubyło (przed {przed}, po {po})"
+        log(f"jedzenie: wyrzucona 1 szt. {nazwa} na ziemię (zostało {po})")
+        return 1, po, None
 
 
 LACZNIE = {}      # zebrane od startu procesu: nazwa -> sztuk
@@ -1303,6 +1393,7 @@ def _zjedz_ze_zwlok(mysz, p, lista, wynik, log):
 
 def _scal_stosy(mysz, p, lista, log):
     """Łączy rozbite stosy w plecaku (np. dwa sery po 1). Zwraca aktualny plan."""
+    straz = _straznik(log)
     for _ in range(MAKS_SCALEN):
         bot.sprawdz_stop()
         ruch = scalenie(p["plecak"]) if p["zrodlo"] == "pamiec" else None
@@ -1311,9 +1402,12 @@ def _scal_stosy(mysz, p, lista, log):
         z, na, ident = ruch
         k_przed = p["plecak"].kontener
         przed = _zrzut(mysz)
-        mysz.przeciagnij(*z.srodek, *na.srodek, drganie=4)
+        if not _przeciagnij_pewnie(mysz, z.srodek, na.srodek, przed, log, straz, nazwa_id(ident)):
+            NIEUDANE_SCALENIA.add(ident)
+            return p
         _pauza(0.25, 0.5)
         _okno_ilosci_ok(mysz, nazwa_id(ident), log, przed)
+        straz.po(nazwa_id(ident))
         _, nowy = _plan_teraz(mysz, lista, log)
         k_po = _kontener_po_numerze(nowy["kontenery"], k_przed)
         wpisy = lambda k: sum(1 for q in k.get("przedmioty", []) if q["id"] == ident)
@@ -1394,6 +1488,20 @@ def _drabina(dx, dy, gracz=None):
         return False
     p = _xyz(gracz) if gracz is not None else _pozycja_gracza()
     return p is not None and p[2] is not None and (p[0] + dx, p[1] + dy, p[2]) in DRABINY
+
+
+def _zakazane(dx, dy, gracz=None, glowne=False):
+    """True: pole (dx, dy) względem gracza jest zakazane dla Ctrl+klika lootu (POLE_ZAKAZANE: dziura z listy dziur albo ściana wg
+    mapy). Ctrl+klik na takim polu prowadzi tam postać: 23.10 odchyd wszedł tak w dziurę (32354,32131,z8) i spadł do kieszeni
+    na z9. `glowne` = pole, na którym wg lootu leżą zwłoki (ściana wg mapy go nie zakazuje: stwór tam zginął). Hak nie wywraca lootu."""
+    f = POLE_ZAKAZANE
+    if f is None:
+        return False
+    try:
+        p = _xyz(gracz) if gracz is not None else _pozycja_gracza()
+        return bool(p is not None and p[2] is not None and f(p[0] + dx, p[1] + dy, p[2], glowne))
+    except Exception:
+        return False
 
 
 def _czekaj_na_postoj(gracz):
@@ -1520,6 +1628,9 @@ def _otworz_z_pamiecia(dx, dy, gracz, przed, powtorz, log):
         if _drabina(sx, sy, gracz):
             proby.append(f"({sx},{sy}) drabina")
             continue
+        if _zakazane(sx, sy, gracz, (sx, sy) == (dx, dy)):
+            proby.append(f"({sx},{sy}) dziura")
+            continue
         if nogi and not przed:
             if (sx, sy) != ostatnie and ((sx, sy) == (0, 0) and _juz_puste(wlasne)
                                          or (sx, sy) != (0, 0) and _juz_puste((gx + sx, gy + sy))):
@@ -1597,6 +1708,9 @@ def _otworz_dalsze(dx, dy, gracz, przed, proby, log, maks=None):
         if _drabina(tx, ty, teraz):
             proby.append(f"({rx},{ry}) drabina")
             continue
+        if _zakazane(tx, ty, teraz):
+            proby.append(f"({rx},{ry}) dziura")
+            continue
         bot.sprawdz_stop()
         klikniec += 1
         ekran.otworz(tx, ty)
@@ -1662,7 +1776,7 @@ def _zamknij_zwloki(mysz, p, pole, klucz, log):
 def _otworz_bez_pamieci(mysz, dx, dy, lista, log):
     """Dawna ścieżka, gdy pamięć nie działa: okno zwłok szukane na zrzutach, potem 3 sąsiednie pola.
     Bez pamięci nie wiemy, czy okno się otworzyło, więc pola (dx, dy) drugi raz nie klikamy (przełącznik)."""
-    if not _drabina(dx, dy):
+    if not _drabina(dx, dy) and not _zakazane(dx, dy, glowne=True):
         ekran.otworz(dx, dy)
     _pauza(0.5, 0.9)
     p = None
@@ -1674,7 +1788,7 @@ def _otworz_bez_pamieci(mysz, dx, dy, lista, log):
         _pauza(0.3, 0.6)
     # cel mógł zrobić krok tuż przed śmiercią: spróbuj sąsiednich pól przy graczu
     for sx, sy in _sasiednie_pola(dx, dy):
-        if _drabina(sx, sy):
+        if _drabina(sx, sy) or _zakazane(sx, sy):
             continue
         bot.sprawdz_stop()
         ekran.otworz(sx, sy)
@@ -1751,6 +1865,7 @@ def zbierz_szczegoly(pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA, log=print)
         najedzony = not JEDZ_ZE_ZWLOK
         zjedzen = 0
         proba_plecaka = False
+        straz = _straznik(log)
         for _ in range(MAKS_RUCHOW + MAKS_ZJEDZENIA):
             bot.sprawdz_stop()
             if PRZERWIJ is not None and PRZERWIJ():
@@ -1777,9 +1892,13 @@ def zbierz_szczegoly(pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA, log=print)
                 break
             slot, nazwa = p["przedmiot"]
             przed = _zrzut(mysz)
-            mysz.przeciagnij(*slot.srodek, *p["cel"].srodek, drganie=4)
+            if not _przeciagnij_pewnie(mysz, slot.srodek, p["cel"].srodek, przed, log, straz, nazwa):
+                wynik["status"] = "ekw_odmowa"
+                wynik["powod"] = "cel przeciągnięcia nie jest slotem okna kontenera (straż ekwipunku)"
+                break
             _pauza(0.25, 0.5)
             _okno_ilosci_ok(mysz, nazwa, log, przed)
+            straz.po(nazwa)
             obraz, nowy = _plan_teraz(mysz, lista, log)
             ile = _zebrano_z_pamieci(p, nowy)
             if ile is not None and ile > 0:
@@ -1941,6 +2060,8 @@ def krok_w_walce(stan, pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA, log=prin
             return "przerwane", "na_zwlokach"
         if _drabina(dx, dy, gracz_pozycja):
             return "przerwane", "drabina"
+        if _zakazane(dx, dy, gracz_pozycja, True):
+            return "przerwane", "dziura"
         kontenery = _odczyt_kontenerow()
         if kontenery is None:
             return "przerwane", "brak_pamieci"
@@ -2008,9 +2129,15 @@ def krok_w_walce(stan, pozycja_zwlok, gracz_pozycja, lista=DO_ZEBRANIA, log=prin
                 slot, nazwa = p["przedmiot"]
                 bot.sprawdz_stop()
                 przed = _zrzut(mysz)
-                mysz.przeciagnij(*slot.srodek, *p["cel"].srodek, drganie=4)
+                straz = stan.get("straz")
+                if straz is None:
+                    straz = stan["straz"] = _straznik(log)
+                if not _przeciagnij_pewnie(mysz, slot.srodek, p["cel"].srodek, przed, log, straz, nazwa):
+                    stan.update(faza="zamknij", koniec_powod="ekw_odmowa")
+                    return "kontynuuj", None
                 _pauza(0.15, 0.3)
                 _okno_ilosci_ok(mysz, nazwa, log, przed)
+                straz.po(nazwa)
                 stan["faza"] = "weryfikuj"
                 return "kontynuuj", f"przenies {nazwa}"
         if faza == "weryfikuj_jedzenie":

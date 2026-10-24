@@ -198,7 +198,8 @@ sprawdz("9 kończy się", w["wynik"] == "przerwane" and w["czas_s"] < uh.UH_MAKS
 # 10. slot ręki pusty / z blank na starcie
 s = Swiat(); s.ekw.pop(5)
 w = uh.zrob_runa(srod(s), slot=5)
-sprawdz("10 pusty slot: nic nie robi", w["wynik"] == "przerwane" and s.drag_log == [], w)
+# 23.10: pusty slot i brak tarczy w plecakach = runa bez tarczy (wcześniej przerwanie slot_bez_tarczy)
+sprawdz("10 pusty slot, brak tarczy: runa bez tarczy", w["wynik"] == "ok" and UHR in s.plecak and 5 not in s.ekw and not w["alarm"], w)
 
 # 11. mozna_robic
 g = {"hp": 190, "max_hp": 200, "mana": 130, "max_mana": 130}
@@ -582,6 +583,60 @@ for n in range(0, 6):
     w = uh.zrob_runa(srod2(s), slot=5)
     wszystkie = wszystkie and s.ekw.get(5) == TARCZA and not w["alarm"]
 sprawdz("17p przerwanie po n-tym ruchu: zawsze tarcza w slocie", wszystkie)
+
+# 18. 23.10 invincible: blank w ręce (po ręcznym UH), tarcza w plecaku => UH sam się naprawia; brak tarczy => runy bez tarczy
+def ekw5(s, v):
+    if v is None: s.ekw.pop(5, None)
+    else: s.ekw[5] = v
+    return s
+
+# 18a. odtworzenie stanu z gniazda: blank w ręce, tarcza w plecaku, drugi blank w plecaku -> runa + tarcza z powrotem
+s = ekw5(Swiat(plecak=[ZLOTO, TARCZA, BLANK, ZLOTO]), BLANK)
+w = uh.zrob_runa(srod(s), slot=5)
+sprawdz("18a blank w ręce, tarcza w plecaku: runa + tarcza wraca", w["wynik"] == "ok" and not w["alarm"]
+        and s.ekw.get(5) == TARCZA and UHR in s.plecak and s.klawisze == ["F5"], (w["wynik"], w["powod"], s.ekw, s.plecak, s.klawisze))
+sprawdz("18a2 bez zbędnego zdejmowania tarczy", "tarcza_do_plecaka" not in kroki(w), kroki(w))
+
+# 18b. kontrola na starcie (naprawa): blank w ręce, tarcza w plecaku -> blank do plecaka, tarcza do ręki, bez rzutu
+s = ekw5(Swiat(plecak=[ZLOTO, TARCZA, ZLOTO]), BLANK)
+w = uh.naprawa(srod(s), slot=5)
+sprawdz("18b naprawa na starcie: tarcza w ręce, blank w plecaku", w["wynik"] == "naprawiono" and s.ekw.get(5) == TARCZA
+        and s.plecak.count(BLANK) == 1 and s.klawisze == [] and not w["alarm"], (w["wynik"], w["powod"], s.ekw, s.plecak))
+
+# 18c. brak tarczy w ogóle, ręka pusta -> runa bez tarczy
+s = ekw5(Swiat(), None)
+w = uh.zrob_runa(srod(s), slot=5)
+sprawdz("18c ręka pusta, brak tarczy: runa bez tarczy", w["wynik"] == "ok" and not w["alarm"] and UHR in s.plecak
+        and 5 not in s.ekw and s.klawisze == ["F5"] and s.plecak.count(BLANK) == 1, (w["wynik"], w["powod"], s.ekw, s.plecak, s.klawisze))
+
+# 18d. brak tarczy w ogóle, blank w ręce -> rzut, runa do plecaka, ręka pusta
+s = ekw5(Swiat(plecak=[ZLOTO, ZLOTO]), BLANK)
+w = uh.zrob_runa(srod(s), slot=5)
+sprawdz("18d blank w ręce, brak tarczy: runa bez tarczy", w["wynik"] == "ok" and UHR in s.plecak and 5 not in s.ekw
+        and s.klawisze == ["F5"] and not w["alarm"], (w["wynik"], w["powod"], s.ekw, s.plecak))
+
+# 18e. kontrola na starcie bez tarczy w ogóle: nic do naprawy, zero ruchów
+s = ekw5(Swiat(), None)
+w = uh.naprawa(srod(s), slot=5)
+sprawdz("18e naprawa bez tarczy: ok, bez ruchów", w["wynik"] == "ok" and s.drag_log == [], (w["wynik"], s.drag_log))
+
+# 18f. stwór w widoku po pierwszym ruchu (blank w ręce, tarcza w plecaku): tarcza na miejscu, bez rzutu
+s = ekw5(Swiat(plecak=[ZLOTO, TARCZA, BLANK, MIECZ, MIECZ], przerwij_po=0), BLANK)  # MIECZ: plecak z samymi runami/monetami byłby brany za pojemnik na runy
+w = uh.zrob_runa(srod(s), slot=5)
+sprawdz("18f stwór: tarcza w ręce, bez rzutu, bez alarmu", w["wynik"] == "przerwane" and s.ekw.get(5) == TARCZA
+        and s.klawisze == [] and not w["alarm"], (w["wynik"], w["powod"], s.ekw, s.plecak, s.klawisze))
+
+# 18g. stwór po pierwszym ruchu bez tarczy: ręka pusta, blank wrócił do plecaka, bez rzutu
+s = ekw5(Swiat(plecak=[ZLOTO, BLANK], przerwij_po=1), None)
+w = uh.zrob_runa(srod(s), slot=5)
+sprawdz("18g bez tarczy + stwór: ręka pusta, blank w plecaku, bez alarmu", w["wynik"] == "przerwane" and 5 not in s.ekw
+        and s.plecak.count(BLANK) == 1 and s.klawisze == [] and not w["alarm"], (w["wynik"], w["powod"], s.ekw, s.plecak))
+
+# 18h. nieudany rzut z blankiem w ręce i tarczą w plecaku: blank do plecaka, tarcza do ręki
+s = ekw5(Swiat(plecak=[ZLOTO, TARCZA], cast="nic"), BLANK)
+w = uh.zrob_runa(srod(s), slot=5)
+sprawdz("18h nieudany rzut: stan wyjściowy z tarczą", w["wynik"] == "przerwane" and s.ekw.get(5) == TARCZA
+        and s.plecak.count(BLANK) == 1 and not w["alarm"], (w["wynik"], w["powod"], s.ekw, s.plecak))
 
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

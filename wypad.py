@@ -46,6 +46,7 @@ TRYBY_NAUKI = ("krok", "use", "lina", "lopata")
 
 NPC = "Al Dee"
 ID_TORCH = {2920}                       # niezapalona pochodnia (pochodnia.ID_NOWA)
+ID_ANTIDOTE = 3153                      # antidote rune (dane_tibia/przedmioty.json)
 ID_LINA = 3003                          # rope (loot.NAZWA_ID)
 ID_LOPATA = 3457                        # shovel (ID klienta, jak rope 3003 / ham 3582; 2554 to ID serwera): odkopanie zasypanej dziury (Use with)
 ID_JEDZENIE_DOMYSLNE = {3582, 3583, 3577, 3578, 3579, 3600, 3602, 3607, 3601}   # gdy loot.py niedostępny
@@ -673,9 +674,23 @@ class OperacjeZywe:
             xy = pochodnia.pozycje_ekwipunku(obraz).get(int(slot))
             if xy is None:
                 raise BrakEkranu(f"lina w slocie {slot}, ale nie widzę panelu Inventory")
+            pole_xy = ekran.pole_na_ekran(dx, dy, ekran.aktualny_prostokat(mysz.ekran))
+            self.log(f"Wypad: lina ze slotu {slot} ekwipunku (Use z panelu, nie z plecaka): Ctrl+klik {tuple(xy)}, potem klik na polu {tuple(pole_xy)}")
+            straz = self._straznik("lina")
+            straz.przed()
             mysz.klik(xy[0], xy[1], 1, "Control_L", drganie=3)
             time.sleep(0.45)
-            mysz.klik(*ekran.pole_na_ekran(dx, dy, ekran.aktualny_prostokat(mysz.ekran)), 1, None, drganie=2)
+            mysz.klik(*pole_xy, 1, None, drganie=2)
+            straz.po(f"Use liny ze slotu {slot}")
+
+    def uzyj_antidote(self, poz):
+        """23.10: antidote rune (3153) z plecaka użyta na siebie (Ctrl+klik runy, klik na własne pole). BrakEkranu = brak runy w otwartych pojemnikach."""
+        self._uzyj_na_polu(ID_ANTIDOTE, "antidote rune", tuple(poz), tuple(poz), wszystkie=True)
+
+    def _straznik(self, etykieta):
+        """Strażnik ekwipunku na odczycie tej warstwy (23.10: lina znikła ze slotu 10; [EKW] przy każdej zmianie slotu)."""
+        import straz_ekw  # noqa: PLC0415
+        return straz_ekw.Straznik(self.zapytaj, getattr(self, "log", print), etykieta)
 
     def zdejmij_z_pola(self, pole, poz):
         """Przeciąga wierzch pola `pole` (obok `poz`) pod nas: zwłoki/rzecz na polu liny blokują linę (22.10, jak wpadniecie).
@@ -684,8 +699,11 @@ class OperacjeZywe:
         if (dx, dy) == (0, 0) or abs(dx) > 1 or abs(dy) > 1:
             return
         import ekran  # noqa: PLC0415
+        straz = self._straznik("pole liny")
+        straz.przed()
         with ekran.Mysz() as mysz:
             mysz.przeciagnij_pola(dx, dy, 0, 0)
+        straz.po(f"zdjęcie rzeczy z pola {tuple(pole)}")
 
     def uzyj_lopate(self, cel, poz):
         """Ctrl+klik na łopacie w plecaku (Use with), potem klik na polu `cel` (zasypana dziura) albo własnym."""
@@ -1126,6 +1144,8 @@ class Wypad:
         elif nastepny is not None and nastepny["typ"] == "DRZWI":
             cel_blisko = nastepny["drzwi"]
         if nastepny is not None and nastepny["typ"] == "DZIURA" and poz[2] == ost[2]:
+            if cheb(poz, nastepny["dziura"]) <= 8 and self._hp_czekaj(poz, ("schody", nastepny["stoi"][2], nastepny["ladunek"][2])):
+                return True
             w = self._klik_schody(poz, nastepny, teraz)
             if w is not None:
                 return w
@@ -1800,9 +1820,24 @@ class Wypad:
                 return nowa
         return poz
 
+    def _hp_czekaj(self, poz, klucz):
+        """23.10 (Karol: "dobrze by było, jakby miał dużo HP"): tuż przed przejściem pięter czekamy na HP (cavebot.HP_PRZED_PIETREM,
+        leczenie exura w cavebocie). True = obieg zużyty. Czekanie nie jest brakiem postępu (bezpiecznik przejścia, utknięcie etapu)."""
+        f = getattr(self.cb, "_hp_przed_pietrem", None)
+        if f is None:
+            return False
+        if f(tuple(poz), self.cb.zegar(), klucz):
+            self.pj = None
+            self.postep = None
+            return True
+        return False
+
     def _lina(self, poz, e, teraz):
         """Przejście w górę: DRABINA (Ctrl+klik na polu drabiny obok pola stania), a po wyczerpaniu prób lina."""
         cb = self.cb
+        if poz[2] == e["stoi"][2] and cheb(poz, e["cel"]) <= 1 and not self._nie_czas(e, teraz) \
+                and self._hp_czekaj(poz, ("lina", e["stoi"][2], e["ladunek"][2])):
+            return True
         w = self._pilnuj_przejscia(poz, e, teraz)
         if w is not None:
             return w
@@ -1881,6 +1916,9 @@ class Wypad:
         cb = self.cb
         h = e["dziura"]
         if poz[2] != e["stoi"][2]:
+            return True
+        if cheb(poz, h) <= 1 and not self._nie_czas(e, teraz) \
+                and self._hp_czekaj(poz, ("dziura", e["stoi"][2], e["ladunek"][2])):
             return True
         w = self._pilnuj_przejscia(poz, e, teraz)
         if w is not None:
@@ -2044,8 +2082,9 @@ class Wypad:
             return True
         n = e.get("proby", 0)
         e["proby"] = n + 1
-        # drzwi, które już otwieraliśmy, bywają otwarte (powrót): najpierw sam krok; inaczej Use
-        tryby = ("krok", "use", "krok") if tuple(h) in self.drzwi_otwarte else ("use", "krok", "use")
+        # 24.10 (Karol: „zamyka drzwi przed wejściem”): ZAWSZE najpierw dwa kroki, Use dopiero po nich (Use na otwartych drzwiach
+        # je zamyka); wcześniej nieznane drzwi zaczynały od Use. Jak serwis.przejdz_drzwi i cavebot DRZWI_NAJPIERW_KROK.
+        tryby = ("krok", "krok", "use", "krok", "use", "krok")   # 6 prób = DRZWI_PROB: drugie Use dla opornych drzwi
         tryb = tryby[n % len(tryby)]
         self.log(f"Wypad: drzwi {h[:2]} próba {n + 1}/{DRZWI_PROB} ({tryb}) z {tuple(poz)}")
         try:

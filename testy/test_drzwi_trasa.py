@@ -189,7 +189,10 @@ s, b = hak_po_ruchu(1 if HAS_NOWE else 0)
 if HAS_NOWE:
     sprawdz("6a DRZWI_SPOKOJ=1: Use dopiero po stojącej pozycji, drzwi się otwierają", s.zgubione == 0 and STAN["otwarte"] and len(s.uzycia) == 1,
             f"uz={len(s.uzycia)} zgubione={s.zgubione}")
+    nk0 = getattr(cavebot, "DRZWI_NAJPIERW_KROK", 0)
+    cavebot.DRZWI_NAJPIERW_KROK = 0                # 24.10: z krokiem przed Use (test_drzwi_najpierw_krok) hak nie wysyła Use w trakcie kroku
     s, b = hak_po_ruchu(0)
+    cavebot.DRZWI_NAJPIERW_KROK = nk0
     sprawdz("6b DRZWI_SPOKOJ=0 (jak dotąd): Use zaraz po kroku zgubiony", s.zgubione >= 1 and not STAN["otwarte"], f"uz={len(s.uzycia)} zgubione={s.zgubione}")
 else:
     sprawdz("6a Use dopiero po stojącej pozycji, drzwi się otwierają", s.zgubione == 0 and STAN["otwarte"] and len(s.uzycia) == 1,

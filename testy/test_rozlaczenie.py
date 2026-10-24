@@ -292,6 +292,7 @@ class Tele:
 
 def zrob(s, knob):
     cavebot.ROZLACZENIE_STOP = knob
+    cavebot.ROZLACZENIE_WYJSCIE = 0          # 23.10: te testy dotyczą trybu pauzy w żywym procesie; koniec procesu ma testy/test_wylogowanie.py
     cavebot.SMIERC_STOP = 0
 
     def atak(m, g):
@@ -472,12 +473,12 @@ sprawdz("D3 mozg po wznowieniu (rozlaczony False): blokada zdjęta", getattr(mz,
 
 # ------------------------------------------------------------------------------------------------ (E) pokrętło
 src = (KORZEN / "cavebot.py").read_text()
-sprawdz("E1 pokrętło w cavebot.py, domyślnie 0", "\nROZLACZENIE_STOP = 0 " in src)
+sprawdz("E1 pokrętło w cavebot.py, domyślnie 1 (23.10: było 0; gebelish/odchyd bez klucza w na_zywo.json)", "\nROZLACZENIE_STOP = 1 " in src)
 przyklad = json.loads((KORZEN / "na_zywo.przyklad.json").read_text())
 if "ROZLACZENIE_STOP" in pokretla.ZAKRESY or "ROZLACZENIE_STOP" in przyklad:
-    sprawdz("E2 pokrętło w pokretla.ZAKRESY (0,1), przykład 0, tylko w dół (nie_wyzej)",
-            pokretla.ZAKRESY.get("ROZLACZENIE_STOP") == (0, 1) and przyklad.get("ROZLACZENIE_STOP") == 0
-            and pokretla.KIERUNEK.get("ROZLACZENIE_STOP") == "nie_wyzej")
+    sprawdz("E2 pokrętło w pokretla.ZAKRESY (0,1), przykład 1, analityk nie obniży (nie_nizej; 23.10)",
+            pokretla.ZAKRESY.get("ROZLACZENIE_STOP") == (0, 1) and przyklad.get("ROZLACZENIE_STOP") == 1
+            and pokretla.KIERUNEK.get("ROZLACZENIE_STOP") == "nie_nizej")
 else:
     print("INFO E2 wpisy pokretla.ZAKRESY/KIERUNEK i na_zywo.przyklad.json doda lead (poza zakresem plików tej zmiany)")
 

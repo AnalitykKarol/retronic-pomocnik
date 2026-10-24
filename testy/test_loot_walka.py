@@ -37,6 +37,7 @@ def mob(x, y=100, id=9, hp=100, z=7, nazwa="Troll"):
 
 def nowy(dyn=1):
     cavebot.LOOT_DYNAMICZNY = dyn
+    cavebot.LOOT_SZYBKI_STYKAJACE = 0      # 23.10: te testy opisują dawną regułę (przylegający mob = loot odłożony); nową pokrywa test_loot_styk.py
     s = Swiat()
     loot = types.SimpleNamespace(zbierz=lambda z, g: "ok", zjedz=lambda log=None: [], ile_jedzenia=lambda: 10)
     b = cavebot.Cavebot(P(s), [(100 + i, 100, 7) for i in range(1, 11)], zapytaj=s.zapytaj, atak=lambda m, g: None,

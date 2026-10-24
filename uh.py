@@ -440,7 +440,7 @@ def _wid(p, ekw, kont, ekran=True):
 def _plecak(kontenery):
     """Jedyny kontener-plecak gracza (nazwa backpack/bag) albo None."""
     import loot
-    pl = [k for k in kontenery if (k.get("nazwa") or "").casefold() in ("backpack", "bag")
+    pl = [k for k in kontenery if loot.czy_plecak(k)     # 24.10: także Blue backpack (odchyd), jak loot.PLECAKI
           and not loot.czy_runy(k)]
     return pl[0] if len(pl) == 1 else None
 
@@ -549,6 +549,7 @@ class _Przebieg:
         self.baza = None              # ile tarcz tego ID leży w plecakach, gdy tarcza jest w slocie (dowód z kontenerów)
         self.ambig = False            # start: tarcza w slocie wg ekwipunku, a taka sama leży też w plecaku
         self.naprawa = False          # start: slot pusty, tarcza w plecaku: tylko ją zakładamy
+        self.bez_tarczy = False       # 23.10: tarczy nie ma w żadnym otwartym pojemniku: runy robimy bez niej
         self.geom = None
         self.rozb = set()
         self.odswiezono = False       # tablica ekwipunku przeładowana w tym runie (raz, przy rozbieżności)
@@ -872,19 +873,33 @@ def _przebieg(p, tylko_naprawa=False):
         p.krok("wznowienie_powrotu", tarcza_id=zapamietana)
         p.powod = "wznowienie powrotu tarczy"
     else:
-        kand = _kandydat_tarczy(p, plecak, runy) if wid is None else None
-        if kand is not None:
+        kand = _kandydat_tarczy(p, plecak, runy) if wid is None or wid == UH_BLANK_ID else None
+        if kand is not None and wid is None:
             # slot tarczy pusty, a tarcza znanego ID leży w plecaku (np. po przerwanym UH): zakładamy ją
             p.tarcza_id, p.zdjeto, p.naprawa = kand, True, True
             p.baza = max(_ile_tarczy(kont, kand) - 1, 0)
             p.powod = "tarcza_naprawa"
             p.krok("tarcza_naprawa", id=kand, powod="slot pusty, tarcza w plecaku")
+        elif kand is not None:
+            # 23.10 (invincible, stanowisko Horn): blank w ręce (zostawiony po ręcznym UH), tarcza w plecaku. Wcześniej
+            # kontrola na starcie mówiła "ok", a UH padał na "slot_bez_tarczy". Teraz tarcza liczy się jako zdjęta:
+            # kontrola na starcie odkłada blank i zakłada tarczę; zwykły przebieg rzuca czar blankiem z ręki
+            # i potem przywraca tarczę (ta sama maszyna stanów co po przerwanym UH).
+            p.tarcza_id, p.zdjeto = kand, True
+            p.baza = max(_ile_tarczy(kont, kand) - 1, 0)
+            if tylko_naprawa:
+                p.naprawa, p.powod = True, "tarcza_naprawa"
+            if isinstance(stan, dict):
+                stan["tarcza_id"] = kand             # zamiar przed ruchem: restart w środku też odzyska tarczę
+            p.krok("tarcza_naprawa" if tylko_naprawa else "blank_w_reku_tarcza_w_plecaku", id=kand,
+                   powod="blank w ręce, tarcza w plecaku")
         elif wid is None or wid == UH_BLANK_ID:
+            # 23.10: tarczy nie ma w otwartych pojemnikach (Karol: "jak nie ma tarczy, robi runy bez tarczy")
             if tylko_naprawa:
                 return {"wynik": "ok", "powod": "nic do naprawy", "kroki": p.kroki, "alarm": False,
                         "czas_s": round(p.czas(), 2), "rzuty": 0}
-            p.przerwij("slot_bez_tarczy (pusty albo blank runa)")
-            return _wynik(p, "przerwane", p.powod)
+            p.bez_tarczy = True
+            p.krok("bez_tarczy", id=None, powod="brak tarczy w plecakach, robię runę bez niej")
         else:
             p.tarcza_id = wid
             p.baza = _ile_tarczy(kont, wid)
@@ -894,7 +909,7 @@ def _przebieg(p, tylko_naprawa=False):
                 return {"wynik": "ok", "powod": "nic do naprawy", "kroki": p.kroki, "alarm": False,
                         "czas_s": round(p.czas(), 2), "rzuty": 0}
     if not p.zdjeto and not tylko_naprawa:
-        if _gdzie_blank(plecak, runy, tylko_pojedyncze=True) is None:
+        if not (p.bez_tarczy and wid == UH_BLANK_ID) and _gdzie_blank(plecak, runy, tylko_pojedyncze=True) is None:
             if _gdzie_blank(plecak, runy) is not None:
                 p.przerwij("blank_stos (ilosc > 1, przeciągnięcie otworzy okno ilości)")
                 return _wynik(p, "przerwane", p.powod)
@@ -958,7 +973,7 @@ def _przebieg(p, tylko_naprawa=False):
             return _wynik(p, "przerwane", p.powod)
         runy = _runy(kont)
         # środek procedury: stwór itp. => wracamy
-        if p.powod is None and p.zdjeto:
+        if p.powod is None and (p.zdjeto or p.bez_tarczy):
             try:
                 powod = env.przerwanie()
             except Exception as ex:
@@ -987,7 +1002,7 @@ def _przebieg(p, tylko_naprawa=False):
         wracaj = p.powod is not None or p.rzucono
         wolne = _wolne(plecak)
 
-        if wid == p.tarcza_id:
+        if wid == p.tarcza_id and not p.bez_tarczy:
             if p.zdjeto:
                 p.zdjeto = False
                 if isinstance(stan, dict):
@@ -1026,6 +1041,8 @@ def _przebieg(p, tylko_naprawa=False):
             continue
 
         if wid is None:
+            if wracaj and p.bez_tarczy:
+                break                                  # ręka pusta, nie ma tarczy do oddania: koniec
             if wracaj:
                 n = _gdzie(plecak, p.tarcza_id)
                 skad_t = "plecak"
@@ -1103,7 +1120,7 @@ def _przebieg(p, tylko_naprawa=False):
 
     # końcowa weryfikacja: ekwipunek z pamięci + kontenery (+ zrzut), nie sama tablica ekwipunku
     ekw, kont = _odczyt(env, bez_ekw=True)
-    wrocila = bool(kont) and _wid(p, ekw, kont) == p.tarcza_id
+    wrocila = bool(kont) and (p.bez_tarczy or _wid(p, ekw, kont) == p.tarcza_id)
     ratunek_potrzebny = (not wrocila) or (p.ambig and not p.zdjeto and p.proby.get("tarcza_do_plecaka", 0) >= UH_MAKS_PROB)
     if ratunek_potrzebny and p.tarcza_id is not None and kont:
         # ostatnia deska: tarcza w plecaku, a slot pusty/niepewny => załóż (też gdy ekwipunek twierdzi co innego)

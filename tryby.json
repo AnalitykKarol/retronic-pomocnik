@@ -21,14 +21,16 @@
  "ostrozny": {
   "opis": "Bez run w walce (tylko melee, leczenie i jedzenie jak dotąd).",
   "pokretla": {
-   "RUNA_AKTYWNA": 0
+   "RUNA_AKTYWNA": 0,
+   "ZDROWIE_CZAR_AKTYWNY": 1
   }
  },
  "ml": {
   "opis": "Trening ML przez utevo lux (F1) w spokoju; robienie run wyłączone.",
   "pokretla": {
    "ML_CZAR_AKTYWNY": 1,
-   "UH_AKTYWNY": 0
+   "UH_AKTYWNY": 0,
+   "ZDROWIE_CZAR_AKTYWNY": 1
   }
  },
  "runy": {
@@ -113,6 +115,13 @@
    "WYPRAWA_TYLKO_DEPO": 1,
    "WYPRAWA_POCHODNIE": 0,
    "WYPRAWA_BLANKI": 0
+  }
+ },
+ "bez_wypraw": {
+  "opis": "23.10: bez wypraw (WYPRAWA_AKTYWNA=0), bez refillu; łącz na końcu, np. uh,stoj,bez_wypraw = stoi w miejscu i robi UH.",
+  "pokretla": {
+   "WYPRAWA_AKTYWNA": 0,
+   "WROC_REFILL": 0
   }
  }
 }

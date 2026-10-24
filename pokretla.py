@@ -3,6 +3,7 @@ Tylko klucze z ZAKRESY i tylko wartości w twardych granicach; reszta jest odrzu
 Wartość = nadpisanie stałej modułu cavebot (klucz = nazwa stałej). Brak klucza w pliku = domyślna.
 Auto-cofnięcie: zmiana z analityka jest oceniana po COFNIECIE_S wg zabić/min i odpuszczeń/min."""
 import json
+import re
 import time
 from pathlib import Path
 
@@ -43,6 +44,7 @@ ZAKRESY = {
     "LOOT_W_WALCE_HP": (0, 95),         # % HP gracza: twarda dolna granica bezwzględna (domyślnie 0 = wyłączona)
     "LOOT_W_WALCE_HP_MARGINES": (15, 40),  # pp nad progiem ucieczki: HP wyżej niż prog_aktualny + margines pozwala lootować w walce
     "LOOT_W_WALCE_STYKAJACE": (1, 2),   # maks. żywych potworów w odl 1 przy lootowaniu w walce
+    "LOOT_SZYBKI_STYKAJACE": (0, 2),    # 23.10: maks. żywych potworów w odl 1 przy lootcie zaraz po zabiciu (0 = dawne: przylegający mob odkłada loot)
     "WYPAD_PO_TORCHE": (0, 1),          # 1 = wypad do miasta po pochodnie; analityk nie może go wyłączyć (tylko w górę)
     "POCHODNIA_W_PRZERWIE": (0, 1),     # 1 = wymiana wypalonej pochodni także w trakcie zaplanowanej przerwy
     "WYPAD_ILE_TORCHY": (1, 10),        # ile pochodni mieć po zakupie u Al Dee
@@ -179,6 +181,7 @@ ZAKRESY = {
     "WYPRAWA_POCHODNIE": (0, 1),        # 1 = pochodnie u Gorna przy okazji
     "WYPRAWA_CAP_REZERWA": (0, 100),    # oz capa wolne po zakupach
     "WYPRAWA_ZLOTO_MIN": (0, 100000),   # gp: poniżej wyprawa nie startuje
+    "WYPRAWA_CAP_MIN": (0, 200),        # 23.10 oz: wolny cap poniżej tego = wyprawa do depo (tryb depo; 0 = wyłączone)
     "WYPRAWA_MIN_HP": (30, 100),        # % HP do startu
     "WYPRAWA_CO_MIN": (1, 240),         # min: odstęp między wyprawami
     "WYPRAWA_MAX_CZAS_S": (300, 7200),  # s: twardy limit czasu wyprawy
@@ -194,6 +197,10 @@ ZAKRESY = {
     "DOJSCIE_WALKA_PRZEJSCIE_S": (0, 120),  # P7d: s walki do skutku przy blokującym stworze przy dziurze/schodach w dojściu (0 = 8 s jak dawniej)
     "DOJSCIE_BEZ_UNIKANIA_POL": (0, 60),    # P7f: >0 = w tylu polach od początku dojścia (depo) bez unikania graczy (domyślnie 0)
     "DOJSCIE_PROBY": (3, 8),            # P7e: liczba prób dojścia od aktualnej pozycji
+    "BLOKADA_BIJ_KAZDEGO": (0, 1),      # 23.10 (Karol): 1 = w dojściu i wypadzie stwór DOWOLNY (też spoza --potwory) na jedynym kroku drogi bez objazdu jest bity; 0 = jak dawniej
+    "BLOKADA_BIJ_OBJAZD": (0, 30),      # 23.10: objazd dłuższy o tyle pól od drogi bez stworów nie liczy się jako objazd
+    "HP_PRZED_PIETREM": (0, 100),       # 23.10 (Karol): HP% przed przejściem pięter w dojściu/wypadzie (czeka w miejscu i leczy się); 0 = wyłączone
+    "HP_PRZED_PIETREM_MAX_S": (0.0, 600.0),   # 23.10: najdłuższe czekanie na HP przed jednym przejściem, potem idzie dalej (bez STOP)
     "DOJSCIE_PAUZA_PROBY_S": (0.0, 15.0),   # P7e: s pauzy przed kolejną próbą dojścia
     "DOJSCIE_BIEGNIJ": (0, 1),          # 1 = w dojściu na spot (powrót z depo) biegniemy bez walki/lootu; bijemy tylko blokujące moby
     "PIETRA_LOPATA_TYLKO_Z7": (0, 1),   # 1 = łopata tylko na z7 (wejście z powierzchni), 0 = na każdym piętrze
@@ -206,15 +213,27 @@ ZAKRESY = {
     "SKAN_WIEK_SPOKOJ": (0.5, 1.5),     # 21.10: s, wiek listy stworów poza walką (więcej = rzadszy skan); 0.5 = jak dotąd
     "WPADNIECIE_PLAN_PULE": (0, 1),     # 21.10: 1 = plan wpadnięcia: osobna pula pewnych przejść (kratki, schody z tras) obok niepewnych z mapy; domyślnie 0
     "LOOT_BEZ_DRABIN": (0, 1),          # 21.10: 1 = loot nie klika (Use) w pole drabiny, bo wspina postać piętro wyżej; domyślnie 0
+    "WPADNIECIE_UCIECZKA": (0, 1),      # 23.10: 1 = kieszeń po upadku (brak drogi do trasy): UCIECZKA nie przejmuje obiegu, wyjście i walka pierwsze, exura także poniżej progu ucieczki
+    "WPADNIECIE_BIJ": (0, 1),           # 23.10: 1 = stwór spoza --potwory na polu wyjścia / zagradzający wyjście z kieszeni jest celem
+    "WPADNIECIE_DRABINA": (0, 1),       # 23.10: 1 = Use (Ctrl+klik) na polu wyjścia jak na drabinie przed liną (minimapa nie odróżnia drabiny od liny)
+    "ZATRUCIE_AKTYWNY": (0, 1),         # 23.10: 1 = wykrywanie zatrucia (HP/pamięć) i leczenie exana pox / antidote rune
+    "ZATRUCIE_RUNA": (0, 1),            # 23.10: 1 = antidote rune (3153) z plecaka na siebie
+    "ZATRUCIE_CZAR_KOSZT": (20, 60),    # 23.10: mana exana pox
+    "LOOT_BEZ_DZIUR": (0, 1),           # 23.10 (zgon odchyda): 1 = loot nie klika (Ctrl+klik) w pole dziury z listy dziur ani w ścianę wg mapy (poza polem zwłok); domyślnie 1
     "WPADNIECIE_BEZ_STOP": (0, 1),      # 21.10: 1 = po wpadnięciu cykle ponawiania zamiast STOP (STOP po PIETRA_MAX_S i >=3 cyklach); domyślnie 0
     "PRZEJSCIE_TRZY_SPOSOBY": (0, 1),   # 21.10: 1 = przejście pięter: wejść / kliknąć / lina na punkcie, działający sposób zapamiętany; domyślnie 0
-    "ROZLACZENIE_STOP": (0, 1),         # 21.10: 1 = ekran logowania -> bot nie naciska klawiszy, powiadomienie, wznowienie po powrocie do gry; domyślnie 0
+    "ROZLACZENIE_STOP": (0, 1),         # 21.10: 1 = ekran logowania -> bot nie naciska klawiszy, powiadomienie; 23.10 domyślnie 1 (było 0)
+    "ROZLACZENIE_WYJSCIE": (0, 1),      # 23.10: 1 = wylogowanie kończy proces bota (znacznik wylogowany.json, relog w nadzorcy); 0 = dawna pauza w żywym procesie; domyślnie 1
+    "START_PO_UPADKU": (0, 1),          # 23.10: 1 = start na piętrze spoza pętli tuż pod nią = upadek (wyjście w górę przed dojściem); domyślnie 1
     "WPADNIECIE_POSCIG": (0, 1),        # 20.10: 1 = upadek w dziurę w trakcie pościgu też jest wykrywany (ostatnia próbka odświeżana w pętli); domyślnie 0
     "WPADNIECIE_WALIDACJA": (0, 1),     # 1 = nauka dziury tylko z flagą 2 mapy i bez schodów w pobliżu (domyślnie 0)
     "WPADNIECIE_ODL": (1, 6),           # pola: lądowanie tak blisko poprzedniej pozycji = upadek (dalej: teleport/śmierć)
     "DZIURA_PRZY_CELU": (0, 1),         # 15.10: 1 = nie atakujemy/nie gonimy celu stojącego przy znanej dziurze, gdy klient szedłby przez nią
     "DZIURY_NAUCZONE": (0, 1),          # 1 = pola z trasy/dziury_nauczone.json są ścianą dla dróg A* i kroków
     "PIETRA_LOPATA": (0, 1),            # 1 = wejście dziurą w dół: po nieudanym kroku odkopanie dziury łopatą z plecaka
+    "PIETRA_LOPATA_WEJSCIE": (0, 1),    # 24.10: 1 = krok w dziurę zaraz po udanej łopacie i powrót po przesunięciu (walka); 0 = dawne
+    "PIETRA_LOPATA_OKNO_S": (10.0, 600.0),  # 24.10: s po łopacie, w których dziura jest uznana za otwartą (bez oddawania kandydata)
+    "DOJSCIE_BRAK_POSTEPU_S": (0.0, 900.0),  # 24.10: dojście bez nowego punktu trasy tyle s = porażka próby (0 = wyłączone)
     "PIETRA_LOPATA_AUTO": (0, 1),       # 21.10: 1 = łopata na każdym zejściu w dół (nie tylko ZASYPANE i pamięć "lopata"); domyślnie 0
     "PIETRA_TRYBY_Z_DANYCH": (0, 1),    # R1b: 1 = przejścia pięter tylko skutecznymi trybami (krok na schodach, R z drabiny ze skosu), start ortogonalny tylko dla kroku
     "PIETRA_CZEKAJ_KROK_S": (0.0, 4.0),  # R1b: s czekania na zmianę piętra po kroku (0 = dawne 2,0 s i dłuższe odstępy)
@@ -238,6 +257,7 @@ ZAKRESY = {
     "WYPRAWA_TYLKO_DEPO": (0, 1),       # 1 = wyprawa kończy się w depo (bez zakupów, bez powrotu): alarm + STOP (tryb wyprawa_depo)
     "WYPRAWA_MARSZ_KLIK": (0, 1),       # 1 = w drodze do miasta/depo klik w mapę zamiast kroków (wypad.py, marsz_klik.py); 0 = jak dotąd
     "WROC_REFILL": (0, 1),              # 1 = po dojściu do depo (wroc.sh / wyprawa tylko-do-depo) automatyczny refill (refill_auto.py)
+    "DEPO_EDRON_OBSZAR": (0, 1),        # 24.10: 1 = dojście do depo Edron kończy się na LOSOWYM polu obszaru hali (serwis_edron.json `depo_obszar`), nie zawsze na tym samym stanowisku; 0 = dawne stanowisko (33173,31796)
     "JEDZENIE_ZAPAS_MIN": (1, 20),      # poniżej tylu sztuk jedzenia w plecaku rzucamy exevo pan (przy JEDZENIE_CZAR_AKTYWNY=1)
     "OGIEN_UNIKAJ": (0, 1),             # 1 = omijaj pola ognia (wykrywane ze zrzutu), schodź z nich i nie lootuj z ognia (domyślnie 1)
     "RUCH_OKNO": (0, 1),                # 1 = rekord telemetrii ruch_okno co 30 s (R0b, bez wpływu na zachowanie)
@@ -261,6 +281,8 @@ ZAKRESY = {
     "OGIEN_WYJDZ_POTWIERDZ": (0, 1),    # 1 = z pola ognia schodzimy tylko po potwierdzeniu (spadek HP albo to samo pole >= 1,6 s); w walce ze stworem obok tylko po spadku HP (domyślnie 1)
     "OGIEN_MASKA_DANE": (0, 1),         # 1 = trwała maska pól przechodnich z epizodów (>= 3 epizody w >= 2 godzinach bez spadku HP), omija OGIEN_MASKA_TYLKO_SCIANY (domyślnie 1)
     "OGIEN_POMIJAJ_PRZY_STWORZE": (0, 1),  # 1 = wykrycia ognia na polu stwora/celu i obok niego pomijamy, dopóki HP nie spadnie (domyślnie 1)
+    "OGIEN_PODPALENIE_ZNANE": (0, 1),   # 24.10: 1 = wejście na znane parzące pole otwiera okno podpalenia 60 s (spadki HP nie obciążają innych pól) (domyślnie 1)
+    "OGIEN_EPIZODY_SCAL": (0, 1),       # 24.10: 1 = zapis epizodów ognia scala plik z pamięcią zamiast go nadpisywać (domyślnie 1)
     "OGIEN_LOG_S": (1.0, 60.0),         # s: min. odstęp między wpisami "[OGIEN] pola" (domyślnie 10)
     "OGIEN_ODSWIEZ_WALKA_S": (0.8, 5.0),  # s: odstęp wykryć ognia w WALKA bez zmiennych pól (domyślnie 0.8 = bez zmiany)
     "RUNA_AKTYWNA": (0, 1),             # 1 = strzał runą (hotkey RUNA_KLAWISZ) w celu w walce (domyślnie 0)
@@ -294,6 +316,7 @@ ZAKRESY = {
     "TRADE_MIN_UH": (20, 2000),         # run UH w plecakach wymaganych do ogłoszenia (min. 20 = 1 pełny BP)
     "TRADE_PRIV_ODPOWIEDZI": (0, 1),    # 1 = prywatne odpowiedzi na pytania o kupno UH (domyślnie 0; mozg.py TradePriv)
     "RUNA_MIN_HP_CELU": (0, 100),       # nie strzelaj do celu o HP% poniżej tego (0 = bez limitu)
+    "CELE_PIERWSZE_ZMIANA_ODL": (1, 7), # 24.10: pola: potwór z listy CELE_PIERWSZE tak blisko odrywa nas od bitego celu spoza listy (nowy cel bez limitu odległości w widoku)
     # 13.10 (G2: spec P1/P2): twarde ignorowanie, strażnicy, blokujący na wyjściu
     "IGNOR_TWARDE": (0, 1),             # 1 = ignorowanie celu nie znika przy podejściu na IGNOROWANIE_BLISKO (domyślnie 1)
     "IGNOR_DROGA_CO_S": (0.5, 3.0),     # s: jak często sprawdzamy, czy za ścianą otworzyła się droga
@@ -333,14 +356,26 @@ ZAKRESY = {
     "STRAZNIK_ORBITA_ZMIAN": (6, 60),   # min. zmian pozycji w oknie (domyślnie 15)
     "STRAZNIK_WYJSCIE_S": (30.0, 150.0),   # s aktywne na dłuższy sposób naprawy (plan pięter, A* do punktu), potem następny sposób (domyślnie 90; plan pięter zawsze zwijany po <= 120 s, przed PIETRA_MAX_S)
     "D3_ALARM_S": (0.0, 1800.0),        # 17.10 (F1): >0 = zawieszka D3 trwająca tyle s => jedno powiadomienie krytyczne, bez STOP (domyślnie 0 = wyłączone)
+    "ZWIECHA": (0, 1),                  # 23.10 (wydra 29 min): detektor zwiechy walki + drabina napraw (zwiecha.py); domyślnie 1
+    "ZWIECHA_N": (2, 8),                # zdarzeń (klików bez efektu) bez zabicia do szczebla 1
+    "ZWIECHA_OKNO_S": (60.0, 900.0),
+    "ZWIECHA_KROK_N": (1, 6),           # kolejnych zdarzeń do następnego szczebla
+    "ZWIECHA_KROK_S": (30.0, 600.0),
+    "ZWIECHA_CISZA_S": (60.0, 900.0),
+    "ZWIECHA_ODSTEP_S": (5.0, 60.0),
+    "ZWIECHA_IGNOR_S": (10.0, 120.0),
+    "ZWIECHA_RESTART": (0, 1),          # szczebel 3: restart procesu bota
+    "ZWIECHA_RESTART_HP": (20.0, 90.0),
     "SLEPOTA_DIAG_S": (0.0, 900.0),     # 19.10: s bez expa i potworów (bot polował) => zrzut diagnostyki do logi/slepota/ (0 = wyłączone)
     "SLEPOTA_RESTART_S": (0.0, 1800.0), # 19.10: s takiej ślepoty => restart mozg.py (0 = bez restartu; min. rozsądnie 240)
     "DRZWI_PONOW": (0, 1),              # 17.10 (F1): 1 = flaga "drzwi otwarte" starsza niż DRZWI_STARA_S s jest przeterminowana: podejście i Use przy zamkniętych drzwiach (domyślnie 0)
     "DRZWI_TRASA": (0, 1),              # 22.10: 1 = zamknięte drzwi na nagranej trasie (dojście, trasa; także pole pośrednie między punktami): dojście na pole przed drzwiami, krok, Use, krok (domyślnie 1)
     "DRZWI_SPOKOJ": (0, 1),             # 22.10: 1 = przed Use na drzwiach czekamy na stojącą pozycję (Use w trakcie kroku klient gubi) (domyślnie 1)
+    "DRZWI_NAJPIERW_KROK": (0, 1),      # 24.10: 1 = przed każdym Use na drzwiach najpierw krok przez pole drzwi, Use tylko gdy krok nie ruszył (Use na otwartych drzwiach je zamyka), po Use znowu krok (domyślnie 1)
     "OBSERWATOR_PK_KONTEKST": (0, 1),   # 16.10 (P10): 1 = obserwator dostaje karencję PK i wie, że PAUZA_PK z karencją jest zamierzona (domyślnie 0)
     "SMIERC_STOP": (0, 1),              # 16.10 (R5/P5): 1 = po zgonie stan MARTWY: jeden STOP + powiadomienie, zero kliknięć i modelu (domyślnie 0)
     "PK_SZYBKIE": (0, 1),               # 16.10 (P6/R2): 1 = reakcja na PK bez czekania na alarm dźwiękowy i model (domyślnie 0)
+    "CZASZKA_POTWIERDZ": (0, 1),        # 23.10: 1 = groźna czaszka dopiero po potwierdzeniu drugim odczytem (świeży zrzut, wycinek wokół postaci); atak gracza ucieka od razu (domyślnie 0)
     "STANOWISKO": (0, 1),               # 22.10: 1 = zachowanie "stanowisko" (stanowisko.py): stój na polu mapy, runy, serwis, PZ przy ataku (ustawia tryb stoj; wymaga wpisu stanowisko w mapie)
     "STANOWISKO_HP_PZ": (30, 95),       # % HP poniżej tego (bez potwora obok) = marsz do PZ
     "STANOWISKO_PZ_KARENCJA_MIN": (5, 240),   # min w PZ po ostatnim zagrożeniu PK, zanim wrócimy na pole
@@ -351,13 +386,27 @@ ZAKRESY = {
     "STANOWISKO_ROTACJA_MIN": (0, 720),       # >0 = co tyle minut inne pole z `pola` mapy (gdy są >= 2)
     "STANOWISKO_ZMIANA_MAX_MIN": (0, 720),    # min stania na zmianę (Karol 22.10: 3 h); po tym czasie postać czeka w PZ na wylogowanie z grafiku; 0 = bez limitu
     "D3_ASTAR_MAX": (0, 12),            # najwyżej tyle wywołań A* na zawieszkę przy liczeniu opcji D3 (domyślnie 6)
+    # 24.10, serwis.py czyta je sam z na_zywo.json (serwis.POKRETLA_SERWISU; cavebot ich nie ma): cap przy zakupach i wyprawie po cap
+    # 24.10, wyprawa.py (stałe z DOMYSLNE, rejestr STALE_Z_WYPRAWY): cap 0 -> najpierw zjedz, potem wyrzucaj jedzenie po 1 szt., dopiero bez jedzenia wyprawa
+    "CAP_JEDZ_I_WYRZUC": (0, 1),        # 1 = cap poniżej WYPRAWA_CAP_MIN: jedz i wyrzucaj jedzenie na łowisku zamiast wyprawy po cap; 0 = dawne zachowanie
+    "CAP_JEDZ_ZOSTAW": (0, 20),         # ile sztuk jedzenia zostawić przy wyrzucaniu (domyślnie 0; DO POTWIERDZENIA KAROLA)
+    "CAP_JEDZ_ODSTEP_S": (0, 600),      # s odstępu ochronnego między podejściami jedz/wyrzuć (bez limitu na minutę; domyślnie 8)
+    "SERWIS_CAP_NA_LOOT": (0, 200),     # oz capa wolne po zakupie ham (rezerwa na łup) i cel kroku `cap`; domyślnie 50, 0 = dawne zachowanie
+    "SERWIS_HAM_MIN": (0, 5),           # tyle ham najmniej kupić, gdy postać nie ma jedzenia (i cap pozwala); domyślnie 2, 0 = dawne zachowanie
+    "SERWIS_CAP_DEPO_LOOT": (0, 1),     # 1 = krok `cap` odkłada do depo ciężki łup-sprzęt (domyślnie 0; DO POTWIERDZENIA KAROLA)
 }
+KLUCZE_SERWISU = frozenset(k for k in ZAKRESY if k.startswith("SERWIS_"))     # czyta je serwis.py, nie cavebot: `zastosuj` pomija je bez logu
 # Pokrętła tekstowe (tylko ręcznie w na_zywo.json): nazwa -> dozwolone wartości
 TEKSTY = {
     "PET_NAZWA": ("Elf Scout", "Dwarf Soldier", "Orc Warrior", "Scarab", "Minotaur Archer", "Amazon", "Smuggler"),
     "RUNA_KLAWISZ": tuple(f"F{i}" for i in range(1, 13)),   # hotkey runy w kliencie
     "UH_KLAWISZ": tuple(f"F{i}" for i in range(1, 13)),     # hotkey czaru runowego w kliencie
+    "ZATRUCIE_CZAR_KLAWISZ": ("",) + tuple(f"F{i}" for i in range(1, 13)),   # 23.10: hotkey exana pox ("" = brak)
     "UH_CZAR": ("adori gran", "adura gran", "adura vita", "adura"),   # słowa czaru (log); koszt osobno
+}
+# Pokrętła tekstowe WOLNE (24.10, tylko ręcznie w na_zywo.json): nazwa -> maks. długość; znaki: litery, cyfry, spacja, przecinek, myślnik, apostrof
+TEKSTY_WOLNE = {
+    "CELE_PIERWSZE": 120,               # nazwy potworów po przecinku, bite w pierwszej kolejności (np. "Wasp,Snake"); "" = wyłączone
 }
 # Pokrętła dobijania: zmiana (z analityka/obserwatora) tylko w "dobrą" stronę względem domyślnej,
 # nigdy w stronę skracania pościgu / zasięgu dobijania. "nie_nizej": wartość >= domyślna,
@@ -380,7 +429,7 @@ KIERUNEK = {
     "CZEKAJ_BLISKO": "nie_wyzej", "CZEKAJ_DROGA": "nie_wyzej",
     # loot w walce: analityk nie może go wyłączyć (0) ani poluzować warunków bezpieczeństwa; tylko zaostrzyć
     "LOOT_W_WALCE": "nie_nizej", "LOOT_W_WALCE_HP": "nie_nizej", "LOOT_W_WALCE_HP_MARGINES": "nie_nizej",
-    "LOOT_W_WALCE_STYKAJACE": "nie_wyzej",
+    "LOOT_W_WALCE_STYKAJACE": "nie_wyzej", "LOOT_SZYBKI_STYKAJACE": "nie_wyzej",   # 23.10: analityk nie może podnieść liczby przylegających przy szybkim lootcie
     # szukanie zwłok: analityk nie może wyłączyć próby pod nogami ani zmniejszyć budżetu pól
     "LOOT_POD_NOGAMI_PIERWSZE": "nie_nizej", "LOOT_MAKS_PROB": "nie_nizej",
     # wypad po pochodnie/jedzenie: analityk nie może go wyłączyć ani zmniejszyć zapasu
@@ -398,6 +447,8 @@ KIERUNEK = {
     # obrona PK: analityk nie może jej wyłączyć ani poluzować (tylko zaostrzyć); ręczny plik tylko ZAKRESY
     "PK_OBRONA": "nie_nizej", "PK_ODL": "nie_nizej", "PK_ODL_CZAR": "nie_nizej", "PK_SPADEK_PP": "nie_wyzej",
     "PK_KARENCJA_MIN": "nie_nizej", "PK_WROG_WAZNY_H": "nie_nizej", "PK_LECZ": "nie_nizej", "PK_UH_HP": "nie_nizej", "PK_DEPO_MAX_MIN": "nie_wyzej",
+    # czaszka: potwierdzanie to LUZOWANIE ucieczki PK (zwiększa ryzyko śmierci): analityk nie może go włączyć (tylko Karol w na_zywo.json)
+    "CZASZKA_POTWIERDZ": "nie_wyzej",
     "PK_UH_SZYBKIE": "nie_wyzej", "PK_UH_CTRL": "nie_wyzej", "PK_UH_HP_SZYBKI": "nie_nizej", "PK_UH_PREDYKCJA": "nie_nizej",
     # walka z napastnikiem: analityk nie może jej włączyć, poluzować wejścia ani opóźnić leczenia (tylko Karol w na_zywo.json)
     "PVP_WALKA": "nie_wyzej", "PVP_MAX_WROGOW": "nie_wyzej", "PVP_DRUGI_ODL": "nie_nizej", "PVP_HP_MIN": "nie_nizej",
@@ -434,7 +485,7 @@ KIERUNEK = {
     "WYPRAWA_AKTYWNA": "nie_wyzej", "WYPRAWA_BLANKI": "nie_wyzej", "WYPRAWA_BLANKI_MAX_KOSZT": "nie_wyzej",
     "WYPRAWA_JEDZENIE_CEL": "nie_wyzej", "WYPRAWA_JEDZENIE_DOKUP": "nie_wyzej", "WYPRAWA_MIN_HP": "nie_nizej",
     "WYPRAWA_CO_MIN": "nie_nizej", "WYPRAWA_MAX_CZAS_S": "nie_wyzej", "WYPRAWA_MAX_KROKOW": "nie_wyzej",
-    "WYPRAWA_STOP_PRZY_UTKNIECIU": "nie_nizej", "WYPRAWA_CZEKAJ_NA_GLOD": "nie_wyzej", "JEDZENIE_BRAK_WALIDUJ": "nie_nizej", "JEDZENIE_BRAK_PROBY": "nie_nizej", "GLOD_ZAPAS_WAZNY_S": "nie_wyzej", "WYPRAWA_WZNOW_WALIDUJ": "nie_nizej", "WYPAD_BIEGNIJ": "nie_nizej", "DOJSCIE_BIEGNIJ": "nie_nizej", "WPADNIECIE": "nie_nizej", "WPADNIECIE_WALIDACJA": "nie_wyzej", "WPADNIECIE_POSCIG": "nie_wyzej", "SKAN_WIEK_WALKA": "nie_nizej", "SKAN_WIEK_SPOKOJ": "nie_wyzej", "WPADNIECIE_PLAN_PULE": "nie_wyzej", "LOOT_BEZ_DRABIN": "nie_wyzej", "WPADNIECIE_BEZ_STOP": "nie_wyzej", "PRZEJSCIE_TRZY_SPOSOBY": "nie_wyzej", "ROZLACZENIE_STOP": "nie_wyzej", "WPADNIECIE_LINA": "nie_nizej", "WPADNIECIE_PLAN": "nie_nizej", "DZIURY_NAUCZONE": "nie_nizej", "DZIURA_PRZY_CELU": "nie_nizej", "WPADNIECIE_LINA_PROB": "nie_nizej", "PIETRA_LOPATA": "nie_nizej", "PIETRA_TRYBY_Z_DANYCH": "nie_nizej", "PIETRA_STARTY_DOMYSLNE": "nie_nizej", "WYPRAWA_DEPO_POWROT": "nie_wyzej", "WYPRAWA_DEPO_POSTOJ_S": "nie_wyzej", "WYPRAWA_TYLKO_DEPO": "nie_wyzej", "WYPRAWA_MARSZ_KLIK": "nie_wyzej", "WROC_REFILL": "nie_wyzej", "WYPRAWA_ZLOTO_MIN": "nie_nizej", "WYPRAWA_CAP_REZERWA": "nie_nizej",
+    "WYPRAWA_STOP_PRZY_UTKNIECIU": "nie_nizej", "WYPRAWA_CZEKAJ_NA_GLOD": "nie_wyzej", "JEDZENIE_BRAK_WALIDUJ": "nie_nizej", "JEDZENIE_BRAK_PROBY": "nie_nizej", "GLOD_ZAPAS_WAZNY_S": "nie_wyzej", "WYPRAWA_WZNOW_WALIDUJ": "nie_nizej", "WYPAD_BIEGNIJ": "nie_nizej", "DOJSCIE_BIEGNIJ": "nie_nizej", "WPADNIECIE": "nie_nizej", "WPADNIECIE_WALIDACJA": "nie_wyzej", "WPADNIECIE_POSCIG": "nie_wyzej", "SKAN_WIEK_WALKA": "nie_nizej", "SKAN_WIEK_SPOKOJ": "nie_wyzej", "WPADNIECIE_PLAN_PULE": "nie_wyzej", "LOOT_BEZ_DRABIN": "nie_wyzej", "LOOT_BEZ_DZIUR": "nie_nizej", "WPADNIECIE_UCIECZKA": "nie_nizej", "WPADNIECIE_BIJ": "nie_nizej", "WPADNIECIE_DRABINA": "nie_nizej", "ZATRUCIE_AKTYWNY": "nie_nizej", "ZATRUCIE_RUNA": "nie_nizej", "ZATRUCIE_CZAR_KOSZT": "nie_wyzej", "WPADNIECIE_BEZ_STOP": "nie_wyzej", "PRZEJSCIE_TRZY_SPOSOBY": "nie_wyzej", "ROZLACZENIE_STOP": "nie_nizej", "ROZLACZENIE_WYJSCIE": "nie_nizej", "START_PO_UPADKU": "nie_nizej", "WPADNIECIE_LINA": "nie_nizej", "WPADNIECIE_PLAN": "nie_nizej", "DZIURY_NAUCZONE": "nie_nizej", "DZIURA_PRZY_CELU": "nie_nizej", "WPADNIECIE_LINA_PROB": "nie_nizej", "PIETRA_LOPATA": "nie_nizej", "PIETRA_TRYBY_Z_DANYCH": "nie_nizej", "PIETRA_STARTY_DOMYSLNE": "nie_nizej", "WYPRAWA_DEPO_POWROT": "nie_wyzej", "WYPRAWA_DEPO_POSTOJ_S": "nie_wyzej", "WYPRAWA_TYLKO_DEPO": "nie_wyzej", "WYPRAWA_MARSZ_KLIK": "nie_wyzej", "WROC_REFILL": "nie_wyzej", "DEPO_EDRON_OBSZAR": "nie_nizej", "WYPRAWA_ZLOTO_MIN": "nie_nizej", "WYPRAWA_CAP_REZERWA": "nie_nizej", "WYPRAWA_CAP_MIN": "nie_wyzej",
     # ogłoszenia Trade: analityk nie może ich włączyć ani skrócić odstępów (tylko Karol w na_zywo.json)
     "MODEL_TRASA_MIASTA": "nie_wyzej", "MODEL_TRASA_ZAMROZENIE_S": "nie_wyzej", "MODEL_TRASA_MAX_ODL": "nie_wyzej",
     "TRADE_OGLOSZENIA": "nie_wyzej", "TRADE_PRIV_ODPOWIEDZI": "nie_wyzej", "TRADE_MIN_S": "nie_nizej", "TRADE_MAX_S": "nie_nizej", "TRADE_MIN_UH": "nie_nizej",
@@ -443,15 +494,19 @@ KIERUNEK = {
     "UH_W_WALCE": "nie_wyzej", "UH_W_WALCE_MANA_MARGINES": "nie_wyzej", "UH_W_WALCE_MIN_HP": "nie_nizej",
     "UH_W_WALCE_DYSTANS": "nie_nizej", "UH_W_WALCE_SPADEK_HP": "nie_wyzej",
     # pola ognia: analityk nie może wyłączyć omijania (tylko Karol w na_zywo.json)
-    "OGIEN_UNIKAJ": "nie_nizej", "OGIEN_STALY": "nie_nizej", "OGIEN_MASKA_TYLKO_SCIANY": "nie_nizej", "OGIEN_WYJDZ_POTWIERDZ": "nie_nizej", "OGIEN_MASKA_DANE": "nie_nizej", "OGIEN_POMIJAJ_PRZY_STWORZE": "nie_nizej", "POSCIG_SKOSY_ZAPAS": "nie_nizej", "PATROL_DRZWI": "nie_nizej", "D3_REAKCJA": "nie_wyzej", "RATUNEK_HAIKU": "nie_wyzej", "RATUNEK_HAIKU_PYTAJ": "nie_wyzej", "D3_ALARM_S": "nie_wyzej", "DRZWI_PONOW": "nie_wyzej", "DRZWI_TRASA": "nie_nizej", "DRZWI_SPOKOJ": "nie_nizej", "SMIERC_STOP": "nie_wyzej", "PK_SZYBKIE": "nie_wyzej", "OBSERWATOR_PK_KONTEKST": "nie_wyzej", "RUCH_OKNO": "nie_nizej", "RUCH_PROBKA_WCZESNA": "nie_nizej", "OGIEN_ODSWIEZ_WALKA_S": "nie_wyzej",
+    "OGIEN_UNIKAJ": "nie_nizej", "OGIEN_STALY": "nie_nizej", "OGIEN_MASKA_TYLKO_SCIANY": "nie_nizej", "OGIEN_WYJDZ_POTWIERDZ": "nie_nizej", "OGIEN_MASKA_DANE": "nie_nizej", "OGIEN_POMIJAJ_PRZY_STWORZE": "nie_nizej", "OGIEN_PODPALENIE_ZNANE": "nie_nizej", "OGIEN_EPIZODY_SCAL": "nie_nizej", "POSCIG_SKOSY_ZAPAS": "nie_nizej", "PATROL_DRZWI": "nie_nizej", "D3_REAKCJA": "nie_wyzej", "RATUNEK_HAIKU": "nie_wyzej", "RATUNEK_HAIKU_PYTAJ": "nie_wyzej", "D3_ALARM_S": "nie_wyzej", "DRZWI_PONOW": "nie_wyzej", "DRZWI_TRASA": "nie_nizej", "DRZWI_SPOKOJ": "nie_nizej", "DRZWI_NAJPIERW_KROK": "nie_nizej", "SMIERC_STOP": "nie_wyzej", "PK_SZYBKIE": "nie_wyzej", "OBSERWATOR_PK_KONTEKST": "nie_wyzej", "RUCH_OKNO": "nie_nizej", "RUCH_PROBKA_WCZESNA": "nie_nizej", "OGIEN_ODSWIEZ_WALKA_S": "nie_wyzej",
     # ignorowanie/strażnicy/blokujący: analityk nie może wyłączyć strażników ani włączyć bicia blokującego (tylko Karol)
     # dojście z depo: analityk nie może włączyć wypraw po blanki w depo ani wyłączyć karencji/walki przy przejściu (tylko Karol)
     "WYPRAWA_DEPO_BLANKI": "nie_wyzej", "WYPRAWA_PO_DEPO_S": "nie_nizej", "WYPRAWA_PO_DOJSCIU_S": "nie_nizej", "BLANKI_AUTO_BAG": "nie_wyzej", "BLANKI_AUTO_BAG_MIN": "nie_nizej",
     "DOJSCIE_WALKA_PRZEJSCIE_S": "nie_wyzej", "DOJSCIE_BEZ_UNIKANIA_POL": "nie_wyzej", "DOJSCIE_PROBY": "nie_nizej",
     "DOJSCIE_PAUZA_PROBY_S": "nie_nizej",
+    # 23.10: analityk nie może wyłączyć bicia blokującego, poluzować objazdu ani skrócić/obniżyć czekania na HP przed piętrem (tylko Karol w na_zywo.json)
+    "BLOKADA_BIJ_KAZDEGO": "nie_nizej", "BLOKADA_BIJ_OBJAZD": "nie_wyzej", "HP_PRZED_PIETREM": "nie_nizej", "HP_PRZED_PIETREM_MAX_S": "nie_nizej",
     "IGNOR_TWARDE": "nie_nizej", "STRAZNIK_CEL": "nie_nizej", "BLOK_WYJSCIE": "nie_wyzej", "STRAZNIK_POSTEP": "nie_wyzej",
     # strażnik orbit: analityk nie może go włączyć ani osłabić (dłuższe okno, mniej pól, więcej zmian = rzadsze wykrycie); tylko Karol w na_zywo.json
     # (kierunek = ograniczenie wartości względem domyślnej: nie_wyzej => v <= domyślna, nie_nizej => v >= domyślna)
+    # zwiecha walki: analityk nie może jej wyłączyć ani osłabić (więcej zdarzeń / dłuższe czekanie = rzadsza naprawa); tylko Karol w na_zywo.json
+    "ZWIECHA": "nie_nizej", "ZWIECHA_N": "nie_wyzej", "ZWIECHA_KROK_N": "nie_wyzej", "ZWIECHA_KROK_S": "nie_wyzej", "ZWIECHA_RESTART": "nie_nizej",
     "STRAZNIK_ORBITY": "nie_wyzej", "STRAZNIK_ORBITA_S": "nie_wyzej", "STRAZNIK_ORBITA_POL": "nie_nizej",
     "STRAZNIK_ORBITA_ZMIAN": "nie_wyzej", "STRAZNIK_WYJSCIE_S": "nie_wyzej",
     # stanowisko: analityk nie może go włączyć, obniżyć progu HP/karencji, skrócić obrony ani poluzować blokady graczy/NPC; tylko Karol w na_zywo.json
@@ -459,6 +514,9 @@ KIERUNEK = {
     "STANOWISKO_GRACZ_ODL": "nie_wyzej", "STANOWISKO_NPC_IGNORUJ": "nie_wyzej", "STANOWISKO_ZMIANA_MAX_MIN": "nie_wyzej",
 }
 COFNIECIE_S = 300
+# Pokrętła, których stała domyślna żyje w wyprawa.py (DOMYSLNE), a nie w cavebot.py: bez stałej w module `zastosuj` pomijałoby je
+# ("brak stałej w cavebot.py"). 24.10: DEPO_EDRON_OBSZAR; po dopisaniu tej stałej do cavebot.py wpis tutaj przestaje działać (hasattr) i można go usunąć.
+STALE_Z_WYPRAWY = {"DEPO_EDRON_OBSZAR": 1, "CAP_JEDZ_I_WYRZUC": 1, "CAP_JEDZ_ZOSTAW": 0, "CAP_JEDZ_ODSTEP_S": 8}
 
 
 def _powiadom(*a, **k):
@@ -481,6 +539,15 @@ def waliduj(zmiany, domyslne=None):
                 bledy.append(f"{k}: tylko ręcznie w na_zywo.json")
             elif v not in TEKSTY[k]:
                 bledy.append(f"{k}={v!r}: dozwolone {TEKSTY[k]}")
+            else:
+                ok[k] = v
+        elif k in TEKSTY_WOLNE:
+            if domyslne:
+                bledy.append(f"{k}: tylko ręcznie w na_zywo.json")
+            elif not isinstance(v, str):
+                bledy.append(f"{k}: nie tekst")
+            elif len(v) > TEKSTY_WOLNE[k] or not re.fullmatch(r"[0-9A-Za-zĄĆĘŁŃÓŚŹŻąćęłńóśźż ,'\-]*", v):
+                bledy.append(f"{k}={v!r}: za długi (>{TEKSTY_WOLNE[k]}) albo znaki spoza liter/cyfr/spacji/przecinka/myślnika")
             else:
                 ok[k] = v
         elif k not in ZAKRESY:
@@ -510,10 +577,16 @@ class Pokretla:
                 modul._POKRETLA_DOMYSLNE = zap
             except Exception:
                 pass
-        for k in (*ZAKRESY, *TEKSTY):
+        for k, v in STALE_Z_WYPRAWY.items():
+            if k not in zap and not hasattr(modul, k):
+                try:
+                    setattr(modul, k, v)
+                except Exception:
+                    pass
+        for k in (*ZAKRESY, *TEKSTY, *TEKSTY_WOLNE):
             if k not in zap and hasattr(modul, k):
                 zap[k] = getattr(modul, k)
-        self.domyslne = {k: zap[k] for k in (*ZAKRESY, *TEKSTY) if k in zap}
+        self.domyslne = {k: zap[k] for k in (*ZAKRESY, *TEKSTY, *TEKSTY_WOLNE) if k in zap}
         self.mtime = None
         self.aktywne = {}
         self.oczekuje = None      # {"t","przed":dict pliku,"zmiany","metryki","powod"}
@@ -545,6 +618,8 @@ class Pokretla:
                 self.log(f"pokrętło {k}: powrót do domyślnej {self.domyslne[k]}")
                 del self.aktywne[k]
         for k, v in ok.items():
+            if k in KLUCZE_SERWISU:
+                continue
             if k not in self.domyslne:
                 self.log(f"pokrętło {k}: brak stałej w cavebot.py, pomijam")
                 continue

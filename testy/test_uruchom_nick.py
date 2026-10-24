@@ -54,7 +54,7 @@ def przebieg(mapa, z=7, id_="tst", postac_env=None, profil_postac=NICK, strazak_
         zamknij = strazaq(gniazdo, strazak_nick, z)
         env = {k: v for k, v in os.environ.items() if not k.startswith(("RETRONIC_", "MAPA", "TRYB", "MOZG_"))}
         env.update(XDG_RUNTIME_DIR=str(rt), PATH=f"{bin_}:{os.environ['PATH']}", ATRAPA_ARGS=str(Path(td) / "args"),
-                   ATRAPA_NOTIFY=str(Path(td) / "notify"), MAPA=mapa, TRYB=tryb)
+                   ATRAPA_NOTIFY=str(Path(td) / "notify"), MAPA=mapa, TRYB=tryb, RETRONIC_CZEKAJ_POSTAC_S="2")   # 23.10: uruchom.sh czeka na strażnika (domyślnie 60 s)
         if id_:
             env["RETRONIC_ID"] = id_
         if postac_env:
@@ -82,9 +82,10 @@ sprawdz("odmowa nie kasuje pliku STOP", stop)
 kod, out, err, args, nt, stop = przebieg(M, strazak_nick="Ktos Inny")
 sprawdz("strażnik nie zna postaci (piętro puste): odmowa, bot nie startuje", kod != 0 and args is None and "[tst]" in nt, (kod, args))
 kod, out, err, args, nt, stop = przebieg("rook_bugi_z8", profil_postac=None)
-sprawdz("mapa BEZ dojścia i puste piętro: start jak dotąd", kod == 0 and args and "--dojscie" not in args, (kod, args))
+sprawdz("mapa BEZ dojścia i puste piętro (strażnik nie widzi postaci): 23.10 głośna odmowa po czekaniu, bot nie startuje (mozg.py i tak by odmówił)",
+        kod == 3 and args is None and "[tst]" in nt and "ODMOWA STARTU" in err, (kod, args, err.strip()[-100:]))
 kod, out, err, args, nt, stop = przebieg("rook_bugi_z10", profil_postac=None)
-sprawdz("mapa z dojściem z dowolnego piętra i puste piętro: start z dojściem", kod == 0 and args and "--dojscie rook_bugi_z10_dojscie" in args, (kod, args))
+sprawdz("mapa z dojściem z dowolnego piętra i puste piętro (strażnik nie widzi postaci): 23.10 odmowa jak wyżej", kod == 3 and args is None, (kod, args))
 kod, out, err, args, nt, stop = przebieg(M, id_="", strazak_nick="Jointoramix")
 sprawdz("bez ID: domyślny Jointoramix zostaje", args and "--dojscie rook_raty_z8_dojscie" in args, (kod, args))
 print(f"{sum(ok)}/{len(ok)}")
