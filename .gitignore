@@ -26,3 +26,10 @@ okno_cofnij.jsonl
 okno.lock
 na_zywo.json.tmp-okno-*
 glos_wylaczony
+# wycinki odrzuconych (niepotwierdzonych) odczytów czaszki (czaszka.py, CZASZKA_POTWIERDZ)
+dane_tibia/czaszki_niepotwierdzone/
+
+# 24.10 optymalizacja CPU: binarka skanera, kopie instalatora, manifest wdrożenia (stan runtime)
+native/*.so
+.ai/cpu-backup-*/
+.ai/cpu-wdrozenie.json
