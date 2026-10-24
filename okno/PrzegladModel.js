@@ -102,16 +102,20 @@ function stanOf(inst) {
 function isTest(inst) { var p = przegladOf(inst); return !!(p && p.test === true) }
 function inGame(inst) { var p = przegladOf(inst); return !!(p && p.w_grze === true) }
 
+// wyłączona = postać stracona (profil.json `stracony`, np. Dawajkesh 24.10): nie wraca do puli, to nie rezerwa
+function isDisabled(inst) { var p = przegladOf(inst); return !!(p && p.stracony === true) }
+
 // rezerwa = poza nadzorem z profilu bez terminu (np. Kutangen: nadzor:false): to nie jest „zawieszony do …”
 function isReserve(inst) {
   var p = przegladOf(inst)
-  return !!(p && p.stan === "zawieszony" && !(p.nadzor && p.nadzor.do))
+  return !!(p && p.stan === "zawieszony" && !(p.nadzor && p.nadzor.do) && !isDisabled(inst))
 }
 
 function stanDotTone(inst) { return STAN_DOT[stanOf(inst)] }
 
 function pillOf(inst) {
   var stan = stanOf(inst)
+  if (isDisabled(inst)) return { label: "wyłączona", tone: "dim" }
   if (isReserve(inst)) return { label: "rezerwa", tone: "dim" }
   return STAN_PILL[stan]
 }
@@ -321,6 +325,7 @@ function rowOf(inst, now) {
     inGame: !off,
     test: isTest(inst),
     reserve: isReserve(inst),
+    disabled: isDisabled(inst),
     dot: stanDotTone(inst),
     pill: pillOf(inst),
     since: sinceText(inst, now),
@@ -405,7 +410,7 @@ function countersOf(instances) {
     if (stan === "bot_dziala" || stan === "alarm") c.bot++
     else if (stan === "karol_gra") c.karol++
     else if (stan === "zatrzymany") c.stopped++
-    else { c.offline++; if (stan === "zawieszony") c.suspended++ }
+    else { c.offline++; if (stan === "zawieszony" && !isDisabled(inst)) c.suspended++ }
     if (isReserve(inst)) c.reserve++
     var e = expH(inst)
     if (e !== null) { c.expH += e; c.expBots++ }
@@ -452,7 +457,8 @@ function cardOffline(inst, now) {
   var mp = resource(inst, "mana", "max_mana")
   var pr = przegladOf(inst)
   var right
-  if (isReserve(inst)) right = { text: "rezerwa", tone: "dim" }
+  if (isDisabled(inst)) right = { text: "wyłączona", tone: "dim" }
+  else if (isReserve(inst)) right = { text: "rezerwa", tone: "dim" }
   else if (pr && pr.stan === "zawieszony" && pr.nadzor && pr.nadzor.do) right = { text: "do " + doShort(pr.nadzor.do), tone: "mag" }
   else if (pr && pr.stop && pr.stop.reczny === true) right = { text: "STOP ręczny", tone: "warn" }
   else right = { text: "", tone: "dim" }
@@ -549,7 +555,8 @@ function lastKnown(inst, now) {
   var al = alarmOf(inst, now)
   var sup = supervisionOf(inst)
   var supText = sup.text
-  if (pr && pr.stan === "zawieszony" && !(pr.nadzor && pr.nadzor.do)) supText = "rezerwa · poza nadzorem (profil)"
+  if (isDisabled(inst)) supText = "wyłączona · postać stracona (profil)"
+  else if (pr && pr.stan === "zawieszony" && !(pr.nadzor && pr.nadzor.do)) supText = "rezerwa · poza nadzorem (profil)"
   else if (pr && pr.nadzor && pr.nadzor.aktywny === false && pr.nadzor.do) supText = "zawieszony do " + doLabel(pr.nadzor.do)
   var sections = [
     { k: "ostatni alarm", v: al ? al.time + " " + al.text : MISSING, tone: al ? al.tone : "dim2" },
@@ -574,7 +581,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     STAN_ORDER: STAN_ORDER, STAN_PILL: STAN_PILL, FILTERS: FILTERS, MISSING: MISSING,
     plural: plural, whenLabel: whenLabel, spanLabel: spanLabel, agoLabel: agoLabel, doLabel: doLabel,
-    stanOf: stanOf, isTest: isTest, inGame: inGame, isReserve: isReserve, pillOf: pillOf, stanDotTone: stanDotTone,
+    stanOf: stanOf, isTest: isTest, inGame: inGame, isReserve: isReserve, isDisabled: isDisabled, pillOf: pillOf, stanDotTone: stanDotTone,
     whereLabel: whereLabel, levelOf: levelOf, levelText: levelText, mlLabel: mlLabel, mlPctOf: mlPctOf, resource: resource, sinceText: sinceText, spotTimeOf: spotTimeOf,
     alarmOf: alarmOf, supervisionOf: supervisionOf, rowOf: rowOf, rowsOf: rowsOf, passes: passes, filterCounts: filterCounts,
     groupsOf: groupsOf, countersOf: countersOf, suspendedNote: suspendedNote, expBotsNote: expBotsNote, postaciLabel: postaciLabel,

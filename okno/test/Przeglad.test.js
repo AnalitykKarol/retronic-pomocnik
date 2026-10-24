@@ -152,6 +152,26 @@ describe("wiersz", () => {
     assert.equal(P.cardOffline(by("kolanoth"), NOW).right.text, "do 24.10")
     assert.equal(r.alarm.tone, "dim")
   })
+  it("Dawajkesh stracony: wyłączona, nie rezerwa i nie w licznikach zawieszonych", () => {
+    const i = clone(by("dawajkesh"))
+    i.przeglad.stan = "zawieszony"
+    i.przeglad.nadzor = { aktywny: false, powod: "postać poza nadzorem (nadzor: false)", do: null, zrodlo: "profil" }
+    i.przeglad.stracony = true
+    assert.equal(P.isDisabled(i), true)
+    assert.equal(P.isReserve(i), false)
+    assert.equal(P.isDisabled(by("kutangen")), false)
+    const r = P.rowOf(i, NOW)
+    assert.deepEqual(r.pill, { label: "wyłączona", tone: "dim" })
+    assert.equal(r.disabled, true)
+    assert.equal(r.reserve, false)
+    assert.equal(P.cardOffline(i, NOW).right.text, "wyłączona")
+    const nadzor = P.lastKnown(i, NOW).cols[2].rows.find((x) => x.k === "nadzór")
+    assert.match(nadzor.v, /^wyłączona/)
+    const tylko = { instancje: [i, by("kutangen")] }
+    const c = P.countersOf(tylko.instancje)
+    assert.equal(c.suspended, 1)
+    assert.equal(c.reserve, 1)
+  })
   it("Wydra: miasto i depo", () => {
     const r = P.rowOf(by("wydra"), NOW)
     assert.equal(r.where, "Thais · depo z7")
