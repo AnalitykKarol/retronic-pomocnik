@@ -3,7 +3,7 @@
 
   python3 -I nadzor.py cien [--raz]        jeden przebieg W CIENIU: tylko log "zrobiłbym X". --raz = tylko odczyt i wydruk, zero zapisów
   python3 -I nadzor.py tick                jeden przebieg (timer co ~1 min). Na żywo TYLKO gdy istnieje instancje/_wspolne/NADZOR_ZYWO
-  python3 -I nadzor.py napraw <id> <rodzaj>   biała lista: restart | wznow | wroc | relog | wyloguj | zmien_spot
+  python3 -I nadzor.py napraw <id> <rodzaj>   biała lista: restart | wznow | wroc | relog | wyloguj | zmien_spot | okna | wroc_poziom
   python3 -I nadzor.py stan                skrót dla obchodu (JSON): fazy, zmiany, naprawy, ostatnie decyzje
   python3 -I nadzor.py odblokuj <id>       zdejmuje wstrzymanie po eskalacji (polecenie Karola, NIE dla modelu)
 
@@ -13,8 +13,29 @@ wstrzymanie po eskalacji. Jedna akcja logowania/wylogowania naraz (flock + jedna
 Każda decyzja i akcja: instancje/_wspolne/logi/nadzor-RRRRMMDD.jsonl. Restart bota: mapa/tryb z tryb.log, nie z env.
 Wybór spotu (Q5, SPEC_wybor_spotu_1021): przy starcie zmiany i przy zmien_spot z tabeli dane_tibia/spoty_nadzorca.json (spoty.py): miasto z pozycji,
 poziom, jeden bot na jaskinię, lina/łopata, mieszanie między zmianami. Cień (cien --raz) pokazuje "spot_podglad" dla każdej postaci w grze.
+Wyrósł ze spotu (23.10, Karol: „limit na Rooku to 8 lvl”): postać z botem na mapie, której widełki (poziom_zrodlo „karol”) kończą się poniżej BIEŻĄCEGO
+poziomu z gry, dostaje WROC raz (stan `wroc_poziom`), jedno powiadomienie. Jedyna decyzja wykonywana na żywo także bez NADZOR_ZYWO, gdy włączone
+NADZOR_NAPRAWY (env albo plik instancje/_wspolne/NADZOR_NAPRAWY) w `tick` i `napraw <id> wroc_poziom`; `cien` / `cien --raz` nigdy.
+Plan postaci (23.10, Karol: „Wszystko powinien robić nadzorca, powinien mieć jakiś plan”): instancje/_wspolne/plan_postaci.json (plan_postaci.py,
+NADZORCA.md „Plan postaci”): kroki `{warunek, akcja}` wykonywane RAZ przez kod; warunek `poziom >= N` w `tick` (poza walką, bramki jak wroc-poziom, na żywo
+przy NADZOR_NAPRAWY, w cieniu tylko dziennik), `po_refillu` / `przy_nastepnym_starcie` przy starcie bota (uruchom.sh dla refilla, start/restart nadzorcy).
+`spot_przypiety`: nadzorca nie przenosi postaci (start zmiany, zmien_spot, drabina napraw) bez wpisu Karola.
+`zostan_w_depo` (23.10, Karol: invincible, dawajkesh, wydra): postać w depo ze STOP (bez bota, dowód depo: log „DEPO osiągnięte” albo panel `w_depo`) ZOSTAJE:
+decyzja `czekaj` („zostaje-w-depo”), zero wznow/restart/serwis/relog/wylogowania/zmien_spot/startu z grafiku; offline lub rozłączona po
+takim stanie (znacznik `zostan_depo_od` w stanie nadzorcy + STOP) też nie jest logowana. Poza depo (spot, droga) nadzorca działa jak dotąd.
+24.10 (Karol: „invincible i dawajkesh mają zrobić po 2 bp UH-ów, zakończyć i wylogować się w depo”): `zostan_w_depo_po_refillach: N` uzbraja tę flagę
+dopiero po N refillach od `zostan_w_depo_od` (licznik refille.json) ORAZ po starcie bota po N-tym refillu (w trakcie refillu postać stoi w depo ze STOP bez
+bota i nie wolno jej wylogować); `wyloguj_w_depo: true` = uzbrojona postać w depo ze STOP jest wylogowywana (decyzja `wyloguj`, kod plan-wyloguj-depo: na żywo
+przy NADZOR_NAPRAWY, bramki i odstęp logowań jak każde wylogowanie), potem znacznik + STOP trzymają ją offline (bez relogu). Reguła: zostan_depo.py.
+24.10 (Karol: „nadzorca ma sam robić przerwy postaci i ewentualnie zmieniać spot”; SPEC_przerwa_postaci_1024): pole `przerwa` w planie postaci
+({min, rozrzut_min, kiedy: po_refillu|teraz, zmien_spot: nie|jesli_gracz, gracz, powod}, jednorazowe). Refill pomija wyjście z miasta (refill_auto +
+REFILL_BEZ_WYJSCIA), postać stoi w mieście ze STOP, nadzorca ją wylogowuje (kod plan-przerwa-wyloguj, zapis `wylogowano_t`/`do_t` w planie PRZED wylogowaniem),
+po `do_t` loguje (plan-przerwa-powrot / plan-przerwa-zaloguj, jedna akcja logowania na przebieg, odstęp i cisza nocna jak zawsze) i startuje `refill.sh --spot`
+(plan-przerwa-spot), po zmianie spotu, gdy przeszkadzał gracz. Wyłącznik: NADZOR_PRZERWY=0 albo „przerwy”: false w nadzor_konfig.json. Bez wpisu `przerwa`
+zachowanie bez zmian.
 Nigdy: czat gry, pokrętła ryzyka śmierci, STOP_RECZNY, zakładanie kont, handel."""
 import argparse
+import ast
 import fcntl
 import json
 import os
@@ -23,6 +44,7 @@ import signal
 import subprocess
 import sys
 import time
+import zlib
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -31,12 +53,21 @@ DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(DIR))
 import grafik as G  # noqa: E402
 import spoty as SP  # noqa: E402
+import plan_postaci as PP  # noqa: E402
+import przerwa as PR  # noqa: E402
+import relog_wylogowanych as RW  # noqa: E402
+import zostan_depo as ZD  # noqa: E402
 
 KORZEN = Path(os.environ.get("RETRONIC_NADZOR_KORZEN") or DIR)
 FMT = G.FMT
-BIALA_LISTA = ("restart", "wznow", "wroc", "relog", "wyloguj", "zmien_spot", "okna")
+BIALA_LISTA = ("restart", "wznow", "wroc", "relog", "wyloguj", "zmien_spot", "okna", "wroc_poziom", "zamknij_sesje")
+# 22.10: bez NADZOR_ZYWO (przy NADZOR_NAPRAWY) obchód wolno tylko ratować. 23.10 (Karol: „limit na Rooku to 8 lvl”): do tego `wroc_poziom` =
+# powrót do miasta WYŁĄCZNIE z powodu „poziom > max spotu”; zwykłe `wroc`, `wyloguj` i `zmien_spot` nadal odmowa (kod 3)
+NAPRAWY_BEZ_ZYWO = ("restart", "wznow", "relog", "okna", "wroc_poziom", "zamknij_sesje")
+PLAN_PROBY = 3             # 23.10: tyle razy najwyżej próbuję wykonać krok planu, gdy skrypt zawodzi (sukces = raz i koniec)
+WROC_POZIOM_PROBY = 3      # 23.10: tyle razy najwyżej próbuję zlecić wroc_poziom, gdy wroc.sh zawodzi (sukces = jedno zlecenie i koniec)
 FAZY = ("OFFLINE", "LOGOWANIE", "DOJSCIE", "EXP", "POWROT", "MIASTO", "WYLOGOWANIE")
-ZDARZENIA_LOGOWANIA = ("sesja_start", "wyloguj", "relog")
+ZDARZENIA_LOGOWANIA = ("sesja_start", "wyloguj", "relog", "zamknij_sesje")     # 23.10: zamknięcie sesji też „jedna naraz, z odstępem”
 
 # ---------- sygnały z logu bota ----------
 RE_GODZ = re.compile(r"^(\d\d):(\d\d):(\d\d) (.*)$")
@@ -58,6 +89,15 @@ RE_WALKA = re.compile(r"[Cc]el|WALKA|ATAK|Loot|loot|POGO|UCIEC")
 RE_WALKA_BEZ_LOOTU = re.compile(r"[Cc]el|WALKA|ATAK|POGO|UCIEC")
 RE_BRAK_PLECAKA = re.compile(r"Loot: brak_plecaka|brak_plecaka \(zero lub kilka okien plecaka\)")
 RE_BRAK_OKNA = re.compile(r"Loot: brak_okna|Loot w walce przerwany: brak_okna")
+# 23.10 (strategia Karola, pkt 4/12): postać nie zna czaru zdrowia (odchyd: exura): bot po rzucie widzi, że ani HP, ani mana się nie zmieniły
+RE_CZAR_PORAZKA = re.compile(r"ZDROWIE: po rzucie ani HP, ani mana się nie zmieniły.*porażka (\d+)/(\d+)")
+RE_CZAR_RZUT = re.compile(r"\[ZDROWIE\] czar (\S+)")
+CZAR_INFO_KARENCJA_S = 3 * 3600        # bot ponawia serię porażek co ~10 min; powiadomienie najwyżej raz na 3 h na postać
+POKRETLO_RESTART_KOD = "NADZOR_RESTART_PO_KODZIE"      # 23.10: restart bota po zmianie jego kodu (domyślnie WYŁĄCZONE: decyzja Karola)
+POKRETLO_ZAMYKAJ_SESJE = "NADZOR_ZAMYKAJ_SESJE"        # 23.10: zamykanie sesji wylogowanych postaci (domyślnie WYŁĄCZONE)
+RESTART_KOD_MARGINES_S = 30            # plik nowszy od startu bota o mniej niż to = ten sam zapis co start
+RESTART_KOD_PRZERWA_S = 120            # najmniejszy odstęp między dwoma restartami po zmianie kodu (różne postacie)
+RESTART_KOD_PROBY = 3                  # tyle razy najwyżej próbuję restartu po tej samej zmianie kodu
 OKNA_PROG = int(os.environ.get("NADZOR_OKNA_PROG", "5"))            # brak_plecaka w ostatnich 5 min, by zlecić kontrolę okien
 OKNA_PROG_OKNA = int(os.environ.get("NADZOR_OKNA_PROG_OKNA", "15"))  # brak_okna (zwłoki) jest zwykły; dopiero seria to sygnał
 OKNA_KARENCJA_S = 900                                                # najwyżej raz na 15 min na postać
@@ -111,7 +151,9 @@ def analizuj_log(linie, teraz_ep):
     """Sygnały z logu. Wartości *_ts to epoch ostatniego wystąpienia (None = brak)."""
     a = {"pk": None, "pk_tekst": None, "gm": None, "zgon": None, "rozl": None, "rozl_koniec": None, "depo": None, "alarm": None,
          "alarm_tekst": None, "stop": None, "start": None, "trasa": None, "ost_zabicie": None, "zabicia_od_startu": 0,
-         "pelny": 0, "cap": 0, "glod": 0, "walka": False, "walka_bez_lootu": False, "brak_plecaka": 0, "brak_okna": 0, "ost_linia": None}
+         "pelny": 0, "cap": 0, "glod": 0, "walka": False, "walka_bez_lootu": False, "brak_plecaka": 0, "brak_okna": 0, "ost_linia": None,
+         "czar_bez_efektu": None}
+    czar = None
     for t, l in linie:
         if "[OGIEN]" in l or l.startswith("debug:"):
             continue
@@ -142,6 +184,12 @@ def analizuj_log(linie, teraz_ep):
             a["cap"] += bool(RE_CAP.search(l))
         if t >= teraz_ep - 1200:
             a["glod"] += bool(RE_GLOD.search(l))
+        m_czar = RE_CZAR_RZUT.search(l)
+        if m_czar:
+            czar = m_czar[1]
+        m_por = RE_CZAR_PORAZKA.search(l)
+        if m_por and int(m_por[1]) >= int(m_por[2]):      # dopiero ostatnia porażka serii (3/3) to sygnał „nie zna czaru”
+            a["czar_bez_efektu"] = {"ts": t, "czar": czar or "?", "porazka": int(m_por[1]), "z": int(m_por[2])}
         if t >= teraz_ep - 300:
             a["brak_plecaka"] += bool(RE_BRAK_PLECAKA.search(l))
             a["brak_okna"] += bool(RE_BRAK_OKNA.search(l))
@@ -272,6 +320,16 @@ class Zrodla:
         self._ekw[id_] = (time.time(), w)
         return w
 
+    def blanki(self, id_):
+        """Liczba blanków (UH) w otwartych kontenerach postaci albo None (brak odczytu, nic nie otwarte). Tylko odczyt pamięci gry (plan_postaci.py blanki)."""
+        try:
+            r = subprocess.run([sys.executable, "-I", str(DIR / "plan_postaci.py"), "blanki"], cwd=str(DIR), capture_output=True, text=True,
+                               timeout=30, env=dict(os.environ, RETRONIC_ID=id_), stdin=subprocess.DEVNULL)
+            w = json.loads((r.stdout or "").strip().splitlines()[-1]).get("blanki")
+            return w if isinstance(w, int) and not isinstance(w, bool) else None
+        except (OSError, ValueError, IndexError, subprocess.SubprocessError):
+            return None
+
     def telemetria(self, id_):
         import nadzor_stan  # noqa: PLC0415
         return nadzor_stan.przejrzyj_telemetrie(self.korzen / "instancje" / id_ / "logi", time.time())
@@ -283,6 +341,19 @@ class Zrodla:
     def procesy_bota(self, id_):
         import instancja  # noqa: PLC0415
         return instancja.procesy(r"(mozg|cavebot)\.py", id_=id_)
+
+    def bot_start_ts(self, id_):
+        """Epoch startu NAJNOWSZEGO procesu bota tej instancji (z /proc/<pid>/stat) albo None (brak procesu / nieczytelne)."""
+        try:
+            btime = next(int(l.split()[1]) for l in Path("/proc/stat").read_text().splitlines() if l.startswith("btime "))
+            tiki = os.sysconf("SC_CLK_TCK")
+            starty = []
+            for pid in self.procesy_bota(id_):
+                pole = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()
+                starty.append(btime + int(pole[19]) / tiki)       # pole 22 (starttime) po usunięciu pid i comm
+            return max(starty) if starty else None
+        except (OSError, ValueError, IndexError, StopIteration, ImportError):
+            return None
 
 
 # ---------- wykonawcy akcji ----------
@@ -304,8 +375,12 @@ class WykonawcaCien:
     def wroc(self, id_): return self._w("wroc", id_)
     def serwis(self, id_): return self._w("serwis", id_)
     def wyloguj(self, id_): return self._w("wyloguj", id_)
+    def relog_kolejka(self, id_): return self._w("relog_kolejka", id_)
     def powiadom(self, id_, tytul, tresc): return self._w("powiadom", id_, tytul, tresc)
+    def powiadom_info(self, id_, tytul, tresc): return self._w("powiadom_info", id_, tytul, tresc)
     def okna(self, id_): return self._w("okna", id_)
+    def zamknij_sesje(self, id_): return self._w("zamknij_sesje", id_)
+    def refill_spot(self, id_, mapa=None, tryb=None): return self._w("refill_spot", id_, mapa, tryb)
 
 
 class WykonawcaZywy:
@@ -320,13 +395,14 @@ class WykonawcaZywy:
         e["RETRONIC_ID"] = id_
         return e
 
-    def _uruchom(self, argv, id_, limit, odlacz=False):
+    def _uruchom(self, argv, id_, limit, odlacz=False, env_dod=None):
         try:
+            env = {**self._env(id_), **(env_dod or {})}
             if odlacz:
-                subprocess.Popen([str(a) for a in argv], cwd=str(DIR), env=self._env(id_), stdin=subprocess.DEVNULL,
+                subprocess.Popen([str(a) for a in argv], cwd=str(DIR), env=env, stdin=subprocess.DEVNULL,
                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
                 return True, "uruchomiono w tle"
-            r = subprocess.run([str(a) for a in argv], cwd=str(DIR), env=self._env(id_), capture_output=True, text=True,
+            r = subprocess.run([str(a) for a in argv], cwd=str(DIR), env=env, capture_output=True, text=True,
                                timeout=limit, stdin=subprocess.DEVNULL)
             wyj = " | ".join((r.stdout + r.stderr).strip().splitlines()[-3:])
             return r.returncode == 0, f"kod {r.returncode}: {wyj}"[:300]
@@ -335,11 +411,11 @@ class WykonawcaZywy:
         except OSError as e:
             return False, str(e)
 
-    def _skrypt(self, nazwa, id_, limit, argv_dod=(), odlacz=False):
+    def _skrypt(self, nazwa, id_, limit, argv_dod=(), odlacz=False, env_dod=None):
         p = DIR / nazwa
         if not p.exists():
             return False, f"brak narzędzia {nazwa}"
-        return self._uruchom([p, *argv_dod], id_, limit, odlacz)
+        return self._uruchom([p, *argv_dod], id_, limit, odlacz, env_dod)
 
     def sesja_start(self, id_):
         return self._uruchom([sys.executable, "-I", DIR / "sesja_gry.py", "start"], id_, 120)
@@ -384,6 +460,12 @@ class WykonawcaZywy:
     def wroc(self, id_):
         return self._skrypt("wroc.sh", id_, 20)
 
+    def refill_spot(self, id_, mapa=None, tryb=None):
+        """24.10 (przerwa postaci): `refill.sh --spot` = BEZ zakupów, tylko wyjście z miasta i start bota. Praca idzie odłączona (setsid), wywołanie wraca od razu.
+        Zmiana spotu: MAPA/TRYB w env wygrywają z ostatni_start (uruchom.sh); bez nich bot rusza na ostatniej mapie i trybie."""
+        env = {"MAPA": mapa, "TRYB": tryb or ""} if mapa else None
+        return self._skrypt("refill.sh", id_, 30, ["--spot"], env_dod=env)
+
     def okna(self, id_):
         """Kontrola okien po starcie (okna_start.py): zwiń minimapę / otwórz plecak, gdy pokrętło naprawy włączone, inaczej tylko
         powiadomienie. Kod 0 = ok/naprawione, 1 = wymaga człowieka (powiadomione), 3 = odroczone, 4 = brak odczytu."""
@@ -401,10 +483,30 @@ class WykonawcaZywy:
         Kody: 0 ok, 4 ręczna gra, 5 brak spokoju, 6 zgon, 7 ekran nierozpoznany, 8 bot poza miastem."""
         return self._skrypt("wyloguj.sh", id_, 330)
 
+    def zamknij_sesje(self, id_):
+        """23.10 (Karol 17:05: „niech pozamyka sesje”): `sesja_gry.py zamknij` dla postaci na ekranie logowania / liście postaci, bez bota.
+        Zatrzymuje wyłącznie procesy tej instancji (sway, klient, proxy); bota nie ma, gra nie biegnie. Powrót: sesja_gry.py start + zaloguj.sh."""
+        return self._uruchom([sys.executable, "-I", DIR / "sesja_gry.py", "zamknij"], id_, 120)
+
+    def relog_kolejka(self, id_):
+        """23.10: bot wylogował się sam (wylogowany.json): kolejka relogów (relog_wylogowanych.py) jako osobny proces, bo relog trwa
+        kilkanaście minut. Kolejka bierze WSZYSTKIE gotowe postacie pojedynczo, z przerwą 3-6 min; drugi start = no-op (singleton)."""
+        return RW.uruchom_kolejke_w_tle(self.korzen)
+
     def powiadom(self, id_, tytul, tresc):
         try:
             import powiadom  # noqa: PLC0415
             poszlo = powiadom.powiadom(tytul, tresc, "critical", klucz=f"nadzor-{id_}-{tytul}")
+            return bool(poszlo), "powiadomienie wysłane" if poszlo else "powiadomienie wyciszone (plik cisza / limit)"
+        except Exception as e:      # noqa: BLE001
+            return False, f"powiadomienie: {e!r}"
+
+    def powiadom_info(self, id_, tytul, tresc):
+        """Zwykłe (nie critical, bez głosu) powiadomienie o decyzji nadzorcy, która nie jest alarmem (23.10: wyrósł ze spotu).
+        Klucz zaczyna się od „stop” (powiadom.ZAWSZE): nie-critical bez takiego prefiksu jest tam wyciszany."""
+        try:
+            import powiadom  # noqa: PLC0415
+            poszlo = powiadom.powiadom(tytul, tresc, "normal", klucz=f"stop-nadzor-{id_}-{tytul}")
             return bool(poszlo), "powiadomienie wysłane" if poszlo else "powiadomienie wyciszone (plik cisza / limit)"
         except Exception as e:      # noqa: BLE001
             return False, f"powiadomienie: {e!r}"
@@ -432,13 +534,27 @@ def D(id_, akcja, powod, kod=None, klasa="info", **arg):
 
 
 # ---------- nadzorca ----------
+def stoj_wlaczony(korzen, id_):
+    """True, gdy instancja ma plik-flagę STOJ (stoj.py, 23.10). Błąd odczytu = False (zwykłe zasady). Funkcja modułowa, nie metoda:
+    `zaciecie` bywa wołane na atrapie obiektu (testy)."""
+    try:
+        return (Path(korzen) / "instancje" / id_ / "STOJ").exists()
+    except OSError:
+        return False
+
+
 class Nadzorca:
-    def __init__(self, korzen=None, zegar=None, zrodla=None, wykonawca=None, zywo=False, zapis=True, czysty=None):
+    def __init__(self, korzen=None, zegar=None, zrodla=None, wykonawca=None, zywo=False, zapis=True, czysty=None,
+                 naprawy_poziom=False, wykonawca_poziom=None):
         self.korzen = Path(korzen or KORZEN)
         self.zegar = zegar or (lambda: datetime.now().replace(microsecond=0))
         self.zrodla = zrodla or Zrodla(self.korzen)
         self.zywo = self.zywo_zadane = zywo
         self.wykonawca = wykonawca or (WykonawcaZywy(self.korzen) if zywo else WykonawcaCien())
+        # 23.10: NADZOR_NAPRAWY + `tick`/`napraw` = na żywo TYLKO decyzja wroc_poziom (wyrósł ze spotu), reszta (grafik) zostaje w cieniu.
+        # `cien` / `cien --raz` nigdy tego nie ustawiają (okno obchodu eksportuje NADZOR_NAPRAWY=1 także dla przebiegu w cieniu).
+        self.naprawy_poziom = bool(naprawy_poziom) and not zywo
+        self._wykonawca_poziom = wykonawca_poziom
         self.zapis = zapis
         self.W = G.wspolne(self.korzen)
         self.dziennik = Dziennik(self.korzen, zapis)
@@ -451,6 +567,10 @@ class Nadzorca:
         self._obs = {}              # id -> obserwacja z tego przebiegu (podgląd spotów w cieniu)
         self._ostrzezono_tabele = False
         self._poziom_z_pamieci = {}     # id -> (poziom, data odczytu), gdy w tym przebiegu użyto zapamiętanego poziomu zamiast bieżącego
+        self._plan = None               # plan_postaci.json wczytany raz na przebieg (tick / napraw)
+        self._kod_bota = None           # 23.10: pliki kodu bota (domknięcie importów mozg.py/cavebot.py), raz na przebieg
+        self._restart_kod_w_przebiegu = False
+        self._plan_czeka = []           # (id, decyzja czekaj) kroków planu, które czekają: wpis do dziennika bez blokowania reszty decyzji
 
     # --- stan trwały ---
     def _wczytaj_stan(self, tylko_odczyt=False):
@@ -661,6 +781,537 @@ class Nadzorca:
             st["wroc_koniec"] = {"tryb": "zywo" if self.zywo else "cien", "zmiana": d["arg"].get("zm"), "ts": ts_ep(teraz),
                                  "powod": d["arg"].get("powod_konca") or d["powod"]}
 
+    # --- wyrósł ze spotu (23.10, Karol: „limit na Rooku to 8 lvl, jak wbije 8 lvl to niech wraca do miasta”) ---
+    def poziom_zywo(self):
+        """True, gdy decyzja wroc_poziom jest wykonywana NAPRAWDĘ: tryb na żywo albo NADZOR_NAPRAWY (tick/napraw). Tak jak B-1 dla eskalacji:
+        przy wyciszonych powiadomieniach (plik cisza) postać nie wraca po cichu bez wiedzy Karola, zostaje wpis w cieniu."""
+        return bool(self.zywo or (self.naprawy_poziom and not self.powiadomienia_wylaczone()))
+
+    # --- strategia 23.10 (Karol): pokrętła, restart po zmianie kodu, zamknięcie sesji, czar bez efektu ---
+    def pokretlo(self, nazwa):
+        """Pokrętło nadzorcy: zmienna środowiska =1 albo plik instancje/_wspolne/<nazwa>. Domyślnie WYŁĄCZONE."""
+        return os.environ.get(nazwa) == "1" or (self.W / nazwa).exists()
+
+    def kod_bota(self):
+        """Ścieżki plików .py w korzeniu, które bot ładuje: domknięcie lokalnych importów od mozg.py i cavebot.py (ast, bez uruchamiania).
+        Jeden raz na przebieg. Zmiana pliku spoza tego zbioru (nadzor.py, testy, okno_api...) nie jest powodem restartu bota."""
+        if self._kod_bota is None:
+            korzenie = ("mozg", "cavebot")
+            wynik, kolejka = set(), list(korzenie)
+            while kolejka:
+                nazwa = kolejka.pop()
+                plik = self.korzen / f"{nazwa}.py"
+                if nazwa in wynik or not plik.is_file():
+                    continue
+                wynik.add(nazwa)
+                try:
+                    drzewo = ast.parse(plik.read_text(encoding="utf-8", errors="replace"))
+                except (OSError, SyntaxError, ValueError):
+                    continue
+                # korzenie (mozg, cavebot): wszystkie importy, także leniwe w funkcjach (loot, uh, zwiecha, zatrucie... ładują się w trakcie pracy bota).
+                # Dalej tylko importy poziomu modułu (też w if/try): leniwe importy narzędzi (nadzor.py, grafik.py...) dociągnęłyby pół repo
+                # i każda edycja narzędzia restartowałaby boty
+                if nazwa in korzenie:
+                    wezly = list(ast.walk(drzewo))
+                else:
+                    wezly, stos = [], list(drzewo.body)
+                    while stos:
+                        w = stos.pop()
+                        wezly.append(w)
+                        if isinstance(w, (ast.If, ast.Try, ast.With)):
+                            for pole in ("body", "orelse", "finalbody"):
+                                stos.extend(getattr(w, pole, []) or [])
+                            stos.extend(h for hh in getattr(w, "handlers", []) for h in hh.body)
+                for w in wezly:
+                    if isinstance(w, ast.Import):
+                        kolejka.extend(x.name.split(".")[0] for x in w.names)
+                    elif isinstance(w, ast.ImportFrom) and w.module and not w.level:
+                        kolejka.append(w.module.split(".")[0])
+            self._kod_bota = sorted(self.korzen / f"{n}.py" for n in wynik)
+        return self._kod_bota
+
+    def kod_nowszy_niz_start(self, id_, o, a):
+        """(nazwa_pliku, mtime) najnowszego pliku kodu bota nowszego niż START bota, inaczej None. Start = późniejszy z: proces (zrodla.bot_start_ts)
+        i ostatnia linia `Mózg:` w logu. Brak ustalonego startu = nie wiem, nie restartuję."""
+        fn = getattr(self.zrodla, "bot_start_ts", None)
+        try:
+            start = fn(id_) if fn else None
+        except Exception:       # noqa: BLE001
+            start = None
+        if not start:
+            return None
+        start = max(start, a.get("start") or 0)
+        najnowszy = None
+        for p in self.kod_bota():
+            try:
+                m = p.stat().st_mtime
+            except OSError:
+                continue
+            if m > start + RESTART_KOD_MARGINES_S and (najnowszy is None or m > najnowszy[1]):
+                najnowszy = (p.name, m)
+        return najnowszy
+
+    def decyzja_restart_kod(self, id_, o, a, st, teraz):
+        """Restart bota po zmianie jego kodu (strategia Karola pkt 1): tylko przy pokrętle NADZOR_RESTART_PO_KODZIE, nie w walce, nie w trakcie powrotu,
+        JEDNA postać na przebieg i >= RESTART_KOD_PRZERWA_S po poprzednim restarcie. STOP_RECZNY, nadzor:false, pauza i hold odrzuca bramka;
+        postać w depo ze STOP (zostan_w_depo) nie ma bota, więc tu nie trafia. Nie zużywa drabiny napraw."""
+        if not self.pokretlo(POKRETLO_RESTART_KOD) or not o["bot"]:
+            return None
+        n = self.kod_nowszy_niz_start(id_, o, a)
+        if n is None:
+            return None
+        plik, mt = n
+        powod = f"kod bota zmieniony ({plik} {datetime.fromtimestamp(mt):%H:%M}) po starcie bota"
+        if o["wroc"] or o["wyprawa"] or o["stop"]:
+            return D(id_, "czekaj", f"{powod}: bot wraca do miasta / stoi (STOP), restart po zakończeniu", "restart-kod-odroczony")
+        if a.get("walka"):
+            return D(id_, "czekaj", f"{powod}, ale bot w walce: restart w następnym przebiegu", "restart-kod-walka")
+        pr = st.get("restart_kod") or {}
+        if pr.get("mtime") == mt and pr.get("proby", 0) >= RESTART_KOD_PROBY:
+            return D(id_, "czekaj", f"{powod}: restart nieudany {pr['proby']} razy, nie ponawiam (do następnej zmiany kodu)", "restart-kod-wyczerpany")
+        ost = self.stan["globalne"].get("ostatni_restart_kod", 0)
+        if self._restart_kod_w_przebiegu or ts_ep(teraz) - ost < RESTART_KOD_PRZERWA_S:
+            return D(id_, "czekaj", f"{powod}: kolej tej postaci w następnym przebiegu (jeden restart naraz, przerwa >= {RESTART_KOD_PRZERWA_S} s)",
+                     "restart-kod-kolejka")
+        self._restart_kod_w_przebiegu = True
+        return D(id_, "restart", powod + ": restart (poza walką, jedna postać naraz)", "restart-kod", klasa="naprawa", problem="kod",
+                 mtime=mt)
+
+    def decyzja_czar(self, id_, a, st, teraz):
+        """Powiadomienie (nie naprawa, nie eskalacja, bez wstrzymania): bot zgłosił 3/3 „po rzucie ani HP, ani mana się nie zmieniły” = postać
+        najpewniej nie zna czaru zdrowia (odchyd: exura, 23.10). Nadzorca NIE zmienia pokręteł bota (tryb.py przy starcie i tak je scala)."""
+        c = a.get("czar_bez_efektu")
+        if not c or ts_ep(teraz) - c["ts"] > 20 * 60:
+            return None
+        if ts_ep(teraz) - st.get("czar_info_ts", 0) < CZAR_INFO_KARENCJA_S:
+            return None
+        return D(id_, "powiadom_info", f"czar {c['czar']} bez efektu {c['porazka']}/{c['z']}: postać najpewniej nie zna tego czaru", "czar-bez-efektu",
+                 klasa="naprawa", czar=c["czar"], nick=self.profil(id_).get("postac") or id_)
+
+    def decyzja_zamknij_sesje(self, id_, o, zm):
+        """Zamknięcie sesji postaci wylogowanej (strategia Karola, 17:05): sesja jest, klient na ekranie logowania / liście postaci, bota brak, a w
+        grafiku nie ma teraz jej zmiany (w trakcie zmiany to rozłączenie: relog jak dotąd). Tylko przy pokrętle NADZOR_ZAMYKAJ_SESJE. Ekran śmierci
+        to eskalacja do Karola, nie zamykanie; STOP_RECZNY odrzuca bramka (Karol gra)."""
+        if zm is not None or o["bot"] or o["ekran"] not in ("lista", "logowanie") or not self.pokretlo(POKRETLO_ZAMYKAJ_SESJE):
+            return None
+        return D(id_, "zamknij_sesje", f"wylogowana (ekran: {o['ekran']}), bota brak, poza zmianą: zamykam sesję klienta (jedna naraz)", "zamknij-sesje",
+                 klasa="zdarzenie")
+
+    def _wykonawca_dla(self, d):
+        # 23.10: na żywo przy NADZOR_NAPRAWY także kroki planu postaci (kod plan-*), z tymi samymi bramkami co wroc-poziom
+        # 23.10: także relog po wylogowaniu bota (kod relog-wylog): kolejka relogów na żywo przy NADZOR_NAPRAWY, bramki jak wyżej
+        # 23.10 (strategia Karola): tak samo restart po zmianie kodu, zamknięcie sesji i powiadomienie „czar bez efektu”; decyzje restart-kod
+        # i zamknij-sesje powstają WYŁĄCZNIE przy włączonym pokrętle (pliki NADZOR_RESTART_PO_KODZIE / NADZOR_ZAMYKAJ_SESJE: domyślnie ich nie ma)
+        if self.zywo or not ((d["akcja"] == "wroc" and d["kod"] == "wroc-poziom" or str(d["kod"]).startswith("plan-")
+                              or d["kod"] in ("relog-wylog", "restart-kod", "zamknij-sesje", "czar-bez-efektu")) and self.poziom_zywo()):
+            return self.wykonawca
+        if self._wykonawca_poziom is None:
+            self._wykonawca_poziom = WykonawcaZywy(self.korzen)
+        return self._wykonawca_poziom
+
+    def wyrosl_ze_spotu(self, id_, o, teraz):
+        """(mapa, poziom, max) gdy postać z działającym botem na mapie ze spotu, którego widełki karolowe (poziom_zrodlo „karol”) kończą się poniżej
+        BIEŻĄCEGO poziomu odczytanego z gry (nie zapamiętanego), inaczej None. Widełki „domyslne” to szacunek wg potworów, nie decyzja Karola:
+        nie odsyłają postaci do miasta."""
+        tab = self.tabela_spotow()
+        if tab is None or tab.blad or not o.get("bot"):
+            return None
+        poziom = self.poziom_z_odczytu(o.get("gracz"), o.get("panel"))
+        if poziom is None:
+            return None
+        try:
+            mapa = mapa_tryb_biezace(self.korzen, id_, teraz)[0]
+        except Exception:       # noqa: BLE001
+            return None
+        spot = tab.spoty.get(mapa) if mapa else None
+        if spot is None or spot.poziom_zrodlo != "karol" or not spot.poziom:
+            return None
+        maks = spot.poziom[1]
+        return (mapa, poziom, maks) if poziom > maks else None
+
+    def _zlecone_poziom(self, st, mapa):
+        """Zapis wcześniejszego zlecenia wroc_poziom dla tej mapy i tego trybu wykonania (cień nie tłumi żywego), jeśli wyczerpuje zlecanie."""
+        z = st.get("wroc_poziom")
+        tryb = "zywo" if self.poziom_zywo() else "cien"
+        if z and z.get("mapa") == mapa and z.get("tryb") == tryb and (z.get("ok") or z.get("proby", 1) >= WROC_POZIOM_PROBY):
+            return z
+        return None
+
+    def decyzja_wyrosl(self, id_, o, a, st, teraz):
+        """Decyzja „wyrósł ze spotu” albo None. Zlecenie RAZ (stan `wroc_poziom`), nie w walce. Wyjątki (STOP_RECZNY, pauza, hold, nadzor:false)
+        odrzuca bramka przed decyduj; powrót w toku i serwis odrzuca kolejność w decyduj."""
+        w = self.wyrosl_ze_spotu(id_, o, teraz)
+        if w is None:
+            return None
+        mapa, poziom, maks = w
+        powod = f"poziom {poziom} > max {maks} spotu {mapa}"
+        z = self._zlecone_poziom(st, mapa)
+        if z:
+            o_ktorej = datetime.fromtimestamp(z["ts"]).strftime("%H:%M")
+            return D(id_, "czekaj", f"{powod}: powrót {'zlecony o ' + o_ktorej if z.get('ok') else 'nieudany ' + str(z.get('proby')) + ' razy (ostatnio ' + o_ktorej + ')'}, nie ponawiam",
+                     "wroc-poziom-zlecony")
+        if o["log"] and a.get("walka"):
+            return D(id_, "czekaj", f"{powod}, ale bot w walce: czekam z powrotem do miasta", "wroc-poziom-walka")
+        return D(id_, "wroc", powod + ": zlecam powrót do miasta (limit poziomu spotu)", "wroc-poziom", klasa="naprawa", problem="poziom",
+                 mapa=mapa, poziom=poziom, maks=maks, nick=o.get("nick") or id_)
+
+    def _zapisz_wroc_poziom(self, st, d, teraz, ok, tryb):
+        if d["akcja"] == "wroc" and d["arg"].get("problem") == "poziom":
+            z = st.get("wroc_poziom")
+            proby = (z.get("proby", 0) + 1) if (z and z.get("mapa") == d["arg"].get("mapa") and z.get("tryb") == tryb) else 1
+            st["wroc_poziom"] = {"tryb": tryb, "mapa": d["arg"].get("mapa"), "poziom": d["arg"].get("poziom"), "maks": d["arg"].get("maks"),
+                                 "ts": ts_ep(teraz), "ok": bool(ok), "proby": proby}
+
+    def _powiadom_wyrosl(self, id_, d, W):
+        nick = d["arg"].get("nick") or id_
+        return W.powiadom_info(id_, f"{nick}: poziom {d['arg'].get('poziom')}, wraca do miasta",
+                               f"Limit poziomu spotu {d['arg'].get('mapa')} to {d['arg'].get('maks')}. Nadzorca zlecił WROC (bot idzie do depo i staje).")
+
+    # --- plan postaci (23.10, Karol: „Wszystko powinien robić nadzorca, powinien mieć jakiś plan”) ---
+    def plan_zywo(self):
+        """True, gdy kroki planu są wykonywane NAPRAWDĘ (tak jak wroc-poziom): NADZOR_ZYWO albo NADZOR_NAPRAWY przy działających powiadomieniach."""
+        return self.poziom_zywo()
+
+    def plan_postaci(self):
+        if self._plan is None:
+            self._plan = PP.wczytaj(self.korzen)
+        return self._plan
+
+    def spot_przypiety(self, id_):
+        """Powód przypięcia spotu (tekst) albo None. Postać przypięta (dawajkesh, invincible: Karol 23.10) zostaje na swoim spocie: nie rusza jej
+        wybór spotu przy starcie zmiany, zmien_spot ani drabina napraw. Plan nieczytelny = nie wiem, kto jest przypięty: nikogo nie przenoszę."""
+        plan = self.plan_postaci()
+        if plan.nieczytelny:
+            return "plan_postaci.json nieczytelny: nie zmieniam spotów"
+        pc = plan.postacie.get(id_)
+        if pc is not None and pc.spot_przypiety:
+            return pc.spot_przypiety_powod or "plan_postaci.json"
+        return None
+
+    def zostan_depo_pc(self, id_):
+        """Odczyt flagi (zostan_depo.Zostan) z planu postaci albo None (brak wpisu, plan nieczytelny, flaga wyłączona/błędna)."""
+        plan = self.plan_postaci()
+        if plan.nieczytelny:
+            return None
+        pc = plan.postacie.get(id_)
+        return pc.zostan if pc is not None and pc.zostan.flaga else None
+
+    def start_bota_ep(self, id_):
+        """Epoch (koniec minuty) startu najnowszego bota instancji z nazwy logu `mozg-stdout-MMDD-GGMM.log` (uruchom.sh) albo None. Nazwa, bo
+        `analizuj_log` czyta tylko końcówkę logu i `start` bywa None."""
+        teraz = self.zegar()
+        najlepszy = None
+        try:
+            for p in (self.kat(id_) / "logi").glob("mozg-stdout-*.log"):
+                m = re.fullmatch(r"mozg-stdout-(\d{2})(\d{2})-(\d{2})(\d{2})\.log", p.name)
+                if not m:
+                    continue
+                try:
+                    t = datetime(teraz.year, int(m[1]), int(m[2]), int(m[3]), int(m[4]))
+                except ValueError:
+                    continue
+                if t > teraz + timedelta(days=1):
+                    t = t.replace(year=t.year - 1)
+                if najlepszy is None or t > najlepszy:
+                    najlepszy = t
+        except OSError:
+            return None
+        return najlepszy.timestamp() + 59 if najlepszy else None
+
+    def zostan_w_depo(self, id_, st=None):
+        """Powód (tekst) albo None. Flaga `zostan_w_depo` w planie postaci (Karol 23.10: invincible, dawajkesh, wydra): po dojściu do depo postać zostaje
+        w depo. Plan nieczytelny = flagi nieznane, nadzorca działa jak przed flagą (ostrzeżenie `plan-blad` jest w dzienniku).
+        24.10: z `zostan_w_depo_po_refillach` flaga działa dopiero po N refillach i po starcie bota po N-tym (albo gdy znacznik `zostan_depo_od` już stoi)."""
+        z = self.zostan_depo_pc(id_)
+        if z is None:
+            return None
+        if ZD.tylko_cap(self.kat(id_), self.zegar().timestamp()):      # 24.10 (Karol): depo wyłącznie po cap = bank + powrót na spot, nie "zostaje"
+            return None
+        powod = z.powod or "plan_postaci.json"
+        if not z.po_refillach:
+            return powod
+        st = self.post(id_) if st is None else st
+        if st.get("zostan_depo_od"):
+            return powod
+        return powod if ZD.uzbrojona(z, self.kat(id_), start_bota=self.start_bota_ep(id_), wymagaj_startu=True) else None
+
+    @staticmethod
+    def _w_depo(o, a):
+        """Dowód depo: „Wyprawa: DEPO osiągnięte” w logu nowsze od startu bota albo panel (pozycja przy polu depo)."""
+        return bool(a.get("depo") and (a.get("start") is None or a["depo"] >= a["start"])) or bool(o["panel"].get("w_depo"))
+
+    def zostaje_w_depo(self, id_, o, st):
+        """Powód (tekst), gdy postać z flagą `zostan_w_depo` jest w stanie „w depo + STOP, bez bota” i ma tam zostać, inaczej None. Bez skutków ubocznych.
+        W grze: dowód depo (log albo panel). Offline / rozłączona: znacznik `zostan_depo_od` (nadzorca widział ją wcześniej w depo ze STOP) i dalej STOP.
+        STOP_RECZNY (Karol gra) odrzuca bramka wcześniej; tu dla pewności też None."""
+        powod = self.zostan_w_depo(id_, st)
+        if not powod or not o["stop"] or o["stop_reczny"] or o["bot"]:
+            return None
+        if o["online"] and o["w_grze"]:
+            return powod if self._w_depo(o, o["log"] or {}) else None
+        return powod if st.get("zostan_depo_od") else None
+
+    def _krok_planu(self, id_, krok_id):
+        pc = self.plan_postaci().postacie.get(id_)
+        return next((k for k in (pc.kroki if pc else []) if k.id == krok_id), None)
+
+    def _tabela_dla_planu(self):
+        tab = self.tabela_spotow()
+        return tab if (tab is not None and not tab.blad) else None
+
+    def _ekwipunek_dla_planu(self, id_):
+        fn = getattr(self.zrodla, "ekwipunek", None)
+        return (lambda: fn(id_)) if fn else None
+
+    def _plan_log(self, teraz, id_):
+        """Wpisy planu z konsumuj_start(zapis=False) do dziennika (z odsiewem powtórek)."""
+        return lambda ak, w, po, **e: self.wpisz(teraz, D(id_, "plan", po, f"plan-{w}-{zlib.crc32(po.encode('utf-8')) % 10**6}"), "info")
+
+    def plan_blanki(self, id_):
+        fn = getattr(self.zrodla, "blanki", None)
+        if not fn:
+            return None
+        try:
+            return fn(id_)
+        except Exception:       # noqa: BLE001
+            return None
+
+    def decyzja_planu(self, id_, o, a, st, zm, teraz):
+        """Pierwszy niezrobiony, nieuzbrojony krok z warunkiem `poziom >= N` spełnionym przez BIEŻĄCY poziom z gry (nie zapamiętany) albo None.
+        Krok raz, nie w walce; wyjątki (STOP_RECZNY, pauza, hold, nadzor:false) odrzuca bramka przed decyduj, powrót w toku i serwis kolejność w decyduj.
+        Kroki `po_refillu` / `przy_nastepnym_starcie` nie są tu: zużywa je start bota (konsumuj_start)."""
+        pc = self.plan_postaci().postacie.get(id_)
+        if pc is None or not pc.kroki:
+            return None
+        if zm is not None and teraz >= datetime.strptime(zm["koniec"], FMT):
+            return None         # koniec zmiany ma własny cykl (WROC, serwis, wylogowanie): plan nie wchodzi mu w drogę
+        poziom = self.poziom_z_odczytu(o.get("gracz"), o.get("panel"))
+        if poziom is None:
+            return None
+        for k in pc.kroki:
+            if k.zrobione_t or k.uzbrojone_t:
+                continue
+            if k.warunek["typ"] == "po_zwolnieniu":         # 23.10 (Karol): odchyd wchodzi na spot gebelisha ~10 min po jego wyjściu
+                d = self._decyzja_zwolnienia(id_, o, a, st, teraz, k, poziom)
+                if d:
+                    return d
+                continue
+            if k.warunek["typ"] != "poziom" or poziom < k.warunek["n"]:
+                continue
+            return self._decyzja_kroku(id_, o, a, st, teraz, k, poziom)
+        return None
+
+    def _zwolnienie(self, kto, mapa, teraz):
+        """(t_ep, skąd) gdy postać `kto` ZWOLNIŁA mapę `mapa` (od t_ep), inaczej (None, powód). Dowód z plików i procesów, bez stanu nadzorcy:
+        - bot `kto` działa na `mapa` (tryb.log + `Mózg: … trasa`) -> zajęta;
+        - bot działa na innej mapie -> zwolniona od ostatniego wpisu `[TRYB] mapa` w jej tryb.log;
+        - bota nie ma, plik STOP (bot staje w depo albo nadzorca go zatrzymał) i ostatnia mapa to `mapa` -> zwolniona od mtime STOP
+          (to chwila dojścia do depo, więc nie wcześniej niż faktyczne zejście ze spotu: odliczanie jest ostrożne);
+        - bota nie ma, ostatnia mapa inna -> zwolniona od ostatniego wpisu `[TRYB] mapa`;
+        - bota nie ma i NIE MA STOP (awaria, restart w toku) albo STOP_RECZNY (Karol gra) -> nie wiem, spot NIE jest zwolniony (nadzorca ją podniesie)."""
+        raw = (getattr(self, "_raw", {}) or {}).get(kto)
+        if raw is None:
+            return None, f"brak odczytu {kto}"
+        try:
+            mapa_k = mapa_tryb_biezace(self.korzen, kto, teraz)[0]
+        except Exception:       # noqa: BLE001
+            mapa_k = None
+        kat = self.kat(kto)
+        if (kat / "STOP_RECZNY").exists():
+            return None, f"{kto} ma STOP_RECZNY (Karol gra): nie wiem, czy zwolniła"
+        t_mapa = None
+        try:
+            for l in (kat / "logi" / "tryb.log").read_text(encoding="utf-8", errors="replace")[-300_000:].splitlines():
+                m = RE_TRYB_MAPA.match(l)
+                if m:
+                    t_mapa = datetime.strptime(m[1], "%Y-%m-%d %H:%M:%S").timestamp()
+        except (OSError, ValueError):
+            pass
+        if raw.get("bot"):
+            if mapa_k == mapa or mapa_k is None:
+                return None, f"{kto} ma tam działającego bota"
+            return (t_mapa, f"{kto} działa na {mapa_k}") if t_mapa else (None, f"{kto}: brak czasu wpisu mapy")
+        if mapa_k is None:
+            return None, f"{kto}: nieznana ostatnia mapa (brak [TRYB] mapa)"
+        if mapa_k != mapa:
+            return (t_mapa, f"{kto} stoi bez bota, ostatnio na {mapa_k}") if t_mapa else (None, f"{kto}: brak czasu wpisu mapy")
+        try:
+            return (kat / "STOP").stat().st_mtime, f"{kto} zeszła ze spotu: bez bota, STOP"
+        except OSError:
+            return None, f"{kto} bez bota i bez STOP (awaria / restart w toku): nie traktuję jako zwolnienia"
+
+    def _zajete_bez(self, id_, kto, teraz):
+        """Zajęte mapy jak `_zajete_mapy`, ale bez spotu zapisanego w stanie dla postaci `kto` (zwalniająca ma go jeszcze w stanie, w depo, bez bota):
+        z `kto` liczy się tylko działający bot (tryb.log)."""
+        zaj = self.mapy_zajete(id_, teraz)
+        zaj.pop(kto, None)
+        wynik = set().union(*zaj.values()) if zaj else set()
+        raw = (getattr(self, "_raw", {}) or {}).get(kto) or {}
+        if raw.get("bot"):
+            try:
+                wynik.add(mapa_tryb_biezace(self.korzen, kto, teraz)[0])
+            except Exception:       # noqa: BLE001
+                pass
+        wynik.discard(None)
+        return wynik
+
+    def _decyzja_zwolnienia(self, id_, o, a, st, teraz, k, poziom):
+        """Krok `po_zwolnieniu <kto> <mapa> +Nmin`: po N minutach od zwolnienia mapy przez `kto` -> powrót do miasta i start na tej mapie
+        (jak `mapa` z warunkiem poziomu: WROC, uzbrojenie, start z depo), chyba że bot już na niej stoi. Cel ścisły. Przed czasem / bez dowodu: None."""
+        w, akcja = k.warunek, k.akcja
+        t_free, skad = self._zwolnienie(w["kto"], w["mapa"], teraz)
+        if t_free is None or ts_ep(teraz) - t_free < w["min"] * 60:
+            return None
+        opis = f"plan {k.id} ({k.opis()}, poziom {poziom}; {skad} od {datetime.fromtimestamp(t_free):%H:%M})"
+        if st.get("plan_proby", {}).get(k.id, 0) >= PLAN_PROBY:
+            return D(id_, "czekaj", f"{opis}: {PLAN_PROBY} nieudane próby, nie ponawiam (do sprawdzenia przez Karola)", "plan-proby")
+        if o["log"] and a.get("walka"):
+            return D(id_, "czekaj", f"{opis}, ale bot w walce: czekam", "plan-walka")
+        mapa_b, tryb_b, _skad = mapa_tryb_biezace(self.korzen, id_, teraz)
+        if not mapa_b:
+            return D(id_, "czekaj", f"{opis}: nieznana bieżąca mapa (brak [TRYB] mapa w tryb.log), nie zgaduję", "plan-bez-mapy")
+        tryb = akcja["tryb"] or tryb_b
+        if not tryb:
+            return D(id_, "czekaj", f"{opis}: nieznany bieżący tryb, nie zgaduję", "plan-bez-trybu")
+        if "runy" in tryb.split(","):
+            return D(id_, "czekaj", f"{opis}: tryb runy nie jest obsługiwany przez po_zwolnieniu (brak kontroli blanków)", "plan-runy")
+        cel, kom = PP.wybierz_cel(self.korzen, id_, akcja["mapa"], self._zajete_bez(id_, w["kto"], teraz), poziom, self._tabela_dla_planu(),
+                                  self._ekwipunek_dla_planu(id_), scisle=True)
+        if cel is None:
+            return D(id_, "czekaj", f"{opis}: {kom}", "plan-brak", krok=k.id)
+        arg = {"krok": k.id, "poziom": poziom, "nick": o.get("nick") or id_, "mapa": mapa_b}
+        if cel == mapa_b:
+            if tryb == tryb_b:
+                return D(id_, "plan_juz", f"{opis}: już na {mapa_b} z trybem {tryb_b}, nic do zmiany", "plan-juz", klasa="naprawa", problem="plan",
+                         **dict(arg, tryb=tryb))
+            return D(id_, "plan_tryb", f"{opis}: restart bota na {mapa_b} z trybem {tryb}", "plan-tryb", klasa="naprawa", problem="plan",
+                     **dict(arg, tryb=tryb))
+        return D(id_, "plan_mapa", f"{opis}: powrót do miasta, start na {cel}", "plan-mapa", klasa="naprawa", problem="plan",
+                 cel=cel, tryb=akcja["tryb"], **arg)
+
+    def _decyzja_kroku(self, id_, o, a, st, teraz, k, poziom):
+        opis = f"plan {k.id} ({k.opis()}, poziom {poziom})"
+        if st.get("plan_proby", {}).get(k.id, 0) >= PLAN_PROBY:
+            return D(id_, "czekaj", f"{opis}: {PLAN_PROBY} nieudane próby, nie ponawiam (do sprawdzenia przez Karola)", "plan-proby")
+        if o["log"] and a.get("walka"):
+            return D(id_, "czekaj", f"{opis}, ale bot w walce: czekam", "plan-walka")
+        mapa_b, tryb_b, _skad = mapa_tryb_biezace(self.korzen, id_, teraz)
+        arg = {"krok": k.id, "poziom": poziom, "nick": o.get("nick") or id_, "mapa": mapa_b}
+        akcja = k.akcja
+        if akcja["typ"] == "wroc":
+            return D(id_, "wroc", f"{opis}: zlecam powrót do miasta", "plan-wroc", klasa="naprawa", problem="plan", **arg)
+        cel_info = ""
+        if akcja["typ"] == "mapa":
+            cel, kom = PP.wybierz_cel(self.korzen, id_, akcja["mapa"], self._zajete_mapy(id_), poziom, self._tabela_dla_planu(),
+                                      self._ekwipunek_dla_planu(id_))
+            if cel is None:
+                return D(id_, "czekaj", f"{opis}: {kom}", "plan-brak", krok=k.id)
+            cel_info = f" ({kom})" if kom else ""
+            if cel != mapa_b:
+                return D(id_, "plan_mapa", f"{opis}: powrót do miasta, start na {cel}{cel_info}", "plan-mapa", klasa="naprawa", problem="plan",
+                         cel=cel, tryb=akcja["tryb"], **arg)
+            akcja = {"typ": "tryb", "tryb": akcja["tryb"] or tryb_b}        # już stoi na celu: zostaje, najwyżej zmiana trybu
+        if not mapa_b:
+            return D(id_, "czekaj", f"{opis}: nieznana bieżąca mapa (brak [TRYB] mapa w tryb.log), nie zgaduję", "plan-bez-mapy")
+        if akcja["tryb"] == tryb_b:
+            return D(id_, "plan_juz", f"{opis}: już na {mapa_b} z trybem {tryb_b}, nic do zmiany", "plan-juz", klasa="naprawa", problem="plan", **arg)
+        if "runy" in akcja["tryb"].split(","):
+            bl = self.plan_blanki(id_)
+            if bl is None or bl < k.blanki_min:
+                ile = "brak odczytu blanków" if bl is None else f"blanków {bl} < {k.blanki_min}"
+                return D(id_, "plan_blanki", f"{opis}: {ile} w plecaku, nie startuję trybu runy na ślepo: powrót do miasta, tryb ruszy po refillu (kupi blanki)",
+                         "plan-blanki", klasa="naprawa", problem="plan", tryb=akcja["tryb"], blanki=bl, **arg)
+        return D(id_, "plan_tryb", f"{opis}: restart bota na {mapa_b} z trybem {akcja['tryb']}", "plan-tryb", klasa="naprawa", problem="plan",
+                 tryb=akcja["tryb"], **arg)
+
+    def _plan_porazka(self, st, krok_id):
+        st.setdefault("plan_proby", {})[krok_id] = st.get("plan_proby", {}).get(krok_id, 0) + 1
+
+    def _plan_stub_wroc(self, st, d, teraz):
+        """Krok planu zlecił WROC: wroc-poziom nie zleca drugiego (Rook 1-7: plan `poziom >= 8 -> wroc` i limit spotu to ten sam powrót)."""
+        st["wroc_poziom"] = {"tryb": "zywo", "mapa": d["arg"].get("mapa"), "poziom": d["arg"].get("poziom"), "maks": None, "ts": ts_ep(teraz),
+                             "ok": True, "proby": 1}
+
+    def _powiadom_plan(self, W, id_, d, tresc):
+        k = self._krok_planu(id_, d["arg"].get("krok"))
+        powod = f" ({k.powod})" if k and k.powod else ""
+        nick = d["arg"].get("nick") or id_
+        return W.powiadom_info(id_, f"{nick}: plan, krok {d['arg'].get('krok')}"[:80], tresc + powod)
+
+    def _wykonaj_plan(self, teraz, id_, d, st, W):
+        """wroc / plan_blanki / plan_mapa / plan_tryb: jeden krok planu NA ŻYWO. -> (ok, tekst). `zrobione_t` (atomowo) dopiero po udanym skutku."""
+        akcja, arg = d["akcja"], d["arg"]
+        krok = arg.get("krok")
+        if akcja == "plan_juz":
+            PP.oznacz_zrobione(self.korzen, id_, krok, teraz, "już na tej mapie i w tym trybie")
+            self._powiadom_plan(W, id_, d, f"Już na {arg.get('mapa')} z trybem {arg.get('tryb')}: bez zmian.")
+            return True, "bez zmian"
+        if akcja == "plan_tryb":
+            raw = getattr(self, "_raw", {}).get(id_) or {}
+            if raw.get("bot"):
+                ok, txt = W.zatrzymaj_bota(id_)
+                if not ok:
+                    self._plan_porazka(st, krok)
+                    return False, "zatrzymanie nieudane: " + txt
+            odmowa = self.bramka(id_)
+            if odmowa:          # zatrzymanie trwa kilka sekund: w tym czasie mogło pojawić się STOP_RECZNY (uruchom.sh by go skasował)
+                return False, "start bota anulowany po zatrzymaniu: " + odmowa
+            ok, txt = W.start_bota(id_, arg.get("mapa"), arg.get("tryb"))
+            if not ok:
+                self._plan_porazka(st, krok)
+                return False, txt
+            st["bot_start"], st["faza"] = ts_ep(teraz), "DOJSCIE"
+            st["stoi_w_depo_od"] = None
+            PP.oznacz_zrobione(self.korzen, id_, krok, teraz, f"restart: {arg.get('mapa')} / {arg.get('tryb')}")
+            self._powiadom_plan(W, id_, d, f"Restart bota na {arg.get('mapa')} z trybem {arg.get('tryb')}.")
+            return True, f"{arg.get('mapa')} / {arg.get('tryb')}; {txt}"
+        ok, txt = W.wroc(id_)
+        if not ok:
+            self._plan_porazka(st, krok)
+            return False, txt
+        st["faza"], st["powrot_od"] = "POWROT", ts_ep(teraz)
+        self._plan_stub_wroc(st, d, teraz)
+        if akcja == "wroc":
+            PP.oznacz_zrobione(self.korzen, id_, krok, teraz, "wroc")
+            self._powiadom_plan(W, id_, d, f"Poziom {arg.get('poziom')}: wraca do miasta (bot idzie do depo i staje).")
+        elif akcja == "plan_blanki":
+            PP.uzbroj(self.korzen, id_, krok, teraz, mapa=arg.get("mapa"), tylko_refill=True)
+            self._powiadom_plan(W, id_, d, f"Poziom {arg.get('poziom')}, brak blanków na runy: wraca do miasta; tryb {arg.get('tryb')} ruszy po refillu.")
+        else:
+            PP.uzbroj(self.korzen, id_, krok, teraz, tylko_refill=False)
+            self._powiadom_plan(W, id_, d, f"Poziom {arg.get('poziom')}: wraca do miasta; następny start bota pójdzie na {arg.get('cel')}"
+                                           + (f" ({arg.get('tryb')})" if arg.get("tryb") else "") + ".")
+        return True, txt
+
+    def _plan_start(self, id_, teraz, poziom, biezaca):
+        """Kroki planu, które ten start nadzorcy (login, relog, restart, wznów) ma wykonać: {"mapa","tryb","kroki"} albo None. NIC nie zapisuje do pliku
+        planu (zużycie dopiero po udanym starcie: `_plan_zuzyj`); zajętość mapy liczona z bieżących map innych botów."""
+        try:
+            return PP.konsumuj_start(self.korzen, id_, "nadzor", teraz, zapis=False, zajete=self._zajete_mapy(id_), poziom=poziom,
+                                     ekwipunek=self._ekwipunek_dla_planu(id_), powiadom=self._wykonawca_dla({"akcja": "start_bota", "kod": "plan-start"}).powiadom_info,
+                                     log=self._plan_log(teraz, id_), bramki=False, biezaca=biezaca, tabela=self._tabela_dla_planu(), ostrzez=self.plan_zywo(),
+                                     zajete_bez=lambda kto: self._zajete_bez(id_, kto, teraz))
+        except Exception as e:      # noqa: BLE001  (plan nie wolno wywrócić startu postaci)
+            self.wpisz(teraz, D(id_, "ostrzezenie", f"plan: błąd przy ustalaniu startu: {e!r}; start bez planu", "plan-wyjatek"), "ostrzezenie")
+            return None
+
+    def _plan_zuzyj(self, id_, r, teraz, W):
+        """Po UDANYM starcie bota z planu: zrobione_t (atomowo) + jedno zwykłe powiadomienie na krok (uzbrojony krok powiadomił już przy WROC)."""
+        for kid in r["kroki"]:
+            k = self._krok_planu(id_, kid)
+            if PP.oznacz_zrobione(self.korzen, id_, kid, teraz, f"start (nadzor): {r['mapa']} / {r['tryb'] or '-'}") and k and not k.uzbrojone_t:
+                W.powiadom_info(id_, f"{id_}: plan, krok {kid}"[:80],
+                                f"{k.opis()} ({k.powod}). Start: {r['mapa']} / {r['tryb'] or '-'}.")
+
+    def _ostrzez_plan_brak(self, teraz, id_, d):
+        """Krok `mapa` czeka, bo cel jest zajęty i nie ma wolnego spotu w tych samych widełkach: dziennik (wpis `czekaj` już jest) + jedno powiadomienie
+        na krok raz na kilka godzin (tylko gdy plan jest wykonywany naprawdę)."""
+        krok = d["arg"].get("krok")
+        if not (krok and self.plan_zywo()) or not PP.ostrzez_raz(self.korzen, id_, krok, teraz):
+            return
+        W = self._wykonawca_dla(d)
+        W.powiadom_info(id_, f"{id_}: plan czeka, brak wolnego spotu"[:80], d["powod"][:300])
+
     # --- wybór spotu (Q5, SPEC_wybor_spotu_1021) ---
     def tabela_spotow(self):
         """Tabela spotów (spoty.py) albo None, gdy nie ma pliku dane_tibia/spoty_nadzorca.json (wtedy zachowanie jak przed Q5). Raz na przebieg."""
@@ -788,8 +1439,8 @@ class Nadzorca:
         pierwszy = "wznow" if problem == "alarm" else "restart"
         mapa = mapa_tryb_biezace(self.korzen, id_, teraz)[0]
         szczeble = [pierwszy, pierwszy]
-        if self.spot_zapasowy(id_, mapa, self._zajete_mapy(id_)) or self._alternatywa_spotu(id_, o, mapa, teraz):
-            szczeble.append("zmien_spot")
+        if not self.spot_przypiety(id_) and (self.spot_zapasowy(id_, mapa, self._zajete_mapy(id_)) or self._alternatywa_spotu(id_, o, mapa, teraz)):
+            szczeble.append("zmien_spot")       # spot przypięty (dawajkesh, invincible): bez zmiany spotu w drabinie
         if o.get("bot"):
             szczeble.append("wroc")         # WROC wymaga żywego bota; przy martwym ostatni szczebel to eskalacja
         ost = self.naprawy_w_oknie(id_, teraz)
@@ -836,6 +1487,10 @@ class Nadzorca:
         st = self.post(id_)
         konf = self.konf
         zm = self.zmiana_postaci(plan, id_, teraz, o["online"])
+        zostaje = self.zostaje_w_depo(id_, o, st)       # 23.10 (Karol): invincible, dawajkesh, wydra w depo ze STOP zostają w depo
+        wyl = None if zostaje else self._po_wylogowaniu_bota(id_, o, teraz)
+        if wyl is not None:
+            return [wyl]
         cisza = not (G.hm(konf["cisza_do"]) <= teraz.hour * 60 + teraz.minute or teraz.hour * 60 + teraz.minute < G.hm(konf["cisza_od"]))
         # ---------- offline ----------
         if not o["online"]:
@@ -848,7 +1503,13 @@ class Nadzorca:
                 st["koniec"] = None
                 st["spot"] = None
                 st.pop("wroc_koniec", None)
+                st.pop("wroc_poziom", None)
             st.pop("adopcja_od", None)
+            if zostaje:
+                return [D(id_, "czekaj", f"offline, ostatnio w depo ze STOP (zostan_w_depo: {zostaje}): nie loguję, postać zostaje w depo", "zostaje-offline")]
+            pr_off = self._przerwa_offline(id_, o, st, teraz, zm, cisza)       # 24.10: przerwa postaci (zmiana w grafiku jej nie przebija)
+            if pr_off:
+                return [pr_off]
             if zm is None:
                 return [D(id_, "czekaj", "offline, brak zmiany w grafiku w tej chwili", "offline")]
             if cisza:
@@ -878,7 +1539,7 @@ class Nadzorca:
         if wyn:
             return wyn
         a = o["log"] or {}
-        if zm is not None and zm["od"] in st.get("zakonczone", []):
+        if zm is not None and zm["od"] in st.get("zakonczone", []) and not self.przerwa_trwa(id_):
             if ts_ep(teraz) - st.get("ostatnie_wylog", 0) > 300:
                 return [D(id_, "eskaluj", "po wylogowaniu sesja nadal działa > 5 min", "sesja-po-wylogowaniu", klasa="eskalacja",
                           kod_eskalacji="wyczerpana")]
@@ -889,6 +1550,16 @@ class Nadzorca:
         if st.get("faza") in ("OFFLINE", "LOGOWANIE", None):
             st["faza"] = "DOJSCIE"
         st["logowanie_nasze"] = False
+        if zostaje:     # w depo ze STOP, bez bota, flaga zostan_w_depo: żadnego wznow/restart/serwis/relog/wylogowania/startu; powrót (WROC) już się skończył
+            st.setdefault("zostan_depo_od", ts_ep(teraz))
+            st["faza"] = "MIASTO"
+            if self.wyloguj_w_depo(id_):
+                return [self._wylogowanie_w_depo(id_, o, a, st, teraz, zostaje)]
+            return [D(id_, "czekaj", f"stoi w depo ze STOP (zostan_w_depo: {zostaje}): zostaje, nie wznawiam, bez serwisu, refillu, relogu i wylogowania", "zostaje-w-depo")]
+        st.pop("zostan_depo_od", None)
+        pr_on = self._przerwa_online(id_, o, a, st, teraz)         # 24.10: przerwa postaci (przed „poza grafikiem: nie ruszam”)
+        if pr_on:
+            return [pr_on]
         if zm is None:
             # Sesja bez zmiany w grafiku (nowa instancja, ręczny start, grafik zrobiony przed jej pojawieniem się). Bot działa albo wraca do miasta:
             # to aktywna sesja i trafia pod nadzór od razu (zacięcie, limit dzienny, plecak, cap, jedzenie, powrót), tylko bez końca zmiany z grafiku.
@@ -914,6 +1585,14 @@ class Nadzorca:
             st["faza"] = "EXP"
         if st.get("faza") == "DOJSCIE" and (a.get("zabicia_od_startu", 0) > 0 or ts_ep(teraz) - (st.get("bot_start") or 0) > 900):
             st["faza"] = "EXP"
+        pl = self.decyzja_planu(id_, o, a, st, zm, teraz)       # 23.10: plan postaci przed „wyrósł ze spotu” (Rook: poziom 8 to ten sam powrót)
+        if pl:
+            if pl["akcja"] != "czekaj":
+                return [pl]
+            self._plan_czeka.append((id_, pl))          # krok czeka (walka, brak wolnego spotu, próby): wpis, ale reszta kontroli idzie dalej
+        wyr = self.decyzja_wyrosl(id_, o, a, st, teraz)         # 23.10: przed grafikiem (grafik jest w cieniu, to jedyna decyzja na żywo bez NADZOR_ZYWO)
+        if wyr:
+            return [wyr]
         koniec = self.koniec_zmiany(id_, o, zm, teraz)
         if koniec:
             st["koniec"] = koniec[0]
@@ -930,6 +1609,10 @@ class Nadzorca:
             if o["log"] and a.get("walka_bez_lootu"):
                 return [D(id_, "czekaj", f"{powod}, ale bot w walce: odkładam", "okna-odroczenie")]
             return [D(id_, "okna", powod, "okna", klasa="naprawa", problem="okna")]
+        # 23.10 (strategia Karola): „czar bez efektu 3×” (powiadomienie) i restart po zmianie kodu (pokrętło, domyślnie wyłączone)
+        dodatkowe = [d for d in (self.decyzja_czar(id_, a, st, teraz), self.decyzja_restart_kod(id_, o, a, st, teraz)) if d]
+        if dodatkowe:
+            return dodatkowe
         return [D(id_, "czekaj", f"{st.get('faza', 'EXP')}: bot działa, bez uwag", "ok")]
 
     def _stanowisko(self, id_, teraz):
@@ -944,6 +1627,8 @@ class Nadzorca:
         t = o.get("tele") or {}
         if (t.get("wiek_probki_s") or 0) > 120:
             return f"telemetria stara ({t['wiek_probki_s']} s): bot zawieszony"
+        if stoj_wlaczony(self.korzen, id_):
+            return None         # 23.10 przełącznik STÓJ (stoj.py, plik instancje/<id>/STOJ): postać stoi z woli Karola, nie jest zacięta (ani „stoi > N min”, ani „brak zabić”)
         if self._stanowisko(id_, teraz):
             return None         # 22.10 tryb stoj (stoj_runy_*): stanie na polu i brak zabić to norma, nie zacięcie; stara telemetria wyżej nadal liczy się jako zawieszenie
         if (t.get("stoi_poza_walka_s") or 0) > float(self.konf["stoi_min"]) * 60:
@@ -955,14 +1640,47 @@ class Nadzorca:
                 return f"brak zabić od {round((ts_ep(teraz) - ost) / 60)} min"
         return None
 
+    def _po_wylogowaniu_bota(self, id_, o, teraz):
+        """23.10 (decyzja Karola po resecie serwera): bot, który zobaczył ekran logowania / listę postaci / brak postaci, kończy proces i zostawia
+        instancje/<id>/wylogowany.json (wylogowanie.py). Taka postać NIE jest awarią (`_bez_bota` -> drabina awaria -> restart bota na ekranie
+        logowania) ani rozłączeniem do natychmiastowego `zaloguj` (`_poza_gra` -> relog w trakcie resetu): czeka na kolejkę relogów
+        (relog_wylogowanych.py: >= 10 min po wylogowaniu / po resecie, pełny restart klienta, jedna postać naraz, przerwa 3-6 min).
+        -> decyzja albo None (brak świeżego znacznika albo bot już działa: znacznik nieaktualny, zajmie się nim mozg.main)."""
+        if o.get("bot"):
+            return None
+        r = RW.ocen(self.korzen, id_, ts_ep(teraz))
+        if r is None:
+            return None
+        m, od = r["marker"], datetime.fromtimestamp(r["od"])
+        kto = f"wylogowany o {m.get('czas', '?')[11:16]} ({m.get('powod', '?')[:60]}); mapa {m.get('mapa') or '?'}"
+        if r["proby"] >= RW.MAX_PROB:
+            return D(id_, "eskaluj", f"relog po wylogowaniu bota nieudany {r['proby']} razy ({kto})", "relog-wylog-wyczerpany",
+                     klasa="eskalacja", kod_eskalacji="relog_wylog")
+        if RW.kolejka_dziala(self.korzen):
+            return D(id_, "czekaj", f"{kto}: kolejka relogów trwa (jedna postać naraz)", "relog-wylog-trwa")
+        if not r["gotowa"]:
+            return D(id_, "czekaj", f"{kto}: {r['powod']}", "relog-wylog-czeka")
+        return D(id_, "relog_wylog", f"{kto}: relog (restart klienta, logowanie, bot na {m.get('mapa')} / {m.get('tryb') or '-'}), od {od:%H:%M}",
+                 "relog-wylog", klasa="bot", mapa=m.get("mapa"), tryb=m.get("tryb"))
+
     def _poza_gra(self, id_, o, a, st, teraz, zm):
         """Sesja jest, ale klient nie jest w grze: logowanie w toku, rozłączenie albo stan nieustalony."""
+        zostaje = self.zostaje_w_depo(id_, o, st)
+        if zostaje:     # 23.10: po resecie serwera / rozłączeniu postać z flagą zostan_w_depo (ostatnio w depo ze STOP) nie jest logowana na siłę
+            return D(id_, "czekaj", f"klient poza grą, ostatnio w depo ze STOP (zostan_w_depo: {zostaje}): nie loguję ponownie, postać zostaje w depo", "zostaje-poza-gra")
+        pr_trwa = self.przerwa_trwa(id_)        # 24.10: przerwa postaci: nasz powrót po przerwie nie jest „sesją poza zmianą”
+        zamkniecie = None if pr_trwa else self.decyzja_zamknij_sesje(id_, o, zm)         # 23.10 (Karol): wylogowana poza zmianą = zamknięta sesja klienta
+        if zamkniecie:
+            return zamkniecie
         rozl = bool(a.get("rozl") and a["rozl"] > (a.get("rozl_koniec") or 0)) or o["ekran"] in ("logowanie", "lista")
         w_logowaniu = (st.get("faza") == "LOGOWANIE" and st.get("logowanie_nasze")
                        and ts_ep(teraz) - st.get("login_ts", ts_ep(teraz)) < 600)
-        if w_logowaniu and zm is not None:
+        if w_logowaniu and (zm is not None or pr_trwa):
             if ts_ep(teraz) - st.get("zaloguj_ts", 0) < 60:
                 return D(id_, "czekaj", "logowanie w toku: czekam na wejście do gry", "logowanie-czeka")
+            if pr_trwa:         # kod plan-*: na żywo także wtedy, gdy zmiana z grafiku jest aktywna (grafik działa w cieniu)
+                return D(id_, "zaloguj", "przerwa skończona, sesja stoi, klient na ekranie logowania: zaloguj.sh (kliki Login i Ok)", "plan-przerwa-zaloguj",
+                         klasa="logowanie", przerwa=True)
             return D(id_, "zaloguj", "sesja stoi, klient na ekranie logowania: zaloguj.sh (kliki Login i Ok)", "zaloguj",
                      klasa="logowanie", zmiana_od=zm["od"])
         if rozl and zm is not None:
@@ -982,7 +1700,7 @@ class Nadzorca:
     def _bez_bota(self, id_, o, a, st, teraz, zm):
         """W grze, bota brak. Start po logowaniu, koniec w depo, alarm albo awaria."""
         koniec_flaga = st.get("koniec") is not None or teraz >= datetime.strptime(zm["koniec"], FMT)
-        w_depo = bool(a.get("depo") and (a.get("start") is None or a["depo"] >= a["start"])) or bool(o["panel"].get("w_depo"))
+        w_depo = self._w_depo(o, a)
         znany = st.get("bot_start") or st.get("bot_widziany") or st.get("sesja_nasza") or st.get("faza") in ("POWROT", "MIASTO", "WYLOGOWANIE")
         if not znany and not (o["stop"] and w_depo):
             return D(id_, "czekaj", "bot nie działa, a nie widziałem go w tej sesji nadzoru: możliwa ręczna gra, nie ruszam",
@@ -998,7 +1716,7 @@ class Nadzorca:
             mapa, tryb, skad, spot = wyb["mapa"], wyb["tryb"], wyb["skad"], wyb["spot"]
             return D(id_, "start_bota", f"zalogowany, start bota na {mapa} / {tryb or '-'} (źródło: {skad})"
                      + (" [zalegający STOP zostanie skasowany przez uruchom.sh]" if o["stop"] else ""), "start-bota",
-                     klasa="bot", mapa=mapa, tryb=tryb, spot=spot)
+                     klasa="bot", mapa=mapa, tryb=tryb, spot=spot, plan_kroki=wyb.get("plan_kroki"), poziom=wyb.get("poziom"))
         if o["stop"] and (koniec_flaga or st.get("faza") in ("POWROT", "MIASTO", "WYLOGOWANIE")):
             if not dowod_miasta:
                 # B-3: STOP, ale brak dowodu, że postać jest w mieście (alarm w połowie WROC): ani serwis, ani wylogowanie.
@@ -1018,8 +1736,27 @@ class Nadzorca:
     def _wybor_startu(self, id_, o, st, zm, teraz):
         """Mapa i tryb na start zmiany. -> {"mapa", "tryb", "skad", "spot"} albo decyzja D (czekaj / eskaluj), gdy startu być nie może.
         Jawna mapa z grafiku/konfiguracji (decyzja Karola) wygrywa; inaczej tabela spotów; bez tabeli jak dotąd (bieżąca mapa z tryb.log)."""
+        biez_mapa, biez_tryb, _skad = mapa_tryb_biezace(self.korzen, id_, teraz)
+        poziom = self.poziom_z_odczytu(o.get("gracz"), o.get("panel"))
+        r = self._plan_start(id_, teraz, poziom, (biez_mapa, biez_tryb))
+        if r:       # 23.10: zaplanowana mapa/tryb na następny start wygrywa z tryb.log i spotem; po starcie źródłem prawdy jest znów tryb.log
+            self._przypisane[id_] = r["mapa"]
+            return {"mapa": r["mapa"], "tryb": r["tryb"], "skad": "plan: krok " + ", ".join(r["kroki"]), "spot": None, "plan_kroki": r["kroki"], "poziom": poziom}
         if zm and zm.get("mapa"):
             return {"mapa": zm["mapa"], "tryb": zm.get("tryb"), "skad": "grafik", "spot": None}
+        pin = self.spot_przypiety(id_)
+        if pin:     # dawajkesh / invincible (Karol 23.10): zostają na bieżącym spocie, bez mieszania jaskiń przy starcie zmiany
+            tab = self.tabela_spotow()
+            jask = (lambda m: tab.jaskinia_mapy(m)) if (tab is not None and not tab.blad) else (lambda m: m)       # noqa: E731
+            zaj = {jask(m) for m in self._zajete_mapy(id_)}
+            if biez_mapa and jask(biez_mapa) not in zaj:
+                return {"mapa": biez_mapa, "tryb": biez_tryb, "skad": f"spot przypięty ({pin})", "spot": {"mapa": biez_mapa, "jaskinia": jask(biez_mapa)}}
+            ile = ts_ep(teraz) - (st.get("login_ts") or ts_ep(teraz))
+            powod = (f"spot przypięty ({pin}), ale " + (f"jaskinia {jask(biez_mapa)} zajęta przez innego bota" if biez_mapa else "bieżącej mapy nie ustalam (tryb.log)")
+                     + ": nie przenoszę bez wpisu Karola")
+            if ile >= 600:
+                return D(id_, "eskaluj", f"{powod} od {round(ile / 60)} min po zalogowaniu", "przypiety-brak", klasa="eskalacja", kod_eskalacji="nieustalony")
+            return D(id_, "czekaj", powod + "; czekam (do 10 min po zalogowaniu)", "przypiety-czeka")
         tab = self.tabela_spotow()
         if tab is None or tab.blad:
             if not self._ostrzezono_tabele:
@@ -1028,7 +1765,6 @@ class Nadzorca:
                                     + ": wybór spotu wyłączony, start na bieżącej mapie z tryb.log (jak przed Q5)", "spoty-brak-tabeli"), "ostrzezenie")
             mapa, tryb, skad = self._mapa_zmiany(id_, zm)
             return {"mapa": mapa, "tryb": tryb, "skad": skad, "spot": None}
-        biez_mapa, biez_tryb, _skad = mapa_tryb_biezace(self.korzen, id_, teraz)
         w = self.wybierz_spot(id_, o.get("panel"), o.get("gracz"), teraz, biez_mapa, zm["od"] if zm else "start")
         if w["mapa"]:
             self._przypisane[id_] = w["mapa"]
@@ -1092,12 +1828,222 @@ class Nadzorca:
         pow_ = "koniec zmiany, postać w mieście" + (" (spokój)" if not a.get("walka") else " (po 15 min bez spokoju)")
         return D(id_, "wyloguj", pow_ + f": wyloguj.sh i zamknięcie sesji (powód: {st.get('koniec') or 'grafik'})", "wyloguj", klasa="zdarzenie")
 
+    def zostan_stan(self, id_, st):
+        """Do `stan`: ile refilli od wpisu i czy flaga jest TERAZ uzbrojona (bez skutków ubocznych)."""
+        z = self.zostan_depo_pc(id_)
+        return {"refille_od_wpisu": len(ZD.refille_od_wpisu(z, self.kat(id_))) if z and z.po_refillach else 0,
+                "zostan_uzbrojone": bool(z and self.zostan_w_depo(id_, st))}
+
+    def wyloguj_w_depo(self, id_):
+        z = self.zostan_depo_pc(id_)
+        return bool(z and z.wyloguj)
+
+    def _wylogowanie_w_depo(self, id_, o, a, st, teraz, zostaje):
+        """24.10 (Karol: „zakończyć i wylogować się w depo”): uzbrojona postać z `wyloguj_w_depo` stoi w depo ze STOP (bez bota): wylogowanie jak na koniec
+        zmiany (spokój, nie w serwisie, 3 porażki = eskalacja, jedna postać naraz i odstęp logowań w pętli zdarzeń), kod `plan-wyloguj-depo` = także na
+        żywo przy NADZOR_NAPRAWY. Offline znacznik `zostan_depo_od` + STOP trzymają ją w depo (zostaje-offline), bez relogu."""
+        if o["serwis_dziala"]:
+            return D(id_, "czekaj", f"stoi w depo ze STOP (zostan_w_depo: {zostaje}): czekam na koniec serwisu przed wylogowaniem", "wyloguj-depo-serwis")
+        if st.get("wylog_bl", 0) >= 3:
+            return D(id_, "eskaluj", f"stan nieustalony: wylogowanie w depo nieudane {st['wylog_bl']} razy (ostatni kod {st.get('wylog_kod')})",
+                     "wylog-nieudane", klasa="eskalacja", kod_eskalacji="nieustalony")
+        if a.get("walka"):
+            return D(id_, "czekaj", "stoi w depo ze STOP: czekam na spokój (walka w ostatnich 20 s) przed wylogowaniem", "wyloguj-depo-spokoj")
+        return D(id_, "wyloguj", f"zostan_w_depo ({zostaje}): zadanie wykonane, postać w depo ze STOP: wyloguj.sh i zamknięcie sesji, bez ponownego logowania",
+                 "plan-wyloguj-depo", klasa="zdarzenie")
+
+    # --- przerwa postaci (24.10, Karol: „nadzorca ma sam robić przerwy postaci i ewentualnie zmieniać spot”; SPEC_przerwa_postaci_1024) ---
+    def przerwa_pc(self, id_):
+        """PR.Przerwa niezakończona albo None (brak wpisu, wpis błędny, plan nieczytelny, już zrobiona). Wyłącznik (NADZOR_PRZERWY=0 / „przerwy”: false) gasi tylko
+        NOWE przerwy: trwająca (`wylogowano_t`) kończy się powrotem, żeby postać nie zostawała offline."""
+        plan = self.plan_postaci()
+        if plan.nieczytelny:
+            return None
+        pc = plan.postacie.get(id_)
+        pr = pc.przerwa if pc is not None else None
+        if pr is None or pr.zrobione_t:
+            return None
+        if not pr.wylogowano_t and not PR.wlaczone(self.konf):
+            return None
+        return pr
+
+    def _pz(self, id_, pola, warunek=None):
+        """Zapis pól stanu przerwy do planu (flock + atomowo) i unieważnienie odczytanego planu tego obiektu (następny odczyt widzi zapis)."""
+        ok = PP.przerwa_zapisz(self.korzen, id_, pola, warunek=warunek)
+        self._plan = None
+        return ok
+
+    def przerwa_trwa(self, id_):
+        pr = self.przerwa_pc(id_)
+        return bool(pr and pr.wylogowano_t)
+
+    def _przerwa_stop_wiek_s(self, id_, teraz):
+        try:
+            return teraz.timestamp() - (self.kat(id_) / "STOP").stat().st_mtime
+        except OSError:
+            return 0.0
+
+    def _przerwa_offline(self, id_, o, st, teraz, zm, cisza):
+        """Offline: przerwa uzbrojona na `teraz` zaczyna odliczanie od razu; trwająca czeka do `do_t` (nie logujemy wcześniej, nie w ciszy nocnej) i wtedy
+        zleca start sesji (kod plan-przerwa-powrot: jedna akcja logowania na przebieg, odstęp i komplet online jak każdy sesja_start). -> decyzja albo None."""
+        pr = self.przerwa_pc(id_)
+        if pr is None:
+            return None
+        if not pr.wylogowano_t:
+            if pr.kiedy != "teraz":
+                return None
+            return D(id_, "przerwa_start", f"przerwa {pr.min} min od razu: postać jest offline, zaczynam odliczanie", "plan-przerwa-start", klasa="naprawa")
+        do = pr.do_ts()
+        if do is None or teraz.timestamp() < do:
+            return D(id_, "czekaj", f"przerwa: offline do {pr.do_t[11:16]} ({pr.min} min ± {pr.rozrzut_min})", "plan-przerwa-czeka")
+        if cisza:
+            return D(id_, "czekaj", f"przerwa skończona ({pr.do_t[11:16]}), ale cisza nocna: zero logowań", "plan-przerwa-cisza")
+        if st.get("start_bl", 0) >= 3:
+            return D(id_, "eskaluj", "przerwa: start sesji po przerwie nieudany 3 razy z rzędu", "start-nieudany", klasa="eskalacja", kod_eskalacji="wyczerpana")
+        return D(id_, "sesja_start", f"przerwa skończona ({pr.do_t[11:16]}): start sesji, logowanie i refill.sh --spot (bez zakupów)", "plan-przerwa-powrot",
+                 klasa="zdarzenie", przerwa=True)
+
+    def _przerwa_online(self, id_, o, a, st, teraz):
+        """Online i w grze: (1) przerwa trwa (wylogowana i znów zalogowana przez nas): po `do_t` start z miasta (`_przerwa_spot`); (2) przerwa uzbrojona:
+        postać stoi w mieście ze STOP po refillu bez wyjścia (znacznik przerwa_refill.ok) albo, dla `kiedy: teraz`, w depo bez refillu w toku -> wylogowanie;
+        `kiedy: teraz` z działającym botem -> powrót do miasta (WROC). Poza tym None (normalny przepływ). Bramki (STOP_RECZNY, pauza, hold) odrzucił decyduj."""
+        pr = self.przerwa_pc(id_)
+        if pr is None:
+            return None
+        if pr.wylogowano_t:
+            if o["bot"]:
+                return D(id_, "przerwa_juz", "przerwa: bot już działa po powrocie (start poza moim powrotem): kończę przerwę", "plan-przerwa-juz", klasa="naprawa")
+            do = pr.do_ts()
+            if do is None or teraz.timestamp() < do:
+                return D(id_, "czekaj", f"przerwa do {pr.do_t[11:16]}: sesja jeszcze wygasa albo ktoś zalogował postać wcześniej; nie ruszam", "plan-przerwa-wygasa")
+            if not st.get("sesja_nasza"):
+                return D(id_, "czekaj", "przerwa skończona, ale postać zalogowana nie przeze mnie (ręczna gra?): nie startuję bota", "plan-przerwa-obca")
+            if o["serwis_dziala"] or o["wroc"] or o["wyprawa"]:
+                return D(id_, "czekaj", "przerwa skończona: serwis / powrót w toku, czekam", "plan-przerwa-zajety")
+            return self._przerwa_spot(id_, o, a, st, teraz, pr)
+        if o["bot"]:
+            if pr.kiedy != "teraz" or o["wroc"] or o["wyprawa"]:
+                return None
+            if a.get("walka"):
+                return D(id_, "czekaj", "przerwa od razu: czekam na spokój (walka w ostatnich 20 s) przed powrotem do miasta", "plan-przerwa-walka")
+            w = st.get("przerwa_wroc") or {}
+            if w and ts_ep(teraz) - w.get("ts", 0) < 20 * 60:
+                return D(id_, "czekaj", f"przerwa od razu: powrót zlecony o {datetime.fromtimestamp(w['ts']):%H:%M}, czekam na efekt", "plan-przerwa-wroc-zlecony")
+            if w.get("n", 0) >= 3:
+                return D(id_, "eskaluj", f"przerwa od razu: powrót do miasta zlecony {w['n']} razy, bot nadal działa", "przerwa-wroc-bez-efektu",
+                         klasa="eskalacja", kod_eskalacji="nieustalony")
+            return D(id_, "wroc", f"przerwa {pr.min} min od razu" + (f" ({pr.powod})" if pr.powod else "") + ": zlecam powrót do miasta", "plan-przerwa-wroc",
+                     klasa="naprawa", problem="przerwa")
+        if not o["stop"]:
+            return None
+        znacznik = PR.marker_refill(self.kat(id_), teraz.timestamp())
+        miasto = bool(self._w_depo(o, a) or o["panel"].get("w_miescie"))
+        if znacznik is None:
+            if pr.kiedy != "teraz" or not miasto:
+                return None
+            # Uzbrojona przerwa „od razu” trzyma postać, dopóki bramka nie puści: zwykły przepływ (faza POWROT po WROC) zrobiłby z niej „koniec zmiany”
+            # (serwis + wylogowanie BEZ przerwy = postać offline na zawsze) w trybie NADZOR_ZYWO, a w cieniu zaśmiecił odstęp między zdarzeniami.
+            if o["panel"].get("wroc_refill") not in (None, "", "pominiety", "brak_planu"):
+                return D(id_, "czekaj", "przerwa od razu: auto-refill czeka / trwa / padł, wylogowuję po nim (refill bez wyjścia)", "plan-przerwa-refill")
+            if self._przerwa_stop_wiek_s(id_, teraz) < 120:
+                return D(id_, "czekaj", "przerwa od razu: STOP świeży (< 2 min), daję auto-refillowi szansę na start", "plan-przerwa-stop-swiezy")
+        return self._przerwa_wyloguj(id_, o, a, st, teraz, pr, znacznik is not None)
+
+    def _przerwa_wyloguj(self, id_, o, a, st, teraz, pr, po_refillu):
+        """Wylogowanie na przerwę: bramki jak `_wylogowanie_w_depo` (nie w serwisie, 3 porażki = eskalacja, spokój), kod plan-przerwa-wyloguj (na żywo)."""
+        if o["serwis_dziala"]:
+            return D(id_, "czekaj", "przerwa: czekam na koniec serwisu przed wylogowaniem", "plan-przerwa-serwis")
+        if st.get("wylog_bl", 0) >= 3:
+            return D(id_, "eskaluj", f"stan nieustalony: wylogowanie na przerwę nieudane {st['wylog_bl']} razy (ostatni kod {st.get('wylog_kod')})",
+                     "wylog-nieudane", klasa="eskalacja", kod_eskalacji="nieustalony")
+        if a.get("walka"):
+            return D(id_, "czekaj", "przerwa: czekam na spokój (walka w ostatnich 20 s) przed wylogowaniem", "plan-przerwa-spokoj")
+        return D(id_, "wyloguj", f"przerwa {pr.min} min ± {pr.rozrzut_min}" + (f" ({pr.powod})" if pr.powod else "")
+                 + (": refill zrobiony bez wyjścia, " if po_refillu else ": ") + "postać w mieście ze STOP: wyloguj.sh i zamknięcie sesji, powrót po przerwie",
+                 "plan-przerwa-wyloguj", klasa="zdarzenie", przerwa=True)
+
+    def _przerwa_nowy_spot(self, id_, o, st, teraz, pr):
+        """(mapa, tryb, powód) nowego spotu po przerwie albo (None, None, powód): gracz przeszkadzał (nick w `gracz` / `gracz_wykryty`) albo dotychczasowa
+        jaskinia jest zajęta przez innego bota (jeden bot na jaskinię). Spot przypięty i brak alternatywy = zostaje stary."""
+        biez_mapa, biez_tryb, _skad = mapa_tryb_biezace(self.korzen, id_, teraz)
+        gracz = pr.gracz or pr.gracz_wykryty
+        tab = self.tabela_spotow()
+        jask = (lambda m: tab.jaskinia_mapy(m)) if (tab is not None and not tab.blad) else (lambda m: m)       # noqa: E731
+        zajeta = bool(biez_mapa) and jask(biez_mapa) in {jask(m) for m in self._zajete_mapy(id_)}
+        if not biez_mapa:
+            return None, None, "bieżącej mapy nie ustalam (tryb.log): bez zmiany spotu"
+        powody = []
+        if pr.zmien_spot == "jesli_gracz" and gracz:
+            powody.append(f"gracz {gracz}")
+        if zajeta:
+            powody.append(f"jaskinia {jask(biez_mapa)} zajęta przez innego bota")
+        if not powody:
+            return None, None, "bez zmiany spotu" + ("" if pr.zmien_spot == "jesli_gracz" else " (zmien_spot: nie)")
+        pin = self.spot_przypiety(id_)
+        if pin:
+            return None, None, f"spot przypięty ({pin}): zostaje {biez_mapa}"
+        if self.profil(id_).get("spoty_zapasowe") or tab is None or tab.blad:
+            s = self.spot_zapasowy(id_, biez_mapa, self._zajete_mapy(id_))
+            if not s:
+                return None, None, f"{' + '.join(powody)}, ale brak spotu zapasowego: zostaje {biez_mapa}"
+            return s[0], s[1] or biez_tryb, f"{' + '.join(powody)}: spot zapasowy {s[0]}"
+        w = self.wybierz_spot(id_, o.get("panel"), o.get("gracz"), teraz, biez_mapa, f"przerwa-{teraz:%H%M}", dodatkowo_zajete=(biez_mapa,))
+        if not w or not w.get("mapa"):
+            return None, None, f"{' + '.join(powody)}, ale brak wolnego spotu ({(w or {}).get('powod', 'brak tabeli')}): zostaje {biez_mapa}"
+        return w["mapa"], biez_tryb, f"{' + '.join(powody)}: {w['powod']}"
+
+    def _przerwa_spot(self, id_, o, a, st, teraz, pr):
+        """Powrót po przerwie: `refill.sh --spot` na tym samym albo nowym spocie (decyzja `przerwa_spot`, kod plan-przerwa-spot)."""
+        mapa, tryb, powod = self._przerwa_nowy_spot(id_, o, st, teraz, pr)
+        if st.get("przerwa_spot_bl", 0) >= 3:
+            return D(id_, "eskaluj", f"przerwa: refill.sh --spot nieudany {st['przerwa_spot_bl']} razy po powrocie z przerwy", "przerwa-spot-nieudany",
+                     klasa="eskalacja", kod_eskalacji="nieustalony")
+        return D(id_, "przerwa_spot", f"po przerwie ({pr.do_t[11:16]}): start z miasta (refill.sh --spot, bez zakupów); " + powod, "plan-przerwa-spot",
+                 klasa="bot", mapa=mapa, tryb=tryb, nowy_spot=bool(mapa))
+
+    def _przerwa_zapisz_wylogowanie(self, teraz, id_, pr):
+        """PRZED wylogowaniem: `wylogowano_t`, `do_t` i `gracz_wykryty` do planu (atomowo). Postać wylogowana bez śladu w planie byłaby zapomniana offline.
+        -> do_t (tekst) albo None, gdy zapis się nie udał (wtedy nie wylogowujemy)."""
+        do = PR.losuj_do(pr, teraz).strftime(PR.FMT)
+        gracz = pr.gracz
+        if not gracz and pr.zmien_spot == "jesli_gracz":
+            gracz = PR.gracze_w_logu(self.kat(id_), teraz, wlasne=PR.nicki_wlasne(self.korzen))
+        pola = {"wylogowano_t": teraz.strftime(PR.FMT), "do_t": do, "gracz_wykryty": gracz or None}
+        if not self._pz(id_, pola, warunek=lambda w: not w.get("wylogowano_t") and not w.get("zrobione_t")):
+            return None
+        return do
+
+    def _przerwa_cofnij_wylogowanie(self, id_):
+        self._pz(id_, {"wylogowano_t": None, "do_t": None, "gracz_wykryty": None},
+                          warunek=lambda w: bool(w.get("wylogowano_t")) and not w.get("zrobione_t"))
+
+    def _wykonaj_przerwa_spot(self, teraz, id_, d, st, W):
+        arg = d["arg"]
+        ok, txt = W.refill_spot(id_, arg.get("mapa"), arg.get("tryb"))
+        if not ok:
+            st["przerwa_spot_bl"] = st.get("przerwa_spot_bl", 0) + 1
+            return False, txt
+        st.pop("przerwa_spot_bl", None)
+        pola = {"zrobione_t": teraz.strftime(PR.FMT)}
+        if arg.get("mapa"):
+            pola["nowy_spot"] = arg["mapa"]
+        self._pz(id_, pola, warunek=lambda w: not w.get("zrobione_t"))
+        (self.kat(id_) / PR.MARKER_REFILL).unlink(missing_ok=True)
+        st["faza"], st["powrot_od"] = "POWROT", ts_ep(teraz)
+        st.pop("przerwa_wroc", None)
+        if arg.get("mapa"):
+            self.zapamietaj_spot(id_, st, arg["mapa"], teraz)
+        W.powiadom_info(id_, f"{id_}: koniec przerwy"[:80], d["powod"][:300])
+        return True, txt + (f" (nowy spot {arg['mapa']})" if arg.get("mapa") else "")
+
     # --- przebieg ---
     def tick(self):
         teraz = self.zegar()
         konf = self.konf = G.wczytaj_konfig(self.korzen)
         self.raport = []
         self._tab_ladowana, self._przypisane, self._obs = False, {}, {}     # tabela spotów i przypisania są na jeden przebieg
+        self._plan, self._plan_czeka = None, []
+        self._kod_bota, self._restart_kod_w_przebiegu = None, False
         cisza = self.powiadomienia_wylaczone()
         if cisza and self.zywo:
             # B-1: bez widocznych powiadomień eskalacja (i hold) zamroziłaby postać bez wiedzy Karola: żywy tryb się nie włącza
@@ -1118,6 +2064,10 @@ class Nadzorca:
         except Exception as e:      # noqa: BLE001
             self.wpisz(teraz, D("*", "brak", f"odczyt stanu nieudany: {e!r}", "odczyt"), "blad")
             return self.raport
+        pl_bledy = self.plan_postaci().bledy
+        if pl_bledy:
+            self.wpisz(teraz, D("*", "ostrzezenie", "plan_postaci.json: " + "; ".join(pl_bledy)[:400] + " (błędne kroki pomijam; przy nieczytelnym pliku nikogo nie przenoszę)",
+                                "plan-blad"), "ostrzezenie")
         self._raw = {r["id"]: r for r in raw_lista}
         online_teraz = sorted(i for i, r in self._raw.items() if r.get("sesja") or r.get("gra"))
         glob = self.stan["globalne"]
@@ -1141,6 +2091,7 @@ class Nadzorca:
             raw = self._raw.get(id_)
             if odmowa:
                 st.pop("wroc_koniec", None)     # STOP_RECZNY / pauza postaci / hold: zlecenie powrotu nie dotyczy już tej sytuacji
+                st.pop("wroc_poziom", None)
                 self.wpisz(teraz, D(id_, "zablokowane", odmowa, "bramka-" + odmowa[:12]), "info")
                 self._ponow_powiadomienie(teraz, id_)
                 if raw and not (raw.get("sesja") or raw.get("gra")) and st.get("faza") != "OFFLINE":
@@ -1151,7 +2102,10 @@ class Nadzorca:
                 o = self.obserwuj(id_, raw, teraz)
                 self._obs[id_] = o
                 self.zapamietaj_poziom(id_, o, teraz)
-                for d in self.decyduj(id_, o, plan, teraz):
+                dec = self.decyduj(id_, o, plan, teraz)
+                kandydaci.extend((pid, pd, o) for pid, pd in self._plan_czeka)
+                self._plan_czeka = []
+                for d in dec:
                     kandydaci.append((id_, d, o))
             except Exception as e:      # noqa: BLE001  (jedna postać nie wywraca przebiegu pozostałych)
                 self.wpisz(teraz, D(id_, "brak", f"błąd oceny postaci: {e!r}", "wyjatek"), "blad")
@@ -1220,6 +2174,17 @@ class Nadzorca:
                 continue
             try:
                 biez = mapa_tryb_biezace(self.korzen, id_, teraz)[0]
+                if self.zostaje_w_depo(id_, o, self.post(id_)):
+                    self.wpisz(teraz, D(id_, "spot_podglad", f"stoi w depo ze STOP (zostan_w_depo): zostaje w depo, bez wyboru spotu", "podglad-zostaje-w-depo"),
+                               "cień", szczegol="podgląd, bez akcji")
+                    continue
+                pin = self.spot_przypiety(id_)
+                if pin:     # spot przypięty (Karol 23.10): zero propozycji innej jaskini; bieżąca zostaje zarezerwowana dla pozostałych
+                    if biez:
+                        rezerwacje[id_] = biez
+                    self.wpisz(teraz, D(id_, "spot_podglad", f"teraz na {biez or '?'}; spot przypięty ({pin}): przy starcie zmiany zostaje na {biez or 'bieżącym'}",
+                                        "podglad-przypiety"), "cień", szczegol="podgląd, bez akcji")
+                    continue
                 w = self.wybierz_spot(id_, o.get("panel"), o.get("gracz"), teraz, biez, "podglad", zajete=set(rezerwacje.values()), z_depo=True)
             except Exception as e:      # noqa: BLE001
                 self.wpisz(teraz, D(id_, "brak", f"podgląd spotu nieudany: {e!r}", "spot-podglad-wyjatek"), "blad")
@@ -1266,6 +2231,8 @@ class Nadzorca:
         st = self.post(id_)
         if akcja in ("czekaj", "zablokowane", "brak"):
             self.wpisz(teraz, d, "info")
+            if d["kod"] == "plan-brak":
+                self._ostrzez_plan_brak(teraz, id_, d)
             return True, ""
         # B-2: bramki (STOP_RECZNY, NADZOR_PAUZA, nadzor:false, hold) sprawdzane ZNOWU tuż przed każdą akcją, nie tylko raz na przebieg
         odmowa = self.bramka(id_, czy_hold=(akcja != "eskaluj"))
@@ -1274,8 +2241,9 @@ class Nadzorca:
             return False, odmowa
         if akcja == "eskaluj":
             return self.eskaluj(teraz, id_, d)
-        if self.zywo is False:
+        if self.zywo is False and self._wykonawca_dla(d) is self.wykonawca:
             self._zapisz_wroc_koniec(st, d, teraz)
+            self._zapisz_wroc_poziom(st, d, teraz, True, "cien")
             if self._cien_zdublowany(id_, d, teraz):
                 return True, "cień (powtórka)"
             ok, txt = True, f"cień: zrobiłbym {akcja}"
@@ -1296,7 +2264,7 @@ class Nadzorca:
         return self._wykonaj_zywo(teraz, id_, d, st)
 
     def _wykonaj_zywo(self, teraz, id_, d, st):
-        akcja, arg, W = d["akcja"], d["arg"], self.wykonawca
+        akcja, arg, W = d["akcja"], d["arg"], self._wykonawca_dla(d)
         zamek = None
         if d["klasa"] in ("zdarzenie", "logowanie"):
             self.W.mkdir(parents=True, exist_ok=True)
@@ -1318,7 +2286,8 @@ class Nadzorca:
                 if ok:
                     st["faza"], st["zmiana_od"], st["login_ts"] = "LOGOWANIE", arg.get("zmiana_od"), ts_ep(teraz)
                     st["logowanie_nasze"] = st["sesja_nasza"] = True
-                    st["wykonane"] = (st.get("wykonane", []) + [arg.get("zmiana_od")])[-30:]
+                    if arg.get("zmiana_od"):
+                        st["wykonane"] = (st.get("wykonane", []) + [arg.get("zmiana_od")])[-30:]
                     st["zaloguj_ts"] = 0
             elif akcja == "zaloguj":
                 ok, txt = W.zaloguj(id_)
@@ -1328,27 +2297,88 @@ class Nadzorca:
                 odmowa = self.bramka(id_)
                 if odmowa:       # uruchom.sh robi rm -f STOP_RECZNY: nigdy, gdy Karol przejął postać w trakcie przebiegu
                     return False, odmowa
-                ok, txt = W.start_bota(id_, arg.get("mapa"), arg.get("tryb"))
-                if ok:
-                    st["bot_start"], st["faza"] = ts_ep(teraz), "DOJSCIE"
-                    if arg.get("mapa"):
-                        self.zapamietaj_spot(id_, st, arg["mapa"], teraz)
+                mapa_s, tryb_s, r_plan = arg.get("mapa"), arg.get("tryb"), None
+                if arg.get("plan_kroki"):       # plan: sprawdź jeszcze raz tuż przed startem (zajętość mogła się zmienić), zużyj po udanym starcie
+                    r_plan = self._plan_start(id_, teraz, arg.get("poziom"), mapa_tryb_biezace(self.korzen, id_, teraz)[:2])
+                    if r_plan is None:
+                        ok, txt = False, "plan: krok niewykonalny w chwili startu (spot zajęty albo plan zmieniony); start w następnym przebiegu"
+                    else:
+                        mapa_s, tryb_s = r_plan["mapa"], r_plan["tryb"]
+                if not arg.get("plan_kroki") or r_plan is not None:
+                    ok, txt = W.start_bota(id_, mapa_s, tryb_s)
+                    if ok:
+                        st["bot_start"], st["faza"] = ts_ep(teraz), "DOJSCIE"
+                        if mapa_s:
+                            self.zapamietaj_spot(id_, st, mapa_s, teraz)
+                        if r_plan is not None:
+                            self._plan_zuzyj(id_, r_plan, teraz, W)
+            elif akcja in ("plan_tryb", "plan_blanki", "plan_mapa", "plan_juz") or (akcja == "wroc" and arg.get("problem") == "plan"):
+                ok, txt = self._wykonaj_plan(teraz, id_, d, st, W)
             elif akcja in ("restart", "wznow", "zmien_spot"):
-                ok, txt = self._restart(teraz, id_, akcja, st)
+                po_kodzie = arg.get("problem") == "kod"
+                ok, txt = self._restart(teraz, id_, akcja, st, W=W, zalicz=not po_kodzie)
+                if po_kodzie:
+                    pr = st.get("restart_kod") or {}
+                    st["restart_kod"] = {"mtime": arg.get("mtime"), "proby": (pr.get("proby", 0) + 1) if pr.get("mtime") == arg.get("mtime") else 1}
+                    if ok:
+                        st["restart_kod_ts"] = self.stan["globalne"]["ostatni_restart_kod"] = ts_ep(teraz)
+            elif akcja == "zamknij_sesje":
+                ok, txt = W.zamknij_sesje(id_)
+                if ok:
+                    st["sesja_zamknieta_ts"] = ts_ep(teraz)     # faza OFFLINE i liczenie minut: następny przebieg (offline w decyduj)
+            elif akcja == "powiadom_info":
+                ok, txt = W.powiadom_info(id_, f"{arg.get('nick')}: czar {arg.get('czar')} nie działa",
+                                          f"{d['powod']}. Bot ponawia próby co ~10 min. Zalecenie Karola (23.10): postać, która nie zna czaru, trenuje ML tym, "
+                                          "co umie (ML_CZAR_AKTYWNY=1, ZDROWIE_CZAR_AKTYWNY=0 w na_zywo.json; uwaga: tryb.py ostrozny/ml przy każdym "
+                                          "starcie ustawia ZDROWIE_CZAR_AKTYWNY=1 z powrotem).")
+                if ok:
+                    st["czar_info_ts"] = ts_ep(teraz)
+            elif akcja == "relog_wylog":
+                ok, txt = W.relog_kolejka(id_)
+                if ok:
+                    st["relog_wylog_ts"] = ts_ep(teraz)
             elif akcja == "wroc":
                 ok, txt = W.wroc(id_)
                 if ok:
                     st["faza"], st["powrot_od"] = "POWROT", ts_ep(teraz)
                     self._zapisz_wroc_koniec(st, d, teraz)
-                if d.get("arg", {}).get("problem") != "koniec":
+                self._zapisz_wroc_poziom(st, d, teraz, ok, "zywo")
+                if d.get("arg", {}).get("problem") == "przerwa":
+                    st["przerwa_wroc"] = {"ts": ts_ep(teraz), "n": (st.get("przerwa_wroc") or {}).get("n", 0) + 1}
+                if d.get("arg", {}).get("problem") not in ("koniec", "poziom", "przerwa"):
                     st.setdefault("naprawy", []).append([ts_ep(teraz), "wroc"])
+                if ok and d.get("arg", {}).get("problem") == "poziom":
+                    nok, ntxt = self._powiadom_wyrosl(id_, d, W)
+                    txt = f"{txt} | {ntxt}"
             elif akcja == "serwis":
                 ok, txt = W.serwis(id_)
                 if ok:
                     st["serwis_start"] = ts_ep(teraz)
                 st["serwis_blad"] = st.get("serwis_blad", 0)
+            elif akcja == "przerwa_start":
+                pr = self.przerwa_pc(id_)
+                do = self._przerwa_zapisz_wylogowanie(teraz, id_, pr) if pr is not None and not pr.wylogowano_t else None
+                ok, txt = (True, f"przerwa do {do[11:16]}") if do else (False, "przerwa: nie zapisano do planu (już trwa, zrobiona albo plan nieczytelny)")
+            elif akcja == "przerwa_juz":
+                ok = self._pz(id_, {"zrobione_t": teraz.strftime(PR.FMT)}, warunek=lambda w: not w.get("zrobione_t"))
+                txt = "przerwa zakończona (bot działa)" if ok else "przerwa: nie zapisano do planu"
+                (self.kat(id_) / PR.MARKER_REFILL).unlink(missing_ok=True)
+            elif akcja == "przerwa_spot":
+                ok, txt = self._wykonaj_przerwa_spot(teraz, id_, d, st, W)
             elif akcja == "wyloguj":
+                przerwa_do = None
+                if arg.get("przerwa"):          # 24.10: przerwa postaci: najpierw ślad w planie (do_t), dopiero potem wylogowanie
+                    pr = self.przerwa_pc(id_)
+                    przerwa_do = self._przerwa_zapisz_wylogowanie(teraz, id_, pr) if pr is not None and not pr.wylogowano_t else None
+                    if przerwa_do is None:
+                        return False, "przerwa: nie zapisano do planu (już trwa, zrobiona albo plan nieczytelny): nie wylogowuję"
                 ok, txt = W.wyloguj(id_)
+                if przerwa_do and not ok:
+                    self._przerwa_cofnij_wylogowanie(id_)
+                if przerwa_do and ok:
+                    (self.kat(id_) / PR.MARKER_REFILL).unlink(missing_ok=True)
+                    txt = f"{txt} | przerwa do {przerwa_do[11:16]}"
+                    W.powiadom_info(id_, f"{id_}: przerwa do {przerwa_do[11:16]}"[:80], d["powod"][:300])
                 if not ok:
                     st["wylog_bl"] = st.get("wylog_bl", 0) + 1
                     st["wylog_kod"] = _kod(txt)
@@ -1356,9 +2386,10 @@ class Nadzorca:
                         self.eskaluj(teraz, id_, D(id_, "eskaluj", "zgon (wyloguj.sh kod 6)", "zgon-wyloguj", klasa="eskalacja", kod_eskalacji="zgon"))
                 if ok:
                     self.licz_wylogowanie(id_, teraz)
-                    st["zakonczone"] = (st.get("zakonczone", []) + [st.get("zmiana_od")])[-30:]
+                    if not arg.get("przerwa"):      # przerwa postaci nie kończy zmiany z grafiku (inaczej powrót wyglądałby na „sesję po wylogowaniu”)
+                        st["zakonczone"] = (st.get("zakonczone", []) + [st.get("zmiana_od")])[-30:]
                     st["faza"], st["ostatnie_wylog"] = "OFFLINE", ts_ep(teraz)
-                    for k in ("serwis_start", "serwis_koniec", "serwis_blad", "wylog_od", "koniec", "bot_start", "stoi_w_depo_od", "zmiana_od", "naprawy", "sesja_nasza", "bot_widziany", "wylog_bl", "wylog_kod", "powrot_od", "stoi_w_depo_od", "spot", "wroc_koniec"):
+                    for k in ("serwis_start", "serwis_koniec", "serwis_blad", "wylog_od", "koniec", "bot_start", "stoi_w_depo_od", "zmiana_od", "naprawy", "sesja_nasza", "bot_widziany", "wylog_bl", "wylog_kod", "powrot_od", "stoi_w_depo_od", "spot", "wroc_koniec", "przerwa_wroc", "przerwa_spot_bl"):
                         st.pop(k, None)
             elif akcja == "relog":
                 ok, txt = self._relog(teraz, id_, st)
@@ -1377,9 +2408,10 @@ class Nadzorca:
         self.raport.append(rek)
         return ok, txt
 
-    def _restart(self, teraz, id_, akcja, st):
-        """restart / wznow / zmien_spot: bot na BIEŻĄCEJ mapie i trybie (tryb.log), zmien_spot na zapasowym. Restart tylko poza walką."""
-        W = self.wykonawca
+    def _restart(self, teraz, id_, akcja, st, W=None, zalicz=True):
+        """restart / wznow / zmien_spot: bot na BIEŻĄCEJ mapie i trybie (tryb.log), zmien_spot na zapasowym. Restart tylko poza walką.
+        `zalicz=False` (restart po zmianie kodu): nie wpisuje próby do `naprawy` (drabina: 3 restarty = eskalacja, a to nie awaria)."""
+        W = W or self.wykonawca
         raw = getattr(self, "_raw", {}).get(id_) or {}
         o_log = analizuj_log(czytaj_log(najnowszy_log(self.kat(id_) / "logi"), teraz), ts_ep(teraz))
         if akcja in ("restart", "zmien_spot") and raw.get("bot") and o_log.get("walka"):
@@ -1387,6 +2419,9 @@ class Nadzorca:
         mapa, tryb, skad = mapa_tryb_biezace(self.korzen, id_, self.zegar())
         nowy_spot = None
         if akcja == "zmien_spot":
+            pin = self.spot_przypiety(id_)
+            if pin:
+                return False, f"spot przypięty ({pin}): zmiana spotu tylko z wpisem Karola w plan_postaci.json"
             if self.profil(id_).get("spoty_zapasowe") or self.tabela_spotow() is None or self.tabela_spotow().blad:
                 s = self.spot_zapasowy(id_, mapa, self._zajete_mapy(id_))
                 if not s:
@@ -1405,15 +2440,24 @@ class Nadzorca:
                 return False, "zatrzymanie nieudane: " + txt
         odmowa = self.bramka(id_)
         if odmowa:           # zatrzymanie trwa kilka sekund: w tym czasie mogło pojawić się STOP_RECZNY (uruchom.sh by go skasował)
-            st.setdefault("naprawy", []).append([ts_ep(teraz), akcja])
+            if zalicz:
+                st.setdefault("naprawy", []).append([ts_ep(teraz), akcja])
             return False, "start bota anulowany po zatrzymaniu: " + odmowa
+        r_plan = None
+        if akcja in ("restart", "wznow"):       # 23.10: zaplanowana mapa/tryb „na następny start” obowiązuje także po restarcie i wznowieniu
+            r_plan = self._plan_start(id_, teraz, self.poziom_z_odczytu(raw.get("gracz"), raw.get("panel")), (mapa, tryb))
+            if r_plan:
+                mapa, tryb, skad = r_plan["mapa"], r_plan["tryb"], "plan: krok " + ", ".join(r_plan["kroki"])
         ok, txt = W.start_bota(id_, mapa, tryb)
-        st.setdefault("naprawy", []).append([ts_ep(teraz), akcja])
+        if zalicz:
+            st.setdefault("naprawy", []).append([ts_ep(teraz), akcja])
         if ok:
             st["bot_start"], st["faza"] = ts_ep(teraz), "DOJSCIE"
             st["stoi_w_depo_od"] = None
             if nowy_spot:
                 self.zapamietaj_spot(id_, st, nowy_spot, teraz)
+            if r_plan:
+                self._plan_zuzyj(id_, r_plan, teraz, W)
         return ok, f"{mapa} / {tryb or '-'} (źródło: {skad}); {txt}"
 
     def _relog(self, teraz, id_, st):
@@ -1476,6 +2520,7 @@ class Nadzorca:
         """Jedna akcja z białej listy z tymi samymi bramkami co tick. -> (kod_wyjścia, tekst)."""
         teraz = self.zegar()
         self.raport = []
+        self._plan = None
         if rodzaj not in BIALA_LISTA:
             return 2, f"rodzaj spoza białej listy: {rodzaj} (dozwolone: {', '.join(BIALA_LISTA)})"
         if self.zywo_zadane and self.powiadomienia_wylaczone():
@@ -1496,7 +2541,13 @@ class Nadzorca:
         wyn = self.eskalacje_z_logu(id_, o, teraz) if o["online"] else []
         pow_ = f"obchód: napraw {rodzaj}"
         blok = None
-        if rodzaj in ("restart", "wznow", "zmien_spot", "wroc", "wyloguj", "relog") and not o["online"] and rodzaj != "relog":
+        pin = self.spot_przypiety(id_) if rodzaj == "zmien_spot" else None
+        zostaje = self.zostaje_w_depo(id_, o, self.post(id_)) if rodzaj in ("restart", "wznow", "zmien_spot", "relog", "wyloguj") else None
+        if zostaje:
+            blok = f"postać zostaje w depo (zostan_w_depo: {zostaje}): {rodzaj} tylko na polecenie Karola"
+        elif pin:
+            blok = f"spot przypięty ({pin}): zmiana spotu tylko z wpisem Karola w plan_postaci.json"
+        elif rodzaj in ("restart", "wznow", "zmien_spot", "wroc", "wyloguj", "relog", "wroc_poziom", "zamknij_sesje") and not o["online"] and rodzaj != "relog":
             blok = "postać offline (brak sesji)"
         elif rodzaj in ("restart", "wznow", "zmien_spot") and wyn:
             blok = "zdarzenie dla Karola (PK/zgon/GM/IP): " + wyn[0]["powod"]
@@ -1506,10 +2557,22 @@ class Nadzorca:
             blok = "bot w walce: restart tylko poza walką"
         elif rodzaj == "restart" and not o["bot"]:
             blok = "bot nie działa: użyj wznow"
-        elif rodzaj == "wroc" and not o["bot"]:
+        elif rodzaj in ("wroc", "wroc_poziom") and not o["bot"]:
             blok = "wroc.sh wymaga działającego bota"
+        elif rodzaj == "wroc_poziom" and (o["wroc"] or o["wyprawa"]):
+            blok = "bot już wraca do miasta (WROC / wyprawa w toku)"
+        elif rodzaj == "wroc_poziom":
+            wyr = self.decyzja_wyrosl(id_, o, a, self.post(id_), teraz)
+            if wyr is None:
+                blok = ("wroc_poziom tylko gdy poziom z gry > max spotu (widełki 'karol') bieżącej mapy; tu tego nie ma "
+                        "(brak odczytu poziomu, spot bez widełek Karola albo poziom w widełkach)")
+            elif wyr["akcja"] != "wroc":
+                blok = wyr["powod"]
         elif rodzaj == "relog" and not (a.get("rozl") or o["ekran"] in ("logowanie", "lista") or not o["w_grze"]):
             blok = "brak śladów rozłączenia (log bota, ekran) i klient w grze"
+        elif rodzaj == "zamknij_sesje" and (o["bot"] or o["ekran"] not in ("lista", "logowanie")):
+            blok = ("bot działa: zamykanie sesji tylko wylogowanej postaci" if o["bot"] else
+                    f"klient nie jest na ekranie logowania ani liście postaci (ekran: {o['ekran']}): zamykam tylko wylogowane postacie")
         elif rodzaj == "wyloguj" and o["bot"]:
             blok = "bot działa: najpierw wroc (wylogowanie dopiero po powrocie do miasta)"
         elif rodzaj == "wyloguj" and a.get("walka"):
@@ -1528,6 +2591,8 @@ class Nadzorca:
             return 3, "odmowa: " + blok
         klasa = "zdarzenie" if rodzaj in ZDARZENIA_LOGOWANIA else "naprawa"
         d = D(id_, rodzaj, pow_, "obchod-" + rodzaj, klasa=klasa, problem="obchod")
+        if rodzaj == "wroc_poziom":
+            d = {**wyr, "powod": "obchód: " + wyr["powod"]}
         ok, txt = self.wykonaj(teraz, id_, d, o)
         self.zapisz_stan(teraz)
         return (0 if ok else 1), txt
@@ -1571,6 +2636,10 @@ class Nadzorca:
         if wynik["powiadomienia_wylaczone"]:
             wynik["uwagi"].append(f"ESKALACJE NIEWIDOCZNE: {wynik['powiadomienia_wylaczone']}; tryb na żywo się nie włączy, cień ostrzega")
         wynik["poza_nadzorem"] = G.poza_pula(self.korzen, self.konf, teraz)
+        self._plan = None
+        pl = self.plan_postaci()
+        for b in pl.bledy:
+            wynik["uwagi"].append("plan_postaci.json: " + b)
         try:        # tylko odczyt: bieżący stan z gry (okno_api stan) dla pola `poziom`; bez niego zostaje ostatni znany
             raw_stan, blad_odczytu = {r["id"]: r for r in self.zrodla.stan()}, None
         except Exception as e:      # noqa: BLE001
@@ -1581,10 +2650,12 @@ class Nadzorca:
             nast = next((z for z in G.zmiany_postaci(plan, id_) if z["od"] > teraz.strftime(FMT)), None) if plan else None
             if st.get("hold") and st["hold"].get("powiadomiono") is False:
                 wynik["uwagi"].append(f"{id_}: WSTRZYMANA BEZ DOSTARCZONEGO POWIADOMIENIA ({st['hold'].get('powod')})")
+            poz = self.poziom_do_stanu(id_, raw_stan.get(id_), blad_odczytu, teraz)
             wynik["postacie"][id_] = {"faza": st.get("faza"), "zmiana": zm and {k: zm[k] for k in ("od", "koniec", "wylog")},
                                       "nastepna": nast and nast["od"], "blok": self.bramka(id_), "hold": st.get("hold"), "spot": (st.get("spot") or {}).get("mapa"),
                                       "naprawy_w_oknie": len(self.naprawy_w_oknie(id_, teraz)),
-                                      "poziom": self.poziom_do_stanu(id_, raw_stan.get(id_), blad_odczytu, teraz)}
+                                      "poziom": poz, "plan": {**PP.opis_planu(self.korzen, id_, poz["wartosc"], teraz, pl), **self.zostan_stan(id_, st)},
+                                      "zostan_w_depo": bool(self.zostan_depo_pc(id_)), "zostaje_w_depo_od": st.get("zostan_depo_od")}
         p = self.W / "logi" / f"nadzor-{teraz:%Y%m%d}.jsonl"
         try:
             wynik["ostatnie_decyzje"] = [json.loads(l) for l in p.read_text(encoding="utf-8").splitlines()[-ile_decyzji:]]
@@ -1632,6 +2703,8 @@ def main(argv=None):
     b.add_argument("id")
     a = ap.parse_args(argv)
     zywo_plik = (G.wspolne(KORZEN) / "NADZOR_ZYWO").exists()
+    # NADZOR_NAPRAWY (env albo plik instancje/_wspolne/NADZOR_NAPRAWY), bez NADZOR_ZYWO: na żywo tylko naprawy z NAPRAWY_BEZ_ZYWO
+    tylko_naprawy = not zywo_plik and (os.environ.get("NADZOR_NAPRAWY") == "1" or (G.wspolne(KORZEN) / "NADZOR_NAPRAWY").exists())
     if a.cmd == "cien" and a.raz:
         nz = Nadzorca(zywo=False, zapis=False, czysty=True)
         wydruk(nz.tick(), f"Nadzór (CIEŃ, tylko odczyt) {nz.zegar():%Y-%m-%d %H:%M:%S}")
@@ -1648,16 +2721,17 @@ def main(argv=None):
         wydruk(nz.tick(), f"Nadzór (CIEŃ) {nz.zegar():%Y-%m-%d %H:%M:%S}")
         return 0
     if a.cmd == "tick":
-        nz = Nadzorca(zywo=zywo_plik)
-        wydruk(nz.tick(), f"Nadzór ({'NA ŻYWO' if zywo_plik else 'CIEŃ'}) {nz.zegar():%Y-%m-%d %H:%M:%S}")
+        # 23.10: przy NADZOR_NAPRAWY (bez NADZOR_ZYWO) grafik zostaje w cieniu, na żywo idzie tylko decyzja wroc_poziom (wyrósł ze spotu)
+        nz = Nadzorca(zywo=zywo_plik, naprawy_poziom=tylko_naprawy)
+        wydruk(nz.tick(), f"Nadzór ({'NA ŻYWO' if zywo_plik else 'CIEŃ' + (' + wroc_poziom NA ŻYWO' if tylko_naprawy else '')}) {nz.zegar():%Y-%m-%d %H:%M:%S}")
         return 0
     if a.cmd == "napraw":
         # 22.10 (Karol: obchód AI ma ratować postacie, grafik zostaje w cieniu): NADZOR_NAPRAWY=1 w środowisku albo plik
-        # instancje/_wspolne/NADZOR_NAPRAWY włącza na żywo same naprawy z białej listy, bez NADZOR_ZYWO (logowania wg grafiku)
-        tylko_naprawy = not zywo_plik and (os.environ.get("NADZOR_NAPRAWY") == "1" or (G.wspolne(KORZEN) / "NADZOR_NAPRAWY").exists())
-        if tylko_naprawy and a.rodzaj not in ("restart", "wznow", "relog", "okna"):
+        # instancje/_wspolne/NADZOR_NAPRAWY włącza na żywo same naprawy z NAPRAWY_BEZ_ZYWO, bez NADZOR_ZYWO (logowania wg grafiku)
+        if tylko_naprawy and a.rodzaj not in NAPRAWY_BEZ_ZYWO:
             # 22.10 10:17: obchód odesłał invincible'a do miasta (wroc) przez koniec zmiany z grafiku; bez NADZOR_ZYWO tylko ratunek
-            print(f"NAPRAWY: odmowa: rodzaj {a.rodzaj} niedozwolony bez NADZOR_ZYWO (tylko restart, wznow, relog, okna)")
+            # (23.10: zwykłe wroc nadal odmowa; wroc_poziom = powrót tylko z powodu „poziom > max spotu”, sprawdza to nadzorca)
+            print(f"NAPRAWY: odmowa: rodzaj {a.rodzaj} niedozwolony bez NADZOR_ZYWO (tylko {', '.join(NAPRAWY_BEZ_ZYWO)})")
             return 3
         zywo_plik = zywo_plik or tylko_naprawy
         nz = Nadzorca(zywo=zywo_plik)

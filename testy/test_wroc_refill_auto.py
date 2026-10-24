@@ -155,6 +155,30 @@ sprawdz("2l bot nie zatrzymał się w limicie: rezygnacja (kod 1), nic nie ubija
 kod, wyw = czekaj_t(Proc(bot_n=1), rc=1, out="bot działa (pid 5), zatrzymaj: ./zatrzymaj.sh")
 sprawdz("2m refill.sh odmówił: pominiety z jego komunikatem, kod odmowy", kod == 1 and cz()["stan"] == "pominiety" and "bot działa" in cz()["powod"], (kod, cz()))
 
+# zostan_w_depo (23.10, Karol): flaga w instancje/_wspolne/plan_postaci.json wyłącza auto-refill, także gdy WROC_REFILL=1 wrócił z trybu runy/uh
+inst_root = tmp / "instancje"; (inst_root / "_wspolne").mkdir(parents=True)
+plan_plik = inst_root / "_wspolne" / "plan_postaci.json"
+plan_plik.write_text(json.dumps({"postacie": {"geb": {"zostan_w_depo": True, "zostan_w_depo_powod": "Karol 23.10"}, "inna": {"kroki": []}}}))
+st_geb, st_inna = inst_root / "geb", inst_root / "inna"; st_geb.mkdir(); st_inna.mkdir()
+starty.clear()
+sprawdz("2n zostaje_w_depo: flaga czytana z planu (powód), brak flagi / brak wpisu = None",
+        refill_auto.zostaje_w_depo(st_geb) == "Karol 23.10" and refill_auto.zostaje_w_depo(st_inna) is None
+        and refill_auto.zostaje_w_depo(inst_root / "nieznana") is None)
+r = refill_auto.zlec(THAIS_DEPO, st_geb, start=lambda: starty.append(1), procesy=nic)
+sprawdz("2o postać z zostan_w_depo w depo Thais: pominiety, czekacz NIE rusza (mimo WROC_REFILL=1)",
+        r[0] == "pominiety" and starty == [] and "zostan_w_depo" in r[1] and refill_auto.czytaj_stan(st_geb)["stan"] == "pominiety", (r, starty))
+r = refill_auto.zlec(THAIS_DEPO, st_inna, start=lambda: starty.append(1), procesy=nic)
+sprawdz("2p postać bez flagi: jak dotąd czeka i startuje czekacza", r[0] == "czeka" and starty == [1], (r, starty))
+starty.clear()
+plan_plik.write_text("{zepsute")
+r = refill_auto.zlec(THAIS_DEPO, st_geb, start=lambda: starty.append(1), procesy=nic)
+sprawdz("2q plan nieczytelny: strażnik nic nie wymyśla (jak przed flagą)", r[0] == "czeka" and starty == [1], (r, starty))
+plan_plik.write_text(json.dumps({"postacie": {"geb": {"zostan_w_depo": True}}}))
+t = [0.0]; wyw_k = []
+kod_k = refill_auto.czekaj(st_geb, procesy=Proc(bot_n=1), uruchom=uruchom_atrapa(wyw_k), spij=lambda s_: t.__setitem__(0, t[0] + s_), zegar=lambda: t[0])
+sprawdz("2r czekacz zlecony przed flagą: po zniknięciu bota widzi flagę, refill.sh nie rusza",
+        kod_k == 0 and wyw_k == [] and refill_auto.czytaj_stan(st_geb)["stan"] == "pominiety", (kod_k, wyw_k, refill_auto.czytaj_stan(st_geb)))
+
 # cooldown: poprzedni start młodszy niż COOLDOWN_S blokuje następny, stary nie; zapis pominięcia nie kasuje ostatniego startu
 czysc(); starty.clear()
 refill_auto.zapisz_stan(stan, "startuje", "x", teraz=lambda: 1000.0)
@@ -238,7 +262,7 @@ sprawdz("3j panel.py --json zawiera pola wroc_refill i wroc_refill_komunikat obo
 
 # ---------------------------------------------------------------- 4. skrypty w atrapie katalogu: czekacz → refill.sh --tlo, --przerwij, wroc.sh --anuluj
 SAND = tmp / "pomocnik"; SAND.mkdir()
-for f in ("refill.sh", "wroc.sh", "instancja.py", "refill_auto.py"):
+for f in ("refill.sh", "wroc.sh", "instancja.py", "refill_auto.py", "zostan_depo.py", "przerwa.py"):
     shutil.copy(KAT / f, SAND / f)
 BIN = tmp / "bin"; BIN.mkdir()
 (BIN / "notify-send").write_text("#!/bin/bash\necho \"$@\" >> \"%s/powiadomienia.txt\"\n" % tmp); (BIN / "notify-send").chmod(0o755)

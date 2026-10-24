@@ -26,16 +26,34 @@ print((p.get('postac') or '').strip())" "$DIR" "$INST_STAN" 2>/dev/null)
 fi
 # na powierzchni (z7) bot najpierw przechodzi dojście do kanałów (dziura 32360,32241), na z8 startuje od razu
 DOJSCIE=()
-Z=$(python3 -I -c "
+# 23.10: po zaloguj.sh strażnik widzi postać dopiero po chwili (10:19:50 Traceback „nie widzę postaci Dawajkesh” w pierwszej odczytanej
+# pozycji). Czekamy do RETRONIC_CZEKAJ_POSTAC_S (domyślnie 60 s, co 2 s) na pozycję ze strażnika; bez niej głośna odmowa (exit 3), nigdy cichy start.
+CZEKAJ_NA_POSTAC=${RETRONIC_CZEKAJ_POSTAC_S:-60}
+Z=""
+for _ in $(seq 0 2 "$CZEKAJ_NA_POSTAC"); do
+  Z=$(python3 -I -c "
 import os,socket,json
 s=socket.socket(socket.AF_UNIX);s.settimeout(3);s.connect('$SOCK')
 s.sendall(b'{\"cmd\":\"pozycja\",\"nazwa\":\"${RETRONIC_POSTAC:-Jointoramix}\"}\n');print(json.loads(s.recv(400))['pozycja']['z'])" 2>/dev/null)
+  [ -n "$Z" ] && break
+  sleep 2
+done
+if [ -z "$Z" ]; then
+  MSG="Strażnik nie widzi postaci '${RETRONIC_POSTAC:-?}' przez ${CZEKAJ_NA_POSTAC} s (niezalogowana albo klient się nie załadował). Start wstrzymany."
+  notify-send -u critical "$TYTUL" "$MSG"; echo "ODMOWA STARTU: $MSG" >&2; exit 3
+fi
 # MAPA (mapy.json: miejsce i moby) i TRYB (tryby.json: zachowanie, kilka po przecinku) są opcjonalne:
 #   MAPA=raty TRYB=sredni,runy ./uruchom.sh   Bez obu zmiennych zachowanie jak dotąd (raty, bieżący na_zywo.json).
 MAPA_TRASA=thais_szczury_opt; MAPA_POTWORY=Rat; MAPA_PROG_HP=30; MAPA_DOJSCIE=thais_dojscie
 # Ostatnio uruchomiona mapa i tryb (guzik na pasku i panel wołają skrypt bez zmiennych): bez MAPA/TRYB
 # bierzemy to, co ostatnio działało; z MAPA/TRYB zapisujemy dla następnego razu.
+if [ -z "${STOJ_TU:-}" ]; then   # 23.10: start STÓJ (STOJ_TU) pomija mapy, tryby i ostatni_start
 OSTATNI="$DIR/ostatni_start${RETRONIC_ID:+.$RETRONIC_ID}.env"
+# Plan postaci (23.10, instancje/_wspolne): start z refillu (STARTUJ=1) bez MAPA/TRYB może dostać zaplanowaną mapę/tryb ("po refillu"). Mapa i tryb
+# trafiają do env dopiero stąd, w chwili startu (niżej, gałąź z MAPA/TRYB), nigdy z wyprzedzeniem. Błąd planu nie blokuje startu.
+if [ -z "$MAPA$TRYB" ] && [ -n "${RETRONIC_ID:-}" ] && [ "${STARTUJ:-0}" = 1 ]; then
+  PLAN_START=$(python3 -I "$DIR/plan_postaci.py" start "$RETRONIC_ID" --refill 2>/dev/null) && [ -n "$PLAN_START" ] && eval "$PLAN_START"
+fi
 if [ -z "$MAPA$TRYB" ] && [ -f "$OSTATNI" ]; then
   . "$OSTATNI"
 elif [ -n "$MAPA$TRYB" ]; then
@@ -44,6 +62,14 @@ fi
 if [ -n "$MAPA$TRYB" ]; then
   WYN=$(python3 -I "$DIR/tryb.py" --mapa "${MAPA:-raty}" --tryb "${TRYB:-}") || { notify-send "$TYTUL" "Błąd mapy/trybu (patrz terminal)"; exit 1; }
   eval "$WYN"
+fi
+fi   # koniec bloku "bez STOJ_TU"
+# 23.10 STÓJ (Karol): `./stoj.sh <id> on` startuje bota "tu i teraz": STOJ_TU=<nazwa jednopunktowej trasy trasy/_stoj_tu_<id>.json>,
+# bez mapy z mapy.json i bez zapisu ostatni_start (powrót po `stoj.sh off` bierze ostatnią mapę/tryb), bez dojścia, bez --potwory
+# (każdy stwór obok jest celem obrony), próg HP z STOJ_PROG_HP (domyślnie 50). Mózg hybryda ustawia stoj.py przez MOZG_TRYB (odpisuje na czacie).
+if [ -n "${STOJ_TU:-}" ]; then
+  MAPA_TRASA="$STOJ_TU"; MAPA_POTWORY=""; MAPA_PROG_HP="${STOJ_PROG_HP:-50}"; MAPA_DOJSCIE=""
+  echo "STÓJ: start w miejscu (trasa $STOJ_TU, bez mapy i dojścia)"
 fi
 # mapa z "dojscie_z_dowolnego_pietra" (np. rook_bugi_z10) przechodzi dojście od najbliższego punktu także ze z8/z9/z10
 { [ "$Z" = "7" ] || [ -n "${MAPA_DOJSCIE_WSZEDZIE:-}" ]; } && [ -n "$MAPA_DOJSCIE" ] && DOJSCIE=(--dojscie "$MAPA_DOJSCIE")

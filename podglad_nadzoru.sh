@@ -1,15 +1,17 @@
 #!/bin/bash
-# Obchód nadzorcy z AI (Karol 22.10). Co PODGLAD_CO_S (domyślnie 300 s): przebieg nadzorcy w cieniu (`nadzor.py cien --raz`,
+# Obchód nadzorcy z AI (Karol 22.10). Co PODGLAD_CO_S (domyślnie 600 s, 24.10): przebieg nadzorcy w cieniu (`nadzor.py cien --raz`,
 # zero zapisów; grafik logowań/wylogowań NIE działa na żywo), potem jeden obchód modelu wg NADZORCA.md (Haiku, `claude -p`).
 # NAPRAWY (Karol 22.10 ~09:40 „tak zrób”): obchód może wołać `nadzor.py napraw <id> <restart|wznow|relog>` (10:17: bez wroc/zmien_spot, grafik ignorowany)
 # na żywo (NADZOR_NAPRAWY=1; wykonawca i tak sprawdza bramki: STOP_RECZNY, nadzor:false, pauza, hold, walka, odstępy)
+# 23.10 (Karol: „limit na Rooku to 8 lvl”): do tego `wroc_poziom` = powrót do miasta TYLKO gdy poziom z gry > max widełek spotu
+# (nadzorca sam to sprawdza i odmawia kodem 3 bez powodu); zwykły `wroc` nadal NIGDY. Główną robotę robi `nadzor.py tick` (timer).
 # oraz `notify-send`. Bez `wyloguj` (wylogowania ustala Karol). PODGLAD_NAPRAWY=0 = sam podgląd jak wcześniej.
 # Wynik na ekranie i w instancje/_wspolne/logi/obchod-podglad-RRRRMMDD.log. Uruchom w osobnym oknie:
 #   xdg-terminal-exec --title="Nadzorca: obchód AI" ./podglad_nadzoru.sh
 # Koniec: Ctrl+C albo zamknięcie okna. Pauza wszystkich napraw: touch instancje/_wspolne/NADZOR_PAUZA.
 DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 cd "$DIR" || exit 1
-CO="${PODGLAD_CO_S:-300}"
+CO="${PODGLAD_CO_S:-600}"   # 24.10 Karol: co 10 min (było 300)
 NAPRAWY="${PODGLAD_NAPRAWY:-1}"
 LOGI="$DIR/instancje/_wspolne/logi"
 mkdir -p "$LOGI"
@@ -17,10 +19,11 @@ NARZEDZIA=("Bash(python3 -I nadzor.py stan:*)" "Bash(python3 -I nadzor_stan.py:*
            "Bash(RETRONIC_ID=*)" Read)
 if [ "$NAPRAWY" = 1 ]; then
   export NADZOR_NAPRAWY=1
-  NARZEDZIA+=("Bash(python3 -I nadzor.py napraw:*)" "Bash(notify-send:*)")   # rodzaj „wyloguj” zakazany w poleceniu
+  NARZEDZIA+=("Bash(python3 -I nadzor.py napraw:*)" "Bash(notify-send:*)")   # kod odrzuca wszystko poza restart|wznow|relog|okna|wroc_poziom
   PROMPT="Jeden obchód wg NADZORCA.md. TRYB NAPRAW WŁĄCZONY przez Karola (22.10): mimo że 'nadzor.py stan' pokazuje tryb 'cien'
-(to dotyczy tylko grafiku logowań), wolno Ci wołać 'python3 -I nadzor.py napraw <id> <rodzaj>' TYLKO z rodzajami: restart, wznow, relog.
-NIGDY wroc, wyloguj ani zmien_spot (22.10: obchód odesłał invincible'a do miasta przez koniec zmiany z grafiku, a Karol tego nie chciał).
+(to dotyczy tylko grafiku logowań), wolno Ci wołać 'python3 -I nadzor.py napraw <id> <rodzaj>' TYLKO z rodzajami: restart, wznow, relog, wroc_poziom (powrót do miasta wyłącznie gdy postać wyrosła ze spotu: poziom > max widełek,
+np. Rook 8 lvl; kod zwykle zleca to sam co minutę, więc najpierw sprawdź dziennik; odmowa = nie ma powodu, nie ponawiaj).
+NIGDY zwykłe wroc, wyloguj ani zmien_spot (22.10: obchód odesłał invincible'a do miasta przez koniec zmiany z grafiku, a Karol tego nie chciał).
 GRAFIK ZMIAN IGNORUJ CAŁKOWICIE: koniec zmiany, przerwy i limity minut nie są powodem żadnej akcji; o zejściu z expa decyduje Karol.
 Zasady z NADZORCA.md obowiązują: najwyżej jedna naprawa na postać, trzy na obchód, odmowa = nie ponawiaj.
 Szczególnie: postać na złym piętrze (wpadła w dziurę) > 1 min, stoi/krąży > 8 min, STOP po alarmie bota bez PK/zgonu/GM.

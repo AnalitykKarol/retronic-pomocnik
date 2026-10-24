@@ -6,7 +6,10 @@ eval "$(python3 -I "$DIR/instancja.py" powloka 2>/dev/null)" || true
 : "${INST_STAN:=$DIR}" "${INST_STOP:=$DIR/STOP}" "${INST_STOP_RECZNY:=$DIR/STOP_RECZNY}"
 TYTUL="Bot Retronic${RETRONIC_ID:+ [$RETRONIC_ID]}"
 mkdir -p "$INST_STAN"
-touch "$INST_STOP" "$INST_STOP_RECZNY"
+# 23.10: RETRONIC_RELOG=1 (relog_wylogowanych.py, `sesja_gry zamknij` w relogu po wylogowaniu bota) = zatrzymuje system, nie Karol:
+# STOP_RECZNY ("Karol gra", blokada wszelkich akcji nadzoru i zaloguj.sh) wtedy NIE powstaje
+touch "$INST_STOP"
+[ "${RETRONIC_RELOG:-}" = "1" ] || touch "$INST_STOP_RECZNY"
 # tylko prawdziwe procesy python3 (nie powłoki z tekstem w argumentach)
 pidy() {   # tylko bot tej instancji; awaryjnie (instancja.py nie działa) dawna pętla po wszystkich botach
   python3 -I "$DIR/instancja.py" pidy '(mozg|cavebot)\.py' 2>/dev/null && return

@@ -18,6 +18,9 @@
 # --przerwij czeka, aż serwis.py sam wyjdzie po STOP, zanim ubije go TERM.
 # Po sukcesie kasujemy serwis_stan.json: przy skróconej liście kroków (REFILL_KROKI, --spot) serwis.py nie uznałby przebiegu za
 # zakończony i następny refill pomijałby kroki (zakupy tylko raz na 3 h).
+# REFILL_BEZ_WYJSCIA=1 (24.10, przerwa postaci; ustawia je refill_auto.py, gdy plan_postaci.json ma niezakończoną `przerwa`): lista kroków bez „wyjscie”,
+# bez startu bota, a po sukcesie plik STOP i znacznik <stan>/przerwa_refill.ok (epoch): postać zostaje w mieście, nadzorca ją wylogowuje i po przerwie
+# wraca (`refill.sh --spot`). Ręczny ./refill.sh tego nie ustawia i robi pełny refill jak dotąd.
 # Znaczniki w logu (czyta je panel.py --json): `REFILL: START <czas>`, potem `REFILL: OK` | `REFILL: BLAD <powód>` | `REFILL: PRZERWANO`.
 DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 INST=$(python3 -I "$DIR/instancja.py" powloka) || exit 1; eval "$INST"   # RETRONIC_ID -> INST_* (bez ID: dzisiejsze ścieżki)
@@ -72,11 +75,26 @@ esac
 cd "$DIR" || exit 1
 echo "REFILL: START $(date +%s) ${REFILL_TRYB:-refill}"
 trap 'echo "REFILL: PRZERWANO"; exit 143' TERM INT HUP
-STARTUJ=1 "$DIR/serwis.sh" --kroki "$KROKI" --pomin-brakujace &
-wait $!
-kod=$?
+STARTUJ_BOTA=1
+if [ "${REFILL_BEZ_WYJSCIA:-}" = 1 ]; then      # 24.10 przerwa postaci: zakupy bez wyjścia z miasta i bez startu bota
+  STARTUJ_BOTA=0
+  rm -f "$INST_STAN/przerwa_refill.ok"
+  KROKI=$(echo ",$KROKI," | sed 's/,wyjscie,/,/g; s/^,*//; s/,*$//')
+  echo "REFILL: przerwa postaci, kroki bez wyjścia: ${KROKI:-brak}"
+fi
+if [ "${REFILL_BEZ_WYJSCIA:-}" = 1 ] && [ -z "$KROKI" ]; then   # `--kroki ""` serwis.py czyta jak pełną domyślną listę: nic do kupienia = nic nie wołamy
+  kod=0
+else
+  STARTUJ=$STARTUJ_BOTA "$DIR/serwis.sh" --kroki "$KROKI" --pomin-brakujace &
+  wait $!
+  kod=$?
+fi
 if [ "$kod" = 0 ]; then
   rm -f "$INST_STAN/serwis_stan.json"
+  if [ "${REFILL_BEZ_WYJSCIA:-}" = 1 ]; then
+    touch "$INST_STOP"
+    date +%s > "$INST_STAN/przerwa_refill.ok"
+  fi
   echo "REFILL: OK"
   exit 0
 fi

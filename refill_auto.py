@@ -8,6 +8,14 @@ i nic innego nie trwa, rusza odłączony „czekacz” (`refill_auto.py czekaj`)
 `refill.sh --tlo` (bank, depo, jedzenie, backpack, blanki, wyjście, potem start bota na spot; log `refill.log`; miasto z pozycji
 postaci, kroków, których miasto nie ma, np. banku w Thais, serwis pomija).
 
+Wyjątek (23.10, Karol): postać z flagą `zostan_w_depo` w plan_postaci.json (invincible, dawajkesh, wydra, gebelish) zostaje w depo bez
+auto-refillu, nawet gdy WROC_REFILL=1 (tryby runy/uh przywracają go przy każdym starcie bota).
+24.10 (Karol: „2 bp UH-ów, potem depo i wylogowanie”): `zostan_w_depo_po_refillach: N` uzbraja tę flagę dopiero po N refillach (licznik
+`refille.json` dopisuje czekacz po przyjęciu zlecenia przez refill.sh --tlo, TYLKO po wyprawie z powodem `blanki`; zostan_depo.py).
+24.10 (Karol ~10:00, każda postać): wyprawa do depo WYŁĄCZNIE z powodu `cap` (wyprawa_stan.json `depo_start_powody` == ["cap"]) kończy się refillem
+`REFILL_KROKI=bank,cap,wyjscie` (gold -> platinum, krok `cap`: nadmiar ham/łupu do depo i minimum ham, powrót na spot; bez backpacka i blanków), nigdy nie zatrzymuje w depo (także przy `zostan_w_depo`) i nie liczy
+się do 2 bp. Cykl kończy dopiero wyprawa po blanki (pełny refill). Powody cap+blanki / jedzenie / WROC / PK = jak dotąd.
+
 Pierwszeństwo ma człowiek: STOP_RECZNY (guzik Stop, zatrzymaj.sh, refill.sh --przerwij) = bez auto-refillu. Anulowanie:
 `refill_auto.py anuluj` (woła je `wroc.sh --anuluj` i `refill.sh --przerwij`). Decyzje i powody w pliku stanu instancji
 `wroc_refill.json` ({"stan": czeka|uruchomiony|pominiety|brak_planu, "powod", "t"}); czyta go `panel.py --json` (pole wroc_refill).
@@ -27,6 +35,8 @@ sys.dont_write_bytecode = True
 KATALOG = Path(__file__).resolve().parent
 sys.path.insert(0, str(KATALOG))
 import instancja  # noqa: E402
+import zostan_depo as ZD  # noqa: E402
+import przerwa as PR  # noqa: E402
 
 TRASY = KATALOG / "trasy"
 PLIK = "wroc_refill.json"
@@ -35,6 +45,7 @@ WZOR_BOT = r"(mozg|cavebot)\.py"
 WZOR_SERWIS = r"(^|[ /])serwis\.py "
 WZOR_REFILL = r"^(\S*/)?bash (\S*/)?refill\.sh *$"
 WZOR_CZEKACZ = r"(^|[ /])refill_auto\.py czekaj"
+KROKI_CAP = "bank,cap,wyjscie"   # 24.10: bank, potem krok cap (minimum ham gdy 0; łup-sprzęt do depo tylko przy SERWIS_CAP_DEPO_LOOT=1, ham nigdy do depo), powrót; bez backpacka i blanków
 COOLDOWN_S = 1200.0                                      # min. odstęp między startami auto-refillu (pętla wyprawa → depo → refill → wyprawa)
 CZEKAJ_NA_BOTA_S = 60.0                                  # tyle czekacz czeka, aż bot zniknie po STOP (potem rezygnuje, niczego nie ubija)
 
@@ -71,6 +82,25 @@ def zapisz_stan(stan_dir, stan, powod="", teraz=time.time):
     return stan, powod
 
 
+def zostaje_w_depo(stan_dir):
+    """Powód (tekst) albo None: flaga `zostan_w_depo` tej instancji w instancje/_wspolne/plan_postaci.json (23.10, Karol: invincible, dawajkesh, wydra,
+    gebelish). Postać z flagą po dojściu do depo zostaje w depo: ŻADNEGO auto-refillu, także gdy tryb (`runy`, `uh`) przy starcie bota przywrócił
+    WROC_REFILL=1 (tryby.json nadpisuje na_zywo.json przy każdym starcie). Ręczny `refill.sh` jest poza tym strażnikiem. Plik nieczytelny = None.
+    24.10: wariant `zostan_w_depo_po_refillach: N` (zostan_depo.py) działa dopiero po N refillach od `zostan_w_depo_od` (licznik refille.json)."""
+    stan_dir = Path(stan_dir)
+    try:
+        d = json.loads((stan_dir.parent / "_wspolne" / "plan_postaci.json").read_text(encoding="utf-8"))
+        pc = (d.get("postacie") or {}).get(stan_dir.name) or {}
+    except (OSError, ValueError, AttributeError):
+        return None
+    z = ZD.parsuj(pc)
+    if not ZD.uzbrojona(z, stan_dir):
+        return None
+    if ZD.tylko_cap(stan_dir):         # 24.10 (Karol): depo wyłącznie po cap = bank + powrót, flaga nie zatrzymuje (ani nie liczy się do 2 bp)
+        return None
+    return z.powod or "plan_postaci.json"
+
+
 def miasto_serwisu(poz, katalog=TRASY):
     """(miasto, w_depo): miasto z planem serwisu, w którym stoi `poz` (None, gdy takiego nie ma), i czy stoimy przy depo.
     Źródło prawdy to to samo, co w panelu („w_miescie”): prostokąt punktów trasy/serwis_<miasto>.json."""
@@ -101,6 +131,9 @@ def zlec(poz, stan_dir, katalog=TRASY, start=start_czekacza, procesy=None, teraz
     stan_dir = Path(stan_dir)
     if (stan_dir / "STOP_RECZNY").exists():
         return zapisz_stan(stan_dir, "pominiety", "ręczny stop (STOP_RECZNY) ma pierwszeństwo")
+    powod_depo = zostaje_w_depo(stan_dir)
+    if powod_depo:
+        return zapisz_stan(stan_dir, "pominiety", f"zostan_w_depo (plan_postaci.json): zostaje w depo, bez auto-refillu ({powod_depo})")
     miasto, w_depo = miasto_serwisu(poz, katalog)
     if miasto is None:
         return zapisz_stan(stan_dir, "brak_planu",
@@ -116,7 +149,8 @@ def zlec(poz, stan_dir, katalog=TRASY, start=start_czekacza, procesy=None, teraz
         start()
     except Exception as e:                                # noqa: BLE001
         return zapisz_stan(stan_dir, "pominiety", f"nie udało się uruchomić czekacza: {e!r}")
-    return zapisz_stan(stan_dir, "czeka", f"refill {miasto} ruszy po zatrzymaniu bota")
+    wariant = " (tylko cap: bank + powrót, bez depo)" if ZD.tylko_cap(stan_dir) else ""
+    return zapisz_stan(stan_dir, "czeka", f"refill {miasto} ruszy po zatrzymaniu bota{wariant}")
 
 
 def czekaj(stan_dir=None, katalog=KATALOG, czekaj_s=CZEKAJ_NA_BOTA_S, procesy=None, uruchom=subprocess.run,
@@ -135,6 +169,10 @@ def czekaj(stan_dir=None, katalog=KATALOG, czekaj_s=CZEKAJ_NA_BOTA_S, procesy=No
     if (stan_dir / "STOP_RECZNY").exists():
         zapisz_stan(stan_dir, "pominiety", "ręczny stop (STOP_RECZNY) ma pierwszeństwo")
         return 0
+    powod_depo = zostaje_w_depo(stan_dir)
+    if powod_depo:          # plan mógł dostać flagę już po zleceniu czekacza
+        zapisz_stan(stan_dir, "pominiety", f"zostan_w_depo (plan_postaci.json): zostaje w depo, bez auto-refillu ({powod_depo})")
+        return 0
     if procesy(WZOR_SERWIS) or procesy(WZOR_REFILL, comm=None):
         zapisz_stan(stan_dir, "pominiety", "serwis albo refill już trwa")
         return 0
@@ -142,9 +180,16 @@ def czekaj(stan_dir=None, katalog=KATALOG, czekaj_s=CZEKAJ_NA_BOTA_S, procesy=No
         uruchom([sys.executable, "-I", str(katalog / "zwolnij_wejscie.py")], timeout=20, capture_output=True)
     except (OSError, subprocess.SubprocessError):
         pass
-    zapisz_stan(stan_dir, "startuje", "wołam refill.sh --tlo")
+    przerwa = PR.odczyt(stan_dir)                          # 24.10: przerwa postaci niezakończona i jeszcze niewylogowana = refill bez wyjścia z miasta
+    przerwa = przerwa if przerwa is not None and not przerwa.wylogowano_t else None
+    cap = ZD.tylko_cap(stan_dir)                           # 24.10: powrót po samym cap = tylko bank + wyjście (bez depo i zakupów)
+    liczy = ZD.liczy_sie_do_licznika(stan_dir)             # licznik 2 bp rośnie tylko po wyprawie z powodem blanki
+    opis_przerwy = " + przerwa postaci (bez wyjścia z miasta)" if przerwa else ""
+    zapisz_stan(stan_dir, "startuje", "wołam refill.sh --tlo" + (f" (tylko cap: {KROKI_CAP})" if cap else "") + opis_przerwy)
     try:
-        r = uruchom(["bash", str(katalog / "refill.sh"), "--tlo"], capture_output=True, text=True, timeout=60)
+        env = {**os.environ, **({"REFILL_KROKI": KROKI_CAP} if cap else {}), **({"REFILL_BEZ_WYJSCIA": "1"} if przerwa else {})}
+        kw = {"env": env} if (cap or przerwa) else {}
+        r = uruchom(["bash", str(katalog / "refill.sh"), "--tlo"], capture_output=True, text=True, timeout=60, **kw)
     except (OSError, subprocess.SubprocessError) as e:
         zapisz_stan(stan_dir, "pominiety", f"refill.sh nie wystartował: {e!r}")
         return 1
@@ -152,7 +197,9 @@ def czekaj(stan_dir=None, katalog=KATALOG, czekaj_s=CZEKAJ_NA_BOTA_S, procesy=No
         wyj = (r.stderr or r.stdout or "").strip().splitlines()
         zapisz_stan(stan_dir, "pominiety", "refill.sh odmówił: " + (wyj[-1] if wyj else f"kod {r.returncode}"))
         return r.returncode
-    zapisz_stan(stan_dir, "uruchomiony", "refill.sh --tlo")
+    zapisz_stan(stan_dir, "uruchomiony", "refill.sh --tlo" + (f" (tylko cap: {KROKI_CAP})" if cap else "") + opis_przerwy)
+    if liczy:                                              # licznik dla `zostan_w_depo_po_refillach` (refille.json): tylko blanki; błąd zapisu niczego nie przerywa
+        ZD.zapisz_refill(stan_dir, time.time())
     return 0
 
 

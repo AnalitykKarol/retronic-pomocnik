@@ -309,6 +309,38 @@ def test_restart_mapa_z_tryb_log_a_nie_z_env():
     assert not s.plik("a", "STOP_RECZNY").exists()
 
 
+def _stoi_swiat(stoj):
+    s = Swiat(("a",))
+    s.grafik([zmiana("a", od="2026-10-21 09:00", koniec="2026-10-21 13:30", wylog="2026-10-21 13:45")])
+    s.tryb_log("a", "raty", "ostrozny", s.zegar.t - timedelta(hours=1))
+    s.log("a", [(s.zegar.t - timedelta(minutes=50), "Mózg: tryb skrypt, postać A, trasa thais_szczury_opt (90 pkt, start 3), próg HP 30.0%, bez modelu.")])
+    s.online("a", bot=True)
+    s.tele["a"] = {"wiek_probki_s": 5, "stoi_poza_walka_s": 3600}           # telemetria świeża, postać stoi godzinę poza walką
+    if stoj:
+        s.plik("a", "STOJ").write_text('{"pole": [100, 100, 7]}')           # 23.10 przełącznik STÓJ (stoj.py)
+    return s
+
+
+def test_stoj_przelacznik_stanie_nie_jest_zacieciem():
+    """23.10 STÓJ (Karol): flaga instancje/<id>/STOJ = postać stoi z woli Karola; nadzór nie restartuje jej za „stoi w miejscu”."""
+    s = _stoi_swiat(False)
+    n, at = nz(s)
+    n.tick()
+    assert any(w[0] in ("zatrzymaj_bota", "start_bota") for w in at.wywolania), at.wywolania     # kontrola: bez STOJ to zacięcie
+    s = _stoi_swiat(True)
+    n, at = nz(s)
+    n.tick()
+    assert not any(w[0] in ("zatrzymaj_bota", "start_bota") for w in at.wywolania), at.wywolania
+
+
+def test_stoj_przelacznik_stara_telemetria_nadal_zawieszenie():
+    s = _stoi_swiat(True)
+    s.tele["a"] = {"wiek_probki_s": 400, "stoi_poza_walka_s": 0}              # proces zawieszony: STÓJ tego nie ukrywa
+    n, at = nz(s)
+    n.tick()
+    assert any(w[0] == "start_bota" for w in at.wywolania), at.wywolania
+
+
 def test_restart_gdy_bot_wystartowal_po_wpisie_tryb_log():
     """tryb.log mówi 'raty', ale najnowszy bot (Mózg:) chodzi po trasie edron: prawda to to, co bot robi teraz."""
     s = Swiat(("a",))
@@ -654,7 +686,7 @@ def test_biala_lista_i_zakazy():
     kod, txt = n.napraw("a", "wroc")
     assert kod == 0 and at.nazwy() == ["wroc"], (kod, txt)
     assert not s.plik("a", "STOP_RECZNY").exists()
-    assert set(N.BIALA_LISTA) == {"restart", "wznow", "wroc", "relog", "wyloguj", "zmien_spot", "okna"}
+    assert set(N.BIALA_LISTA) == {"restart", "wznow", "wroc", "relog", "wyloguj", "zmien_spot", "okna", "wroc_poziom", "zamknij_sesje"}      # 23.10: + wroc_poziom, + zamknij_sesje (strategia Karola, pokrętło NADZOR_ZAMYKAJ_SESJE)
     kod, txt = n.napraw("a", "wyloguj")                               # bot działa: najpierw wroc
     assert kod == 3 and "wroc" in txt
     kod, txt = n.napraw("a", "wznow")
@@ -1466,6 +1498,275 @@ def test_poziom_wada2_zrodla_stan_prosi_o_szersze_limity_odczytu_gracza():
     env = wywolano["env"]
     assert float(env["RETRONIC_PANEL_GRACZ_S"]) >= 1.5 and env["RETRONIC_PANEL_GRACZ_BEZ_PAUZY"] == "1", env
     assert float(env["RETRONIC_OKNO_PANEL_LIMIT_S"]) > 1.5 and float(env["RETRONIC_OKNO_CALOSC_LIMIT_S"]) > float(env["RETRONIC_OKNO_PANEL_LIMIT_S"]), env
+
+
+# ---------------------------------------------------------------- 23.10: wyrósł ze spotu (Rook max 7, Karol)
+WYROSL_MAPA = "rook_kanaly_z11"
+
+
+def _wyrosl(level=8, zrodlo="karol", zywo=False, naprawy=True, mapa=WYROSL_MAPA):
+    """Postać 'a' na Rooku z botem; widełki spotu 1-7. Zwraca (świat, nadzorca, atrapa). zywo=False + naprawy=True = tick timera z NADZOR_NAPRAWY."""
+    s = Swiat(("a",))
+    (s.k / "mapy.json").write_text(json.dumps({"_opis": "x", WYROSL_MAPA: {"trasa": "x", "potwory": "Rat"}, "inna": {"trasa": "x", "potwory": "Rat"}}))
+    (s.k / "dane_tibia").mkdir(exist_ok=True)
+    spot = {"miasto": "rook", "jaskinia": "j_rook", "poziom": [1, 7], "poziom_zrodlo": zrodlo, "waga": 1.0, "auto": True}
+    (s.k / "dane_tibia" / "spoty_nadzorca.json").write_text(json.dumps({"miasta": {"rook": {"x": [31900, 32160], "y": [32050, 32300]}},
+                                                                        "spoty": {WYROSL_MAPA: spot}}))
+    s.grafik([zmiana("a", od="2026-10-21 09:00", koniec="2026-10-21 13:30", wylog="2026-10-21 13:45")])
+    s.tryb_log("a", mapa, "ostrozny")
+    s.online("a", bot=True, level=level)
+    s.log("a", [(s.zegar.t - timedelta(seconds=40), "Cel Rat zabity na (1, 2, 8).")])
+    at = Atrapa(s)
+    n = N.Nadzorca(s.k, s.zegar, s, at if zywo else N.WykonawcaCien(), zywo, True, naprawy_poziom=naprawy, wykonawca_poziom=at if naprawy else None)
+    return s, n, at
+
+
+def _wroc_poziom(n):
+    return [x for x in n.dziennik.ostatnie if x.get("akcja") == "wroc" and "poziom" in x["powod"]]
+
+
+def test_wyrosl_rook_lvl8_zleca_wroc_raz_na_zywo_tylko_ta_decyzje():
+    s, n, at = _wyrosl(8)
+    n.tick()
+    assert at.nazwy().count("wroc") == 1, at.wywolania
+    assert at.nazwy().count("powiadom_info") == 1, at.wywolania
+    tytul = [w for w in at.wywolania if w[0] == "powiadom_info"][0][2]
+    assert "a" in tytul.split(":")[0] and len(tytul) <= 80, tytul
+    wpis = _wroc_poziom(n)
+    assert len(wpis) == 1 and "poziom 8 > max 7 spotu rook_kanaly_z11" in wpis[0]["powod"] and wpis[0]["wynik"] == "ok", n.dziennik.ostatnie
+    assert n.post("a")["wroc_poziom"]["tryb"] == "zywo" and n.post("a")["wroc_poziom"]["ok"], n.post("a")
+    assert "naprawy" not in n.post("a"), "to nie jest naprawa z rotacji napraw"
+
+
+def test_wyrosl_drugi_tick_bez_ponowienia_nawet_gdy_wroc_nie_zlapal():
+    s, n, at = _wyrosl(8)
+    n.tick()
+    for _ in range(4):
+        s.zegar.dalej(minutes=5)
+        s.plik("a", "WROC").unlink(missing_ok=True)        # bot nie wziął zlecenia
+        s.log("a", [(s.zegar.t - timedelta(seconds=40), "Cel Rat zabity na (1, 2, 8).")])
+        n.tick()
+    assert at.nazwy().count("wroc") == 1 and at.nazwy().count("powiadom_info") == 1, at.wywolania
+    assert len(_wroc_poziom(n)) == 1
+
+
+def test_wyrosl_lvl7_nic():
+    s, n, at = _wyrosl(7)
+    n.tick()
+    assert at.wywolania == [] and not _wroc_poziom(n) and "wroc_poziom" not in n.post("a"), (at.wywolania, n.dziennik.ostatnie)
+
+
+def test_wyrosl_w_walce_czeka_a_po_walce_zleca():
+    s, n, at = _wyrosl(8)
+    s.log("a", [(s.zegar.t - timedelta(seconds=5), "Cel Rat: atak")])
+    n.tick()
+    assert "wroc" not in at.nazwy(), at.wywolania
+    assert any(x["akcja"] == "czekaj" and "walce" in x["powod"] and "poziom 8 > max 7" in x["powod"] for x in n.dziennik.ostatnie), n.dziennik.ostatnie
+    s.zegar.dalej(minutes=2)
+    n.tick()
+    assert at.nazwy().count("wroc") == 1, at.wywolania
+
+
+def test_wyrosl_bez_biezacego_odczytu_poziomu_nic_nie_robi():
+    s, n, at = _wyrosl(8)
+    n.post("a")["poziom"] = {"wartosc": 9, "t": s.zegar.t.strftime(N.FMT)}      # zapamiętany 9, bieżącego odczytu brak
+    s.inst["a"].update(gracz={"hp": 100, "max_hp": 100}, panel={})
+    n.tick()
+    assert "wroc" not in at.nazwy(), at.wywolania
+
+
+def test_wyrosl_wyjatki_stop_reczny_pauza_hold_powrot_w_toku():
+    for przygotuj in (lambda s, n: s.plik("a", "STOP_RECZNY").touch(),
+                      lambda s, n: (s.k / "instancje" / "_wspolne" / "NADZOR_PAUZA").touch(),
+                      lambda s, n: n.post("a").update(hold={"powod": "x", "od": "t", "powiadomiono": True}),
+                      lambda s, n: s.plik("a", "WROC").touch(),
+                      lambda s, n: s.plik("a", "wyprawa_stan.json").write_text('{"aktywna": true}')):
+        s, n, at = _wyrosl(8)
+        przygotuj(s, n)
+        n.tick()
+        assert "wroc" not in at.nazwy() and "powiadom_info" not in at.nazwy(), at.wywolania
+
+
+def test_wyrosl_widelki_domyslne_nie_sa_decyzja_karola_wiec_bez_zlecenia():
+    s, n, at = _wyrosl(8, zrodlo="domyslne")
+    n.tick()
+    assert "wroc" not in at.nazwy(), at.wywolania
+
+
+def test_wyrosl_mapa_bez_wpisu_w_tabeli_i_stoj_nic():
+    s, n, at = _wyrosl(40, mapa="inna")
+    n.tick()
+    assert "wroc" not in at.nazwy(), at.wywolania
+
+
+def test_wyrosl_bez_naprawy_zywo_tylko_cien_a_zlecenie_z_cienia_nie_tlumi_zywego():
+    s, n, at = _wyrosl(8, naprawy=False)
+    n.tick()
+    assert at.wywolania == [], "bez NADZOR_NAPRAWY i NADZOR_ZYWO nic na żywo"
+    cien = [x for x in n.dziennik.ostatnie if x["akcja"] == "wroc" and x["wynik"] == "cień"]
+    assert len(cien) == 1 and "poziom 8 > max 7" in cien[0]["powod"], n.dziennik.ostatnie
+    assert n.post("a")["wroc_poziom"]["tryb"] == "cien"
+    n2 = N.Nadzorca(s.k, s.zegar, s, N.WykonawcaCien(), False, True, naprawy_poziom=True, wykonawca_poziom=at)      # włączono NADZOR_NAPRAWY
+    n2.stan = n.stan
+    s.zegar.dalej(minutes=5)
+    n2.tick()
+    assert at.nazwy().count("wroc") == 1, at.wywolania
+
+
+def test_wyrosl_inne_decyzje_zostaja_w_cieniu_mimo_naprawy():
+    """NADZOR_NAPRAWY nie uruchamia na żywo reszty grafiku: koniec zmiany nadal tylko 'zrobiłbym wroc'."""
+    s, n, at = _wyrosl(7)
+    s.zegar.t = datetime(2026, 10, 21, 13, 40)
+    s.log("a", [(s.zegar.t - timedelta(seconds=40), "Cel Rat zabity na (1, 2, 8).")])
+    n.tick()
+    assert at.wywolania == [], at.wywolania
+    assert any(x["akcja"] == "wroc" and x["wynik"] == "cień" for x in n.dziennik.ostatnie), n.dziennik.ostatnie
+
+
+def test_wyrosl_napraw_wroc_poziom_tylko_z_tym_powodem():
+    s, n, at = _wyrosl(7, zywo=True)
+    kod, txt = n.napraw("a", "wroc_poziom")
+    assert kod == 3 and "wroc" not in at.nazwy(), (kod, txt, at.wywolania)
+    s.inst["a"]["gracz"]["level"] = 8
+    s.log("a", [(s.zegar.t - timedelta(seconds=5), "Cel Rat: atak")])
+    kod, txt = n.napraw("a", "wroc_poziom")
+    assert kod == 3 and "walce" in txt and "wroc" not in at.nazwy(), (kod, txt)
+    s.zegar.dalej(minutes=1)
+    kod, txt = n.napraw("a", "wroc_poziom")
+    assert kod == 0 and at.nazwy().count("wroc") == 1 and at.nazwy().count("powiadom_info") == 1, (kod, txt, at.wywolania)
+    s.zegar.dalej(minutes=3)
+    s.plik("a", "WROC").unlink(missing_ok=True)
+    kod, txt = n.napraw("a", "wroc_poziom")
+    assert kod == 3 and "zlecon" in txt and at.nazwy().count("wroc") == 1, (kod, txt)
+
+
+def test_wyrosl_main_zwykly_wroc_przy_naprawy_odmowa_a_wroc_poziom_przepuszczony():
+    assert "wroc" not in N.NAPRAWY_BEZ_ZYWO and "wroc_poziom" in N.NAPRAWY_BEZ_ZYWO and "wyloguj" not in N.NAPRAWY_BEZ_ZYWO
+    s = Swiat(("a",))
+    zapas = (N.KORZEN, N.Nadzorca, os.environ.get("NADZOR_NAPRAWY"))
+    wolane = []
+
+    class Atrapa2:
+        def __init__(self, **kw):
+            wolane.append(("init", kw))
+
+        def napraw(self, id_, rodzaj):
+            wolane.append(("napraw", rodzaj))
+            return 0, "ok"
+
+        def tick(self):
+            wolane.append(("tick",))
+            return []
+
+        def zegar(self):
+            return datetime(2026, 10, 23, 12, 0, 0)
+
+    N.KORZEN, N.Nadzorca = s.k, Atrapa2
+    os.environ["NADZOR_NAPRAWY"] = "1"
+    try:
+        assert N.main(["napraw", "a", "wroc"]) == 3 and wolane == [], wolane      # zwykłe wroc: odmowa, nawet nie tworzy nadzorcy
+        assert N.main(["napraw", "a", "zmien_spot"]) == 3 and N.main(["napraw", "a", "wyloguj"]) == 3 and wolane == []
+        assert N.main(["napraw", "a", "wroc_poziom"]) == 0 and ("napraw", "wroc_poziom") in wolane, wolane
+        wolane.clear()
+        N.main(["tick"])
+        assert wolane[0][1].get("naprawy_poziom") is True and not wolane[0][1].get("zywo"), wolane      # timer z NADZOR_NAPRAWY: tylko poziom na żywo
+        wolane.clear()
+        os.environ.pop("NADZOR_NAPRAWY")
+        N.main(["tick"])
+        assert not wolane[0][1].get("naprawy_poziom"), wolane
+        wolane.clear()
+        os.environ["NADZOR_NAPRAWY"] = "1"
+        N.main(["cien", "--raz"])
+        N.main(["cien"])
+        assert all(not w[1].get("naprawy_poziom") for w in wolane if w[0] == "init"), wolane      # przebieg w cieniu (okno obchodu) nigdy na żywo
+    finally:
+        N.KORZEN, N.Nadzorca = zapas[0], zapas[1]
+        if zapas[2] is None:
+            os.environ.pop("NADZOR_NAPRAWY", None)
+        else:
+            os.environ["NADZOR_NAPRAWY"] = zapas[2]
+
+
+# ---------------------------------------------------------------- 23.10: bot wylogowany sam (wylogowany.json) -> kolejka relogów
+def _wylog_swiat(minut_temu=2, naprawy=True, ekran="logowanie", w_grze=False, bot=False):
+    """Postać 'a' online, bot zakończył proces po wykryciu ekranu logowania (znacznik wylogowany.json), klient na ekranie logowania."""
+    import wylogowanie  # noqa: PLC0415
+    s = Swiat(("a",))
+    s.grafik([zmiana("a", od="2026-10-21 09:00", koniec="2026-10-21 13:30", wylog="2026-10-21 13:45")])
+    s.tryb_log("a", "trolle_edron", "ostrozny")
+    s.online("a", bot=bot, w_grze=w_grze)
+    if ekran:
+        s.ekran_map["a"] = ekran
+    s.log("a", [(s.zegar.t - timedelta(minutes=minut_temu), "ROZŁĄCZENIE: ekran logowania, pamięć gry stoi 31 s"),
+                (s.zegar.t - timedelta(minutes=minut_temu), "WYLOGOWANY: kończę bota")])
+    wylogowanie.zapisz(s.k / "instancje" / "a", "ekran logowania", s.plik("a", "logi") / "tryb.log", nick="A",
+                       teraz=N.ts_ep(s.zegar.t) - minut_temu * 60)
+    at = Atrapa(s)
+    n = N.Nadzorca(s.k, s.zegar, s, at if not naprawy else N.WykonawcaCien(), False, True, naprawy_poziom=naprawy,
+                   wykonawca_poziom=at if naprawy else None)
+    return s, n, at
+
+
+def test_wylogowany_bot_czeka_nie_jest_awaria_ani_zaloguj():
+    for w_grze, ekran in ((False, "logowanie"), (False, "lista"), (True, None)):
+        s, n, at = _wylog_swiat(2, w_grze=w_grze, ekran=ekran)
+        n.tick()
+        zle = [w for w in at.wywolania if w[0] in ("zaloguj", "relog", "start_bota", "zatrzymaj_bota", "sesja_start", "wyloguj", "relog_kolejka")]
+        assert not zle, (w_grze, ekran, at.wywolania)
+        assert any(x["id"] == "a" and x["akcja"] == "czekaj" and "nie wcześniej niż" in x["powod"] for x in n.dziennik.ostatnie), n.dziennik.ostatnie
+
+
+def test_wylogowany_po_10_min_jedna_kolejka_na_zywo_i_bez_ponowienia():
+    s, n, at = _wylog_swiat(11)
+    n.tick()
+    assert at.nazwy().count("relog_kolejka") == 1, at.wywolania
+    assert not [w for w in at.wywolania if w[0] in ("zaloguj", "start_bota", "zatrzymaj_bota")], at.wywolania
+    s.zegar.dalej(minutes=1)
+    n.tick()
+    assert at.nazwy().count("relog_kolejka") == 1, "drugi tick (< 2 min) nie startuje kolejki ponownie"
+
+
+def test_wylogowany_cien_bez_naprawy_nic_nie_uruchamia():
+    s, n, at = _wylog_swiat(11, naprawy=False)
+    n.tick()
+    assert at.wywolania == [] and not n.wykonawca.wywolania, (at.wywolania, n.wykonawca.wywolania)
+    assert any(x["id"] == "a" and x["akcja"] == "relog_wylog" and x["tryb"] == "cien" for x in n.dziennik.ostatnie), n.dziennik.ostatnie
+
+
+def test_wylogowany_stop_reczny_zero_akcji():
+    s, n, at = _wylog_swiat(30)
+    s.plik("a", "STOP_RECZNY").touch()
+    n.tick()
+    assert at.wywolania == [] and (s.plik("a", "STOP_RECZNY")).exists(), at.wywolania
+
+
+def test_wylogowany_kolejka_juz_trwa_czeka():
+    import fcntl  # noqa: PLC0415
+    import relog_wylogowanych as RW  # noqa: PLC0415
+    s, n, at = _wylog_swiat(30)
+    f = open(s.k / "instancje" / "_wspolne" / RW.SINGLETON, "a")
+    fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    try:
+        n.tick()
+    finally:
+        f.close()
+    assert "relog_kolejka" not in at.nazwy() and any("kolejka relogów trwa" in x["powod"] for x in n.dziennik.ostatnie), (at.wywolania, n.dziennik.ostatnie)
+
+
+def test_wylogowany_trzy_porazki_eskalacja_i_hold():
+    import relog_wylogowanych as RW  # noqa: PLC0415
+    s, n, at = _wylog_swiat(60)
+    RW.zapisz_stan_prob(s.k / "instancje" / "a", {"proby": 3, "ost_ts": N.ts_ep(s.zegar.t) - 3000, "ost_blad": "zaloguj.sh: kod 7"})
+    n2 = N.Nadzorca(s.k, s.zegar, s, at, True, True)       # eskalacja działa w trybie na żywo (hold + powiadomienie)
+    n2.tick()
+    assert "relog_kolejka" not in at.nazwy() and "powiadom" in at.nazwy(), at.wywolania
+    assert n2.post("a").get("hold"), n2.post("a")
+
+
+def test_wylogowany_znacznik_przy_dzialajacym_bocie_jest_ignorowany():
+    s, n, at = _wylog_swiat(30, w_grze=True, ekran=None, bot=True)
+    n.tick()
+    assert "relog_kolejka" not in at.nazwy(), at.wywolania
 
 
 if __name__ == "__main__":
