@@ -373,6 +373,74 @@ KLIENCI[:] = []
 kod, out = akcja("dwa", "podglad")
 sprawdz("G9j sesja bez portu (wayvnc wstaje): odmowa bez Remminy", kod == 1 and "portu" in out and not WYWOLANIA, (kod, out))
 
+# --- zmiana portu podglądu (kolizja portów 23.10): server= w istniejącym profilu, kolejność względem okna Remminy ---
+sesja_gry.CZEKAJ_OKNO_S = 0.2
+STARY = "[remmina]\nname=Moja Dwójka\ngroup=Retronic dwa\nprotocol=VNC\nserver=127.0.0.1:5980\nscale=1\nviewonly=0\nkeymap=Retronic Alt\n"
+def profil_dwa(tekst):
+    REM.mkdir(parents=True, exist_ok=True); (REM / "retronic-dwa.remmina").write_text(tekst)
+    return REM / "retronic-dwa.remmina"
+
+reset(); shutil.rmtree(REM, ignore_errors=True)
+sesja_dzialajaca("dwa", 100, 5950)
+prof = profil_dwa(STARY); KLIENCI[:] = []
+kod, out = akcja("dwa", "podglad")
+sprawdz("H1 port w profilu inny, okna brak: server= poprawiony, reszta pliku bez zmian, Remmina otwarta",
+        kod == 0 and prof.read_text() == STARY.replace("5980", "5950") and WYWOLANIA and WYWOLANIA[0][0] == "odlacz"
+        and not list(REM.glob("*.tmp")), (kod, out, prof.read_text()))
+prof.write_text(STARY.replace("5980", "5950"))
+przed = prof.stat().st_mtime_ns
+kod, out = akcja("dwa", "podglad")
+sprawdz("H2 port zgodny: profil nietknięty (bez zapisu)", prof.stat().st_mtime_ns == przed and prof.read_text() == STARY.replace("5980", "5950"))
+
+# H3. okno otwarte na starym porcie: zamknięcie -> (Remmina zapisuje SWÓJ server=) -> poprawka profilu -> otwarcie.
+# Stub modeluje Remminę: przy zamknięciu okna dopisuje do profilu stary server=; poprawka przed zamknięciem zostałaby nadpisana.
+ZDARZENIA = []
+def uruchom_remmina_nadpisuje(argv, limit):
+    argv = [str(a) for a in argv]
+    WYWOLANIA.append(("uruchom", argv, {}))
+    if "window.close" in " ".join(argv):
+        ZDARZENIA.append("close")
+        KLIENCI[:] = []
+        prof.write_text(STARY)                       # Remmina przy zamykaniu zapisuje stary server=
+    return 0, ""
+def odlacz_zapisuje(argv, log, env=None):
+    ZDARZENIA.append("otwarcie: " + [l for l in prof.read_text().splitlines() if l.startswith("server=")][0])
+    WYWOLANIA.append(("odlacz", [str(a) for a in argv], {}))
+    return Proc(None)
+prof = profil_dwa(STARY)
+KLIENCI[:] = [{"title": "Moja Dwójka", "class": "org.remmina.Remmina", "address": "0xabc", "pid": 900}]
+kod, out = akcja("dwa", "podglad", uruchom=uruchom_remmina_nadpisuje, odlacz=odlacz_zapisuje)
+sprawdz("H3 okno na starym porcie: close, potem profil poprawiony, potem otwarcie (kolejność), profil końcowy = nowy port",
+        kod == 0 and ZDARZENIA == ["close", "otwarcie: server=127.0.0.1:5950"] and prof.read_text() == STARY.replace("5980", "5950")
+        and "zamknięte" in out and "Remminie" in out, (kod, out, ZDARZENIA, prof.read_text()))
+zam = [x[1][-1] for x in WYWOLANIA if "window.close" in " ".join(x[1])]
+sprawdz("H3b zamknięte okno tej instancji po adresie (składnia lua jak fokus)", zam == ['hl.dsp.window.close({ window = "address:0xabc" })'], zam)
+
+# H4. okno nie znika: odmowa, profil nietknięty, żadnej nowej Remminy
+prof = profil_dwa(STARY)
+KLIENCI[:] = [{"title": "Moja Dwójka", "class": "org.remmina.Remmina", "address": "0xabc", "pid": 900}]
+kod, out = akcja("dwa", "podglad", uruchom=uruchom_z_limitem((0, "ok")))
+sprawdz("H4 okno nie zamknęło się: odmowa, profil bez zmian, bez Remminy", kod == 1 and "nie zamknęło" in out and prof.read_text() == STARY
+        and not [w for w in WYWOLANIA if w[0] == "odlacz"], (kod, out, prof.read_text()))
+KLIENCI[:] = []
+
+# H5. okno cudzej instancji (inny tytuł) nie jest zamykane
+prof = profil_dwa(STARY)
+KLIENCI[:] = [{"title": "Retronic trzy", "class": "org.remmina.Remmina", "address": "0xd2", "pid": 901}]
+kod, out = akcja("dwa", "podglad")
+sprawdz("H5 cudze okno Remminy zostaje, profil dwa poprawiony", kod == 0 and not [w for w in WYWOLANIA if "window.close" in " ".join(w[1])]
+        and "server=127.0.0.1:5950" in prof.read_text(), (kod, out))
+KLIENCI[:] = []
+
+# H6. jednostkowo: popraw_serwer_profilu (brak linii server=, brak końcowego newline, CRLF nietknięte poza linią)
+f = REM / "x.remmina"
+f.write_text("[remmina]\nname=A"); zm = sesja_gry.popraw_serwer_profilu(f, 5999)
+sprawdz("H6a brak server=: dopisany na końcu", zm and f.read_text() == "[remmina]\nname=A\nserver=127.0.0.1:5999\n", f.read_text())
+sprawdz("H6b ten sam port: false i bez zmian", sesja_gry.popraw_serwer_profilu(f, 5999) is False and sesja_gry.port_w_profilu(f) == 5999)
+f.write_text("a=1\nserver=localhost:5901\nb=2")
+sprawdz("H6c inny host i port: tylko ta linia, brak końcowego newline zachowany", sesja_gry.popraw_serwer_profilu(f, 5960)
+        and f.read_text() == "a=1\nserver=127.0.0.1:5960\nb=2", f.read_text())
+
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

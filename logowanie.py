@@ -570,7 +570,7 @@ class PortZywy(Port):
     def w_miescie(self):
         try:
             r = subprocess.run([sys.executable, "-I", str(KATALOG / "panel.py"), "--json"], cwd=str(KATALOG), capture_output=True,
-                               text=True, timeout=10, env=dict(os.environ, RETRONIC_ID=self.id))
+                               text=True, timeout=10, env=dict(os.environ, RETRONIC_ID=self.id, RETRONIC_PANEL_CACHE_S="0"))  # 24.10: decyzja z żywych danych, bez wspólnego cache panelu
             return json.loads(r.stdout).get("w_miescie") or None
         except (subprocess.TimeoutExpired, OSError, ValueError):
             return None

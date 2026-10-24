@@ -28,7 +28,7 @@ fi
 # RETRONIC_BEZ_OKNA=0: dawny tryb z oknem (bot staje, gdy okno jest niewidoczne).
 # RETRONIC_BEZ_OKNA_ROZ=SZERxWYS (domyślnie 1175x910; ekran sesji dopasowuje się potem do okna podglądu, dopasuj_okno.py).
 # RETRONIC_PODGLAD=0: bez automatycznego podglądu
-# (wayvnc i tak działa, podglad.sh otwiera go później). RETRONIC_PODGLAD_PORT: port VNC (domyślnie 5901, instancje 5902+).
+# (wayvnc i tak działa, podglad.sh otwiera go później). RETRONIC_PODGLAD_PORT: port VNC (domyślnie 5901, instancje 5902-5991, pierwszy wolny od cksum(ID)).
 BEZ_OKNA="${RETRONIC_BEZ_OKNA:-1}"
 # Domyślny rozmiar 1175x910 (SPEC_okno_gry_1015.md): mapa 15:11 wypełnia szerokość lewej części ekranu, a prawy panel ma ok. 185 px;
 # przy wysokości 910 czarne pasy nad/pod mapą znikają przy szerokości ok. 1175 px. UNKNOWN do sprawdzenia zrzutem (grim: brak pasów,
@@ -36,7 +36,19 @@ BEZ_OKNA="${RETRONIC_BEZ_OKNA:-1}"
 # Cofnięcie: RETRONIC_BEZ_OKNA_ROZ=800x910 (klient potrzebuje min. 800 px szerokości; przy 734 prawy panel był ucięty, 14.10).
 ROZ="${RETRONIC_BEZ_OKNA_ROZ:-1175x910}"
 if [ -z "${RETRONIC_ID:-}" ]; then PORT_DOM=5901; else PORT_DOM=$((5902 + $(printf '%s' "$RETRONIC_ID" | cksum | cut -d' ' -f1) % 90)); fi
-PORT="${RETRONIC_PODGLAD_PORT:-$PORT_DOM}"
+mkdir -p "$STAN"
+rm -f "$STAN/wayland" "$STAN/vnc_port"
+# Port podglądu: RETRONIC_PODGLAD_PORT wygrywa. Inaczej baza z cksum (PORT_DOM) i, dla instancji, pierwszy WOLNY port od niej
+# (23.10: odchyd i dawajkesh mieli oba 5952): nikt na nim nie słucha i nie ma go w vnc_port innej żywej sesji; wybór i zapis
+# vnc_port pod blokadą (instancja.py port-podgladu). Błąd/brak wolnego portu = dawna baza.
+if [ -n "${RETRONIC_PODGLAD_PORT:-}" ]; then
+  PORT="$RETRONIC_PODGLAD_PORT"
+elif [ -n "${RETRONIC_ID:-}" ] && [ "$BEZ_OKNA" = "1" ]; then
+  PORT=$(python3 -I "$DIR/instancja.py" port-podgladu "$PORT_DOM" "$STAN") || PORT="$PORT_DOM"
+  [ "$PORT" = "$PORT_DOM" ] || echo "sesja.sh: port podglądu $PORT_DOM zajęty, wzięty $PORT" >&2
+else
+  PORT="$PORT_DOM"
+fi
 OUTPUT_KONF=""
 VNC_KONF=""
 if [ "$BEZ_OKNA" = "1" ]; then
@@ -45,8 +57,6 @@ if [ "$BEZ_OKNA" = "1" ]; then
   # ("Another wayvnc process is already running"). Bez ID linia jest taka jak dotąd.
   VNC_KONF="exec wayvnc ${RETRONIC_ID:+-S $STAN/wayvnc.sock }127.0.0.1 $PORT"
 fi
-mkdir -p "$STAN"
-rm -f "$STAN/wayland" "$STAN/vnc_port"
 
 cat > "$STAN/sway.conf" <<EOF2
 # Wygenerowane przez pomocnik/sesja.sh, bez skrótów i bez configu użytkownika.

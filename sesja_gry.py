@@ -6,7 +6,9 @@
                                           wyjście sesja.sh dopisywane do instancje/<id>/logi/sesja-RRRRMMDD.log
   RETRONIC_ID=<id> sesja_gry.py zamknij   tylko ta instancja: zatrzymaj.sh (bot), `swaymsg -s <swaysock tej sesji> exit`,
                                           czekanie; awaryjnie TERM strażnika i sway TEJ instancji, `wineserver -k` z jej WINEPREFIX
-  RETRONIC_ID=<id> sesja_gry.py podglad   Remmina z profilem ~/.local/share/remmina/retronic-<id>.remmina (brak = tworzony z wzoru);
+  RETRONIC_ID=<id> sesja_gry.py podglad   Remmina z profilem ~/.local/share/remmina/retronic-<id>.remmina (brak = tworzony z wzoru;
+                                          istniejący: tylko linia server= jest poprawiana, gdy port sesji jest inny, a jeśli okno
+                                          tej instancji jest wtedy otwarte, najpierw jest zamykane, bo Remmina nadpisuje profil);
                                           otwarty = fokus na jego okno (`hyprctl dispatch 'hl.dsp.focus({ window = "address:…" })'`,
                                           składnia Lua od Hyprland 0.56), niepowodzenie fokusu = komunikat, kod 0
 
@@ -34,6 +36,7 @@ CZEKAJ_START_S = 8.0          # tyle czekamy, aż wstanie sway nowej sesji (gra 
 CZEKAJ_ZAMKNIECIE_S = 25.0    # po `swaymsg exit`: gra traci Xwayland i kończy się, strażnik i sieć proxy za nią
 CZEKAJ_TERM_S = 8.0
 CZEKAJ_PODGLAD_S = 10.0       # po wstaniu sway: tyle czekamy, aż wayvnc zacznie słuchać, zanim otworzymy Remminę           # po awaryjnym TERM
+CZEKAJ_OKNO_S = 5.0           # po zamknięciu okna Remminy (zmiana portu podglądu): tyle czekamy, aż zniknie, zanim ruszymy profil
 KROK_S = 0.5
 
 # punkty podmiany dla testów (testy/test_sesja_gry.py)
@@ -150,7 +153,10 @@ def otworz_remmine_po_starcie():
     while time.monotonic() < koniec:
         port = stan()["podglad"]["port"]
         if port is not None and instancja.port_nasluchuje(port, proc):
-            plik, _ = profil_remminy(port)
+            try:
+                plik, _ = przygotuj_profil_podgladu(port)
+            except Odmowa as e:
+                return str(e)
             with log_akcji() as log:
                 log.write(f"=== {time.strftime('%H:%M:%S')} podgląd po starcie: remmina {plik.name} (port {port})\n")
                 log.flush()
@@ -244,12 +250,54 @@ def katalog_remminy():
     return Path(os.environ.get("RETRONIC_REMMINA_KATALOG") or Path.home() / ".local/share/remmina")
 
 
+SERWER_WZOR = re.compile(r"^(server=)(.*?)(:(\d+))?\s*$")
+
+
+def port_w_profilu(plik):
+    """Port z linii server= profilu Remminy (host:port) albo None (brak pliku/linii/portu)."""
+    try:
+        for linia in Path(plik).read_text(errors="replace").splitlines():
+            if linia.startswith("server="):
+                m = SERWER_WZOR.match(linia)
+                return int(m[4]) if m and m[4] else None
+    except OSError:
+        pass
+    return None
+
+
+def popraw_serwer_profilu(plik, port):
+    """Ustawia server=127.0.0.1:<port> w istniejącym profilu, gdy port się różni; reszta pliku bez zmian (kolejność, końcowy
+    newline). Brak linii server= = dopisana na końcu. -> czy plik zmieniono. Zapis przez plik tymczasowy + replace."""
+    plik = Path(plik)
+    tekst = plik.read_text(errors="replace")
+    nowa = f"server=127.0.0.1:{port}"
+    linie = tekst.split("\n")
+    idx = next((i for i, l in enumerate(linie) if l.startswith("server=")), None)
+    if idx is None:
+        koniec = tekst.endswith("\n") or not tekst
+        wynik = tekst + ("" if koniec else "\n") + nowa + "\n"
+    else:
+        if port_w_profilu(plik) == port:
+            return False
+        linie[idx] = nowa
+        wynik = "\n".join(linie)
+    tmp = plik.with_name(plik.name + ".tmp")
+    tmp.write_text(wynik)
+    os.replace(tmp, plik)
+    return True
+
+
 def profil_remminy(port):
-    """-> (ścieżka profilu, tytuł okna). Brak profilu (np. nowa instancja) = tworzony z wzoru; istniejący zostaje."""
+    """-> (ścieżka profilu, tytuł okna). Brak profilu (np. nowa instancja) = tworzony z wzoru. Istniejący zostaje, poza linią
+    server=: gdy port sesji jest inny (kolizja portów 23.10, ręczny RETRONIC_PODGLAD_PORT), server= jest poprawiane.
+    Uwaga: Remmina przy zamykaniu okna zapisuje swój server= z powrotem, więc przy otwartym oknie tej instancji wołaj to
+    DOPIERO po jego zamknięciu (podglad() tak robi)."""
     plik = katalog_remminy() / f"retronic-{ID}.remmina"
     if not plik.exists():
         plik.parent.mkdir(parents=True, exist_ok=True)
         plik.write_text(REMMINA_WZOR.format(id=ID, port=port))
+    else:
+        popraw_serwer_profilu(plik, port)
     tytul = f"Retronic {ID}"
     for linia in plik.read_text(errors="replace").splitlines():
         if linia.startswith("name="):
@@ -296,6 +344,34 @@ def zamknij_okno_podgladu():
     return True
 
 
+def zamknij_okno_i_poczekaj(okno):
+    """Zamyka okno Remminy po adresie i czeka (do CZEKAJ_OKNO_S), aż zniknie z hyprctl clients. -> czy zniknęło."""
+    adres = okno.get("address")
+    uruchom(["hyprctl", "dispatch", f'hl.dsp.window.close({{ window = "address:{adres}" }})'], 5)
+    koniec = time.monotonic() + CZEKAJ_OKNO_S
+    while True:
+        if not any(k.get("address") == adres for k in klienci_hyprland()):
+            return True
+        if time.monotonic() >= koniec:
+            return False
+        sleep(KROK_S)
+
+
+def przygotuj_profil_podgladu(port):
+    """Profil Remminy tej instancji z server=127.0.0.1:<port> -> (ścieżka, tytuł okna). Gdy profil ma inny port, a okno tej
+    instancji jest otwarte (pokazuje starą albo cudzą sesję), KOLEJNOŚĆ jest ważna, bo Remmina przy zamykaniu okna zapisuje
+    swój server= do profilu: najpierw zamknięcie okna i czekanie aż zniknie, dopiero potem poprawka profilu. Okno, które nie
+    zniknęło w CZEKAJ_OKNO_S = Odmowa, profil nietknięty."""
+    stary_port = port_w_profilu(katalog_remminy() / f"retronic-{ID}.remmina")
+    okno = okno_podgladu()
+    if okno is not None and stary_port is not None and stary_port != port:
+        if not zamknij_okno_i_poczekaj(okno):
+            raise Odmowa(f"podgląd {ID} otwarty na porcie {stary_port}, a sesja ma port {port}: okno nie zamknęło się "
+                         f"w {CZEKAJ_OKNO_S:g} s, profil Remminy bez zmian (zamknij okno ręcznie i powtórz)")
+        print(f"podgląd {ID}: okno na starym porcie {stary_port} zamknięte, profil poprawiony na {port}")
+    return profil_remminy(port)
+
+
 def podglad():
     """Q1/Q2 (spec 2026-10-20-retronic-lvl-i-podglad.md): podgląd w Remminie, jak okna Karola (decyzja 20.10 ~19:00,
     „ustaw tak jak było na invincible”). Otwarty = fokus na jego okno; zamknięty = remmina -c profil instancji.
@@ -306,7 +382,7 @@ def podglad():
     port = s["podglad"]["port"]
     if port is None:
         raise Odmowa(f"sesja {ID} nie ma jeszcze portu podglądu (wayvnc wstaje), spróbuj za chwilę")
-    plik, tytul = profil_remminy(port)
+    plik, tytul = przygotuj_profil_podgladu(port)
     okno = next((k for k in klienci_hyprland() if k.get("title") == tytul and k.get("class") == REMMINA_KLASA), None)
     if okno is None and s["podglad"].get("pid"):           # stary podgląd vncviewer tej instancji
         okno = next((k for k in klienci_hyprland() if k.get("pid") == s["podglad"]["pid"]), None)

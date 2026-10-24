@@ -14,8 +14,10 @@ Niepusta (np. "dwa") = osobny świat:
 Moduł nie ma efektów ubocznych przy imporcie (nie tworzy katalogów). Dla powłoki:
   eval "$(python3 -I instancja.py powloka)"      # eksportuje INST_* i RETRONIC_ID
   python3 -I instancja.py pidy '(mozg|cavebot)\\.py'   # pidy procesów python tej instancji
+  python3 -I instancja.py port-podgladu BAZA [KATALOG_SESJI]   # pierwszy wolny port VNC od BAZY, zapisuje vnc_port (sesja.sh)
   python3 -I instancja.py pidy-skrypt '^(\\S*/)?bash (\\S*/)?refill\\.sh *$'   # j.w., ale dowolny proces (skrypty powłoki)
 """
+import fcntl
 import os
 import re
 import shlex
@@ -158,6 +160,71 @@ def port_nasluchuje(port, proc="/proc"):
     return False
 
 
+# --- port podglądu VNC: domyślny z funkcji skrótu, z rozwiązaniem kolizji (23.10) ---------------------
+# sesja.sh liczy bazę jako 5902 + cksum(RETRONIC_ID) % 90; dwie instancje mogą trafić w ten sam port (odchyd i dawajkesh:
+# 5952), wtedy wayvnc drugiej nie może się zbindować, a podgląd pokazuje cudzą grę. Tu: pierwszy wolny port od bazy
+# (deterministycznie +1 w pętli, zawijanie w zakresie), gdzie "zajęty" = ktoś słucha ALBO jest zapisany w vnc_port innej
+# ŻYWEJ sesji (vnc_port ląduje przed startem wayvnc, więc samo nasłuchiwanie nie wystarcza przy dwóch równoległych startach).
+ZAKRES_PORTOW_PODGLADU = (5902, 5991)       # 5902 + (0..89); 5901 to główna instancja
+PREFIKS_SESJI = "retronic-sesja-"
+
+
+def sesja_zyje(id_, katalog_sesji, proc="/proc"):
+    """Czy sesja instancji id_ żyje: sesja.sh z jej RETRONIC_ID albo sway z jej sway.conf. Tylko odczyt /proc."""
+    if procesy(r"^(\S*/)?bash (\S*/)?sesja\.sh\b", id_, proc=proc, comm=None):
+        return True
+    return bool(procesy(r"^sway\b.* -c " + re.escape(str(Path(katalog_sesji) / "sway.conf")), id_, proc=proc, comm=None))
+
+
+def porty_cudzych_sesji(ja, runtime_dir, proc="/proc"):
+    """Porty z vnc_port innych (niż ja) żywych sesji retronic-sesja-<id>."""
+    zajete = set()
+    try:
+        katalogi = sorted(Path(runtime_dir).glob(PREFIKS_SESJI + "*"))
+    except OSError:
+        return zajete
+    for kat in katalogi:
+        id_ = kat.name[len(PREFIKS_SESJI):]
+        if id_ == ja:
+            continue
+        try:
+            port = int((kat / "vnc_port").read_text().strip())
+            if sesja_zyje(sprawdz_id(id_), kat, proc):
+                zajete.add(port)
+        except (OSError, ValueError):
+            continue
+    return zajete
+
+
+def wolny_port_podgladu(baza, ja, runtime_dir, proc="/proc", zakres=ZAKRES_PORTOW_PODGLADU):
+    """Pierwszy port od `baza` (w górę, z zawinięciem w zakresie), na którym nikt nie słucha i którego nie ma w vnc_port
+    innej żywej sesji. Brak wolnego = None. Baza spoza zakresu jest sprowadzana do jego początku."""
+    lo, hi = zakres
+    n = hi - lo + 1
+    start = (int(baza) - lo) % n
+    zajete = porty_cudzych_sesji(ja, runtime_dir, proc)
+    for k in range(n):
+        port = lo + (start + k) % n
+        if port not in zajete and not port_nasluchuje(port, proc):
+            return port
+    return None
+
+
+def zarezerwuj_port_podgladu(baza, ja, katalog_sesji, runtime_dir, proc="/proc"):
+    """Wybór portu i zapis vnc_port w katalogu sesji pod jedną blokadą (flock), żeby dwa równoległe starty nie wzięły tego
+    samego portu. -> port albo None."""
+    runtime_dir = Path(runtime_dir)
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    with open(runtime_dir / "retronic-porty.lock", "w") as blokada:
+        fcntl.flock(blokada, fcntl.LOCK_EX)
+        port = wolny_port_podgladu(baza, ja, runtime_dir, proc)
+        if port is not None and katalog_sesji:
+            kat = Path(katalog_sesji)
+            kat.mkdir(parents=True, exist_ok=True)
+            (kat / "vnc_port").write_text(str(port))
+        return port
+
+
 def podglad_polaczony(port, proc="/proc"):
     """Czy jest NAWIĄZANE połączenie TCP z 127.0.0.1:<port> (wayvnc sesji). Działa dla każdej przeglądarki VNC
     (Remmina, vncviewer), bez szukania procesu: /proc/net/tcp, stan 01 = ESTABLISHED, port lokalny = port wayvnc."""
@@ -197,13 +264,22 @@ def main(argv=None):
             for p in procesy(a[1], comm=None if a[0] == "pidy-skrypt" else ("python", "python3")):
                 print(p)
             return 0
+        if a[0] == "port-podgladu" and len(a) in (2, 3):
+            # sesja.sh: baza z cksum -> pierwszy wolny port; z katalogiem sesji zapisuje też vnc_port (pod blokadą)
+            port = zarezerwuj_port_podgladu(int(a[1]), ID, a[2] if len(a) == 3 else "", runtime(f"/run/user/{os.getuid()}"),
+                                            os.environ.get("RETRONIC_OKNO_PROC") or "/proc")
+            if port is None:
+                print(f"brak wolnego portu podglądu w zakresie {ZAKRES_PORTOW_PODGLADU}", file=sys.stderr)
+                return 1
+            print(port)
+            return 0
         if a[0] == "sciezka" and len(a) == 2 and hasattr(S, a[1]):
             print(getattr(S, a[1]))
             return 0
     except ValueError as e:
         print(e, file=sys.stderr)
         return 2
-    print("użycie: instancja.py powloka | pidy REGEX | pidy-skrypt REGEX | sciezka KLUCZ", file=sys.stderr)
+    print("użycie: instancja.py powloka | pidy REGEX | pidy-skrypt REGEX | port-podgladu BAZA [KATALOG] | sciezka KLUCZ", file=sys.stderr)
     return 2
 
 

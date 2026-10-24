@@ -754,8 +754,26 @@ def nick_z_logu(sciezka, maks=262144):
     return nazwy[-1] if nazwy else None
 
 
+def panel_z_cache(id_):
+    """24.10: świeży wynik `panel.py --json` z jego wspólnego cache (instancje/_wspolne/panel_cache_<id>.json, wiek <= 2 s) bez uruchamiania
+    procesu, albo None (brak, stary, uszkodzony, tryb bez cache: RETRONIC_PANEL_GRACZ_S/_BEZ_PAUZY/_PROC/_CACHE_S=0). Tylko odczyt."""
+    try:
+        import panel as modul_panel  # noqa: PLC0415
+        if modul_panel.cache_pominiety():
+            return None
+        wspolne = None if os.environ.get("RETRONIC_PANEL_CACHE_DIR") else katalog() / "instancje" / "_wspolne"
+        wpis = modul_panel.cache_odczyt(modul_panel.cache_plik(id_, wspolne))
+        return wpis["wynik"] if wpis else None
+    except Exception:
+        return None
+
+
 def odczyt_panelu(id_):
-    """`panel.py --json` instancji (tylko odczyt) z twardym limitem czasu. -> dict albo wyjątek Blad."""
+    """`panel.py --json` instancji (tylko odczyt) z twardym limitem czasu. -> dict albo wyjątek Blad.
+    Najpierw wspólny cache panelu (bez procesu); inaczej proces panel.py, który sam liczy raz i odświeża cache."""
+    z_cache = panel_z_cache(id_)
+    if z_cache is not None:
+        return z_cache
     panel = katalog() / "panel.py"
     try:
         r = subprocess.run([sys.executable, "-I", str(panel), "--json"], capture_output=True, timeout=PANEL_LIMIT_S,

@@ -3,7 +3,7 @@
 
   panel.py            panel TUI (curses): s start, x stop, l pełny log w less, q wyjście
   panel.py --raz      jednorazowo wypisuje ekran (bez curses) i kończy
-  panel.py --json     JSON dla paska (używa go status.sh); od 19.10 także pola guzików „Wróć do miasta” i „Refill” (niżej),
+  panel.py --json     JSON dla paska (używa go status.sh); od 24.10 ze wspólnym cache (świeży <= 2 s, niżej „wspólny cache”); od 19.10 także pola guzików „Wróć do miasta” i „Refill” (niżej),
                       od 20.10 pola level / level_procent / podglad (niżej, spec retronic-lvl-i-podglad)
 """
 import json
@@ -342,9 +342,19 @@ def _punkty_serwisu(d):
     return pts
 
 
+def _w_sali_depo(d, x, y, z):
+    """24.10: `depo_sala` = [x0, y0, x1, y1, z] w danych serwisu (Edron: cała sala depo). Pole dojścia do depo jest losowane z obszaru hali,
+    więc „w depo” musi obejmować całą salę, a nie tylko <= 2 pola od wnęk. Brak klucza albo zły format = False (dawne zachowanie)."""
+    try:
+        x0, y0, x1, y1, z0 = (int(v) for v in d.get("depo_sala"))
+    except (TypeError, ValueError):
+        return False
+    return z == z0 and x0 <= x <= x1 and y0 <= y <= y1
+
+
 def miasto_pozycji(poz, dane=None, margines=MARGINES_MIASTA):
     """(miasto, w_depo) dla pozycji (x, y, z): miasto, gdy pozycja leży w prostokącie punktów serwisu (z marginesem
-    na x/y, piętra od najniższego do najwyższego punktu), w_depo, gdy stoi przy polu depo (<= 2 pola). Inaczej (None, False)."""
+    na x/y, piętra od najniższego do najwyższego punktu), w_depo, gdy stoi przy polu depo (<= 2 pola) albo w sali depo (`depo_sala`, 24.10). Inaczej (None, False)."""
     if poz is None:
         return None, False
     x, y, z = poz
@@ -356,7 +366,7 @@ def miasto_pozycji(poz, dane=None, margines=MARGINES_MIASTA):
             continue
         if min(xs) - margines <= x <= max(xs) + margines and min(ys) - margines <= y <= max(ys) + margines \
                 and min(zs) <= z <= max(zs):
-            return nazwa, any(s[2] == z and max(abs(s[0] - x), abs(s[1] - y)) <= 2 for s in stoiska)
+            return nazwa, any(s[2] == z and max(abs(s[0] - x), abs(s[1] - y)) <= 2 for s in stoiska) or _w_sali_depo(d, x, y, z)
     return None, False
 
 
@@ -377,7 +387,7 @@ def plan_depo(poz, katalog=TRASY):
         for p in wyprawa.PLANY_PK:           # jak Wyprawa._baza_dojscie: najbliższe depo planu z PLANY_PK
             if p["nazwa"] in baza:
                 d = cheb(poz, baza[p["nazwa"]][0][-1])
-                if d <= wyprawa.DEPO_DOJSCIE_ZASIEG and (najl is None or d < najl[0]):
+                if d <= wyprawa.zasieg_planu(p["nazwa"]) and (najl is None or d < najl[0]):
                     najl = (d, p["nazwa"])
         return najl[1] if najl else None
     except Exception:
@@ -617,9 +627,134 @@ def tui(scr):
             scr.refresh()
 
 
+# ---------- wspólny cache wyniku --json (24.10) ----------
+# Pasek (2 monitory = 2 wtyczki × każda instancja) i okno wołają `panel.py --json` ok. 6 razy/s (~1,3 rdzenia CPU). Wynik jednej instancji
+# liczymy raz na CACHE_TTL_S: pierwszy proces bierze flock, liczy i zapisuje atomowo instancje/_wspolne/panel_cache_<id>.json, pozostałe
+# czekają na blokadę i czytają świeży plik (albo czytają go od razu, gdy jest świeży). Pola wyniku bez zmian; cache to ten sam słownik.
+# Brak cache (uszkodzony, stary, z przyszłości, brak katalogu, timeout blokady) = zwykłe liczenie jak dotąd. Bez cache też tryby
+# szczególne: nadzór (RETRONIC_PANEL_GRACZ_S / _BEZ_PAUZY), testy (RETRONIC_PANEL_PROC albo RETRONIC_TESTY bez RETRONIC_PANEL_CACHE_DIR)
+# i RETRONIC_PANEL_CACHE_S=0 (świeży odczyt na żądanie: `RETRONIC_PANEL_CACHE_S=0 python3 -I panel.py --json`).
+# Katalog podmienia RETRONIC_PANEL_CACHE_DIR (testy). `RETRONIC_PANEL_PROXY=1` dodaje po JSON-ie linię `PROXY=0|1` (czy żyje siec_proxy.sh
+# tej instancji; dawniej osobny pgrep w skrypcie paska); stary panel.py ignoruje tę zmienną, więc wycofanie jest bezpieczne w obie strony.
+CACHE_TTL_S = 2.0
+CACHE_CZEKANIE_S = 1.0                       # tyle najwyżej czeka na cudze liczenie (okno ma limit 1,5 s na cały przebieg)
+CACHE_WERSJA = 1
+PROXY_WZOR = r"^(\S*/)?bash \S*/siec_proxy\.sh( |$)"
+
+
+def proxy_dziala(proc="/proc"):
+    """Czy żyje siec_proxy.sh tej instancji (gra instancji jest jego potomkiem): argv[1] to .../siec_proxy.sh, RETRONIC_ID zgodne."""
+    return bool(instancja.procesy(PROXY_WZOR, proc=proc, comm=None))
+
+
+def cache_ttl():
+    """RETRONIC_PANEL_CACHE_S: 0 = bez cache; 0-30 s; zła wartość = CACHE_TTL_S."""
+    try:
+        v = float(os.environ.get("RETRONIC_PANEL_CACHE_S", ""))
+    except ValueError:
+        return CACHE_TTL_S
+    return v if 0 <= v <= 30 else CACHE_TTL_S
+
+
+def cache_pominiety():
+    e = os.environ
+    testy = bool(e.get("RETRONIC_TESTY")) and not e.get("RETRONIC_PANEL_CACHE_DIR")     # testy nie piszą do prawdziwego _wspolne
+    return (cache_ttl() <= 0 or testy or bool(e.get("RETRONIC_PANEL_PROC")) or bool(e.get("RETRONIC_PANEL_GRACZ_S"))
+            or e.get("RETRONIC_PANEL_GRACZ_BEZ_PAUZY") == "1")
+
+
+def cache_plik(id_=None, wspolne=None):
+    kat = Path(wspolne or os.environ.get("RETRONIC_PANEL_CACHE_DIR") or instancja.S.wspolne)
+    return kat / f"panel_cache_{(instancja.ID if id_ is None else id_) or '_glowna'}.json"
+
+
+def cache_odczyt(plik, ttl=None, teraz=None, proxy=False):
+    """Wpis cache {"wynik", "proxy", ...} albo None: brak pliku, uszkodzony, zła wersja/kształt, starszy niż ttl, z przyszłości,
+    albo (proxy=True) bez znanego stanu proxy."""
+    ttl = cache_ttl() if ttl is None else ttl
+    try:
+        e = json.loads(Path(plik).read_text())
+        t = e["t"]
+        wiek = (time.time() if teraz is None else teraz) - t
+        if e["v"] != CACHE_WERSJA or not isinstance(e["wynik"], dict) or isinstance(t, bool) or not isinstance(t, (int, float)):
+            return None
+        if wiek > ttl or wiek < -1.0:
+            return None
+        if proxy and e.get("proxy") not in (0, 1):
+            return None
+        return e
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def cache_zapis(plik, wynik, proxy=None, teraz=None):
+    """Atomowo (plik tymczasowy + rename): czytelnik widzi cały stary albo cały nowy wpis. Błąd zapisu nie psuje odpowiedzi."""
+    plik = Path(plik)
+    tmp = plik.with_name(f"{plik.name}.{os.getpid()}.tmp")
+    try:
+        plik.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(json.dumps({"v": CACHE_WERSJA, "t": time.time() if teraz is None else teraz,
+                                   "proxy": None if proxy is None else int(bool(proxy)), "wynik": wynik}, ensure_ascii=False))
+        os.replace(tmp, plik)
+    except OSError:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+
+
+def cache_blokada(plik, czekanie=None):
+    """flock na <plik>.lock; czeka najwyżej `czekanie` s. -> otwarty deskryptor (zwolnić przez os.close) albo None (nie dostaliśmy)."""
+    import fcntl
+    plik = Path(plik)
+    czekanie = CACHE_CZEKANIE_S if czekanie is None else czekanie
+    try:
+        plik.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(str(plik) + ".lock", os.O_RDWR | os.O_CREAT, 0o644)
+    except OSError:
+        return None
+    koniec = time.monotonic() + czekanie
+    while True:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return fd
+        except OSError:
+            if time.monotonic() >= koniec:
+                os.close(fd)
+                return None
+            time.sleep(0.01)
+
+
+def wynik_json(proxy=False, licz=None):
+    """-> (słownik --json, proxy 0/1/None). Z cache, gdy świeży; inaczej liczy (jeden proces naraz) i zapisuje cache."""
+    licz = licz or json_paska
+    if cache_pominiety():
+        return licz(), (int(proxy_dziala()) if proxy else None)
+    plik = cache_plik()
+    e = cache_odczyt(plik, proxy=proxy)
+    if e:
+        return e["wynik"], (e.get("proxy") if proxy else None)
+    fd = cache_blokada(plik)
+    try:
+        if fd is not None:
+            e = cache_odczyt(plik, proxy=proxy)          # kto trzymał blokadę, mógł właśnie policzyć
+            if e:
+                return e["wynik"], (e.get("proxy") if proxy else None)
+        wynik = licz()
+        p = int(proxy_dziala()) if proxy else None
+        cache_zapis(plik, wynik, p)
+        return wynik, p
+    finally:
+        if fd is not None:
+            os.close(fd)
+
+
 def main():
     if "--json" in sys.argv:
-        print(json.dumps(json_paska(), ensure_ascii=False))
+        wynik, proxy = wynik_json(proxy=os.environ.get("RETRONIC_PANEL_PROXY") == "1")
+        print(json.dumps(wynik, ensure_ascii=False))
+        if proxy is not None:
+            print(f"PROXY={proxy}")
     elif "--raz" in sys.argv:
         for t, _ in zbuduj(pelny()):
             print(t)

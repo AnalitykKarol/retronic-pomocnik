@@ -106,16 +106,23 @@ function sortRows(rows) {
 var STATUS_SCRIPT = [
   'ID="$1"; DIR="$2"; cd "$DIR" 2>/dev/null || exit 0',
   'if [ -n "$ID" ]; then export RETRONIC_ID="$ID"; else unset RETRONIC_ID; fi',
-  'python3 -I "$DIR/panel.py" --json 2>/dev/null | head -n 1',
+  // 24.10: panel.py (wspólny cache, jeden przebieg na instancję na ~2 s) podaje po JSON-ie także linię PROXY=0|1 (RETRONIC_PANEL_PROXY=1).
+  'out=$(RETRONIC_PANEL_PROXY=1 python3 -I "$DIR/panel.py" --json 2>/dev/null | head -n 2)',
+  '[ -n "$out" ] && printf "%s\\n" "$out"',
   // proxy: czy proces siec_proxy.sh tej instancji żyje (gra instancji jest jego potomkiem). Bez pomiaru IP.
-  'proxy=0',
-  'for p in $(pgrep -f "siec_proxy[.]sh" 2>/dev/null); do',
-  '  mapfile -d "" a < "/proc/$p/cmdline" 2>/dev/null || continue',
-  '  case "${a[1]}" in */siec_proxy.sh) ;; *) continue ;; esac',
-  '  i=$(tr "\\0" "\\n" < "/proc/$p/environ" 2>/dev/null | sed -n "s/^RETRONIC_ID=//p")',
-  '  if [ "$i" = "$ID" ]; then proxy=1; break; fi',
-  'done',
-  'echo "PROXY=$proxy"',
+  // Zapas dla panel.py bez linii PROXY= (starszy, atrapa): dawny pgrep.
+  'case "$out" in',
+  '  *$\'\\n\'PROXY=*) ;;',
+  '  *)',
+  '    proxy=0',
+  '    for p in $(pgrep -f "siec_proxy[.]sh" 2>/dev/null); do',
+  '      mapfile -d "" a < "/proc/$p/cmdline" 2>/dev/null || continue',
+  '      case "${a[1]}" in */siec_proxy.sh) ;; *) continue ;; esac',
+  '      i=$(tr "\\0" "\\n" < "/proc/$p/environ" 2>/dev/null | sed -n "s/^RETRONIC_ID=//p")',
+  '      if [ "$i" = "$ID" ]; then proxy=1; break; fi',
+  '    done',
+  '    echo "PROXY=$proxy" ;;',
+  'esac',
   'echo "--ENV--"',
   'cat "$DIR/ostatni_start${ID:+.$ID}.env" 2>/dev/null',
   'exit 0'

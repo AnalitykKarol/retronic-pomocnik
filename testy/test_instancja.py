@@ -141,5 +141,77 @@ sprawdz("5l powloka eksportuje INST_SOCK/INST_PREFIX", "export INST_SOCK=/run/us
 e = instancja.srodowisko("dwa", {"XDG_RUNTIME_DIR": "/run/user/1000", "PATH": "/bin"})
 sprawdz("6 srodowisko: RETRONIC_ID i WINEPREFIX", e["RETRONIC_ID"] == "dwa" and e["WINEPREFIX"] == str(I / "prefix"))
 
+# 7. port podglądu VNC: kolizja bazy z cksum (odchyd i dawajkesh oba 5952, 23.10) -> pierwszy wolny, deterministycznie
+import shutil
+def swiat():
+    """Świeży atrapowy /proc i $XDG_RUNTIME_DIR."""
+    w = Path(tempfile.mkdtemp(prefix="test-porty-"))
+    (w / "proc" / "net").mkdir(parents=True); (w / "rt").mkdir()
+    (w / "proc" / "net" / "tcp").write_text("  sl  local_address rem_address   st\n")
+    return w
+def slucha(w, port):
+    with open(w / "proc" / "net" / "tcp", "a") as f:
+        f.write(f"   0: 0100007F:{port:04X} 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1 1 0\n")
+def sesja_zapis(w, id_, port, sesja_sh=True, sway=False, pid=500):
+    kat = w / "rt" / f"retronic-sesja-{id_}"; kat.mkdir(exist_ok=True)
+    (kat / "vnc_port").write_text(str(port))
+    d = w / "proc" / str(pid + len(list((w / "proc").iterdir())))
+    d.mkdir()
+    if sesja_sh:
+        cmd, comm = ["/bin/bash", "./sesja.sh"], "sesja.sh"
+    elif sway:
+        cmd, comm = ["sway", "--unsupported-gpu", "-c", str(kat / "sway.conf")], "sway"
+    else:
+        return                                  # sesja martwa: został tylko vnc_port
+    (d / "comm").write_text(comm + "\n")
+    (d / "cmdline").write_bytes(b"\0".join(c.encode() for c in cmd) + b"\0")
+    (d / "environ").write_bytes(f"RETRONIC_ID={id_}\0HOME=/x\0".encode())
+def wolny(w, baza, ja):
+    return instancja.wolny_port_podgladu(baza, ja, w / "rt", proc=str(w / "proc"))
+
+w = swiat()
+sprawdz("7a nic nie zajęte: baza", wolny(w, 5952, "odchyd") == 5952)
+sesja_zapis(w, "dawajkesh", 5952)
+sprawdz("7b port innej żywej sesji (sesja.sh + vnc_port, wayvnc jeszcze nie słucha) -> 5953", wolny(w, 5952, "odchyd") == 5953)
+sprawdz("7c to samo wywołanie drugi raz daje to samo (deterministycznie)", wolny(w, 5952, "odchyd") == wolny(w, 5952, "odchyd") == 5953)
+sprawdz("7d własny vnc_port nie liczy się jako zajęty (restart tej samej instancji)", wolny(w, 5952, "dawajkesh") == 5952)
+slucha(w, 5953)
+sprawdz("7e ktoś słucha na 5953 (obce wayvnc) -> 5954", wolny(w, 5952, "odchyd") == 5954)
+sesja_zapis(w, "kutangen", 5954, sesja_sh=False, sway=True)
+sprawdz("7f sesja rozpoznana po sway z jej sway.conf -> 5955", wolny(w, 5952, "odchyd") == 5955)
+sesja_zapis(w, "martwa", 5955, sesja_sh=False)
+sprawdz("7g stary vnc_port martwej sesji (brak procesów) nie blokuje portu", wolny(w, 5952, "odchyd") == 5955)
+sprawdz("7h baza spoza zakresu wraca do początku zakresu", wolny(w, 1234, "odchyd") in range(5902, 5992) and wolny(w, 5901, "odchyd") >= 5902)
+shutil.rmtree(w)
+
+w = swiat(); sesja_zapis(w, "x", 5991)
+sprawdz("7i zawijanie: zajęty koniec zakresu -> początek", wolny(w, 5991, "odchyd") == 5902)
+shutil.rmtree(w)
+w = swiat()
+for pt in range(5902, 5992):
+    slucha(w, pt)
+sprawdz("7j zakres wyczerpany -> None (sesja.sh wraca do dawnej bazy)", wolny(w, 5952, "odchyd") is None)
+shutil.rmtree(w)
+
+# 7k. dwa starty jeden po drugim: rezerwacja zapisuje vnc_port, więc drugi widzi pierwszy mimo braku nasłuchu
+w = swiat()
+p1 = instancja.zarezerwuj_port_podgladu(5952, "dawajkesh", w / "rt" / "retronic-sesja-dawajkesh", w / "rt", proc=str(w / "proc"))
+sesja_zapis(w, "dawajkesh", p1)                      # sesja.sh dawajkesha już żyje (vnc_port nadpisany tą samą wartością)
+p2 = instancja.zarezerwuj_port_podgladu(5952, "odchyd", w / "rt" / "retronic-sesja-odchyd", w / "rt", proc=str(w / "proc"))
+sprawdz("7k dwie instancje z tą samą bazą dostają różne porty, vnc_port zapisany",
+        (p1, p2) == (5952, 5953) and (w / "rt" / "retronic-sesja-odchyd" / "vnc_port").read_text() == "5953", (p1, p2))
+sesja_zapis(w, "odchyd", p2)
+# 7l. CLI jak z sesja.sh: stdout = port, vnc_port zapisany, kod 0; wyczerpany zakres = kod 1
+env = {"PATH": _os.environ.get("PATH", ""), "RETRONIC_ID": "trzy", "XDG_RUNTIME_DIR": str(w / "rt"), "RETRONIC_OKNO_PROC": str(w / "proc")}
+r = subprocess.run([sys.executable, "-I", str(KAT / "instancja.py"), "port-podgladu", "5952", str(w / "rt" / "retronic-sesja-trzy")],
+                   env=env, capture_output=True, text=True)
+sprawdz("7l CLI port-podgladu: 5954 (5952, 5953 zajęte), vnc_port zapisany", r.returncode == 0 and r.stdout.strip() == "5954"
+        and (w / "rt" / "retronic-sesja-trzy" / "vnc_port").read_text() == "5954", (r.returncode, r.stdout, r.stderr))
+shutil.rmtree(w)
+sprawdz("7m sesja.sh: składnia bash OK i woła port-podgladu tylko dla instancji bez RETRONIC_PODGLAD_PORT",
+        subprocess.run(["bash", "-n", str(KAT / "sesja.sh")]).returncode == 0
+        and 'port-podgladu "$PORT_DOM" "$STAN"' in (KAT / "sesja.sh").read_text()
+        and '[ -n "${RETRONIC_PODGLAD_PORT:-}" ]' in (KAT / "sesja.sh").read_text())
+
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)
