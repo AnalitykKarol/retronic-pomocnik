@@ -48,6 +48,30 @@ def koszt_pola(mp, x, y, z, cel=None, unik=()):
     return ZWYKLE
 
 
+KOLOR_PRZEJSCIA = 210  # kolor żółty minimapy: schody/rampy/dziury (flaga 2 w innym kolorze bywa dekoracją albo przeszkodą)
+
+
+def przejscie_pewne(mp, x, y, z):
+    """23.10: True = pole z flagą 2 (chodliwe) to PRAWDZIWE przejście pięter: kolor 210 albo odpowiednik z flagą 2 na piętrze nad lub pod
+    (te same ±1 pole, co w koszt_pola). Flaga 2 bez jednego i drugiego (Edron z6: kolor 129, rozrzucone pola w sali i korytarzu) to dekoracja
+    albo przeszkoda: klik w linii prostej obok niej nie wchodzi na nią (klient idzie prosto), więc nie wyłącza kliku."""
+    f = mp.flagi(x, y, z)
+    if not (f & FLAGA_CHODLIWE and f & FLAGA_SCHODY) or f & FLAGA_BLOK:
+        return False
+    try:
+        p = mp.pole(x, y, z)
+        if p and p[1] == KOLOR_PRZEJSCIA:
+            return True
+    except Exception:
+        pass
+    for zz in (z - 1, z + 1):
+        for ddx in (-1, 0, 1):
+            for ddy in (-1, 0, 1):
+                if mp.flagi(x + ddx, y + ddy, zz) & FLAGA_SCHODY:
+                    return True
+    return False
+
+
 def dalej_klik(sciezka, koszt, z, maks=KLIK_MAKS_POL):
     """SERWIS (gęsta Dijkstra po polach): indeks najdalszego pola `sciezka` (lista (x, y, ...) od pozycji postaci), w które wolno
     kliknąć: kolejne pola aż do `maks`, każde zwykłe wg `koszt(x, y, z)`. 1 = nie ma co klikać (krok strzałką). Wyprawa używa

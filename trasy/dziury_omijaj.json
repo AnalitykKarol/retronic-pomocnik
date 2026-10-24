@@ -1,0 +1,19 @@
+{
+ "_opis": "RECZNA lista dziur do omijania: pola (x, y, pietro), na ktorych krok konczy sie upadkiem na pietro nizej. Bot traktuje je jak sciane we WSZYSTKICH sciezkach ruchu (A*, krok_do, poscig, kliki marszu), tak samo jak nauczone z dziury_nauczone.json, ale tego pliku bot NIE zapisuje. Wyjatek: trasa, ktora celowo schodzi tym polem ((x,y,z) -> (x,y,z+1) w punktach), przechodzi (cavebot._dziura_w_trasie). Wpis dodawaj z dowodem (log/telemetria + flaga 2 na mapie). Wczytywane przy starcie bota.",
+ "dziury": [
+  [
+   32467,
+   32233,
+   7
+  ],
+  [
+   32354,
+   32131,
+   8
+  ]
+ ],
+ "_dowody": {
+  "32467,32233,7": "23.10, jaskinia trolli Thais, dojscie depo Thais -> depo_troll_cave. Wydra wpadla 2x: 07:53:40 z (32467,32231,7) i 11:08:47-51 z (32467,32232,7), ladowanie (32467,32233,8) obok 3 trolli. Mapa klienta: z7 flagi 3 (chodliwe + BEZ_DROGI), z8 kolor 210; jedyne pole z flaga 2 w promieniu 6. Zadna trasa w trasy/ nie uzywa go jako przejscia. Dzialalo bez nauki, bo upadek w dojsciu/wyprawie (wypad_aktywny) nie jest wykrywany jako wpadniecie.",
+  "32354,32131,8": "23.10 zgon odchyda (lvl 8, thais_pn_z8, 15:49:33): loot po zabiciu trolla robil Ctrl+klik po polach wokol gracza (32355,32131), pole (-1,0) = ta dziura: log mozg-20261023-1533.log 'Wpadlem: (32355,32131,8) -> (32354,32131,9)', ladowanie (32354,32131,9). Mapa klienta: z8 flagi 5 (WIDZIANE+SCIANA), kolor 186, bez zoltego 210 - dziura wyglada jak sciana, wiec A*/krok_do jej nie wybieraja, a Ctrl+klik lootu tak. Pod nia na z9 zamknieta kieszen x 32353..32357, y 32130..32132, ladowanie (32354,32131,9) kolor 210, bez wyjscia piechota (poprzednie zwloki gracza w (32357,32132,9)), w kieszeni Scorpion z silna trucizna (Karol 23.10). Zgon 15:50:12. Zadna trasa w trasy/ nie uzywa tego pola. Pola 'z ktorych sie spada' = sasiedzi dziury na z8: bot nie wchodzi na dziure (sciana dla A*/krok_do/poscigu/marszu), a loot nie klika w nia (LOOT_BEZ_DZIUR, loot.POLE_ZAKAZANE)."
+ }
+}

@@ -197,7 +197,9 @@ TRYBY_GORA_DRABINA = ("R", "krok", "R")
 # (gobliny_edron_z_depo) stawało na pierwszej linie z11->z10, bo samo R/krok nie dawało przejścia (wyprawa w wypad.py linę zna).
 TRYBY_GORA_NIEZNANE = ("R", "lina", "krok", "R", "lina")
 ZASYPANE = {(32493, 32259, 7),     # dziury zasypane (piętro z, na którym stoimy), jedyne, gdzie łopata ma sens
-            (32347, 32123, 7)}     # 21.10 Thais północ (thais_pn_z8_dojscie): postać stoi na polu, use bez skutku
+            (32347, 32123, 7),     # 21.10 Thais północ (thais_pn_z8_dojscie): postać stoi na polu, use bez skutku
+            (32663, 31962, 7),     # 24.10 pod Kazordoonem (trolle_kazordoon_z8/z9_dojscie): odchyd stał na polu, nie spadł, 0 prób; łopata potwierdzona 10:48
+            (32695, 31621, 7)}     # 24.10 Ab'Dendriel (abdendriel_trolle_*_dojscie): zasypana wg generatora (kolor 24), NIEPOTWIERDZONE na żywo
 
 
 class Pietra:
@@ -287,6 +289,19 @@ class Pietra:
         if teraz < st["nast"]:
             cb.pauza(0.2, 0.5)
             return True
+        hp = getattr(cb, "_hp_przed_pietrem", None)
+        if hp is not None:
+            # 23.10 (Karol): w dojściu/wypadzie przed przejściem pięter czekamy na HP (cavebot.HP_PRZED_PIETREM); czas czekania
+            # nie liczy się do PIETRA_MAX_S ani do odstępu między próbami
+            przed = getattr(cb, "hp_czekal_s", 0.0)
+            czeka = hp(tuple(poz), teraz, (z, cel[2]))
+            przesuniecie = getattr(cb, "hp_czekal_s", 0.0) - przed
+            if przesuniecie > 0:
+                st["od"] += przesuniecie
+                st["nast"] += przesuniecie
+                st["postep"][0] += przesuniecie     # 24.10: stary czas postępu po czekaniu na HP oddawał kandydata od razu po przesunięciu
+            if czeka:
+                return True
         if float(self._k("PIETRA_CZEKAJ_KROK_S", 1.2)) > 0 and st["proby"] > 0:
             # R1b: przed kolejną próbą ponowny odczyt pozycji (poprzednia mogła się udać z opóźnieniem)
             p = tuple(cb.postac.pozycja())
@@ -555,11 +570,16 @@ class Pietra:
         cb = self.cb
         d = cheb(poz, T)
         p = st["postep"]
-        if d < p[1]:
+        if teraz < st.get("lopata_do", float("-inf")) and st.get("lopata_T") == tuple(T):
+            # 24.10 (odchyd 10:43): dziura właśnie odkopana łopatą, walka odsunęła nas o pole: wracamy do niej (okno PIETRA_LOPATA_OKNO_S),
+            # nie oddajemy kandydata za „brak zbliżenia”; krok w dziurę wykona zwykła próba po powrocie na pole obok
+            st["postep"] = [teraz, d]
+        elif d < p[1]:
             st["postep"] = [teraz, d]
         elif teraz - p[0] > self._k("PIETRA_DOJSCIE_S", 25.0):
             self.log(f"Przejście pięter: nie zbliżam się do pola {T[:2]} (odl {d}), zmieniam kandydata")
             st["ki"] += 1
+            st.pop("lopata_do", None); st.pop("lopata_T", None)     # okno łopaty dotyczy pola T, nie następnego kandydata
             st["proby"] = 0
             st["tryby"] = None
             st["postep"] = [teraz, 999]
@@ -669,6 +689,7 @@ class Pietra:
         n = st["proby"]
         if n >= len(tryby):
             st["ki"] += 1
+            st.pop("lopata_do", None); st.pop("lopata_T", None)     # okno łopaty dotyczy pola T, nie następnego kandydata
             st["tryby"] = None
             st["proby"] = 0
             st["postep"] = [teraz, 999]
@@ -806,6 +827,13 @@ class Pietra:
                     raise
                 st["lopata_pole"] = (T[0], T[1], T[2])     # F4: krok, który potem zmieni piętro, zapisze się jako "lopata"
                 cb.spij(0.6)                    # dziura otwiera się po chwili; kolejna próba to krok w nią
+                if self._k("PIETRA_LOPATA_WEJSCIE", 1):
+                    # 24.10: łopata i krok w dziurę to jedna operacja (odchyd 10:43: po łopacie odstęp ok. 2 s, a walka odsunęła postać);
+                    # okno otwartej dziury: powrót na pole obok bez oddawania kandydata, następna próba (krok) po 0,2 s
+                    st["lopata_do"] = cb.zegar() + float(self._k("PIETRA_LOPATA_OKNO_S", 90.0))
+                    st["lopata_T"] = tuple(T)       # okno przypięte do tego pola (przy zmianie kandydata kasowane)
+                    if self._wejdz_po_lopacie(poz, T, st, k, teraz, z0):
+                        return True
             elif tryb == "lina":
                 if na_polu:
                     # 15.10/22.10: z własnego pola liny nie da się jej użyć (Edron z11, z9): schodzimy o kratkę jak przed Use
@@ -829,8 +857,44 @@ class Pietra:
             return True
         if tryb in ("use", "R") and not na_polu and not self._dane():
             st["zmien"] = True          # Ctrl+klik bez skutku: następna próba z innego pola ortogonalnego (jeśli jest)
+        if tryb == "lopata" and cb.zegar() < st.get("lopata_do", float("-inf")) and st.get("lopata_T") == tuple(T):
+            st["nast"] = cb.zegar() + 0.2       # 24.10: dziura otwarta, kolejny krok bez zwłoki (bramka HP w tick() dalej obowiązuje)
+            return True
         st["nast"] = cb.zegar() + self._odstep(n)
         return True
+
+    def _wejdz_po_lopacie(self, poz, T, st, k, teraz, z0):
+        """24.10: tuż po udanym Use łopaty jeden krok w odkopaną dziurę T, jeśli stoimy ORTOGONALNIE obok niej (po skosie i z daleka
+        zostaje zwykła próba kroku/powrót). Najpierw świeży odczyt (cb.lopata_bezpiecznie: HP, stwory <= 2 pola, gryzie, _trasa_stop_potwor): potwór obok albo spadek HP
+        = False, krok robi dopiero zwykły tick(). Potem bramka HP (cb._hp_przed_pietrem, już na świeżym g_tick): HP poniżej progu = czekamy. True = piętro
+        zmienione (obieg zużyty), False = kontynuuj zwykłą ścieżką (slot kroku zostaje jako ponowienie)."""
+        cb = self.cb
+        try:
+            p = tuple(cb.postac.pozycja())
+        except bot.Zatrzymano:
+            raise
+        except Exception:
+            return False
+        if p[2] != z0:
+            return bool(self._po_przejsciu(z0, st, poz, teraz, k, "krok", czekaj=0))
+        dx, dy = T[0] - p[0], T[1] - p[1]
+        if (dx, dy) == (0, 0) or abs(dx) > 1 or abs(dy) > 1 or (dx and dy):
+            return False                        # nie ortogonalnie obok (odsunięci walką / po skosie): wracamy zwykłą ścieżką
+        bezp = getattr(cb, "lopata_bezpiecznie", None)
+        if bezp is not None and not bezp(p):
+            return False                        # review 24.10: potwór obok / HP spada / świeży odczyt nieudany: walka pierwsza, krok zrobi tick()
+        hp = getattr(cb, "_hp_przed_pietrem", None)
+        if hp is not None and hp(p, cb.zegar(), (z0, st["cel"][2])):
+            return False                        # HP poniżej progu (świeże HP z lopata_bezpiecznie): czekamy, krok zrobi tick() po bramce
+        kier = ("Right" if dx > 0 else "Left") if dx else ("Down" if dy > 0 else "Up")
+        self.log(f"Przejście pięter: dziura {T[:2]} odkopana, od razu krok {kier} z {p}")
+        try:
+            cb.postac.krok(kier)
+        except bot.Zatrzymano:
+            raise
+        except Exception:
+            return False
+        return bool(self._po_przejsciu(z0, st, p, teraz, k, "krok", czekaj=self._czekaj("krok")))
 
     def _use(self, pole, poz, _):
         self.ops.uzyj_pole(pole, poz)

@@ -8,6 +8,7 @@ sys.dont_write_bytecode = True
 _R = __import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.abspath(__file__)))
 sys.path.insert(0, _R)
 import cavebot, bot, mapa as _mapa, wpadniecie, pokretla
+cavebot.WPADNIECIE_DRABINA = 0   # 23.10: atrapa świata zna Use tylko jako drabinę na każdym polu z dziurą nad nim, co zlewa linę z drabiną; te testy mierzą ścieżkę liny (Use/drabinę mierzy test_odchyd_wpadniecie_ucieczka.py)
 from pathlib import Path
 
 TRASY = Path(_R) / "trasy"

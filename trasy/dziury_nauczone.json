@@ -1,5 +1,5 @@
 {
- "_opis": "pola (x, y, pi\u0119tro), na kt\u00f3rych krok ko\u0144czy\u0142 si\u0119 niespodziewanym upadkiem; bot traktuje je jak \u015bcian\u0119",
+ "_opis": "pola (x, y, piętro), na których krok kończył się niespodziewanym upadkiem; bot traktuje je jak ścianę",
  "dziury": [
   [
    31979,
@@ -15,6 +15,11 @@
    32038,
    32212,
    9
+  ],
+  [
+   32050,
+   32188,
+   6
   ],
   [
    32086,
@@ -55,6 +60,21 @@
    32508,
    32273,
    8
+  ],
+  [
+   32648,
+   32003,
+   8
+  ],
+  [
+   32648,
+   32004,
+   8
+  ],
+  [
+   32668,
+   31625,
+   10
   ],
   [
    33057,
@@ -120,6 +140,11 @@
    33165,
    31827,
    7
+  ],
+  [
+   33167,
+   31783,
+   3
   ],
   [
    33168,

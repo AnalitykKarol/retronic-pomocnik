@@ -9,6 +9,8 @@ Przebieg (Cavebot.tick woła obserwuj() na początku każdego obiegu i tick() po
   2. NAUKA: dziura = (x lądowania, y lądowania, z0) -> trasy/dziury_nauczone.json (zapis atomowy, wczytywane przy
      starcie). Cavebot traktuje te pola jak ścianę we WSZYSTKICH drogach A* (droga, _droga_do, unikanie, loot) i
      w krokach (pole_zmiany_pietra).
+     23.10: obok nauczonych jest RĘCZNA lista `trasy/dziury_omijaj.json` (dziury znane z dowodu, np. z logu i mapy; bot jej nie
+     zapisuje, więc nauka na żywo jej nie skasuje); oba źródła tworzą jeden zbiór `dziury`, który czytają wszystkie ścieżki ruchu.
   3. WYJŚCIE: (a) lina: Use liny na polu lądowania (rope spot pod dziurą), do WPADNIECIE_LINA_PROB prób; lina z
      dowolnego otwartego pojemnika (plecak ma pierwszeństwo; 20.10), a gdy jej tam nie ma, ze slotu ekwipunku 10 (jak pochodnia.py); (b) plan po mapie: wielopiętrowy
      Dijkstra po przejściach (mapa_doswiadczenia.json, miejsca_troll.json "przejscia", nagrane trasy, na końcu
@@ -33,6 +35,8 @@ import bot
 KATALOG = Path(__file__).resolve().parent
 # w testach (RETRONIC_TESTY) bez pliku, chyba że test sam ustawi PLIK_DZIUR
 PLIK_DZIUR = None if os.environ.get("RETRONIC_TESTY") else KATALOG / "trasy" / "dziury_nauczone.json"
+# 23.10: ręczna lista dziur do omijania (nie uczy jej bot i nie nadpisuje przy zapisie nauczonych); wczytywana razem z nauczonymi
+PLIK_DZIUR_OMIJAJ = None if os.environ.get("RETRONIC_TESTY") else KATALOG / "trasy" / "dziury_omijaj.json"
 # 21.10 (LOOT_BEZ_DRABIN, F3): pola drabin nauczone przy wyjściu w górę; dla lootu, NIE ściana (drabina bywa punktem trasy)
 PLIK_DRABIN = None if os.environ.get("RETRONIC_TESTY") else KATALOG / "trasy" / "drabiny_nauczone.json"
 PLIK_DOSWIADCZENIA = KATALOG / "dane_tibia" / "ruch" / "mapa_doswiadczenia.json"
@@ -61,11 +65,13 @@ def _cheb(a, b):
 
 
 class Wpadniecie:
-    def __init__(self, cb, konf=None, log=print, plik=None, plik_stop=None):
+    def __init__(self, cb, konf=None, log=print, plik=None, plik_stop=None, plik_omijaj=None):
         self.cb = cb
         self.konf = konf
         self.log = log
         self.plik = plik if plik is not None else PLIK_DZIUR
+        self.plik_omijaj = plik_omijaj if plik_omijaj is not None else PLIK_DZIUR_OMIJAJ
+        self.omijaj = set()               # {(x, y, z)}: ręczna lista (trasy/dziury_omijaj.json), tylko do odczytu; wchodzi do self.dziury
         self.plik_stop = plik_stop
         self.dziury = set()               # {(x, y, z)}: pole piętra z, na którym krok kończy się upadkiem
         self.st = None                    # bieżące wpadnięcie
@@ -91,18 +97,33 @@ class Wpadniecie:
 
     # --- nauczone dziury ---
 
+    @staticmethod
+    def _czytaj_pola(plik):
+        """Pola (x, y, z) z pliku JSON `{"dziury": [[x, y, z], ...]}` (albo samej listy; wpis może być słownikiem x/y/z)."""
+        d = json.loads(Path(plik).read_text())
+        lista = d.get("dziury", []) if isinstance(d, dict) else d
+        wyn = set()
+        for e in lista:
+            if isinstance(e, dict):
+                e = (e["x"], e["y"], e["z"])
+            wyn.add((int(e[0]), int(e[1]), int(e[2])))
+        return wyn
+
     def wczytaj(self):
         self.dziury = set()
+        self.omijaj = set()
         try:
             if self.plik is not None and Path(self.plik).exists():
-                d = json.loads(Path(self.plik).read_text())
-                lista = d.get("dziury", []) if isinstance(d, dict) else d
-                for e in lista:
-                    if isinstance(e, dict):
-                        e = (e["x"], e["y"], e["z"])
-                    self.dziury.add((int(e[0]), int(e[1]), int(e[2])))
+                self.dziury |= self._czytaj_pola(self.plik)
         except Exception as e:
             self.log(f"Wpadnięcie: nie wczytano {self.plik} ({e!r})")
+        # 23.10: ręczna lista dziur do omijania (dowód przy wpisie); osobny plik, bo bot nadpisuje dziury_nauczone.json z pamięci
+        try:
+            if self.plik_omijaj is not None and Path(self.plik_omijaj).exists():
+                self.omijaj = self._czytaj_pola(self.plik_omijaj)
+                self.dziury |= self.omijaj
+        except Exception as e:
+            self.log(f"Wpadnięcie: nie wczytano {self.plik_omijaj} ({e!r})")
 
     def zapisz(self):
         if self.plik is None:
@@ -111,7 +132,7 @@ class Wpadniecie:
             tmp = Path(str(self.plik) + ".tmp")
             tmp.write_text(json.dumps(
                 {"_opis": "pola (x, y, piętro), na których krok kończył się niespodziewanym upadkiem; bot traktuje je jak ścianę",
-                 "dziury": [list(p) for p in sorted(self.dziury)]}, indent=1))
+                 "dziury": [list(p) for p in sorted(self.dziury - self.omijaj)]}, indent=1))
             os.replace(tmp, self.plik)
         except Exception as e:
             self.log(f"Wpadnięcie: nie zapisałem {self.plik} ({e!r})")
@@ -597,6 +618,89 @@ class Wpadniecie:
         except Exception as ex:                       # noqa: BLE001
             self.log(f"Wpadnięcie: nie zdjąłem rzeczy z pola liny ({ex!r})")
 
+    # --- 23.10 (zgon odchyda): drabina vs lina, stwór na polu wyjścia, UCIECZKA przy złym piętrze ---
+
+    def _stwor_na(self, pole):
+        """Stwór (nie my, nie pet) stoi na polu `pole` wg ostatniego obiegu; None = brak."""
+        for s in (getattr(self.cb, "ostatnie_stwory", None) or ()):
+            try:
+                if not s.get("gracz") and (int(s["x"]), int(s["y"]), int(s["z"])) == tuple(pole[:3]) and s.get("hp", 100) > 0:
+                    return s
+            except (KeyError, TypeError, ValueError):
+                continue
+        return None
+
+    def bez_drogi(self, poz):
+        """True = wpadnięcie w toku, stoimy na piętrze wpadnięcia (nie na z0), a z tego piętra nie ma drogi do trasy (kieszeń).
+        Wtedy UCIECZKA (kroki do punktu trasy innego piętra) nie ma sensu: wyjściem jest drabina/lina (WPADNIECIE_UCIECZKA=1)."""
+        st = self.st
+        if st is None or int(poz[2]) == st["z0"]:
+            return False
+        return int(poz[2]) == st["z1"] and not st["osiag"][1]
+
+    def bij_potwora(self, s, poz):
+        """True = stwór `s` (spoza --potwory) ma być celem, bo zagradza wyjście z kieszeni (WPADNIECIE_BIJ=1):
+        stoi NA polu wyjścia po próbie Use (lina jest wtedy niemożliwa), albo jest w odl. <= 2, gdy wyjścia (Use i lina) wyczerpane."""
+        st = self.st
+        if st is None or not self._k("WPADNIECIE_BIJ", 1) or int(poz[2]) != st["z1"] or int(s["z"]) != st["z1"]:
+            return False
+        spot = (st["lad"][0], st["lad"][1], st["z1"])
+        lim = int(self._k("WPADNIECIE_LINA_PROB", 3))
+        if (int(s["x"]), int(s["y"])) == tuple(spot[:2]):
+            return st.get("uzyj", 0) >= 1 or st["lina"] >= lim or not self._uzyj_mozliwe()
+        return st["lina"] >= lim and st.get("uzyj", 0) >= 2 and _cheb((s["x"], s["y"]), poz) <= 2
+
+    def _uzyj_mozliwe(self):
+        return bool(self._k("WPADNIECIE_DRABINA", 1)) and hasattr(self._ops() or object(), "uzyj_pole")
+
+    def _uzyj_dozwolone(self, st, spot):
+        """Use (Ctrl+klik) na polu wyjścia jak na drabinie. Minimapa nie odróżnia drabiny od liny (oba pola żółte, kolor 210), więc
+        kolejność: lina (jak dotąd), zaraz po pierwszej nieudanej linie Use (Karol 23.10: „to była drabinka”), drugi Use po drugiej linie.
+        Od razu Use (bez liny): pole nauczone jako drabina albo zajęte przez stwora (liny nie użyję, Use drabiny tak)."""
+        n = st.get("uzyj", 0)
+        if n >= 2 or not self._uzyj_mozliwe():
+            return False
+        if n == 0 and (tuple(spot[:3]) in self.drabiny or self._stwor_na(spot) is not None):
+            return True
+        return st["lina"] >= n + 1
+
+    def _uzyj_drabiny(self, spot, p):
+        cb = self.cb
+        st = self.st
+        st["uzyj"] = st.get("uzyj", 0) + 1
+        n = st["uzyj"]
+        try:
+            cb.zatrzymaj_klik(p)
+        except bot.Zatrzymano:
+            raise
+        except Exception:
+            pass
+        cb.klik_cel = None
+        self.log(f"Wpadnięcie: Use na polu {spot[:2]} jak na drabinie, próba {n}/2 z {tuple(p)}")
+        self._tele("wpadniecie_uzyj", proba=n, poz=list(p), pole=list(spot))
+        try:
+            self._ops().uzyj_pole(spot, p)
+        except bot.Zatrzymano:
+            raise
+        except Exception as ex:
+            self.log(f"Wpadnięcie: Use na polu {spot[:2]} nie wyszło ({ex!r})")
+            st["nast"] = cb.zegar() + 1.0
+            return True
+        for _ in range(5):
+            cb.spij(0.4)
+            q = cb.postac.pozycja()
+            if q[2] != p[2]:
+                self.log(f"Wpadnięcie: Use zadziałało (drabina), z{p[2]} -> z{q[2]} w {tuple(q)} (próba {n}).")
+                self._tele("wpadniecie_uzyj_ok", proba=n, poz=list(q))
+                try:
+                    self.ucz_drabine(tuple(spot))
+                except Exception as ex:                   # noqa: BLE001
+                    self.log(f"Wpadnięcie: nie nauczyłem drabiny ({ex!r})")
+                return True
+        self.log(f"Wpadnięcie: Use bez skutku (próba {n}/2).")
+        st["nast"] = cb.zegar() + 1.0
+        return True
+
     def _lina(self, p, teraz):
         cb = self.cb
         st = self.st
@@ -615,10 +719,19 @@ class Wpadniecie:
         if tuple(p[:2]) == tuple(spot[:2]) and not st.get("lina_zszedl"):
             # 21.10 (Karol): liny nie da się użyć na polu, na którym się stoi (ani gdy ktoś/coś na nim jest). Po upadku
             # postać ląduje NA rope spocie: najpierw krok obok (wpadnięcia (32508,32273,z9), (32086,32197,z9): 3 próby z pola bez skutku).
+            if self._uzyj_dozwolone(st, spot):
+                return self._uzyj_drabiny(spot, p)          # 23.10: drabina użyje się też z własnego pola (wypad: kutangen)
             st["lina_zszedl"] = True
             if self._krok_z_pola(p, "liny", "bo liny nie użyję, stojąc na niej"):
                 return True
         lim = int(self._k("WPADNIECIE_LINA_PROB", 3))
+        if self._uzyj_dozwolone(st, spot):
+            return self._uzyj_drabiny(spot, p)
+        if self._k("WPADNIECIE_BIJ", 1) and self._stwor_na(spot) is not None:
+            # liny nie użyję na polu, na którym stoi stwór (21.10, Karol): nie zużywam prób, czekam na walkę (bij_potwora)
+            st["nast"] = cb.zegar() + 1.0
+            self.log(f"Wpadnięcie: na polu wyjścia {spot[:2]} stoi stwór, liny nie użyję; walka, potem ponawiam.")
+            return True
         st["lina"] += 1
         n = st["lina"]
         try:
