@@ -34,6 +34,7 @@ NAZWA = "ostatnie.json"
 NAZWA_BLOKADY = "ostatnie.lock"
 CO_S = 60.0                  # bot: odstęp zapisów okresowych (jak ekonomia.TIK_S)
 MIN_ZDARZENIE_S = 5.0        # bot: zapisy ze zdarzeń (poziom, alarm) nie częściej niż co tyle
+ML_CO_S = 15.0               # bot: odstęp odczytów magic levelu z pamięci klienta (ml_zywo.py); zmiana ML/procentu zapisuje od razu
 BLOKADA_BOT_S = 0.05         # bot: ile najwyżej czekamy na blokadę (pętla bota nie czeka dłużej); inni pisarze czekają dłużej
 BLOKADA_INNI_S = 2.0
 TEKST_ALARMU_MAX = 200
@@ -153,8 +154,9 @@ def scal(stary, pola, scalaj=()):
     return nowy
 
 
-def zapisz(katalog, zrodlo, pola=None, *, t=None, czekaj_s=BLOKADA_INNI_S, fsync=False, scalaj=()):
+def zapisz(katalog, zrodlo, pola=None, *, t=None, czekaj_s=BLOKADA_INNI_S, fsync=False, scalaj=(), znacznik=True):
     """Wczytaj stary plik, scal `pola`, zapisz atomowo (plik tymczasowy w tym samym katalogu + os.replace) pod blokadą.
+    `znacznik=False`: istniejące `zapisano` i `zrodlo` zostają (zapis pomocniczy, np. ml_zywo.py, nie udaje świeżych danych bota).
     -> zapisany obiekt albo None (blokada zajęta / błąd). Nigdy nie rzuca. Uszkodzony stary plik jest zastępowany."""
     try:
         katalog = Path(katalog)
@@ -166,7 +168,9 @@ def zapisz(katalog, zrodlo, pola=None, *, t=None, czekaj_s=BLOKADA_INNI_S, fsync
                 return None
             stary, _blad = czytaj(katalog)
             nowy = scal(stary, pola, scalaj)
-            nowy.update(v=WERSJA, zapisano=round(t, 1), zrodlo=zrodlo)
+            nowy.update(v=WERSJA)
+            if znacznik or not (stary and _liczba(stary.get("zapisano")) and stary.get("zrodlo")):
+                nowy.update(zapisano=round(t, 1), zrodlo=zrodlo)
             tekst = json.dumps(nowy, ensure_ascii=False, separators=(",", ":"))
             _zapisz_plik_atomowo(plik(katalog), tekst, fsync)
             return nowy
@@ -266,6 +270,9 @@ class Pisarz:
         self.ost_alarm = (None, float("-inf"))     # (tekst, kiedy)
         self.ost_poz = None
         self.ost_miasto = (None, None)
+        self.ml_odczyt = None          # (wynik ml_zywo.odczytaj, czas odczytu): ostatni UDANY odczyt ML z pamięci klienta
+        self.ml_ost_t = float("-inf")  # kiedy ostatnio pytaliśmy klienta o ML (udanie albo nie)
+        self.ml_zapisany = None        # (ml, ml_proc) ostatnio zapisane przez ten proces
 
     def _poz_miasto(self, poz):
         if poz is None:
@@ -275,13 +282,32 @@ class Pisarz:
             self.ost_miasto = self._miasto(poz)
         return self.ost_miasto
 
-    def tik(self, t, g, poz, stan_bota, postac, sesja):
-        """g: odpowiedź `gracz` (hp, max_hp, mana, max_mana, exp, level, procent); sesja: {start, zab, gold, uh}. -> True, gdy zapisano."""
+    def _ml_klucz(self):
+        return None if self.ml_odczyt is None else (self.ml_odczyt[0]["ml"], self.ml_odczyt[0]["ml_proc"])
+
+    def _ml_czytaj(self, t, g, zapytaj):
+        """Odczyt ML z pamięci klienta (ml_zywo: jedno `hexdump` pod adresem bloku z `g`), najwyżej co ML_CO_S. Zły odczyt zostawia
+        poprzedni udany (nic nie zeruje). -> True, gdy ML albo procent różni się od ostatnio zapisanych."""
+        if callable(zapytaj) and isinstance(g, dict) and t - self.ml_ost_t >= ML_CO_S:
+            self.ml_ost_t = t
+            try:
+                import ml_zywo  # noqa: PLC0415  (leniwie: `python3 -I ostatnie.py` nie ma katalogu skryptu na sys.path)
+                w = ml_zywo.odczytaj(zapytaj, g)
+            except Exception:       # noqa: BLE001
+                w = None
+            if w is not None:
+                self.ml_odczyt = (w, t)
+        return self.ml_odczyt is not None and self._ml_klucz() != self.ml_zapisany
+
+    def tik(self, t, g, poz, stan_bota, postac, sesja, zapytaj=None):
+        """g: odpowiedź `gracz` (hp, max_hp, mana, max_mana, exp, level, procent, adres); sesja: {start, zab, gold, uh}; zapytaj: gniazdo
+        strażnika bota (odczyt ML, opcjonalny). -> True, gdy zapisano."""
         try:
+            zmiana_ml = self._ml_czytaj(t, g, zapytaj)
             lv = g.get("level") if isinstance(g, dict) else None
             lv = int(lv) if _liczba(lv) and 1 <= lv <= 2000 else None
             zmiana_lv = self.level is not None and lv is not None and lv != self.level
-            if not (t - self.ost_zapis >= self.co_s or (zmiana_lv and t - self.ost_zdarzenie >= MIN_ZDARZENIE_S)):
+            if not (t - self.ost_zapis >= self.co_s or ((zmiana_lv or zmiana_ml) and t - self.ost_zdarzenie >= MIN_ZDARZENIE_S)):
                 if lv is not None:
                     self.level = lv if self.level is None else self.level
                 return False
@@ -318,8 +344,12 @@ class Pisarz:
                           "gold": sesja.get("gold"), "uh": sesja.get("uh")},
                 "na_spocie_od": self.na_spocie_od, "w_grze_t": round(t, 1), "koniec_sesji": None,
             }
+            if self.ml_odczyt is not None:
+                pola.update(ml=self.ml_odczyt[0]["ml"], ml_proc=self.ml_odczyt[0]["ml_proc"], ml_t=round(self.ml_odczyt[1], 1),
+                            ml_zrodlo="pamiec")
             ok = zapisz(self.katalog, "bot", pola, t=t, czekaj_s=BLOKADA_BOT_S) is not None
             if ok:
+                self.ml_zapisany = self._ml_klucz()
                 self.ost_zapis = t
                 self.ost_zdarzenie = t
                 self.level = lv if lv is not None else self.level

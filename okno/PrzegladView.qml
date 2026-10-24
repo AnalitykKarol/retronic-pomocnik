@@ -22,16 +22,18 @@ Item {
   readonly property var filterCounts: Prz.filterCounts(rows)
   readonly property var groups: Prz.groupsOf(rows, filter)
 
-  // kolumny jak w makiecie: POSTAĆ · STAN · SPOT·PIĘTRO · TRYB · LEVEL · ML · HP · MANA · GDZIE · NA SPOCIE/OSTATNI · ZAB/H · EXP/H · ALARM (elastyczna) · NADZÓR
-  readonly property var fixedW: [240, 190, 200, 130, 80, 36, 150, 140, 190, 190, 56, 64]
+  // kolumny jak w makiecie: POSTAĆ · STAN · SPOT·PIĘTRO · TRYB · LEVEL · ML · HP · MANA · EXP/H · NA SPOCIE/OSTATNI · ZAB/H · ALARM (elastyczna) · NADZÓR
+  // (GDZIE, czyli współrzędne, zniknęło z tabeli 23.10: jest w widoku postaci i w podpowiedzi po najechaniu na wiersz; EXP/H stoi tam, gdzie było GDZIE,
+  // żeby było widać przy każdej szerokości okna)
+  readonly property var fixedW: [220, 190, 190, 130, 80, 76, 140, 130, 76, 190, 56]
   readonly property int lastW: 190
   readonly property int gap: 14
   readonly property int pad: 22
-  readonly property int fixedSum: 240 + 190 + 200 + 130 + 80 + 36 + 150 + 140 + 190 + 190 + 56 + 64
-  readonly property int alarmW: Math.max(220, flick.width - (fixedSum + lastW + 13 * gap + 2 * pad))
-  readonly property int tableW: fixedSum + alarmW + lastW + 13 * gap + 2 * pad
+  readonly property int fixedSum: 220 + 190 + 190 + 130 + 80 + 76 + 140 + 130 + 76 + 190 + 56
+  readonly property int alarmW: Math.max(220, flick.width - (fixedSum + lastW + 12 * gap + 2 * pad))
+  readonly property int tableW: fixedSum + alarmW + lastW + 12 * gap + 2 * pad
   readonly property var colW: fixedW.concat([alarmW, lastW])
-  readonly property var heads: ["postać", "stan", "spot · piętro", "tryb", "level", "ML", "HP", "mana", "gdzie", "na spocie / ostatni", "zab/h", "exp/h", "ostatni alarm", "nadzór"]
+  readonly property var heads: ["postać", "stan", "spot · piętro", "tryb", "level", "ML", "HP", "mana", "exp/h", "na spocie / ostatni", "zab/h", "ostatni alarm", "nadzór"]
 
   function textColor(tone) { return Theme.tone(tone) }
 
@@ -141,7 +143,7 @@ Item {
                 height: 31
                 Text {
                   anchors.verticalCenter: parent.verticalCenter
-                  anchors.right: (index === 4 || index === 10 || index === 11) ? parent.right : undefined
+                  anchors.right: (index === 4 || index === 8 || index === 10) ? parent.right : undefined
                   text: headCell.modelData.toUpperCase()
                   color: Theme.dim2
                   font.family: Theme.font
@@ -234,6 +236,10 @@ Item {
       hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
       onClicked: tr.tryClick()
+      // współrzędne (dawna kolumna GDZIE) w podpowiedzi; offline: ostatnia znana pozycja z `ostatnie`, brak = bez podpowiedzi
+      ToolTip.visible: containsMouse && tr.row.where !== "—"
+      ToolTip.delay: 600
+      ToolTip.text: (tr.off ? "Ostatnio znane miejsce: " : "Gdzie: ") + tr.row.where
     }
 
     Row {
@@ -302,15 +308,25 @@ Item {
       // 5 ML
       Cell {
         w: view.colW[5]
-        Text { anchors.verticalCenter: parent.verticalCenter; text: tr.row.ml; color: tr.row.ml === "?" ? Theme.dim2 : Theme.fg2; font.family: Theme.font; font.pixelSize: Theme.body }
+        Row {
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: 6
+          Text { text: tr.row.ml; color: tr.row.ml === "?" ? Theme.dim2 : Theme.fg2; font.family: Theme.font; font.pixelSize: Theme.body }
+          Text { visible: tr.row.mlPct !== null; text: tr.row.mlPct + "%"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.small; anchors.verticalCenter: parent.verticalCenter }
+        }
       }
       // 6 HP, 7 MANA
       Cell { w: view.colW[6]; Resource { res: tr.row.hp; barColor: Theme.bad } }
       Cell { w: view.colW[7]; Resource { res: tr.row.mana; barColor: Theme.blue } }
-      // 8 GDZIE
+      // 8 EXP/H (po prawej; to samo pole co dawniej kolumna z prawej, groupDigits jak kafelek „Exp/h razem”, brak/offline/zawieszona = „—”)
       Cell {
         w: view.colW[8]
-        Text { anchors.verticalCenter: parent.verticalCenter; text: tr.row.where; color: tr.row.whereCity ? Theme.fg2 : Theme.dim; font.family: Theme.font; font.pixelSize: Theme.body }
+        Text {
+          objectName: "exp-h-" + tr.row.id
+          anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+          text: tr.row.expH === null ? "—" : Prz.groupDigits(tr.row.expH)
+          color: tr.row.expH === null ? Theme.dim2 : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.body; font.bold: tr.row.expH !== null
+        }
       }
       // 9 NA SPOCIE / OSTATNI
       Cell {
@@ -323,7 +339,7 @@ Item {
           Text { visible: tr.row.spotTime.post !== ""; text: tr.row.spotTime.post; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.body }
         }
       }
-      // 10 ZAB/H, 11 EXP/H (po prawej)
+      // 10 ZAB/H (po prawej)
       Cell {
         w: view.colW[10]
         Text {
@@ -332,17 +348,9 @@ Item {
           color: tr.row.zabH === null ? Theme.dim2 : Theme.fg2; font.family: Theme.font; font.pixelSize: Theme.body
         }
       }
+      // 11 OSTATNI ALARM
       Cell {
         w: view.colW[11]
-        Text {
-          anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-          text: tr.row.expH === null ? "—" : String(Math.round(tr.row.expH))
-          color: tr.row.expH === null ? Theme.dim2 : Theme.fg2; font.family: Theme.font; font.pixelSize: Theme.body
-        }
-      }
-      // 12 OSTATNI ALARM
-      Cell {
-        w: view.colW[12]
         Text { visible: tr.row.alarm === null; anchors.verticalCenter: parent.verticalCenter; text: "—"; color: Theme.dim2; font.family: Theme.font; font.pixelSize: Theme.body }
         Text {
           id: alarmTime
@@ -363,9 +371,9 @@ Item {
           elide: Text.ElideRight
         }
       }
-      // 13 NADZÓR
+      // 12 NADZÓR
       Cell {
-        w: view.colW[13]
+        w: view.colW[12]
         Text { anchors.verticalCenter: parent.verticalCenter; text: tr.row.supervision.text; color: Theme.tone(tr.row.supervision.tone); font.family: Theme.font; font.pixelSize: Theme.body }
       }
     }

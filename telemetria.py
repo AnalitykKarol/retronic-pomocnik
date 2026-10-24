@@ -329,7 +329,7 @@ class Telemetria:
         if self.akcja and t - self.akcja[0] < 5:
             r["akcja"] = {"co": self.akcja[1], "wynik": self.akcja[2], "temu": round(t - self.akcja[0], 1)}
         self._zapisz(r)
-        self._ostatnie_tik(t, g, poz, cb.stan)
+        self._ostatnie_tik(t, g, poz, cb.stan, getattr(cb, "zapytaj", None))
         self._utknięcie(r)
         if wczesna:              # R0b: próbka z wczesnego zakończenia obiegu tylko uzupełnia lukę, nie zasila epizodów
             return r
@@ -343,14 +343,15 @@ class Telemetria:
     def _ostatnie_aktywne(self):
         return self.ostatnie is not None and self.zapis and not self._postac_testowa()
 
-    def _ostatnie_tik(self, t, g, poz, stan):
-        """Zapis ostatnie.json co 60 s i przy zmianie levelu (ostatnie.Pisarz.tik). Nigdy nie rzuca do pętli bota."""
+    def _ostatnie_tik(self, t, g, poz, stan, zapytaj=None):
+        """Zapis ostatnie.json co 60 s i przy zmianie levelu albo ML (ostatnie.Pisarz.tik; ML z pamięci klienta przez `zapytaj` bota,
+        co ostatnie.ML_CO_S s). Nigdy nie rzuca do pętli bota."""
         if not self._ostatnie_aktywne():
             return
         try:
             self.ostatnie.tik(t, g, poz, stan if isinstance(stan, str) else None, self.nazwa_postaci,
                               {"start": self.sesja, "zab": self.ekon_razem["zab"], "gold": self.ekon_razem["gold"],
-                               "uh": self.ekon_razem["uh"]})
+                               "uh": self.ekon_razem["uh"]}, zapytaj=zapytaj)
         except Exception as e:      # noqa: BLE001
             print(f"telemetria: ostatnie.tik: {e!r}", flush=True)
 

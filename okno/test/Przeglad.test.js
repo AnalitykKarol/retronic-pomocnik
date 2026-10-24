@@ -205,6 +205,29 @@ describe("karta offline", () => {
   })
 })
 
+describe("procent ML w tabeli i na karcie", () => {
+  const withMl = (id, extra) => { const i = clone(by(id)); i.ostatnie = Object.assign({}, i.ostatnie || {}, { ml: 31, ml_zrodlo: "pamiec" }, extra); return i }
+  it("postać w grze: wiersz tabeli ma mlPct z ostatnie.ml_proc", () => {
+    const i = withMl("gebelish", { ml_proc: 42.4 })
+    assert.equal(i.gra, true)
+    const r = P.rowOf(i, NOW)
+    assert.equal(r.ml, "31")
+    assert.equal(r.mlPct, 42)
+  })
+  it("postać offline: wiersz i karta mają mlPct", () => {
+    const i = withMl("wydra", { ml_proc: 7.6 })
+    assert.equal(P.rowOf(i, NOW).mlPct, 8)
+    assert.equal(P.cardOffline(i, NOW).mlPct, 8)
+  })
+  it("brak/nieprawidłowy ml_proc, wpis ręczny, brak ML: mlPct = null", () => {
+    for (const bad of [null, undefined, "x", NaN, -1, 101]) assert.equal(P.rowOf(withMl("gebelish", { ml_proc: bad }), NOW).mlPct, null, String(bad))
+    assert.equal(P.rowOf(withMl("gebelish", { ml_proc: 42, ml_zrodlo: "reczny" }), NOW).mlPct, null)
+    assert.equal(P.rowOf(withMl("gebelish", { ml_proc: 42, ml: null }), NOW).mlPct, null)
+    assert.equal(P.rowOf(clone(by("gebelish")), NOW).mlPct, null)   // ostatnie: null
+    assert.equal(P.rowOf(clone(by("gebelish")), NOW).ml, "?")
+  })
+})
+
 describe("Ostatnio znane", () => {
   it("widoczny tylko offline i nie dla głównej", () => {
     assert.equal(P.lastKnownVisible(by("kolanoth")), true)
@@ -236,6 +259,25 @@ describe("Ostatnio znane", () => {
     const nadzor = k.cols[2].rows.find((r) => r.k === "nadzór")
     assert.equal(nadzor.v, "zawieszony do 24.10 08:30")
   })
+  it("ML z pamięci pokazuje procent do następnego ML jak procent levelu", () => {
+    const mk = (extra) => { const i = clone(by("kolanoth")); Object.assign(i.ostatnie, { ml: 31, ml_zrodlo: "pamiec" }, extra); return Object.fromEntries(P.lastKnown(i, NOW).stats.map((s) => [s.key, s])).ml }
+    const ok = mk({ ml_proc: 42.4 })
+    assert.equal(ok.value, "31")
+    assert.equal(ok.small, "42%")
+    assert.equal(ok.bar, 0.42)
+    assert.equal(mk({ ml_proc: 0 }).small, "0%")
+    assert.equal(mk({ ml_proc: 100 }).small, "100%")
+    // brak albo nieprawidłowy procent: jak dotąd (pusty podpis, bez paska)
+    for (const bad of [null, undefined, "x", NaN, -1, 101]) {
+      const m = mk({ ml_proc: bad })
+      assert.equal(m.small, "", String(bad))
+      assert.equal(m.bar, -1, String(bad))
+    }
+    // wpis ręczny zostaje bez zmian
+    const r = mk({ ml_zrodlo: "reczny", ml_proc: 42.4 })
+    assert.equal(r.small, "wpis ręczny")
+    assert.equal(r.bar, -1)
+  })
   it("Kutangen: nadzór = rezerwa", () => {
     const k = P.lastKnown(by("kutangen"), NOW)
     const nadzor = k.cols[2].rows.find((r) => r.k === "nadzór")
@@ -250,5 +292,33 @@ describe("Ostatnio znane", () => {
   })
   it("expToNext zgodne z rdzeniem (L10->11)", () => {
     assert.equal(Math.round(P.expToNext(10)), 50 * (11 ** 3 - 6 * 121 + 17 * 11 - 12) / 3)
+  })
+})
+
+describe("tempo sesji postaci (widok Sesja gry)", () => {
+  it("bot w grze: exp/h i zab/h z przeglad, tekst z grupowaniem cyfr", () => {
+    const i = clone(by("gebelish")); i.przeglad.exp_h = 12345; i.przeglad.zab_h = 101.4
+    const r = P.sessionRate(i)
+    assert.equal(r.expH, 12345)
+    assert.equal(r.expText, "12\u00a0345")
+    assert.equal(r.zabText, "101")
+  })
+  it("zgodne z kolumnami Przeglądu (rowOf) dla każdej instancji zrzutu", () => {
+    for (const i of STAN.instancje) {
+      const row = P.rowOf(i, NOW)
+      const r = P.sessionRate(i)
+      assert.equal(r.expH, row.expH, i.id)
+      assert.equal(r.zabH, row.zabH, i.id)
+    }
+  })
+  it("null / offline / zawieszona / brak przeglad = „—”", () => {
+    const i = clone(by("gebelish")); i.przeglad.exp_h = null; i.przeglad.zab_h = null
+    assert.equal(P.sessionRate(i).expText, "—")
+    assert.equal(P.sessionRate(i).zabText, "—")
+    const off = clone(by("gebelish")); off.przeglad.w_grze = false; off.przeglad.stan = "offline"; off.przeglad.exp_h = 500
+    assert.equal(P.sessionRate(off).expText, "—")
+    assert.equal(P.sessionRate(by("kolanoth")).expText, "—")
+    assert.equal(P.sessionRate({ id: "x" }).zabText, "—")
+    assert.equal(P.sessionRate(null).expText, "—")
   })
 })

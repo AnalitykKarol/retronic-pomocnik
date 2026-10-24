@@ -185,6 +185,12 @@ function mlLabel(inst) {
   return o && isNum(o.ml) ? String(o.ml) : "?"
 }
 
+// Procent do następnego ML (jak levelOf.pct): tylko odczyt z pamięci gry (ml_zrodlo "pamiec") i ml_proc 0..100; inaczej null.
+function mlPctOf(inst) {
+  var o = ostatnieOf(inst)
+  return o && isNum(o.ml) && o.ml_zrodlo === "pamiec" && isNum(o.ml_proc) && o.ml_proc >= 0 && o.ml_proc <= 100 ? Math.round(o.ml_proc) : null
+}
+
 function approx(o, field) { return !!(o && isList(o.przyblizone) && Array.prototype.indexOf.call(o.przyblizone, field) >= 0) }
 
 // Pasek zasobu (HP/MP): na żywo (bieżące/max, ułamek) albo offline „max N” (bez paska).
@@ -209,6 +215,18 @@ function groupDigits(n) {
 
 function expH(inst) { var p = przegladOf(inst); return p && isNum(p.exp_h) ? p.exp_h : null }
 function zabH(inst) { var p = przegladOf(inst); return p && isNum(p.zab_h) ? p.zab_h : null }
+
+// Tempo bieżącej sesji bota jednej postaci (widok Sesja gry, blok na górze): te same expH/zabH co kolumny Przeglądu, ta sama zasada „poza grą = brak”
+// (offline, zawieszona, Karol nie gra botem bez telemetrii: null). Tekst: groupDigits (jak kafelek „Exp/h razem”), brak = „—”. Niczego nie liczymy.
+function sessionRate(inst) {
+  var e = inGame(inst) ? expH(inst) : null
+  var z = inGame(inst) ? zabH(inst) : null
+  return {
+    expH: e, zabH: z,
+    expText: e === null ? MISSING : groupDigits(e),
+    zabText: z === null ? MISSING : groupDigits(z)
+  }
+}
 
 // „Ostatnio online”: w_grze_t (ostatnia chwila w grze), potem dane_t (ostatnie dane z gry), na końcu zapisano.
 function lastDataT(inst) {
@@ -312,6 +330,7 @@ function rowOf(inst, now) {
     level: lv.level,
     levelPct: lv.pct,
     ml: mlLabel(inst),
+    mlPct: mlPctOf(inst),
     hp: resource(inst, "hp", "max_hp"),
     mana: resource(inst, "mana", "max_mana"),
     where: whereLabel(inst),
@@ -444,6 +463,7 @@ function cardOffline(inst, now) {
     mp: mp.max === null ? MISSING : String(mp.max),
     ml: mlLabel(inst),
     mlKnown: !!(o && isNum(o.ml)),
+    mlPct: mlPctOf(inst),
     right: right
   }
 }
@@ -482,12 +502,13 @@ function lastKnown(inst, now) {
   if (!o) return out
   var lv = levelOf(inst)
   var mlKnown = isNum(o.ml)
+  var mlPct = mlPctOf(inst)
   var maxHp = resource(inst, "hp", "max_hp")
   var maxMp = resource(inst, "mana", "max_mana")
   var next = lv.level !== null && isNum(o.exp) ? Math.max(0, Math.round(expToNext(lv.level) - o.exp)) : null
   out.stats = [
     { key: "level", label: "LEVEL", value: lv.level === null ? "?" : String(lv.level), small: lv.pct === null ? "" : lv.pct + "%", bar: lv.pct === null ? -1 : lv.pct / 100, dim: lv.level === null },
-    { key: "ml", label: "MAGIC LEVEL", value: mlKnown ? String(o.ml) : "?", small: mlKnown ? (o.ml_zrodlo === "reczny" ? "wpis ręczny" : "") : "brak odczytu", bar: -1, dim: !mlKnown },
+    { key: "ml", label: "MAGIC LEVEL", value: mlKnown ? String(o.ml) : "?", small: mlKnown ? (o.ml_zrodlo === "reczny" ? "wpis ręczny" : (mlPct === null ? "" : mlPct + "%")) : "brak odczytu", bar: mlPct === null ? -1 : mlPct / 100, dim: !mlKnown },
     { key: "hp", label: "HP MAX", value: maxHp.max === null ? "?" : (maxHp.approx ? APPROX : "") + maxHp.max, small: "", bar: -1, dim: maxHp.max === null },
     { key: "mana", label: "MANA MAX", value: maxMp.max === null ? "?" : (maxMp.approx ? APPROX : "") + maxMp.max, small: "", bar: -1, dim: maxMp.max === null },
     { key: "exp", label: "EXP", value: isNum(o.exp) ? groupDigits(o.exp) : "?", small: next !== null ? "do " + (lv.level + 1) + ": " + groupDigits(next) : "", bar: -1, dim: !isNum(o.exp) },
@@ -554,10 +575,10 @@ if (typeof module !== "undefined" && module.exports) {
     STAN_ORDER: STAN_ORDER, STAN_PILL: STAN_PILL, FILTERS: FILTERS, MISSING: MISSING,
     plural: plural, whenLabel: whenLabel, spanLabel: spanLabel, agoLabel: agoLabel, doLabel: doLabel,
     stanOf: stanOf, isTest: isTest, inGame: inGame, isReserve: isReserve, pillOf: pillOf, stanDotTone: stanDotTone,
-    whereLabel: whereLabel, levelOf: levelOf, levelText: levelText, mlLabel: mlLabel, resource: resource, sinceText: sinceText, spotTimeOf: spotTimeOf,
+    whereLabel: whereLabel, levelOf: levelOf, levelText: levelText, mlLabel: mlLabel, mlPctOf: mlPctOf, resource: resource, sinceText: sinceText, spotTimeOf: spotTimeOf,
     alarmOf: alarmOf, supervisionOf: supervisionOf, rowOf: rowOf, rowsOf: rowsOf, passes: passes, filterCounts: filterCounts,
     groupsOf: groupsOf, countersOf: countersOf, suspendedNote: suspendedNote, expBotsNote: expBotsNote, postaciLabel: postaciLabel,
     navBadge: navBadge, cardMode: cardMode, cardOffline: cardOffline, cardSubtitleTone: cardSubtitleTone, cardSubtitleText: cardSubtitleText,
-    expToNext: expToNext, lastKnownVisible: lastKnownVisible, lastKnown: lastKnown, groupDigits: groupDigits, numOrDash: numOrDash
+    expToNext: expToNext, lastKnownVisible: lastKnownVisible, lastKnown: lastKnown, groupDigits: groupDigits, numOrDash: numOrDash, sessionRate: sessionRate
   }
 }

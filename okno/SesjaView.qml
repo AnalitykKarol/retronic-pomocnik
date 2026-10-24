@@ -23,6 +23,8 @@ Item {
   readonly property var now: ctl.refreshedAt || new Date()
   // „Ostatnio znane” (spec przeglądu): tylko gdy gry nie ma i to nie główna; z `ostatnie` z pełnego stanu (okno_api stan), nie z odczytu sesji
   readonly property bool showLast: ctl.selected !== null && Prz.lastKnownVisible(ctl.selected)
+  // tempo bieżącej sesji bota tej postaci (te same pola co kolumny Przeglądu: przeglad.exp_h / zab_h; poza grą „—”)
+  readonly property var rate: Prz.sessionRate(ctl.selected)
   readonly property var lastKnown: showLast ? Prz.lastKnown(ctl.selected, now) : null
   readonly property var buttons: Model.sessionButtons(s)
   readonly property bool canStop: buttons["gra-zamknij"].enabled
@@ -150,6 +152,37 @@ Item {
         y: 18
         width: flick.width - 44
         spacing: 14
+
+        Rectangle {
+          objectName: "sesja-tempo"
+          width: parent.width
+          height: rateRow.implicitHeight + 24
+          radius: 10
+          color: Theme.sur
+          border.width: 1
+          border.color: Theme.line
+          Row {
+            id: rateRow
+            anchors.left: parent.left
+            anchors.leftMargin: 14
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 34
+            StatBlock {
+              objectName: "tempo-exp"
+              label: "Exp/h"
+              value: view.rate.expText
+              suffix: view.rate.expH === null ? "" : "sesja bota"
+              valueColor: view.rate.expH === null ? Theme.dim2 : Theme.fg
+            }
+            StatBlock {
+              objectName: "tempo-zab"
+              label: "Zab/h"
+              value: view.rate.zabText
+              suffix: view.rate.zabH === null ? "" : "zabitych"
+              valueColor: view.rate.zabH === null ? Theme.dim2 : Theme.fg
+            }
+          }
+        }
 
         OstatnioZnane {
           objectName: "sesja-ostatnio-znane"

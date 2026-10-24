@@ -197,7 +197,7 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         textFormat: Text.StyledText
         text: card.off ? "HP <font color=\"" + Theme.fg2 + "\">" + card.off.hp + "</font> · MP <font color=\"" + Theme.fg2 + "\">" + card.off.mp
-                         + "</font> · ML <font color=\"" + (card.off.mlKnown ? Theme.fg2 : Theme.dim2) + "\">" + card.off.ml + "</font>" : ""
+                         + "</font> · ML <font color=\"" + (card.off.mlKnown ? Theme.fg2 : Theme.dim2) + "\">" + card.off.ml + "</font>" + (card.off.mlPct !== null && card.off.mlPct !== undefined ? " " + card.off.mlPct + "%" : "") : ""
         color: Theme.dim
         font.family: Theme.font
         font.pixelSize: Theme.tiny
