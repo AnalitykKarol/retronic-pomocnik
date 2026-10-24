@@ -355,6 +355,12 @@ ZAKRESY = {
     "STRAZNIK_ORBITA_POL": (3, 12),     # maks. różnych pól orbity (domyślnie 8)
     "STRAZNIK_ORBITA_ZMIAN": (6, 60),   # min. zmian pozycji w oknie (domyślnie 15)
     "STRAZNIK_WYJSCIE_S": (30.0, 150.0),   # s aktywne na dłuższy sposób naprawy (plan pięter, A* do punktu), potem następny sposób (domyślnie 90; plan pięter zawsze zwijany po <= 120 s, przed PIETRA_MAX_S)
+    "STRAZNIK_PETLA": (0, 1),           # 24.10 (Wydra 12:43): 0 = wyłączone; 1 = strażnik orbit wykrywa też pętlę (ta sama sekwencja pól > 3 razy albo 45 s w ramce 4x4 bez zabicia); reakcja tylko przy STRAZNIK_ORBITY=2 (domyślnie 0)
+    "STRAZNIK_PETLA_S": (20.0, 300.0),     # s w ramce bez postępu (domyślnie 45)
+    "STRAZNIK_PETLA_RAMKA": (3, 8),     # maks. rozmiar ramki, pól na bok (domyślnie 4)
+    "STRAZNIK_PETLA_POWTORZ": (1, 10),  # ile powtórzeń sekwencji wolno (domyślnie 3)
+    "STRAZNIK_PETLA_CYKL_S": (4.0, 120.0), # min. czas trwania sekwencji [s] (domyślnie 12)
+    "STRAZNIK_PETLA_WALKA": (0.0, 0.6),    # maks. udział walki/lootu w oknie ramki (domyślnie 0,3)
     "D3_ALARM_S": (0.0, 1800.0),        # 17.10 (F1): >0 = zawieszka D3 trwająca tyle s => jedno powiadomienie krytyczne, bez STOP (domyślnie 0 = wyłączone)
     "ZWIECHA": (0, 1),                  # 23.10 (wydra 29 min): detektor zwiechy walki + drabina napraw (zwiecha.py); domyślnie 1
     "ZWIECHA_N": (2, 8),                # zdarzeń (klików bez efektu) bez zabicia do szczebla 1
@@ -509,6 +515,9 @@ KIERUNEK = {
     "ZWIECHA": "nie_nizej", "ZWIECHA_N": "nie_wyzej", "ZWIECHA_KROK_N": "nie_wyzej", "ZWIECHA_KROK_S": "nie_wyzej", "ZWIECHA_RESTART": "nie_nizej",
     "STRAZNIK_ORBITY": "nie_wyzej", "STRAZNIK_ORBITA_S": "nie_wyzej", "STRAZNIK_ORBITA_POL": "nie_nizej",
     "STRAZNIK_ORBITA_ZMIAN": "nie_wyzej", "STRAZNIK_WYJSCIE_S": "nie_wyzej",
+    # pętla: analityk nie może jej włączyć ani osłabić (dłuższe okno, mniejsza ramka, więcej powtórzeń, krótsza walka = rzadsze wykrycie)
+    "STRAZNIK_PETLA": "nie_wyzej", "STRAZNIK_PETLA_S": "nie_wyzej", "STRAZNIK_PETLA_RAMKA": "nie_nizej",
+    "STRAZNIK_PETLA_POWTORZ": "nie_wyzej", "STRAZNIK_PETLA_CYKL_S": "nie_wyzej", "STRAZNIK_PETLA_WALKA": "nie_nizej",
     # stanowisko: analityk nie może go włączyć, obniżyć progu HP/karencji, skrócić obrony ani poluzować blokady graczy/NPC; tylko Karol w na_zywo.json
     "STANOWISKO": "nie_wyzej", "STANOWISKO_HP_PZ": "nie_nizej", "STANOWISKO_PZ_KARENCJA_MIN": "nie_nizej",
     "STANOWISKO_GRACZ_ODL": "nie_wyzej", "STANOWISKO_NPC_IGNORUJ": "nie_wyzej", "STANOWISKO_ZMIANA_MAX_MIN": "nie_wyzej",

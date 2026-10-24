@@ -566,6 +566,7 @@ DRZWI_TRASA_OKNO = 3               # 22.10: drzwi obsługujemy, gdy indeks celu 
 DRZWI_TRASA_ODL = 8                # 22.10: ...i postać jest nie dalej niż tyle pól od pola przed drzwiami
 DRZWI_SPOKOJ = 1                   # 22.10: 1 = przed Use na drzwiach (trasa i pościg/patrol, _drzwi_hak) czekamy na stojącą pozycję (2 odczyty co 0,4 s, jak pietra._przed_use): Use w trakcie kroku klient gubi (wydra (32505,32270,z8) 22.10); 0 = jak dotąd
 DRZWI_NAJPIERW_KROK = 1            # 24.10 (Karol: „sam je zamyka, próbuje, otwiera i przechodzi”): 1 = przed KAŻDYM Use na drzwiach (trasa i _drzwi_hak) najpierw krok przez pole drzwi (po chwili stania jeszcze raz); Use tylko gdy krok nie ruszył postaci, po Use znowu krok. Use na OTWARTYCH drzwiach je zamyka, a stanu drzwi bot nie czyta (mapa jest statyczna, drzwi = ściana); 0 = jak dotąd (trasa: tylko pierwszy krok epizodu, potem Use)
+DRZWI_KLUCZ = 1                    # 24.10 (Karol: „niech się nauczy otwierać drzwi”, Marinarra): 1 = DOJŚCIE (CavebotDojscie) przechodzi drzwi zamknięte na klucz z wyprawa.PLANY_PK["klucze"] (A* przez nie, krok, Use klucza z plecaka na drzwiach, krok; jak wypad._drzwi); 0 = jak dotąd (drzwi to ściana, dojście z korytarza z9 Ab'Dendriel się nie udawało)
 SMIERC_STOP = 0                    # 16.10 (R5/P5): 1 = po zgonie bot nic nie robi: stan MARTWY, jeden STOP + jedno powiadomienie (nick, czas, miejsce), zero kliknięć i modelu; 0 = jak dotąd
 OBSERWATOR_PK_KONTEKST = 0         # 16.10 (P10): 1 = obserwator (Haiku) dostaje pk_stan, karencję PK i wrogów oraz instrukcję, że PAUZA_PK z aktywną karencją to stan zamierzony; 0 = jak dotąd
 SMIERC_ODCZYTY = 3                 # SMIERC_STOP: tyle kolejnych odczytów HP == 0 potwierdza zgon (jeden/dwa to możliwy fałszywy odczyt; w tym czasie obieg stoi bez akcji)
@@ -692,6 +693,12 @@ STRAZNIK_ORBITA_S = 60.0           # s okno orbity: >= STRAZNIK_ORBITA_ZMIAN zmi
 STRAZNIK_ORBITA_POL = 8            # maks. różnych pól orbity (Karol 20.10: 8; pomiar 14-20.10 0 fałszywych)
 STRAZNIK_ORBITA_ZMIAN = 15         # min. zmian pozycji w oknie (Karol 20.10: 15)
 STRAZNIK_WYJSCIE_S = 90.0          # s aktywne (bez walki/lootu) na dłuższe sposoby naprawy (plan pięter, A* do punktu trasy); potem następny sposób z rotacji, nigdy STOP
+STRAZNIK_PETLA = 0                 # 24.10 (Wydra 12:43-12:49: 6,5 min w kieszeni 4x4, 0 zabić): 0 = wyłączone (zero zmian); 1 = strażnik orbit (STRAZNIK_ORBITY 1 = cień, 2 = działa) wykrywa też PĘTLĘ: ta sama sekwencja pól > POWTORZ razy albo STRAZNIK_PETLA_S s w ramce bez postępu (exp, piętro)
+STRAZNIK_PETLA_S = 45.0            # s w ramce STRAZNIK_PETLA_RAMKA bez zabicia i zmiany piętra (tylko stan IDZ + walka/loot do udziału)
+STRAZNIK_PETLA_RAMKA = 4           # maks. rozmiar ramki (pól na bok): 4 = 4x4
+STRAZNIK_PETLA_POWTORZ = 3         # tyle powtórzeń tej samej sekwencji pól wolno; czwarte = pętla (Karol 24.10: „nie więcej niż 3 razy")
+STRAZNIK_PETLA_CYKL_S = 12.0       # sekwencja musi trwać co najmniej tyle s (mrugnięcie A-B-A-B w sekundę to nie pętla)
+STRAZNIK_PETLA_WALKA = 0.3         # maks. udział walki/lootu w oknie ramki (walka w miejscu to nie pętla)
 ZWIECHA = 1                        # 23.10 (wydra: 29 min walki bez zabicia): 1 = detektor zwiechy walki + drabina napraw (zwiecha.py), 0 = wyłączony; NAPRAWA, nigdy STOP
 ZWIECHA_N = 3                      # zdarzeń ("klików bez efektu" / S2 strażnika celu) w ZWIECHA_OKNO_S bez przyrostu expa = zwiecha (szczebel 1)
 ZWIECHA_OKNO_S = 300.0             # s okno liczenia pierwszych zdarzeń
@@ -4564,8 +4571,37 @@ class Cavebot:
                                   "strony": [(h[0] - dx, h[1] - dy, h[2]), (h[0] + dx, h[1] + dy, h[2])]})
             except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError):
                 wynik = []
+            wynik.extend(self._drzwi_klucz_lista(wynik))
             self.drzwi_def = wynik
         return self.drzwi_def
+
+    def _drzwi_klucz_lista(self, juz):
+        """24.10: drzwi zamknięte na klucz (wyprawa.PLANY_PK["klucze"] = jedno źródło, test_powrot_abdendriel pilnuje zgodności z
+        generuj_powrot_abdendriel.KLUCZE_DRZWI) jako przejście, TYLKO w dojściu (CavebotDojscie): dojście z korytarza przed drzwiami nie miało drogi (drzwi to
+        ściana w mapie). Pole -> {"pole","id","strony","klucz"}; oś z mapy (pola po obu stronach przechodnie). Brak klucza/błąd = pusta lista."""
+        if not DRZWI_KLUCZ or not getattr(self, "dojscie_aktywne", False) or getattr(self, "mapa", None) is None:
+            return []                         # bez mapy nie ma A* przez drzwi ani osi drzwi
+        try:
+            import wyprawa  # noqa: PLC0415
+            klucze = [(tuple(int(v) for v in d), int(k)) for p in wyprawa.PLANY_PK for d, k in (p.get("klucze") or ())]
+        except Exception:
+            return []
+        znane = {e["pole"] for e in juz}
+        wynik = []
+        for h, k in klucze:
+            if h in znane:
+                continue
+            os_y = False
+            try:
+                m = self.mapa
+                prz = lambda x, y: bool(m.flagi(x, y, h[2]) & 1) and not m.flagi(x, y, h[2]) & 6    # noqa: E731  (flaga 4 = ściana/blokada, 2 = dziura)
+                os_y = prz(h[0], h[1] - 1) and prz(h[0], h[1] + 1) and not (prz(h[0] - 1, h[1]) and prz(h[0] + 1, h[1]))
+            except Exception:
+                os_y = False
+            dx, dy = (0, 1) if os_y else (1, 0)
+            wynik.append({"pole": h, "id": f"klucz_{h[0]}_{h[1]}", "klucz": k,
+                          "strony": [(h[0] - dx, h[1] - dy, h[2]), (h[0] + dx, h[1] + dy, h[2])]})
+        return wynik
 
     def _drzwi_xy(self, z):
         """Zbiór (x, y) drzwi na piętrze z, które teraz są przejściem (PATROL_DRZWI=1, nie odpuszczone)."""
@@ -4581,7 +4617,7 @@ class Cavebot:
         zle = {h["pole"] for h in self._drzwi_lista() if self.drzwi_stan.get(h["pole"], {}).get("zle_do", float("-inf")) > t}
         return bool(zle) and any(tuple(q) in zle for q in e["kroki"])
 
-    def _drzwi_hak(self, poz, dalej, podejscie=False):
+    def _drzwi_hak(self, poz, dalej, podejscie=False, tylko_klucz=False):
         """Drzwi na najbliższych polach drogi `dalej`, stoimy obok (w osi): zwykły krok/klik, a bez ruchu przez
         DRZWI_KROK_S s drzwi są zamknięte: Use z tego pola (max DRZWI_PROB), potem odpuszczenie z jedną notatką na
         DRZWI_ODPUSC_S s. None = nic (idź normalnie), True = obieg zużyty (Use), False = drzwi nie działają.
@@ -4593,7 +4629,7 @@ class Cavebot:
         t = self.zegar()
         for e in self._drzwi_lista():
             h = e["pole"]
-            if poz[2] != h[2]:
+            if poz[2] != h[2] or (tylko_klucz and not e.get("klucz")):
                 continue
             st = self.drzwi_stan.setdefault(h, {"poz": None, "t0": t, "proby": 0, "zle_do": float("-inf"), "nota": False,
                                                 "otw": False})
@@ -4648,25 +4684,55 @@ class Cavebot:
             if DRZWI_SPOKOJ and self._drzwi_spokoj()[:2] != poz[:2]:
                 return True                    # 22.10: Use w trakcie kroku klient gubi; coś nas przesunęło - nowy obieg (próba nie liczona)
             kier = None
-            if DRZWI_NAJPIERW_KROK:
+            klucz = e.get("klucz")
+            if DRZWI_NAJPIERW_KROK or klucz:
                 # 24.10: przed Use krok przez pole drzwi na stojącej postaci (Use na otwartych drzwiach je zamyka); ruszyła = drzwi były otwarte
+                # (drzwi na klucz: ZAWSZE najpierw krok, jak wypad._drzwi: krok, klucz, krok)
                 kier = ("Right" if h[0] > poz[0] else "Left") if h[0] != poz[0] else ("Down" if h[1] > poz[1] else "Up")
                 if self.postac.krok(kier) or self.postac.krok(kier):    # dwa razy: pojedynczy krok bywa zgubiony, a zbędny Use zamyka otwarte drzwi
                     return self._drzwi_hak_krok_ok(h, st, t)
             st["proby"] += 1
-            log(f"Drzwi {h[:2]} z{h[2]}: zamknięte, Use z {poz[:2]} (próba {st['proby']}/{DRZWI_PROB}).")
+            if klucz:
+                log(f"Drzwi {h[:2]} z{h[2]} (na klucz {klucz}): zamknięte, klucz z {poz[:2]} (próba {st['proby']}/{DRZWI_PROB}).")
+            else:
+                log(f"Drzwi {h[:2]} z{h[2]}: zamknięte, Use z {poz[:2]} (próba {st['proby']}/{DRZWI_PROB}).")
             try:
-                self._drzwi_ops().uzyj_pole(h, poz)
+                if klucz:
+                    self._drzwi_ops().uzyj_klucz(klucz, h, poz)       # 24.10: Ctrl+klik na kluczu w plecaku, klik na drzwiach (wypad.uzyj_klucz)
+                else:
+                    self._drzwi_ops().uzyj_pole(h, poz)
             except bot.Zatrzymano:
                 raise
             except Exception as ex:
-                log(f"Drzwi {h[:2]}: Use nie wyszło ({ex!r}).")
+                if klucz and type(ex).__name__ == "BrakPrzedmiotu":
+                    st["proby"] = DRZWI_PROB      # brak klucza w otwartych pojemnikach: nie ponawiamy, następny obieg odpuszcza z notatką
+                    log(f"Drzwi {h[:2]} z{h[2]}: brak klucza {klucz} w otwartych pojemnikach ({ex}).")
+                else:
+                    log(f"Drzwi {h[:2]}: {'klucz' if klucz else 'Use'} nie wyszło ({ex!r}).")
             self.pauza(0.6, 1.0)
             st["t0"] = self.zegar()
             if kier is not None and self.postac.krok(kier):
                 return self._drzwi_hak_krok_ok(h, st, st["t0"])    # 24.10: po Use znowu krok
             return True
         return None
+
+    def _drzwi_klucz_tick(self, poz, cel):
+        """24.10: dojście przez drzwi zamknięte na klucz. Bierze najbliższe pola drogi A* do punktu trasy `cel` (A* prowadzi przez drzwi, bo
+        _drzwi_lista zna je w dojściu; bez A* - najbliższe punkty trasy) i oddaje je _drzwi_hak(tylko_klucz=True). True = obieg zużyty."""
+        z = poz[2]
+        if not any(e.get("klucz") and e["pole"][2] == z for e in self._drzwi_lista()):
+            return None
+        dalej = None
+        if cel[2] == z:
+            dalej = self._droga_trasy(poz, cel)
+            if not dalej:
+                try:
+                    dalej = self.droga(tuple(poz), tuple(cel[:2]), dlugosc=0)
+                except Exception:
+                    dalej = None
+        n = len(self.punkty)
+        dalej = list(dalej[:3]) if dalej else [self.punkty[(self.idx + i) % n] for i in range(min(3, n))]
+        return True if self._drzwi_hak(poz, dalej, True, tylko_klucz=True) is True else None
 
     def _drzwi_hak_krok_ok(self, h, st, t):
         """24.10: krok przez pole drzwi (przed albo po Use) ruszył postać: drzwi są otwarte, epizod kończy się bez dalszych Use."""
@@ -11144,6 +11210,9 @@ class Cavebot:
                 return r
         if DRZWI_TRASA and self._drzwi_trasa_tick((x, y, z)):
             return True                       # 22.10: zamknięte drzwi na nagranej trasie (dojście, trasa): podejście, stanie, Use, krok
+        if DRZWI_KLUCZ and self.dojscie_aktywne and PATROL_DRZWI:
+            if self._drzwi_klucz_tick((x, y, z), cel) is True:
+                return True                   # 24.10: drzwi na klucz w dojściu: podejście, krok, klucz, krok (_drzwi_hak)
         if self._utknieto_na_trasie((x, y, z), cel) and self._wroc_na_trase((x, y, z)):
             return True
         if PATROL_DRZWI and self.__dict__.get("_w_segmencie"):

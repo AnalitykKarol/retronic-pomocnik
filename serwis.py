@@ -119,13 +119,26 @@ def wczytaj(miasto, katalog=TRASY):
 
 
 def drzwi_miasta(dane):
-    """Wszystkie pola drzwi z pola `drzwi` przystanków planu (Thais: Frodo, Xodet) jako krotki (x, y, z), bez powtórzeń."""
+    """Wszystkie pola drzwi z pola `drzwi` przystanków planu (Thais: Frodo, Xodet) oraz drzwi na klucz (`drzwi_klucz`, Ab'Dendriel,
+    24.10) jako krotki (x, y, z), bez powtórzeń."""
     wynik = []
     for p in dane.get("przystanki", {}).values():
         for h in p.get("drzwi") or []:
             h = tuple(int(v) for v in h)
             if h not in wynik:
                 wynik.append(h)
+    for h in klucze_drzwi(dane):
+        if h not in wynik:
+            wynik.append(h)
+    return wynik
+
+
+def klucze_drzwi(dane):
+    """{pole drzwi (x, y, z): id klucza} z pola `drzwi_klucz` planu (24.10, Ab'Dendriel: dwoje drzwi z9 na klucz 2970; generator bierze je
+    z generuj_powrot_abdendriel.KLUCZE_DRZWI = wyprawa.PLANY_PK["klucze"], jedno źródło). Brak pola = {} (Edron, Thais bez zmian)."""
+    wynik = {}
+    for w in dane.get("drzwi_klucz") or []:
+        wynik[tuple(int(v) for v in w["pole"])] = int(w["klucz"])
     return wynik
 
 
@@ -155,8 +168,9 @@ class Planer:
     po ich obu stronach (koszt 2); droga przez nie zawiera pole drzwi jako zwykły punkt [... przed, drzwi, za ...]. Marsz dzieli ją
     na tym punkcie (`podziel_na_drzwiach`). Drzwi NIE są łącznikami (`self.lacz` idzie do marszu jako pola do omijania)."""
 
-    def __init__(self, trasownik, laczniki, drzwi=(), mapa=None):
+    def __init__(self, trasownik, laczniki, drzwi=(), mapa=None, klucze=None):
         self.tr = trasownik
+        self.klucze = {tuple(int(v) for v in h): int(k) for h, k in (klucze or {}).items()}     # pole drzwi -> id klucza (24.10): marsz otwiera je kluczem
         self.lacz = [(tuple(l["z"]), tuple(l["do"])) for l in laczniki]
         self._cache = {}
         self._sklad = {}                    # pole -> numer składowej spójności (zalew, patrz _ta_sama_skladowa)
@@ -1127,16 +1141,18 @@ def _postac_stoi(postac, spij=time.sleep, maks_s=4.0):
 _DRZWI_OTWARTE = set()       # drzwi, przez które ten proces już przeszedł (zostają otwarte): nie dostają Use na początku, bo Use zamyka otwarte
 
 
-def przejdz_drzwi(postac, przed, drzwi, za, log=print, otworz=None, spij=time.sleep):
+def przejdz_drzwi(postac, przed, drzwi, za, log=print, otworz=None, spij=time.sleep, klucz=None, uzyj_klucz=None):
     """Przejście przez zamknięte drzwi sklepu (22.10, Thais): stoimy na `przed` (pole przed drzwiami), czekamy aż postać
     stoi, Use na drzwiach (Ctrl+klik), pauza, krok na kafelek drzwi, krok na `za`; po każdym kroku sprawdzamy pozycję.
     Do DRZWI_PROB prób: krok, krok, Use + krok, krok (Use na otwartych drzwiach by je zamknęło, więc najpierw zawsze krok). Bez powodzenia SerwisBlad("drzwi"). True = stoimy na `za`.
+    24.10 (Ab'Dendriel): `klucz` (id) + `uzyj_klucz(id, drzwi, pozycja)` = drzwi zamknięte na klucz, wzór wypad._drzwi: krok, KLUCZ, krok
+    (kolejność prób: krok, klucz, krok, krok, klucz, krok; zwykłe Use nic nie robi, więc go nie ma). Brak klucza w plecaku = SerwisBlad("drzwi").
     Wzór: cavebot._drzwi_trasa_tick, pietra._przed_use, wypad._drzwi."""
     przed, h, za = tuple(przed), tuple(drzwi), tuple(za)
     k_h, k_za = (_klawisz_ruchu(przed, h) if przed != h else "-"), _klawisz_ruchu(h, za)
     if k_h is None or k_za is None:
         raise SerwisBlad("drzwi", f"drzwi {h[:2]}: pola {przed[:2]} -> {za[:2]} nie leżą w jednej osi przez drzwi")
-    if otworz is None:
+    if klucz is None and otworz is None:
         import ekran  # noqa: PLC0415
         otworz = ekran.otworz
     dx, dy = h[0] - przed[0], h[1] - przed[1]
@@ -1147,16 +1163,33 @@ def przejdz_drzwi(postac, przed, drzwi, za, log=print, otworz=None, spij=time.sl
         raise SerwisBlad("drzwi", f"drzwi {h[:2]}: stoję w {poz[:2]}, a powinienem na {przed[:2]} (przed drzwiami)")
     # 24.10 (Karol: „zamyka drzwi przed wejściem”): ZAWSZE najpierw dwa kroki, Use dopiero, gdy krok nie przeszedł; wcześniej
     # nieznane drzwi zaczynały od Use, które zamykało otwarte drzwi (wydra, Thais 13:3x). Jak cavebot DRZWI_NAJPIERW_KROK.
-    tryby = ("krok", "krok", "use", "krok")
-    for n in range(DRZWI_PROB):
+    if klucz is not None:
+        if uzyj_klucz is None:
+            raise SerwisBlad("drzwi", f"drzwi {h[:2]} na klucz {klucz}, a akcje nie umieją użyć klucza")
+        tryby, proby = ("krok", "klucz", "krok", "krok", "klucz", "krok"), max(DRZWI_PROB, 6)
+    else:
+        tryby, proby = ("krok", "krok", "use", "krok"), DRZWI_PROB
+    for n in range(proby):
         tryb = tryby[n % len(tryby)]
         poz = _postac_stoi(postac, spij)
         if poz == za:
             _DRZWI_OTWARTE.add(h)
             return True
         if poz == przed:
-            log(f"serwis: drzwi {h[:2]} próba {n + 1}/{DRZWI_PROB} ({tryb}) z {przed[:2]}")
-            if tryb == "use":
+            log(f"serwis: drzwi {h[:2]} próba {n + 1}/{proby} ({tryb}) z {przed[:2]}")
+            if tryb == "klucz":
+                try:
+                    uzyj_klucz(klucz, h, przed)
+                except Exception as e:
+                    if type(e).__name__ == "BrakPrzedmiotu":
+                        raise SerwisBlad("drzwi", f"drzwi {h[:2]}: brak klucza {klucz} w plecaku ({e})")
+                    raise
+                spij(random.uniform(*DRZWI_CZEKAJ_S))
+                poz = _postac_stoi(postac, spij)
+                if poz != przed:
+                    log(f"serwis: drzwi {h[:2]}: po kluczu stoję w {poz[:2]}, nie w {przed[:2]}")
+                    continue
+            elif tryb == "use":
                 otworz(dx, dy)
                 spij(random.uniform(*DRZWI_CZEKAJ_S))
                 poz = _postac_stoi(postac, spij)
@@ -1181,7 +1214,7 @@ def przejdz_drzwi(postac, przed, drzwi, za, log=print, otworz=None, spij=time.sl
                 return True
             log(f"serwis: drzwi {h[:2]}: krok na {za[:2]} bez skutku (stoję w {poz[:2]})")
     _DRZWI_OTWARTE.discard(h)
-    raise SerwisBlad("drzwi", f"drzwi {h[:2]}: nie przeszedłem po {DRZWI_PROB} próbach (stoję w {tuple(postac.pozycja())[:2]})")
+    raise SerwisBlad("drzwi", f"drzwi {h[:2]}: nie przeszedłem po {proby} próbach (stoję w {tuple(postac.pozycja())[:2]})")
 
 
 def podziel_na_drzwiach(punkty, drzwi):
@@ -1208,9 +1241,10 @@ def podziel_na_drzwiach(punkty, drzwi):
     return czesci
 
 
-def idz_z_drzwiami(postac, punkty, drzwi, chodz1, tolerancja=0, log=print, otworz=None, spij=time.sleep):
+def idz_z_drzwiami(postac, punkty, drzwi, chodz1, tolerancja=0, log=print, otworz=None, spij=time.sleep, klucze=None, uzyj_klucz=None):
     """Trasa z drzwiami: odcinki „idz” przez `chodz1(punkty, tolerancja)` (przed drzwiami dokładnie na polu `przed`),
-    drzwi przez przejdz_drzwi. False, gdy odcinek marszu się nie udał; porażka drzwi to SerwisBlad."""
+    drzwi przez przejdz_drzwi (`klucze` {pole drzwi: id klucza} + `uzyj_klucz`: drzwi na klucz, 24.10). False, gdy odcinek marszu
+    się nie udał; porażka drzwi to SerwisBlad."""
     czesci = podziel_na_drzwiach(punkty, drzwi)
     for n, c in enumerate(czesci):
         if c[0] == "idz":
@@ -1218,7 +1252,8 @@ def idz_z_drzwiami(postac, punkty, drzwi, chodz1, tolerancja=0, log=print, otwor
             if len(c[1]) > 1 and not chodz1(c[1], tolerancja if ostatnia else 0):
                 return False
         else:
-            przejdz_drzwi(postac, c[1], c[2], c[3], log=log, otworz=otworz, spij=spij)
+            przejdz_drzwi(postac, c[1], c[2], c[3], log=log, otworz=otworz, spij=spij,
+                          klucz=(klucze or {}).get(tuple(c[2])), uzyj_klucz=uzyj_klucz)
     return True
 
 
@@ -1537,7 +1572,7 @@ def main(argv=None):
     print(f"serwis: miasto {miasto}", flush=True)
     dane = wczytaj(miasto)
     mp = mapa_mod.mapa()
-    planer = Planer(wyprawa.Trasownik(mp), dane["laczniki"], drzwi=drzwi_miasta(dane), mapa=mp)
+    planer = Planer(wyprawa.Trasownik(mp), dane["laczniki"], drzwi=drzwi_miasta(dane), mapa=mp, klucze=klucze_drzwi(dane))
     kroki = a.kroki.split(",") if a.kroki else None
     if a.na_sucho:
         s = Serwis(dane, None, planer, postac.pozycja, None)
@@ -1559,7 +1594,8 @@ def main(argv=None):
     def chodz(punkty, tolerancja=0):
         """Trasa z drzwiami sklepów (Thais) dzielona na odcinki i przejścia przez drzwi (przejdz_drzwi), reszta jak chodz_pietra."""
         if planer.drzwi and any(tuple(p) in planer.drzwi for p in punkty):
-            return idz_z_drzwiami(postac, punkty, planer.drzwi, chodz_pietra, tolerancja, log=print)
+            return idz_z_drzwiami(postac, punkty, planer.drzwi, chodz_pietra, tolerancja, log=print,
+                                  klucze=planer.klucze, uzyj_klucz=akcje.uzyj_klucz)
         return chodz_pietra(punkty, tolerancja)
 
     def chodz_pietra(punkty, tolerancja=0):

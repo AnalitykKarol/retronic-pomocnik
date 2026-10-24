@@ -17,6 +17,7 @@ import widma  # noqa: E402
 
 ID_GOLD, ID_PLATINUM, ID_BLANK, ID_HAM = 3031, 3035, 3147, 3582
 SLOT_AMUNICJI = 10          # slot ekwipunku Tibii, w którym lądują monety po wymianie w banku (22.10 wydra)
+SLOT_PLECAKA = 3            # slot ekwipunku Tibii z plecakiem postaci (kontenery.py: 3 = plecak)
 ID_BAGOW = {2868, 2869, 2854}               # purple / blue / zwykły plecak jako przedmiot w plecaku
 ID_UH = 3160
 ID_RUNY_BAGU = {ID_BLANK, ID_UH, 3198}      # blank / UH / HMM: to, co leży w worku na runy
@@ -321,6 +322,9 @@ def _rozdziel_plecaki(kon):
     przeniesiony do depo, a jego okno zostało), główny = jedyny bez przewagi run, a gdy obaj bez run, jedyny niepusty.
     Więcej niż dwa okna albo brak jednoznacznego wyniku = SerwisBlad (nie zgadujemy)."""
     grupa = [k for k in kon if _nazwa(k) in NAZWY_GLOWNE]
+    z_ekw = [k for k in kon if k.get("glowny_ekw")]          # 24.10: plecak z ekwipunku o nazwie spoza NAZWY_GLOWNE (odchyd: "blue backpack")
+    if len(z_ekw) == 1:
+        return z_ekw[0], grupa                              # okna "backpack"/"bag" to wtedy worki na runy zagnieżdżone w plecaku
     if len(grupa) <= 1:
         return (grupa[0] if grupa else None), []
     glowny = None
@@ -346,13 +350,15 @@ def _ten_sam(a, b):
 def _czy_glowny(k, kon):
     """Czy `k` (element listy `kon`) to główny plecak; rozróżnia też dwa okna o tej samej nazwie (`_rozdziel_plecaki`)."""
     glowny, _ = _rozdziel_plecaki(kon)
-    return glowny is not None and _nazwa(k) in NAZWY_GLOWNE and _ten_sam(glowny, k)
+    return glowny is not None and (_nazwa(k) in NAZWY_GLOWNE or bool(k.get("glowny_ekw"))) and _ten_sam(glowny, k)
 
 
 def _czy_bag(k, kon):
     """Bag na runy: kontener inny niż główny plecak i depo, o nazwie plecaka/torby (np. "blue backpack", "purple backpack"),
     albo drugie okno o nazwie plecaka, które nie jest głównym (zwykły backpack jako worek, Thais 22.10)."""
     n = _nazwa(k)
+    if k.get("glowny_ekw"):
+        return False                                        # plecak z ekwipunku nie bywa workiem na runy
     if n in NAZWY_GLOWNE:
         return any(_ten_sam(k, b) for b in _rozdziel_plecaki(kon)[1])
     return n not in NAZWY_DEPO and ("backpack" in n or n.endswith("bag") or "pouch" in n)
@@ -420,6 +426,11 @@ class AkcjeZywe:
                                stan_zakladek=self._ops.stan_zakladek, przelacz=self._kliknij_zakladke)
         self._bot = bot
 
+    def uzyj_klucz(self, id_klucza, cel, poz):
+        """24.10 (Ab'Dendriel): klucz `id_klucza` z plecaka na drzwiach `cel` (Ctrl+klik na kluczu, klik na drzwiach), z pola `poz` obok
+        drzwi. Wzór wypad._drzwi; klucza brak w otwartych pojemnikach = wypad.BrakPrzedmiotu (serwis.przejdz_drzwi robi z tego SerwisBlad)."""
+        self._ops.uzyj_klucz(id_klucza, cel, poz)
+
     def _kliknij_zakladke(self, x, y):
         """Lewy klik w kartę zakładki czatu (pozycja z pamięci klienta, nie stała)."""
         with self._mysz() as m:
@@ -434,7 +445,32 @@ class AkcjeZywe:
             if powod and "nie widzi otwartych" in powod:
                 return []                 # gniazdo działa, tylko nic nie jest otwarte
             raise SerwisBlad("odczyt", f"pamięć kontenerów: {powod}")
-        return kon
+        return self._oznacz_plecak_ekw(kon)
+
+    def _id_plecaka_ekw(self):
+        """Id plecaka ze slotu 3 ekwipunku (raz na instancję; brak odczytu = None i kolejna próba przy następnym wywołaniu)."""
+        ident = getattr(self, "_plecak_ekw_id", None)
+        if ident is None and time.monotonic() - getattr(self, "_plecak_ekw_proba", float("-inf")) >= 30.0:
+            self._plecak_ekw_proba = time.monotonic()           # kontenery() wołane jest w pętlach: nieudanego odczytu nie ponawiamy co chwilę
+            q = (self._ekwipunek() or {}).get(str(SLOT_PLECAKA)) or {}
+            ident = self._plecak_ekw_id = q.get("id")
+        return ident
+
+    def _oznacz_plecak_ekw(self, kon):
+        """24.10 (odchyd, Thais): w ekwipunku nosi "Blue backpack" (2869), a worek na runy to zwykły backpack (2854) W NIM; nazwy okien
+        odwracały role (główny = worek z HMM, "po depo zostanie 0 gp" przy 1224 gp). Pamięć kontenerów nie podaje rodzica, więc
+        porównujemy z plecakiem ze slotu 3 ekwipunku: gdy dokładnie jedno otwarte okno ma jego id, a jego nazwa NIE jest z NAZWY_GLOWNE
+        (nie jest też depo) i żadne okno "backpack"/"bag" nie ma tego samego id (wtedy nazwa wystarcza, jak dotąd), dostaje
+        `glowny_ekw` = True i `_rozdziel_plecaki` uznaje je za główne. Brak odczytu ekwipunku albo niejednoznaczność = bez zmian."""
+        ident = self._id_plecaka_ekw()
+        if ident is None:
+            return kon
+        if any(k.get("id") == ident and _nazwa(k) in NAZWY_GLOWNE for k in kon):
+            return kon
+        trafione = [k for k in kon if k.get("id") == ident and _nazwa(k) not in NAZWY_DEPO]
+        if len(trafione) != 1:
+            return kon
+        return [dict(k, glowny_ekw=True) if k is trafione[0] else k for k in kon]
 
     def ilosc(self, ids, bez=NAZWY_DEPO):
         """Suma sztuk przedmiotów o ID z `ids` we wszystkich otwartych kontenerach poza depo."""
@@ -698,11 +734,11 @@ class AkcjeZywe:
 
     def _otworz_plecak_z_ekwipunku(self, m, u):
         """Ctrl+klik na plecaku w ekwipunku (pozycja z układu panelu, nie ze stałej); sprawdza, że przybył kontener plecaka."""
-        ile0 = len([k for k in self.kontenery() if _nazwa(k) in NAZWY_GLOWNE])    # po nazwie: worek-backpack też jest takim oknem
+        ile0 = len([k for k in self.kontenery() if _nazwa(k) in NAZWY_GLOWNE or k.get("glowny_ekw")])    # po nazwie: worek-backpack też jest takim oknem
         self.log("okna: otwieram plecak z ekwipunku")
         m.klik(*u["plecak_ekw"], 1, "Control_L", drganie=2)
         time.sleep(1.4)
-        ile1 = len([k for k in self.kontenery() if _nazwa(k) in NAZWY_GLOWNE])
+        ile1 = len([k for k in self.kontenery() if _nazwa(k) in NAZWY_GLOWNE or k.get("glowny_ekw")])
         if ile1 <= ile0:
             raise SerwisBlad("okna", "plecak z ekwipunku się nie otworzył")
 

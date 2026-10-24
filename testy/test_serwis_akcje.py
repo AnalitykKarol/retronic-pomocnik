@@ -51,12 +51,13 @@ class Symulacja:
     """Pamięć kontenerów: {numer: {"nazwa", "poj", "widoczne", "p": [ {id, ilosc} ]}}; numer rosnący = okno od góry w dół.
     `spada`: przeciągnięcie nie trafia w cel (przedmiot ląduje na podłodze); `ceny`: ile gp zabiera NPC przy zakupie."""
 
-    def __init__(self, glowny, depo=None, bag=None, widoczne_depo=16, nazwa_bagu="blue backpack"):
+    def __init__(self, glowny, depo=None, bag=None, widoczne_depo=16, nazwa_bagu="blue backpack", nazwa_glownego="backpack",
+                 id_bagu=None, id_glownego=None):
         self.kon, n = {}, 0
         if bag is not None:
-            self.kon[n] = {"nazwa": nazwa_bagu, "poj": 20, "widoczne": 20, "p": [dict(x) for x in bag]}
+            self.kon[n] = {"nazwa": nazwa_bagu, "poj": 20, "widoczne": 20, "p": [dict(x) for x in bag], "id": id_bagu}
             n += 1
-        self.kon[n] = {"nazwa": "backpack", "poj": 20, "widoczne": 20, "p": [dict(x) for x in glowny]}
+        self.kon[n] = {"nazwa": nazwa_glownego, "poj": 20, "widoczne": 20, "p": [dict(x) for x in glowny], "id": id_glownego}
         n += 1
         if depo is not None:
             self.kon[n] = {"nazwa": "depot chest", "poj": 30, "widoczne": widoczne_depo, "p": [dict(x) for x in depo]}
@@ -66,6 +67,7 @@ class Symulacja:
 
     def pamiec(self):
         return [{"numer": n, "nazwa": k["nazwa"], "pojemnosc": k["poj"],
+                 **({"id": k["id"]} if k.get("id") else {}),
                  "przedmioty": [dict(slot=i, id=q["id"], ilosc=q["ilosc"]) for i, q in enumerate(k["p"])]}
                 for n, k in sorted(self.kon.items())]
 
@@ -119,7 +121,7 @@ class Testowe(A.AkcjeZywe):
         return {"gracz": self._gracz_dane} if z["cmd"] == "gracz" else {"stwory": self._stwory_dane}
 
     def kontenery(self):
-        return self.sym.pamiec()
+        return self._oznacz_plecak_ekw(self.sym.pamiec())          # jak AkcjeZywe.kontenery: ten sam kod oznaczania plecaka z ekwipunku
 
     def ilosc(self, ids, bez=("locker", "depot chest")):
         return self.sym.ile(ids)
@@ -320,6 +322,60 @@ sym = Symulacja([{"id": BAG, "ilosc": 1}, {"id": PLAT, "ilosc": 9}], depo=[], ba
 a = Testowe(sym)
 sprawdz("1p13 Edron: \"blue backpack\" + \"backpack\": główny = backpack, bag = blue", a._glowny()["nazwa"] == "backpack"
         and [A._czy_bag(k, a.kontenery()) for k in a.kontenery()] == [True, False, False], a.kontenery())
+
+
+# 24.10 (odchyd, Thais, refill 14:05): w ekwipunku (slot 3) jest "Blue backpack" (2869), a worek na runy to zwykły backpack (2854) leżący
+# W NIM. Serwis brał okno o nazwie "backpack" (worek z 20 HMM) za główny plecak, a "blue backpack" (z monetami) za worek:
+# "po depo zostanie 0 gp (majątek 0 gp)" przy 1224 gp w plecaku. Rozstrzyga id plecaka ze slotu 3 ekwipunku (`_oznacz_plecak_ekw`).
+ODCHYD_G = [{"id": PLAT, "ilosc": 12}, {"id": HMM, "ilosc": 1}, {"id": GOLD, "ilosc": 24}, {"id": WOREK, "ilosc": 1}, {"id": LOPATA, "ilosc": 1}]
+ODCHYD_W = [{"id": HMM, "ilosc": 1}] * 20
+
+
+def odchyd(depo=None, ekw=True):
+    sym = Symulacja(ODCHYD_G, depo=depo, bag=ODCHYD_W, nazwa_bagu="backpack", nazwa_glownego="blue backpack", id_bagu=2854, id_glownego=2869)
+    if ekw:
+        sym.ekw = {3: {"id": 2869, "ilosc": 1}, 10: {"id": LINA, "ilosc": 1}}
+    return sym
+
+
+a = Testowe(odchyd(depo=[]))
+g = a._glowny()
+sprawdz("1s odchyd: główny = \"blue backpack\" z ekwipunku (slot 3), nie zagnieżdżony \"backpack\" z HMM", g and g["nazwa"] == "blue backpack", g)
+kon = a.kontenery()
+sprawdz("1s2 odchyd: bag na runy = zagnieżdżony \"backpack\", \"blue backpack\" nie jest bagiem",
+        [A._czy_bag(k, kon) for k in kon] == [True, False, False] and [A._czy_glowny(k, kon) for k in kon] == [False, True, False],
+        [(k["nazwa"], A._czy_bag(k, kon), A._czy_glowny(k, kon)) for k in kon])
+sprawdz("1s3 odchyd: majątek tylko z głównego = 12 platinum + 24 gold = 1224 gp (nie 0)", a.majatek(tylko_glowny=True) == 1224, a.majatek(True))
+sprawdz("1s4 odchyd: bag już jest (zwykły backpack w plecaku), nowy nie jest potrzebny", a.potrzeba_baga() is False)
+import serwis as _S
+logi = []
+S = _S.Serwis.__new__(_S.Serwis)
+S.akcje, S.log, S.cele = a, logi.append, {"ham": 5, "blanki": 20, "platinum_zostaw": 3, "ham_min": 2}
+e = zglasza(lambda: S._kontrola_budzetu(["bank", "depo", "jedzenie", "backpack", "blanki", "wyjscie"], []))
+sprawdz("1s5 odchyd: kontrola budżetu przed depo przechodzi (po depo zostaje 3 platinum + 24 gold = 324 gp >= koszt)", e is None, (e and e.powod, logi))
+sym = odchyd(depo=[])
+e = zglasza(lambda: Testowe(sym).depo_zloz(3))
+sprawdz("1s6 odchyd: depo odkłada worek (z HMM) i platinum ponad 3; plecak zostaje otwarty, okno worka zamknięte",
+        e is None and sym.ile({PLAT}) == 3 and not any(q["id"] == WOREK for q in sym.kon[1]["p"])
+        and any(q["id"] == WOREK for q in sym.depo()["p"]) and [k["nazwa"] for k in sym.kon.values()] == ["blue backpack"],
+        (e and e.powod, sym.kon, sym.depo()))
+# bez odczytu ekwipunku zachowanie jak dotąd (brak zgadywania): nic nie oznaczone, główny = okno "backpack"
+a = Testowe(odchyd(depo=[], ekw=False))
+sprawdz("1s7 bez odczytu ekwipunku: jak dotąd (okno \"backpack\" jest głównym), nic nie oznaczone", a._glowny()["nazwa"] == "backpack"
+        and not any(k.get("glowny_ekw") for k in a.kontenery()))
+# Edron: w slocie 3 zwykły plecak (2854), "blue backpack" (2869) to bag -> reguły bez zmian
+sym = Symulacja([{"id": BAG, "ilosc": 1}, {"id": PLAT, "ilosc": 9}], depo=[], bag=[{"id": UH, "ilosc": 1}] * 3, id_bagu=2869, id_glownego=2854)
+sym.ekw = {3: {"id": 2854, "ilosc": 1}}
+a = Testowe(sym)
+sprawdz("1s8 Edron z ekwipunkiem: plecak 2854 w slocie 3 -> główny = backpack, bag = blue backpack (bez zmian)",
+        a._glowny()["nazwa"] == "backpack" and [A._czy_bag(k, a.kontenery()) for k in a.kontenery()] == [True, False, False], a.kontenery())
+# wydra: dwa okna "backpack" (oba 2854) i plecak 2854 w slocie 3 -> rozstrzyga zawartość jak dotąd
+sym = wydra(depo=[])
+for k_ in sym.kon.values():
+    k_["id"] = 2854
+sym.ekw = {3: {"id": 2854, "ilosc": 1}}
+g = Testowe(sym)._glowny()
+sprawdz("1s9 wydra z ekwipunkiem: dwa okna 2854 -> główny nadal ten z workiem w środku (numer 1)", g and g["numer"] == 1, g)
 
 
 # R5: nie scalamy ze stosem, gdy suma przekroczyłaby 100

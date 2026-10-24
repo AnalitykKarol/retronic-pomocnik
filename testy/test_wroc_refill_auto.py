@@ -155,6 +155,44 @@ sprawdz("2l bot nie zatrzymał się w limicie: rezygnacja (kod 1), nic nie ubija
 kod, wyw = czekaj_t(Proc(bot_n=1), rc=1, out="bot działa (pid 5), zatrzymaj: ./zatrzymaj.sh")
 sprawdz("2m refill.sh odmówił: pominiety z jego komunikatem, kod odmowy", kod == 1 and cz()["stan"] == "pominiety" and "bot działa" in cz()["powod"], (kod, cz()))
 
+# 24.10 (przegląd): zmienne jednego refillu (REFILL_KROKI/TRYB/BEZ_WYJSCIA) odziedziczone po poprzednim refillu nie przechodzą do refill.sh czekacza
+# (cap: bank,wyjscie wyciekało do bota -> kolejny refill po blanki bez blanków). Obca zmienna zostaje; bez wycieku wołanie jak dotąd, bez env=.
+import zostan_depo as ZD_
+def uruchom_z_env(wyw):
+    def u(cmd, **kw):
+        wyw.append((list(map(str, cmd)), kw)); return subprocess.CompletedProcess(cmd, 0, "", "")
+    return u
+def refill_env(powody, srodowisko):
+    """-> kwargs wołania refill.sh przez czekacza (atrapa uruchom) przy `os.environ` = `srodowisko` i powodach depo `powody`."""
+    czysc(); (stan / ZD_.PLIK_WYPRAWY).write_text(json.dumps({"aktywna": True, "depo_start_powody": powody}))
+    wyw_ = []; t_ = [0.0]; stare = dict(_os.environ)
+    try:
+        for k_ in ("REFILL_KROKI", "REFILL_TRYB", "REFILL_BEZ_WYJSCIA", "OBCA_ZMIENNA_TESTU"): _os.environ.pop(k_, None)
+        _os.environ.update(srodowisko)
+        refill_auto.czekaj(stan, procesy=Proc(bot_n=1), uruchom=uruchom_z_env(wyw_), spij=lambda s_: t_.__setitem__(0, t_[0] + s_), zegar=lambda: t_[0])
+    finally:
+        _os.environ.clear(); _os.environ.update(stare)
+    ref = [kw for cmd, kw in wyw_ if any(c.endswith("refill.sh") for c in cmd)]
+    if len(ref) != 1: return None
+    kw_ = dict(ref[0])
+    if "env" in kw_: kw_["env"] = {k_: v_ for k_, v_ in kw_["env"].items() if k_.startswith(("REFILL_", "OBCA_"))}   # w razie FAIL bez zrzutu całego środowiska
+    return kw_
+WYCIEK = {"REFILL_KROKI": "bank,wyjscie", "REFILL_TRYB": "cap", "REFILL_BEZ_WYJSCIA": "1", "OBCA_ZMIENNA_TESTU": "zostaje"}
+kw = refill_env(["blanki"], WYCIEK)
+e = (kw or {}).get("env")
+sprawdz("2m1 wyciek REFILL_* + powód blanki: refill.sh dostaje env bez KROKI/TRYB/BEZ_WYJSCIA, obca zmienna zostaje",
+        e is not None and not any(k_ in e for k_ in ("REFILL_KROKI", "REFILL_TRYB", "REFILL_BEZ_WYJSCIA")) and e.get("OBCA_ZMIENNA_TESTU") == "zostaje", kw)
+kw = refill_env(["blanki"], {"OBCA_ZMIENNA_TESTU": "zostaje"})
+sprawdz("2m2 bez wycieku i bez capa: wołanie jak dotąd, bez env=", kw is not None and "env" not in kw, kw)
+kw = refill_env(["cap"], WYCIEK)
+e = (kw or {}).get("env")
+sprawdz("2m3 wyciek + powód cap: REFILL_KROKI = KROKI_CAP, TRYB i BEZ_WYJSCIA wyczyszczone, obca zostaje",
+        e is not None and e.get("REFILL_KROKI") == refill_auto.KROKI_CAP and "REFILL_TRYB" not in e and "REFILL_BEZ_WYJSCIA" not in e
+        and e.get("OBCA_ZMIENNA_TESTU") == "zostaje", kw)
+kw = refill_env(["cap"], {})
+sprawdz("2m4 cap bez wycieku: env z REFILL_KROKI = KROKI_CAP", (kw or {}).get("env", {}).get("REFILL_KROKI") == refill_auto.KROKI_CAP, kw)
+czysc()
+
 # zostan_w_depo (23.10, Karol): flaga w instancje/_wspolne/plan_postaci.json wyłącza auto-refill, także gdy WROC_REFILL=1 wrócił z trybu runy/uh
 inst_root = tmp / "instancje"; (inst_root / "_wspolne").mkdir(parents=True)
 plan_plik = inst_root / "_wspolne" / "plan_postaci.json"

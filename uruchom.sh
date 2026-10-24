@@ -1,6 +1,7 @@
 #!/bin/bash
 # Start bota Retronic (mozg.py hybryda). Trasa: thais_szczury (Thais z8); rook: --trasa patrol (albo kanaly2, kanaly3). Odmawia, gdy bot już działa albo brak gry.
 DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+unset REFILL_KROKI REFILL_TRYB REFILL_BEZ_WYJSCIA   # 24.10: zmienne jednego refillu (np. cap: bank,wyjscie) nie przechodzą do bota i jego następnych refillów
 INST=$(python3 -I "$DIR/instancja.py" powloka) || exit 1; eval "$INST"   # RETRONIC_ID -> INST_* (bez ID: dzisiejsze ścieżki)
 TYTUL="Bot Retronic${RETRONIC_ID:+ [$RETRONIC_ID]}"
 pidy() { python3 -I "$DIR/instancja.py" pidy '(mozg|cavebot)\.py'; }   # tylko bot tej instancji

@@ -556,7 +556,7 @@ if os.path.exists(p):
 print(json.dumps(w))
 '''
 KLUCZE_PRZEGLADU = {"stan", "w_grze", "test", "zab_h", "exp_h", "dane_wiek_s", "na_spocie_od", "ostatni_alarm", "alarm_24h",
-                    "koniec_sesji", "nadzor", "stop"}
+                    "koniec_sesji", "nadzor", "stop", "stracony", "rola"}      # stracony (24.10 13:45), rola (24.10: np. "bank")
 KLUCZE_OSTATNIE = set(ostatnie.KLUCZE) | {"wiek_s", "blad"}
 
 
@@ -639,6 +639,23 @@ def test_stan_online_ma_kontrakt_i_liczy_zab_h_exp_h():
     assert p["nadzor"] == {"aktywny": True, "powod": None, "do": None, "zrodlo": None}, p["nadzor"]
     assert p["stop"] == {"auto": False, "reczny": False} and p["dane_wiek_s"] == 20.0
     assert w["gracz"] and w["klasa"] == "dziala"                                  # dotychczasowe pola bez zmian
+
+
+def test_stan_stracony_i_rola_z_profilu():
+    """24.10 (Karol): `stracony` (bool) i `rola` (tekst małymi literami albo null) z profil.json dla okna Przeglądu."""
+    tmp = korzen_okna({
+        "zwykla": {"profil": {"postac": "A", "nadzor": False}},
+        "bank": {"profil": {"postac": "B", "nadzor": False, "rola": "bank"}},
+        "bank2": {"profil": {"postac": "C", "nadzor": False, "rola": " Bank "}},
+        "stracona": {"profil": {"postac": "D", "nadzor": False, "stracony": "2026-10-24 14:11:00: wyeliminowana"}},
+        "pusta": {"profil": {"postac": "E", "rola": "", "stracony": ""}},
+        "zla": {"profil": {"postac": "F", "rola": 5}}})
+    kod, d = okno(tmp, "stan")
+    assert kod == 0 and d["ok"] is True, d
+    pole = {i: (inst(d, i)["przeglad"]["stracony"], inst(d, i)["przeglad"]["rola"])
+            for i in ("zwykla", "bank", "bank2", "stracona", "pusta", "zla")}
+    assert pole == {"zwykla": (False, None), "bank": (False, "bank"), "bank2": (False, "bank"), "stracona": (True, None),
+                    "pusta": (False, None), "zla": (False, None)}, pole
 
 
 def test_stan_nieaktualne_dane_nie_daja_zab_h_exp_h():

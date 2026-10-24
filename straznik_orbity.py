@@ -20,6 +20,15 @@ Dwie części:
     Każdy sposób ma limit czasu AKTYWNEGO (bez czasu walki/lootu, który ma pierwszeństwo). Po ROTACJE_N pełnych nieudanych rotacjach
     jedno zwykłe powiadomienie (nie critical, bez STOP, rzadko) i dalsza rotacja z dłuższymi pauzami. Kolejny epizod w ciągu
     POWROTY_OKNO_S zaczyna od mocniejszej naprawy (rotacja punktu).
+  * PĘTLA (24.10, Wydra 12:43-12:49: 6,5 min w kieszeni 4x4 pola, 0 zabić; Karol: „bot nie może wykonywać tych samych czynności
+    po kolei więcej niż 3 razy i nigdy się zapętlić"): trzeci rodzaj zdarzenia tego samego detektora, tylko gdy `STRAZNIK_PETLA=1`
+    (domyślnie 0). Dwa sygnały, oba tylko w stanie IDZ (inne stany zerują), oba kasuje POSTĘP: zabicie (wzrost exp), zmiana piętra,
+    wyjście z ramki:
+      cykl   ta sama sekwencja >= 2 pól powtórzona > `STRAZNIK_PETLA_POWTORZ` (3) razy z rzędu, przez >= `STRAZNIK_PETLA_CYKL_S` s
+      ramka  `STRAZNIK_PETLA_S` (45 s) w ramce <= `STRAZNIK_PETLA_RAMKA` (4) pól na bok, udział walki/lootu <= `STRAZNIK_PETLA_WALKA`
+             (30%); także stanie w miejscu (orbita go nie łapie: MAX_STOJ_UL), bo kieszeń z cichym brakiem kroków to stanie
+    Reakcja jak przy orbicie (rotacja napraw, nigdy STOP), ale bez zakazu pól ramki (kieszeń wychodzi przez własne pola) i od
+    razu z zakazem powtórzenia tego samego planu: klik w inne miejsce, potem rotacja punktu patrolu/trasy.
 Pokrętło `STRAZNIK_ORBITY`: 0 wyłączony (zero zmian w zachowaniu), 1 cień (log `[ORBITA] cień` + telemetria `straznik_orbita`),
 2 działa. Progi: STRAZNIK_ORBITA_S/POL/ZMIAN, STRAZNIK_WYJSCIE_S (stałe w cavebot.py, pokrętła w pokretla.py).
 """
@@ -30,7 +39,12 @@ import ratunek
 from ratunek import STANY_WALKI, STANY_ZAMIERZONE
 
 DOMYSLNE = dict(STRAZNIK_ORBITY=0, STRAZNIK_ORBITA_S=60.0, STRAZNIK_ORBITA_POL=8, STRAZNIK_WYJSCIE_S=90.0,
-                STRAZNIK_ORBITA_ZMIAN=15)
+                STRAZNIK_ORBITA_ZMIAN=15,
+                STRAZNIK_PETLA=0, STRAZNIK_PETLA_S=45.0, STRAZNIK_PETLA_RAMKA=4, STRAZNIK_PETLA_POWTORZ=3,
+                STRAZNIK_PETLA_CYKL_S=12.0, STRAZNIK_PETLA_WALKA=0.3)
+STANY_RUCHU = ("IDZ",)               # PĘTLA liczy tylko ruch zamierzony po trasie; walka/loot dodają się do udziału, reszta stanów zeruje
+PETLA_OKRES_MAX = 8                  # najdłuższy okres cyklu (pól) szukany przez sygnał „cykl"
+PETLA_SPRAWDZ_CO_S = 1.0             # sygnały PĘTLI liczymy najwyżej raz na tyle s (CPU)
 MAX_STOJ_UL = 0.5                    # w oknie nie ma stania (poza walką) dłuższego niż tyle okna: to nie wahadło, tylko przystanek
 PAUZA_S = (3.0, 8.0)                 # losowa pauza (stop chodzenia) po wykryciu, przed pierwszą próbą
 PAUZA_MIEDZY_S = (2.0, 6.0)          # losowa pauza między sposobami naprawy
@@ -67,6 +81,10 @@ class Detektor:
         self.walka = collections.deque()    # (t, poz) pozycji z walki/lootu w oknie: liczą się do obszaru, nie do zmian
         self.pietro_t = 0.0                 # s poza walką na złym piętrze
         self.ost = {}                       # rodzaj -> (t, poz): debounce
+        self.pw = collections.deque()       # PĘTLA: [t, poz, walka] ostatnie STRAZNIK_PETLA_S s (IDZ + walka/loot) od ostatniego postępu
+        self.cykl = collections.deque(maxlen=128)    # PĘTLA: (t, poz) kolejne różne pola w IDZ od ostatniego postępu
+        self.exp_ost = None
+        self.pet_t = float("-inf")
 
     def k(self, nazwa):
         return getattr(self.konf, nazwa, DOMYSLNE[nazwa]) if self.konf is not None else DOMYSLNE[nazwa]
@@ -76,6 +94,9 @@ class Detektor:
         self.biegi.clear()
         self.walka.clear()
         self.pietro_t = 0.0
+        self.pw.clear()
+        self.cykl.clear()
+        self.exp_ost = None
 
     def po_reakcji(self):
         self.reset()
@@ -91,6 +112,12 @@ class Detektor:
         if _pasuje(stan, STANY_ZAMIERZONE):
             self.reset()                    # postój z własnej woli: okno od nowa
             return []
+        petla = int(self.k("STRAZNIK_PETLA")) > 0
+        if petla:
+            self._petla_dodaj(teraz, poz, stan, exp)
+        elif self.pw or self.cykl:
+            self.pw.clear()
+            self.cykl.clear()
         if _pasuje(stan, STANY_WALKI):
             # walka/loot nie zeruje okna i nie jest ruchem orbity (po niej liczymy dalej), ale pola, na których staliśmy
             # w walce, wchodzą do obszaru: pościg o 14 pól w bok to nie ta sama orbita (pomiar 14-20.10: fałszywe wyzwolenia)
@@ -119,7 +146,76 @@ class Detektor:
             nowe += self._zdarzenie("pietro", teraz, poz, trwa_s=round(self.pietro_t, 1), pola=sorted(list(p) for p in pola))
         if teraz - b[0][0] >= okno:
             nowe += self._orbita(teraz, poz)
+        if petla and teraz - self.pet_t >= PETLA_SPRAWDZ_CO_S:
+            self.pet_t = teraz
+            nowe += self._petla(teraz, poz)
         return nowe
+
+    # --- PĘTLA: ta sama sekwencja pól > N razy albo >= STRAZNIK_PETLA_S s w małej ramce bez postępu ---
+    def _petla_dodaj(self, teraz, poz, stan, exp):
+        """Bieżąca próbka do okien PĘTLI. Postęp (wzrost exp = zabicie, zmiana piętra) kasuje oba okna; stan inny niż IDZ/walka/loot
+        (wypad, pet, powrót ze stanowiska...) też: to nie jest ruch po trasie."""
+        prev, self.exp_ost = self.exp_ost, exp
+        walka = _pasuje(stan, STANY_WALKI)
+        if not walka and not _pasuje(stan, STANY_RUCHU):
+            self.pw.clear()
+            self.cykl.clear()
+            return
+        pw = self.pw
+        if pw and ((exp is not None and prev is not None and exp > prev) or pw[-1][1][2] != poz[2]):
+            pw.clear()
+            self.cykl.clear()
+        pw.append((teraz, poz, walka))
+        okno = float(self.k("STRAZNIK_PETLA_S"))
+        while len(pw) >= 2 and pw[1][0] <= teraz - okno:
+            pw.popleft()
+        if not walka and (not self.cykl or self.cykl[-1][1] != poz):
+            self.cykl.append((teraz, poz))
+
+    def _petla(self, teraz, poz):
+        zd = self._petla_cykl(teraz, poz)
+        if zd is None:
+            zd = self._petla_ramka(teraz, poz)
+        return zd or []
+
+    def _petla_cykl(self, teraz, poz):
+        c = list(self.cykl)
+        n = int(self.k("STRAZNIK_PETLA_POWTORZ"))
+        for okres in range(2, PETLA_OKRES_MAX + 1):
+            potrzeba = (n + 1) * okres
+            if len(c) < potrzeba:
+                break
+            seg = c[-potrzeba:]
+            if not all(seg[i][1] == seg[i - okres][1] for i in range(okres, potrzeba)):
+                continue
+            czas = seg[-1][0] - seg[0][0]
+            if czas < float(self.k("STRAZNIK_PETLA_CYKL_S")):
+                continue
+            pola = sorted({tuple(q[1]) for q in seg})
+            return self._zdarzenie("petla", teraz, poz, sygnal="cykl", okres=okres, powtorzen=n + 1, czas_s=round(czas, 1),
+                                   pola=[list(q) for q in pola], zmian=potrzeba - 1, exp_przyrost=0)
+        return None
+
+    def _petla_ramka(self, teraz, poz):
+        pw = self.pw
+        okno = float(self.k("STRAZNIK_PETLA_S"))
+        if len(pw) < 2 or teraz - pw[0][0] < okno:
+            return None
+        xs = [r[1][0] for r in pw]
+        ys = [r[1][1] for r in pw]
+        ramka = int(self.k("STRAZNIK_PETLA_RAMKA"))
+        sz, wy = max(xs) - min(xs) + 1, max(ys) - min(ys) + 1
+        if sz > ramka or wy > ramka:
+            return None
+        pelny = teraz - pw[0][0]
+        walka_s = sum(pw[i + 1][0] - pw[i][0] for i in range(len(pw) - 1) if pw[i][2])
+        if walka_s > float(self.k("STRAZNIK_PETLA_WALKA")) * pelny:
+            return None
+        pola = sorted({tuple(r[1]) for r in pw})
+        zmian = sum(1 for i in range(1, len(pw)) if pw[i][1] != pw[i - 1][1])
+        return self._zdarzenie("petla", teraz, poz, sygnal="ramka", ramka=[sz, wy], czas_s=round(pelny, 1),
+                               walka_udzial=round(walka_s / pelny, 2) if pelny else 0.0,
+                               pola=[list(q) for q in pola], zmian=zmian, exp_przyrost=0)
 
     def _orbita(self, teraz, poz):
         b = self.biegi
@@ -205,6 +301,12 @@ class Reakcja:
     def _opis(zd):
         if zd["rodzaj"] == "pietro":
             return f"złe piętro z{zd['poz'][2]} od {zd.get('trwa_s')} s"
+        if zd["rodzaj"] == "petla":
+            if zd.get("sygnal") == "cykl":
+                return (f"ta sama sekwencja {zd.get('okres')} pól powtórzona {zd.get('powtorzen')} razy w {len(zd.get('pola') or [])} polach "
+                        f"przez {zd.get('czas_s')} s bez postępu")
+            return (f"{zd.get('czas_s')} s w ramce {zd.get('ramka')} ({len(zd.get('pola') or [])} pól, {zd.get('zmian')} zmian, "
+                    f"walka {zd.get('walka_udzial')}) bez zabicia ani zmiany piętra")
         return f"{zd.get('zmian')} zmian w {len(zd.get('pola') or [])} polach przez {zd.get('czas_s')} s, stany {zd.get('stany')}"
 
     # --- wejście: zdarzenie z detektora ---
@@ -217,7 +319,7 @@ class Reakcja:
         zle = zd["rodzaj"] == "pietro" or bool(wp is not None and not wp._trasa_na_pietrze(zd["poz"][2]))
         self.ep = {"zd": zd, "t0": teraz, "z": zd["poz"][2], "pola": [tuple(p) for p in zd.get("pola") or [tuple(zd["poz"])]],
                    "nr": self.epizody, "powrot": powrot, "zle": zle, "runda": 0, "n_met": 0, "kolejka": [],
-                   "uzyte_kliki": [], "uzyte_cele": [], "powiadomiono": False}
+                   "uzyte_kliki": [], "uzyte_cele": [], "powiadomiono": False, "petla": zd["rodzaj"] == "petla"}
         self.historia = []
         self.log(f"[ORBITA] wykryto {zd['rodzaj']} w {tuple(zd['poz'])}: {self._opis(zd)}; zatrzymuję chodzenie"
                  f"{' (kolejny epizod w 30 min: zaczynam od zmiany punktu)' if powrot else ''}.")
@@ -271,6 +373,8 @@ class Reakcja:
         ep = self.ep
         if ep["zle"]:
             return ["plan", "klik", "krok"]
+        if ep["petla"] and ep["runda"] == 0 and not ep["powrot"]:
+            return ["klik", "punkt", "wyjscie", "astar", "plan", "krok"]   # PĘTLA: najpierw inne miejsce, zaraz potem inny plan (punkt/trasa)
         if ep["runda"] == 0 and not ep["powrot"]:
             return ["wyjscie", "klik", "punkt", "astar", "plan", "krok"]
         if ep["runda"] == 0:                  # kolejny epizod w krótkim czasie: mocniejsza naprawa od razu
@@ -383,6 +487,8 @@ class Reakcja:
 
     # --- sposoby: _s_<nazwa> = start (True = zastosowano), _t_<nazwa> = obieg ---
     def _zakazane(self, p):
+        if self.ep.get("petla"):
+            return []                    # PĘTLA: kieszeń/ramka wychodzi przez własne pola (Wydra: jedyne wyjście obok pola pętli)
         return [(q[0], q[1]) for q in self.ep["pola"] if tuple(q[:2]) != tuple(p[:2]) and q[2] == p[2]]
 
     def _stwory_xy(self, p):

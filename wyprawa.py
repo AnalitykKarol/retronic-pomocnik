@@ -136,6 +136,16 @@ PLANY_PK = (
     # przez most Thais do depo (bez liny i dziury), "z" = dojście = prefiks dojść z8/z9. Bez "wyjscia": pętla i początek "do" leżą na jednym piętrze (A* po z7).
     {"nazwa": "trolle_kazordoon_z7", "do": "trolle_kazordoon_z7_do_depo.json", "z": "trolle_kazordoon_z7_dojscie.json",
      "npc": None, "prefix": False, "zasieg": ZASIEG_KAZORDOON},
+    # 24.10 (generuj_powrot_abdendriel.py, Marinarra, abdendriel_trolle_z10_z9): "do" = lina z10 -> z9, jaskinia z9 (A*), dwoje drzwi, schody w gore z9 -> z8,
+    # korytarz z8 do poczatku nagrania depo -> trolle; "z" = to nagranie (konczy sie w jaskini z9, nie na z10: tylko powrot po karencji PK, a WROC go nie uzywa).
+    # SUBSTITUTE DECISION (be-dev): cel depo = (32679,31687,z8), pierwszy punkt nagrania, NIEPOMIERZONY; poprawka = stala DEPO_STOI w generatorze + --zapisz.
+    # Bez "wyjscia" (oba konce na jednym pietrze z "do"). Plan jest tez w BAZY_PK (ucieczka PK): z pozycji w jaskini z9/z10 zaprowadzi do tego samego depo.
+    {"nazwa": "abdendriel_trolle_z10", "do": "abdendriel_trolle_do_depo.json", "z": "abdendriel_depo_trolle_nagranie.json",
+     "npc": None, "prefix": False, "drzwi": True,      # "drzwi": dwoje zamknietych drzwi z9 w "do" -> etapy DRZWI (Wyprawa._zbuduj_depo)
+     # 24.10 (Karol: Marinarra „nie umie uzyc klucza na drzwiach”): drzwi na klucz = etap DRZWI z "klucz": <id> (wypad._drzwi: krok, potem Use klucza z plecaka na
+     # kafelku drzwi, krok). 2970 = a copper key (Elathriel, 5000 gp). NIEPOTWIERDZONE: czy klucz z plecaka Marinarry pasuje do OBU drzwi (numer klucza nie jest w danych).
+     # Jedno zrodlo prawdy: generuj_powrot_abdendriel.KLUCZE_DRZWI (test_powrot_abdendriel sprawdza zgodnosc).
+     "klucze": (((32658, 31645, 9), 2970), ((32655, 31655, 9), 2970))},
 )
 BAZY_PK = BAZY + tuple(p["nazwa"] for p in PLANY_PK)     # plany dostępne dla ucieczki PK (troll: istniejące depo Thais)
 PK_PLAN_ZASIEG = 80                    # pola: ucieczka PK startuje z dalszej okolicy trasy niż zwykły wypad (zasięg 40)
@@ -1612,6 +1622,21 @@ class Wyprawa(Wypad):
                 "wyniki": {}, "kroki": 0, "sukces": False, "potrzeby": dict(potrzeby)}, None
 
     @staticmethod
+    def _oznacz_klucze(baza_nazwa, etapy):
+        """24.10: etapom DRZWI planu z PLANY_PK["klucze"] dopisuje "klucz": <id> (drzwi zamkniete na klucz). Pozostale etapy i plany bez zmian."""
+        klucze = {tuple(d): int(k) for p in PLANY_PK if p["nazwa"] == baza_nazwa for d, k in (p.get("klucze") or ())}
+        if klucze:
+            for e in etapy:
+                if e.get("typ") == "DRZWI" and tuple(e["drzwi"]) in klucze:
+                    e["klucz"] = klucze[tuple(e["drzwi"])]
+        return etapy
+
+    @staticmethod
+    def _plan_z_drzwiami(baza_nazwa):
+        """24.10: plan z PLANY_PK z kluczem "drzwi": True (jego "do" przechodzi przez drzwi, ktore mapa zna jako sciane)."""
+        return any(p["nazwa"] == baza_nazwa and p.get("drzwi") for p in PLANY_PK)
+
+    @staticmethod
     def _plan_tylko_pk(baza_nazwa):
         """Plan z PLANY_PK (np. edron): cel depo = koniec nagranej trasy "do", bez Gorna/Frodo i bez depo Thais."""
         return baza_nazwa in {p["nazwa"] for p in PLANY_PK}
@@ -1669,7 +1694,10 @@ class Wyprawa(Wypad):
             if obszar:
                 cel = tuple(pts[-1])
         mapa = getattr(self.cb, "mapa", None)
-        etapy = zbuduj_etapy([_punkt(q) for q in pts], mapa)
+        # 24.10 (abdendriel_trolle_z10): plan z kluczem "drzwi" ma w "do" zamkniete drzwi nagrane przez gracza (mapa widzi je jako sciane); etapy DRZWI
+        # (Use + krok, wypad.DRZWI_PROB prob) zamiast marszu w sciane. Opt-in: pozostale plany PLANY_PK buduja sie dokladnie jak dotad.
+        drzwi = drzwi_z_mapy([_punkt(q) for q in pts], mapa) if self._plan_z_drzwiami(baza_nazwa) and mapa is not None else ()
+        etapy = self._oznacz_klucze(baza_nazwa, zbuduj_etapy([_punkt(q) for q in pts], mapa, drzwi))
         powrot = zbuduj_etapy([cel], mapa)           # bez WYPRAWA_DEPO_POWROT nieużywany: po dojściu STOP
         if int(self._kw("WYPRAWA_DEPO_POWROT")) and not potrzeby.get("reczny"):
             if self._plan_tylko_pk(baza_nazwa):          # depo spotu z PLANY_PK (Edron): powrót nagraną trasą depo -> łowisko
@@ -1681,7 +1709,7 @@ class Wyprawa(Wypad):
                 powrot = pw
             else:
                 self.log("Wyprawa: brak trasy powrotnej z depo (depo_troll_cave), po dojściu będzie STOP")
-        for b in sprawdz_plan(etapy, mapa, rampy_ok=True):
+        for b in sprawdz_plan(etapy, mapa, drzwi, rampy_ok=True):
             self.log(f"Wyprawa: plan depo: {b}")
         st = {"id": "depo", "npc": "", "stoi": cel, "zakupy": [], "depo": True}
         if obszar:

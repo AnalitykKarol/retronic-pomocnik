@@ -149,6 +149,45 @@ def zapomnij_prostokat(rozmiar=None):
     return stare
 
 
+def _scal_przedzialy(przedzialy, luka):
+    """Scala sąsiednie przedziały rozdzielone przerwą <= `luka` px (24.10: jeden jasny piksel w ramce nie rozbija jej na dwa odcinki)."""
+    wynik = []
+    for a, b in przedzialy:
+        if wynik and a - wynik[-1][1] <= luka:
+            wynik[-1] = (wynik[-1][0], b)
+        else:
+            wynik.append((a, b))
+    return wynik
+
+
+def _z_ramki(mx, tlo):
+    """Prostokąt mapy z jej 1-px czarnej ramki (24.10): wiersz czarny (mx <= 8) na długim odcinku (>= 1/3 szerokości), nad którym
+    (góra) albo pod którym (dół) jest tło UI. Para góra+dół o tym samym zasięgu poziomym i odstępie zgodnym z 15:11 daje
+    (L, T, R, B) w tej samej konwencji co wykrywanie z treści (L = kolumna ramki, T = pierwszy wiersz za ramką, R = za prawą ramką).
+    Ciemna scena (szare 10..40 liczą się jako tło UI) nie zaburza ramki; pojedynczy jasny piksel w wierszu ramki (przerwa <= 3 px,
+    np. kolumna 980 = 39 na gra_ciemna_kolanoth.png) jej nie rozbija (odcinki scalane). None = brak pary (okno UI zasłania ramkę itp.)."""
+    wys, szer = mx.shape
+    czarne = mx <= 8
+    kandydaci = [y for y in range(1, wys - 1) if czarne[y].sum() >= szer // 3]
+    gory, doly = [], []
+    for y in kandydaci:
+        for p in _scal_przedzialy(_przedzialy(czarne[y]), 3):
+            if p[1] - p[0] < szer // 3:
+                continue
+            if tlo[y - 1, p[0]:p[1]].mean() >= 0.95:
+                gory.append((y, p[0], p[1]))
+            if tlo[y + 1, p[0]:p[1]].mean() >= 0.95:
+                doly.append((y, p[0], p[1]))
+    najlepsza = None
+    for y1, a1, b1 in gory:
+        h = round((b1 - a1) * POLA_Y / POLA_X)
+        for y2, a2, b2 in doly:
+            if y2 > y1 and abs(a1 - a2) <= 3 and abs(b1 - b2) <= 3 and abs((y2 - y1) - h) <= max(6, h // 25):
+                if najlepsza is None or b1 - a1 > najlepsza[2] - najlepsza[0]:
+                    najlepsza = (a1, y1 + 1, b1, y1 + 1 + h)
+    return najlepsza
+
+
 def prostokat_mapy(obraz, zapamietaj=True):
     """Wykrywa (L, T, R, B) mapy na zrzucie. Tło UI jest jednolicie ciemnoszare
     (R~G~B, 10..40), treść mapy już nie (nawet czarna winieta ma wartości < 10).
@@ -194,6 +233,16 @@ def prostokat_mapy(obraz, zapamietaj=True):
                 continue
             break
     rozjazd = abs((B - T) - wysokosc) > max(6, wysokosc // 25)
+    if rozjazd:
+        # 24.10 (odchyd/gebelish w Thais: blok 424 px zamiast 505 px): treść sceny dawała zbyt wąskie L..R, więc klik szedł z ~70% skali.
+        # Czarna ramka mapy jest pewniejsza niż treść: para ramek w proporcji 15:11 zastępuje wykrycie i wynik jest pewny.
+        ramka = _z_ramki(mx, tlo)
+        if ramka is not None:
+            log(f"[EKRAN] mapa: rozjazd bloku ({B - T} px zamiast {wysokosc} px) naprawiony z czarnej ramki mapy: {ramka} "
+                f"(z treści było {(L, T, R, B)})")
+            L, T, R, B = ramka
+            wysokosc = B - T
+            rozjazd = False
     if rozjazd:
         print(f"UWAGA: blok mapy {B - T} px zamiast {wysokosc} px, przyjmuję górę bloku (wynik niepewny, nie zapamiętuję)", file=sys.stderr)
     B = T + wysokosc

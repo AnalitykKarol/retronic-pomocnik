@@ -235,7 +235,7 @@ sprawdz("5g domyślna kolejność w danych to pełna lista z bankiem na początk
 
 # --- 6. wybór miasta w serwis.py: Edron domyślnie bez zmian --------------------------------------------------------------
 
-sprawdz("6a plany serwisu: edron i thais", S.miasta() == ["edron", "thais"], S.miasta())
+sprawdz("6a plany serwisu: abdendriel (24.10), edron i thais", S.miasta() == ["abdendriel", "edron", "thais"], S.miasta())
 sprawdz("6b bez argumentu i bez pozycji = edron (zachowanie sprzed K3)", S.wybierz_miasto(None) == "edron" and S.wybierz_miasto("edron") == "edron")
 sprawdz("6c thais jawnie", S.wybierz_miasto("thais") == "thais")
 e = zglasza(lambda: S.wybierz_miasto("rook"))
@@ -272,8 +272,8 @@ sprawdz("8c panel: jaskinia trolli z8 i Rook poza miastem", panel.miasto_pozycji
         and panel.miasto_pozycji((32061, 32180, 7), panel.dane_serwisu())[0] is None)
 sprawdz("8d panel: sklep Xodeta (32400,32220,7) to Thais, ale nie przy depo", panel.miasto_pozycji((32400, 32220, 7), panel.dane_serwisu()) == ("thais", False))
 import refill_auto
-sprawdz("8e refill_auto zna Thais (MIASTA_SERWISU = edron, thais): przybycie wyprawy = (thais, przy depo)",
-        refill_auto.MIASTA_SERWISU == ("edron", "thais") and refill_auto.miasto_serwisu(PRZYB) == ("thais", True))
+sprawdz("8e refill_auto zna Thais (MIASTA_SERWISU = edron, thais, abdendriel): przybycie wyprawy = (thais, przy depo)",
+        refill_auto.MIASTA_SERWISU == ("edron", "thais", "abdendriel") and refill_auto.miasto_serwisu(PRZYB) == ("thais", True))
 tmp = tempfile.mkdtemp(prefix="k3_thais_")
 wywolania = []
 st1 = refill_auto.zlec(PRZYB, tmp, start=lambda: wywolania.append(1), procesy=lambda *a, **k: [])
@@ -283,7 +283,7 @@ st2 = refill_auto.zlec((32366, 32215, 7), tmp3, start=lambda: wywolania.append(2
 sprawdz("8g ulica Thais daleko od depo = pominięty (nie przy depo), bez startu", st2[0] == "pominiety" and "nie stoi przy depo" in st2[1] and 2 not in wywolania, st2)
 tmp4 = tempfile.mkdtemp(prefix="k3_thais_")
 st3 = refill_auto.zlec((32061, 32180, 7), tmp4, start=lambda: wywolania.append(3), procesy=lambda *a, **k: [])
-sprawdz("8h Rook: nadal brak_planu, komunikat wymienia edron i thais", st3[0] == "brak_planu" and "edron" in st3[1] and "thais" in st3[1] and 3 not in wywolania, st3)
+sprawdz("8h Rook: nadal brak_planu, komunikat wymienia edron, thais i abdendriel", st3[0] == "brak_planu" and "edron" in st3[1] and "thais" in st3[1] and "abdendriel" in st3[1] and 3 not in wywolania, st3)
 
 # --- 9. drzwi w marszu serwisu: atrapa świata z zamkniętymi drzwiami (22.10) --------------------------------------------------
 

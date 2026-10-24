@@ -40,7 +40,7 @@ import przerwa as PR  # noqa: E402
 
 TRASY = KATALOG / "trasy"
 PLIK = "wroc_refill.json"
-MIASTA_SERWISU = ("edron", "thais")                     # miasta, które serwis.py umie obsłużyć (jego argparse: choices); Thais od 22.10 (drzwi sklepów)
+MIASTA_SERWISU = ("edron", "thais", "abdendriel")        # miasta, które serwis.py umie obsłużyć (jego argparse: choices); Thais od 22.10 (drzwi sklepów), Ab'Dendriel od 24.10 (drzwi na klucz)
 WZOR_BOT = r"(mozg|cavebot)\.py"
 WZOR_SERWIS = r"(^|[ /])serwis\.py "
 WZOR_REFILL = r"^(\S*/)?bash (\S*/)?refill\.sh *$"
@@ -187,8 +187,11 @@ def czekaj(stan_dir=None, katalog=KATALOG, czekaj_s=CZEKAJ_NA_BOTA_S, procesy=No
     opis_przerwy = " + przerwa postaci (bez wyjścia z miasta)" if przerwa else ""
     zapisz_stan(stan_dir, "startuje", "wołam refill.sh --tlo" + (f" (tylko cap: {KROKI_CAP})" if cap else "") + opis_przerwy)
     try:
-        env = {**os.environ, **({"REFILL_KROKI": KROKI_CAP} if cap else {}), **({"REFILL_BEZ_WYJSCIA": "1"} if przerwa else {})}
-        kw = {"env": env} if (cap or przerwa) else {}
+        # 24.10: bez zmiennych odziedziczonych po poprzednim refillu (cap: bank,wyjscie wyciekało do bota -> refill po blanki bez blanków)
+        env = {k: v for k, v in os.environ.items() if k not in ("REFILL_KROKI", "REFILL_TRYB", "REFILL_BEZ_WYJSCIA")}
+        env.update({**({"REFILL_KROKI": KROKI_CAP} if cap else {}), **({"REFILL_BEZ_WYJSCIA": "1"} if przerwa else {})})
+        wyciek = any(k in os.environ for k in ("REFILL_KROKI", "REFILL_TRYB", "REFILL_BEZ_WYJSCIA"))
+        kw = {"env": env} if (cap or przerwa or wyciek) else {}
         r = uruchom(["bash", str(katalog / "refill.sh"), "--tlo"], capture_output=True, text=True, timeout=60, **kw)
     except (OSError, subprocess.SubprocessError) as e:
         zapisz_stan(stan_dir, "pominiety", f"refill.sh nie wystartował: {e!r}")

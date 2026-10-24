@@ -48,6 +48,7 @@ NPC = "Al Dee"
 ID_TORCH = {2920}                       # niezapalona pochodnia (pochodnia.ID_NOWA)
 ID_ANTIDOTE = 3153                      # antidote rune (dane_tibia/przedmioty.json)
 ID_LINA = 3003                          # rope (loot.NAZWA_ID)
+ID_KLUCZ_MIEDZIANY = 2970               # 24.10: a copper key (dane_tibia/serwer74/npc_pelne.json, Elathriel Ab'Dendriel, 5000 gp); NUMER klucza (do których drzwi pasuje) nie jest w danych
 ID_LOPATA = 3457                        # shovel (ID klienta, jak rope 3003 / ham 3582; 2554 to ID serwera): odkopanie zasypanej dziury (Use with)
 ID_JEDZENIE_DOMYSLNE = {3582, 3583, 3577, 3578, 3579, 3600, 3602, 3607, 3601}   # gdy loot.py niedostępny
 NAZWY_PRZEDMIOTOW = {"torch": "torch", "ham": "ham"}   # klucz WYPAD_ZAKUPY -> słowo w "buy N ..."
@@ -104,6 +105,11 @@ ODP_ODMOWA = re.compile(r"do not sell|don'?t sell|not selling|do not have|don'?t
 
 class BrakEkranu(Exception):
     """Nie widać na ekranie okna plecaka z liną / pola (nie liczy się jako awaria sprzętu)."""
+
+
+class BrakPrzedmiotu(BrakEkranu):
+    """24.10: przedmiotu nie ma w żadnym otwartym pojemniku (okna plecaka są, rzeczy w nich nie). Podklasa BrakEkranu: dotychczasowe `except BrakEkranu` łapią dalej;
+    drzwi na klucz (`_drzwi`) kończą od razu czytelną awarią zamiast 6 prób."""
 
 
 def cheb(a, b):
@@ -287,6 +293,25 @@ def _z_drzwiami_pomiedzy(punkty, drzwi):
     return wynik
 
 
+def _schody_przed_ladowaniem(mapa, a, b):
+    """24.10: pole schodów W GÓRĘ (x, y+1 względem lądowania `b`) obok pola stania `a` (prostopadle, flaga 2 bez 4), gdy pietra.kandydaci
+    uznaje je za pewne i lądowanie to `b`; inaczej None. Wołane tylko, gdy pole liny (b.x, b.y-1) leży dalej niż 2 pola od `a`."""
+    s = (b[0], b[1] + 1, a[2])
+    if s == tuple(a) or cheb(a, s) != 1 or not (s[0] == a[0] or s[1] == a[1]):
+        return None
+    try:
+        fl = int(mapa.flagi(*s))
+        if not fl & 2 or fl & 4:
+            return None
+        import pietra  # noqa: PLC0415
+        for k in pietra.kandydaci(mapa, a, b):
+            if k.get("pewne") and tuple(k["pole"]) == s and tuple(k["lad"]) == tuple(b):
+                return s
+    except Exception:
+        return None
+    return None
+
+
 def zbuduj_etapy(punkty, mapa=None, drzwi=()):
     """Lista punktów (x,y,z) -> etapy: {"typ":"IDZ","punkty":[...]} (jedno piętro) przedzielone przejściami
     {"typ":"LINA","stoi","cel","ladunek"} (w górę), {"typ":"DZIURA","stoi","dziura","ladunek","pewna"} albo
@@ -337,6 +362,13 @@ def zbuduj_etapy(punkty, mapa=None, drzwi=()):
                     if obok:
                         biez.append(obok[0])
                         e["stoi"] = obok[0]
+                elif mapa is not None and cheb(a, e["cel"]) > 2:
+                    # 24.10 (Ab'Dendriel, powrót z trolli z9 -> z8): schody w górę z lądowaniem PRZED nimi, (x, y-1) pola schodów (nagranie
+                    # (32654,31673,z7) po schodach (32654,31674,z8)). Pole liny (b.x, b.y-1) wypada wtedy 3 pola od pola stania, a
+                    # wcześniej plan był nie do wykonania ("lina za daleko"). Tylko schody, które pietra.kandydaci uznaje za pewne.
+                    s2 = _schody_przed_ladowaniem(mapa, a, b)
+                    if s2 is not None:
+                        e["cel"], e["schody"] = s2, True
                 etapy.append(e)
             else:
                 h = (b[0], b[1], a[2])
@@ -629,7 +661,7 @@ class OperacjeZywe:
                         return o.sloty[p["slot"]].srodek
         poza = [f"{k.get('nazwa')} slot {p['slot']}" for k in przypisane for p in k.get("przedmioty", [])
                 if p["id"] == id_przedmiotu]
-        raise BrakEkranu(f"nie widzę {nazwa} w oknie plecaka"
+        raise (BrakEkranu if poza else BrakPrzedmiotu)(f"nie widzę {nazwa} w oknie plecaka"
                          + ("" if not wszystkie else " ani w innym otwartym pojemniku")
                          + f"; sprawdzone pojemniki: {self.opis_kontenerow(przypisane)}"
                          + (f"; {nazwa} poza widocznym oknem: {', '.join(poza)}" if poza else ""))
@@ -708,6 +740,11 @@ class OperacjeZywe:
     def uzyj_lopate(self, cel, poz):
         """Ctrl+klik na łopacie w plecaku (Use with), potem klik na polu `cel` (zasypana dziura) albo własnym."""
         self._uzyj_na_polu(ID_LOPATA, "łopaty (shovel)", cel, poz)
+
+    def uzyj_klucz(self, id_klucza, cel, poz):
+        """24.10: Ctrl+klik na kluczu `id_klucza` w plecaku (Use with), potem klik na polu drzwi `cel` (<= 1 pola od `poz`), jak lina/łopata.
+        Klucza nie ma w otwartych pojemnikach: BrakPrzedmiotu."""
+        self._uzyj_na_polu(int(id_klucza), f"klucza (key {int(id_klucza)})", cel, poz, wszystkie=True)
 
     def uzyj_pole(self, pole, poz):
         """Ctrl+klik (Use) na polu mapy `pole` względem naszej pozycji `poz`."""
@@ -2085,11 +2122,19 @@ class Wypad:
         # 24.10 (Karol: „zamyka drzwi przed wejściem”): ZAWSZE najpierw dwa kroki, Use dopiero po nich (Use na otwartych drzwiach
         # je zamyka); wcześniej nieznane drzwi zaczynały od Use. Jak serwis.przejdz_drzwi i cavebot DRZWI_NAJPIERW_KROK.
         tryby = ("krok", "krok", "use", "krok", "use", "krok")   # 6 prób = DRZWI_PROB: drugie Use dla opornych drzwi
+        klucz = e.get("klucz")
+        if klucz:
+            # 24.10 (Marinarra, drzwi z9 (32658,31645) na klucz): etap z "klucz": <id> (Wyprawa._zbuduj_depo, PLANY_PK "klucze"). Najpierw krok (drzwi mogą
+            # być otwarte), potem klucz (Use with na kafelku drzwi) i krok; klucz dwa razy, między nimi sam krok (klucz na otwartych drzwiach by je zamknął).
+            tryby = ("krok", "klucz", "krok", "krok", "klucz", "krok")
         tryb = tryby[n % len(tryby)]
         self.log(f"Wypad: drzwi {h[:2]} próba {n + 1}/{DRZWI_PROB} ({tryb}) z {tuple(poz)}")
         try:
             if tryb == "use":
                 self.ops.uzyj_pole(h, poz)
+                cb.spij(random.uniform(*DRZWI_CZEKAJ_S))
+            elif tryb == "klucz":
+                self.ops.uzyj_klucz(klucz, h, poz)
                 cb.spij(random.uniform(*DRZWI_CZEKAJ_S))
             dx, dy = h[0] - poz[0], h[1] - poz[1]
             # strzałki nie chodzą po skosie: najpierw w poziomie
@@ -2097,6 +2142,12 @@ class Wypad:
             cb.postac.krok(kier)
         except bot.Zatrzymano:
             raise
+        except BrakPrzedmiotu as ex:
+            if tryb != "klucz":
+                return self._porazka_drzwi(e, teraz, "drzwi_ekran", powod=str(ex), tryb=tryb)
+            e["proby"] = 0
+            self.drzwi_otwarte.discard(tuple(h))
+            return self._awaria("drzwi_brak_klucza", f"drzwi {h} wymagają klucza (id {klucz}), a nie ma go w otwartych pojemnikach: {ex}", e)
         except BrakEkranu as ex:
             return self._porazka_drzwi(e, teraz, "drzwi_ekran", powod=str(ex), tryb=tryb)
         except Exception as ex:
