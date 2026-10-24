@@ -1,0 +1,28 @@
+{
+ "specjalne": [],
+ "zrodla": {
+  "bank_briasol": "npc_pelne.json (32635,31667,8); pole stania (32637,31667,8) odczyt z gry 24.10 15:24:05; dane_tibia/SKLEPY_abdendriel.md",
+  "backpack_bashira": "npc_pelne.json (32669,31655,8); pole stania (32667,31655,8) odczyt z gry 24.10 15:25:22",
+  "blanki_shiriel": "npc_pelne.json (32670,31657,6); pole stania (32669,31659,6) odczyt z gry 24.10 15:28:05",
+  "depo": "ZASTĘPCZE: generuj_powrot_abdendriel.DEPO_STOI = [32679, 31687, 8]; sala z8 x 32679..32682, y 31683..31689 z nazwy nagrania depo_trolle i mapy klienta",
+  "laczniki": "abdendriel_bashira_shiriel.json (z8->z7->z6, zmierzone 24.10) i abdendriel_depo_trolle_nagranie.json (z8->z9 przy (32655,31670,8))",
+  "wyjscie": "pierwszy punkt trasy/abdendriel_z9_do_z10.json = (32675,31633,z9), za obojgiem drzwi",
+  "drzwi_klucz": "generuj_powrot_abdendriel.KLUCZE_DRZWI = wyprawa.PLANY_PK['klucze'] (jedno źródło)"
+ },
+ "niezmierzone_na_zywo": [
+  "że klucz 2970 (a copper key) pasuje do obojga drzwi (32658,31645,9) i (32655,31655,9)",
+  "reakcja zamkniętych drzwi na zwykły krok (serwis robi: krok, klucz, krok; jak wypad._drzwi)",
+  "dialog wymiany gold -> platinum u Briasola (serwis zakłada: hi, change gold, liczba, yes)",
+  "dialog zakupu 'backpack' u Bashiry i 'blank rune' u Shiriel (oferty są w danych serwera)",
+  "położenie depo (ZASTĘPCZE) i strona skrzyni przy stanowiskach",
+  "schody w górę z6->z7->z8 i z9->z8 (nagrania szły w dół/w drugą stronę)",
+  "cała droga serwisu po mieście botem (A* sprawdzony tylko offline na mapie)",
+  "że krok backpack (zakup baga) nie wyrzuca klucza 2970 z plecaka"
+ ],
+ "kroki": {
+  "bank": false,
+  "depo": false,
+  "backpack": false,
+  "blanki": false
+ }
+}

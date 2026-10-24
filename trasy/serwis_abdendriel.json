@@ -1,0 +1,236 @@
+{
+ "_opis": "Serwis Ab'Dendriel (24.10): generuj_serwis_abdendriel.py. Bez kroku jedzenie (Marinarra nie chce jedzenia). Kolejność edytowalna; stoi = pole stania, depo.stoi = ZASTĘPCZE położenie depo (stanowiska przy skrzyniach w depo_stoiska). drzwi_klucz = dwoje drzwi z9 na klucz (serwis.py: krok, klucz, krok); obszar_miasta = co panel i auto-refill uznają za miasto.",
+ "miasto": "abdendriel",
+ "przystanki": {
+  "bank": {
+   "rodzaj": "bank",
+   "npc": "Briasol",
+   "stoi": [
+    32637,
+    31667,
+    8
+   ],
+   "npc_poz": [
+    32635,
+    31667,
+    8
+   ],
+   "status": "pole stania zmierzone na żywo 24.10 15:24:05; dialog wymiany u Briasola (jubiler) NIEZMIERZONY: serwis zakłada hi/change gold/liczba/yes jak u Ebenizera"
+  },
+  "depo": {
+   "rodzaj": "depo",
+   "npc": null,
+   "stoi": [
+    32679,
+    31687,
+    8
+   ],
+   "status": "ZASTĘPCZE położenie depo (generuj_powrot_abdendriel.DEPO_STOI = koniec trasy powrotu), NIEPOMIERZONE na żywo",
+   "zrodlo": "generuj_powrot_abdendriel.DEPO_STOI = pierwszy punkt nagrania abdendriel_depo_trolle_nagranie.json"
+  },
+  "backpack": {
+   "rodzaj": "kup",
+   "npc": "Bashira",
+   "stoi": [
+    32667,
+    31655,
+    8
+   ],
+   "npc_poz": [
+    32669,
+    31655,
+    8
+   ],
+   "oferta": "backpack",
+   "cena": 20,
+   "status": "pole stania zmierzone na żywo 24.10 15:25:22; dialog zakupu NIEZMIERZONY (oferta 'backpack' 20 gp jest w danych serwera)"
+  },
+  "blanki": {
+   "rodzaj": "kup",
+   "npc": "Shiriel",
+   "stoi": [
+    32669,
+    31659,
+    6
+   ],
+   "npc_poz": [
+    32670,
+    31657,
+    6
+   ],
+   "oferta": "blank rune",
+   "cena": 10,
+   "status": "pole stania zmierzone na żywo 24.10 15:28:05; dialog zakupu NIEZMIERZONY (oferta 'blank rune' 10 gp jest w danych serwera)"
+  }
+ },
+ "wyjscie": [
+  32675,
+  31633,
+  9
+ ],
+ "laczniki": [
+  {
+   "z": [
+    32682,
+    31685,
+    8
+   ],
+   "do": [
+    32682,
+    31686,
+    7
+   ],
+   "status": "nagrane przez Karola 24.10"
+  },
+  {
+   "z": [
+    32682,
+    31686,
+    7
+   ],
+   "do": [
+    32682,
+    31688,
+    6
+   ],
+   "status": "nagrane przez Karola 24.10"
+  },
+  {
+   "z": [
+    32655,
+    31670,
+    8
+   ],
+   "do": [
+    32654,
+    31671,
+    9
+   ],
+   "status": "nagrane przez Karola 24.10"
+  },
+  {
+   "z": [
+    32682,
+    31688,
+    6
+   ],
+   "do": [
+    32682,
+    31686,
+    7
+   ],
+   "status": "NIEZMIERZONE: strona powrotna przejścia (nagranie szło w drugą stronę)"
+  },
+  {
+   "z": [
+    32682,
+    31686,
+    7
+   ],
+   "do": [
+    32682,
+    31685,
+    8
+   ],
+   "status": "NIEZMIERZONE: strona powrotna przejścia (nagranie szło w drugą stronę)"
+  },
+  {
+   "z": [
+    32654,
+    31671,
+    9
+   ],
+   "do": [
+    32654,
+    31669,
+    8
+   ],
+   "status": "NIEZMIERZONE: strona powrotna przejścia (nagranie szło w drugą stronę)"
+  }
+ ],
+ "depo_stoiska": [
+  [
+   32679,
+   31687,
+   8
+  ],
+  [
+   32679,
+   31685,
+   8
+  ],
+  [
+   32679,
+   31683,
+   8
+  ],
+  [
+   32679,
+   31689,
+   8
+  ],
+  [
+   32680,
+   31687,
+   8
+  ],
+  [
+   32680,
+   31685,
+   8
+  ],
+  [
+   32680,
+   31683,
+   8
+  ],
+  [
+   32680,
+   31689,
+   8
+  ]
+ ],
+ "depo_sala": [
+  32679,
+  31683,
+  32682,
+  31689,
+  8
+ ],
+ "drzwi_klucz": [
+  {
+   "pole": [
+    32658,
+    31645,
+    9
+   ],
+   "klucz": 2970
+  },
+  {
+   "pole": [
+    32655,
+    31655,
+    9
+   ],
+   "klucz": 2970
+  }
+ ],
+ "obszar_miasta": [
+  32625,
+  31646,
+  32695,
+  31700,
+  6,
+  9
+ ],
+ "kolejnosc": [
+  "bank",
+  "depo",
+  "backpack",
+  "blanki",
+  "wyjscie"
+ ],
+ "do_pomiaru": {
+  "depo": "stań przy skrzyni depo, odczytaj pozycję, wpisz w generuj_powrot_abdendriel.DEPO_STOI i uruchom oba generatory z --zapisz"
+ }
+}

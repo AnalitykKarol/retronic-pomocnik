@@ -1,0 +1,46 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "pole stania obok pola liny (32668, 31624) z10 (północ); pole liny wolne, NIE stawać na (32668, 31625) (dziura z10 -> z11)"
+  },
+  {
+   "idx": 0,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "LINA na polu (32668, 31624) z10 (pod dziurą z9 (32668,31624), tą z dojścia abdendriel_z9_do_z10): lądowanie (x, y+1) = (32668, 31625) z9. NIEZWERYFIKOWANE na żywo; potrzebna lina w plecaku"
+  },
+  {
+   "idx": 1,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z9 (32668, 31625) (start pętli z9), tuż obok dziury (32668,31624,z9): nie wchodzić"
+  },
+  {
+   "idx": 30,
+   "typ": "drzwi",
+   "komentarz": "drzwi (32658, 31645) z9: ściana w mapie, nagranie przeszło przez nie; DRZWI_TRASA; na klucz 2970",
+   "klucz": 2970
+  },
+  {
+   "idx": 42,
+   "typ": "drzwi",
+   "komentarz": "drzwi (32655, 31655) z9: ściana w mapie, nagranie przeszło przez nie; DRZWI_TRASA; na klucz 2970",
+   "klucz": 2970
+  },
+  {
+   "idx": 59,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "SCHODY W GÓRĘ (32654, 31670) z9 (flaga 2, kolor 210) na północ od pola stania (32654, 31671); lądowanie (x, y-1) = (32654, 31669) z8. NIEZWERYFIKOWANE w tę stronę (nagranie zeszło schodami z (32655,31670,z8))"
+  },
+  {
+   "idx": 60,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z8 (32654, 31669); obok niego schody w dół (32654, 31670) (nie wchodzić), idź korytarzem x=32655"
+  },
+  {
+   "idx": 85,
+   "typ": "koniec",
+   "komentarz": "(32679, 31687) z8 = początek nagrania „depo -> trolle”; położenie depo NIEPOMIERZONE (zastępcza decyzja, patrz generuj_powrot_abdendriel.py)"
+  }
+ ]
+}
