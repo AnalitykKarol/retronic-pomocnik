@@ -885,8 +885,10 @@ def przeglad_instancji(id_, w, sc, kiedy):
     alarm = ost.get("alarm") if isinstance(ost.get("alarm"), dict) else None
     alarm_t = alarm.get("t") if alarm else None
     profil_d, _ = czytaj_json_dict(Path(sc.stan) / "profil.json") if id_ else ({}, None)
-    stracony = bool((profil_d or {}).get("stracony"))     # 24.10 (Karol): postać stracona = wyłączona, nie „rezerwa”
-    return {"stan": stan, "stracony": stracony, "w_grze": w_grze, "test": id_.startswith("test"), "zab_h": zab_h, "exp_h": exp_h,
+    stracony = bool((profil_d or {}).get("stracony"))     # 24.10 (Karol): postać stracona = osobny stan „stracona”, nie „rezerwa”
+    rola = (profil_d or {}).get("rola")                   # 24.10 (Karol): np. "bank" (Kutangen: trzyma złoto, nie expi); inne role UI pokaże dopiero po dodaniu
+    rola = rola.strip().lower() if isinstance(rola, str) and rola.strip() else None
+    return {"stan": stan, "stracony": stracony, "rola": rola, "w_grze": w_grze, "test": id_.startswith("test"), "zab_h": zab_h, "exp_h": exp_h,
             "dane_wiek_s": dane_wiek, "na_spocie_od": ost.get("na_spocie_od"), "ostatni_alarm": alarm,
             "alarm_24h": bool(_liczba(alarm_t) and 0 <= kiedy - alarm_t <= ALARM_24H_S),
             "koniec_sesji": ost.get("koniec_sesji"), "nadzor": nadzor, "stop": stop}

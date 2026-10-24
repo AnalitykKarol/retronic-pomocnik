@@ -354,7 +354,7 @@ def _w_sali_depo(d, x, y, z):
 
 def miasto_pozycji(poz, dane=None, margines=MARGINES_MIASTA):
     """(miasto, w_depo) dla pozycji (x, y, z): miasto, gdy pozycja leży w prostokącie punktów serwisu (z marginesem
-    na x/y, piętra od najniższego do najwyższego punktu), w_depo, gdy stoi przy polu depo (<= 2 pola) albo w sali depo (`depo_sala`, 24.10). Inaczej (None, False)."""
+    na x/y, piętra od najniższego do najwyższego punktu) albo w `obszar_miasta` z danych (ma pierwszeństwo, 24.10), w_depo, gdy stoi przy polu depo (<= 2 pola) albo w sali depo (`depo_sala`, 24.10). Inaczej (None, False)."""
     if poz is None:
         return None, False
     x, y, z = poz
@@ -364,8 +364,13 @@ def miasto_pozycji(poz, dane=None, margines=MARGINES_MIASTA):
             stoiska = [tuple(p) for p in d.get("depo_stoiska", [])] + [tuple(d["przystanki"]["depo"]["stoi"])]
         except (KeyError, TypeError, ValueError):
             continue
-        if min(xs) - margines <= x <= max(xs) + margines and min(ys) - margines <= y <= max(ys) + margines \
-                and min(zs) <= z <= max(zs):
+        try:                                  # 24.10: `obszar_miasta` [x0, y0, x1, y1, zmin, zmax] zamiast prostokąta z punktów (Ab'Dendriel: wyjście serwisu leży w jaskini z9)
+            ox0, oy0, ox1, oy1, oz0, oz1 = (int(v) for v in d["obszar_miasta"])
+            pasuje = ox0 <= x <= ox1 and oy0 <= y <= oy1 and oz0 <= z <= oz1
+        except (KeyError, TypeError, ValueError):
+            pasuje = min(xs) - margines <= x <= max(xs) + margines and min(ys) - margines <= y <= max(ys) + margines \
+                and min(zs) <= z <= max(zs)
+        if pasuje:
             return nazwa, any(s[2] == z and max(abs(s[0] - x), abs(s[1] - y)) <= 2 for s in stoiska) or _w_sali_depo(d, x, y, z)
     return None, False
 

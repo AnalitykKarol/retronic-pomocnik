@@ -2,7 +2,7 @@
 
 // Uruchom: node --test okno/test/*.test.js   (z katalogu repo bota)
 // Przegląd, karty offline i „Ostatnio znane” (F2): czysta logika PrzegladModel.js na prawdziwym zrzucie `okno_api.py stan` (test/stan-przeglad.json,
-// 7 instancji: 2 w grze z ostatnie:null, 5 offline, w tym Kolanosh zawieszony do terminu i Kutangen = rezerwa). Czas w testach stały.
+// 7 instancji: 2 w grze z ostatnie:null, 5 offline, w tym Kolanosh zawieszony do terminu i Kutangen = rezerwa, bo zrzut sprzed pola `rola`; stany stracona/bank testowane na klonach). Czas w testach stały.
 
 const { describe, it } = require("node:test")
 const assert = require("node:assert/strict")
@@ -152,25 +152,116 @@ describe("wiersz", () => {
     assert.equal(P.cardOffline(by("kolanoth"), NOW).right.text, "do 24.10")
     assert.equal(r.alarm.tone, "dim")
   })
-  it("Dawajkesh stracony: wyłączona, nie rezerwa i nie w licznikach zawieszonych", () => {
+  it("Dawajkesh stracony: „stracona”, nie rezerwa, nie bank i nie w licznikach zawieszonych", () => {
     const i = clone(by("dawajkesh"))
     i.przeglad.stan = "zawieszony"
     i.przeglad.nadzor = { aktywny: false, powod: "postać poza nadzorem (nadzor: false)", do: null, zrodlo: "profil" }
     i.przeglad.stracony = true
-    assert.equal(P.isDisabled(i), true)
+    i.przeglad.rola = null
+    assert.equal(P.isLost(i), true)
     assert.equal(P.isReserve(i), false)
-    assert.equal(P.isDisabled(by("kutangen")), false)
+    assert.equal(P.isBank(i), false)
+    assert.equal(P.isLost(by("kutangen")), false)
     const r = P.rowOf(i, NOW)
-    assert.deepEqual(r.pill, { label: "wyłączona", tone: "dim" })
-    assert.equal(r.disabled, true)
+    assert.deepEqual(r.pill, { label: "stracona", tone: "bad" })
+    assert.equal(r.lost, true)
     assert.equal(r.reserve, false)
-    assert.equal(P.cardOffline(i, NOW).right.text, "wyłączona")
+    assert.deepEqual(r.supervision, { text: "stracona", tone: "bad" })
+    assert.equal(P.cardOffline(i, NOW).right.text, "stracona")
     const nadzor = P.lastKnown(i, NOW).cols[2].rows.find((x) => x.k === "nadzór")
-    assert.match(nadzor.v, /^wyłączona/)
-    const tylko = { instancje: [i, by("kutangen")] }
-    const c = P.countersOf(tylko.instancje)
+    assert.match(nadzor.v, /^stracona/)
+    const c = P.countersOf([i, by("kutangen")])
     assert.equal(c.suspended, 1)
     assert.equal(c.reserve, 1)
+    assert.equal(c.lost, 1)
+  })
+  it("Invincible stracona (klient wciąż otwarty, bot stoi, STOP ręczny = API „karol_gra”): „stracona”, nie „Karol gra”, nie rezerwa", () => {
+    // kształt z prawdziwego `okno_api.py stan` 24.10 po 14:11: stan karol_gra, w_grze true, stracony true, nadzor false z profilu
+    const i = clone(by("invincible"))
+    i.gra = true; i.sesja = true; i.bot = false; i.klasa = "stop"
+    Object.assign(i.przeglad, {
+      stan: "karol_gra", w_grze: true, stracony: true, rola: null,
+      nadzor: { aktywny: false, powod: "postać poza nadzorem (nadzor: false)", do: null, zrodlo: "profil" },
+      stop: { auto: true, reczny: true }
+    })
+    assert.equal(P.isLost(i), true)
+    assert.equal(P.isReserve(i), false)
+    assert.equal(P.isOffline(i), true)
+    assert.equal(P.cardMode(i), "offline")
+    const r = P.rowOf(i, NOW)
+    assert.deepEqual(r.pill, { label: "stracona", tone: "bad" })
+    assert.equal(r.inGame, false)
+    assert.equal(r.dot, "dim2")
+    assert.equal(r.since, "")
+    assert.equal(r.zabH, null)
+    assert.deepEqual(r.supervision, { text: "stracona", tone: "bad" })
+    assert.equal(P.cardOffline(i, NOW).right.text, "stracona")
+    assert.equal(P.cardSubtitleText(i, "x"), "postać stracona")
+    assert.equal(P.cardSubtitleTone(i), "bad")
+    assert.equal(P.lastKnownVisible(i), true)
+    const c = P.countersOf([i, by("gebelish"), by("odchyd")])
+    assert.equal(c.lost, 1)
+    assert.equal(c.karol, 0)
+    assert.equal(c.inGame, 2)
+    assert.equal(c.bot, 2)
+    assert.equal(c.offline, 1)
+    assert.equal(c.total, 3)
+    assert.equal(P.navBadge([i, by("gebelish"), by("odchyd")]), "2/3 w grze")
+    const grupy = P.groupsOf(P.rowsOf([i, by("gebelish")], NOW), "wszystkie")
+    assert.deepEqual(grupy.map((g) => g.key + ":" + g.rows.map((x) => x.id).join(",")), ["gra:gebelish", "offline:invincible"])
+  })
+  it("stracona także z zamkniętym klientem (stan zawieszony/offline z API) i bez klucza `rola`", () => {
+    for (const stan of ["zawieszony", "offline"]) {
+      const i = clone(by("invincible"))
+      Object.assign(i.przeglad, { stan, stracony: true })
+      delete i.przeglad.rola
+      assert.equal(P.pillOf(i).label, "stracona", stan)
+      assert.equal(P.isReserve(i), false, stan)
+    }
+  })
+  it("Kutangen bank (profil `rola: bank`): „bank”, nie rezerwa i nie zawieszony", () => {
+    const i = clone(by("kutangen"))
+    i.przeglad.rola = "bank"
+    i.przeglad.stracony = false
+    assert.equal(P.isBank(i), true)
+    assert.equal(P.isReserve(i), false)
+    assert.equal(P.isLost(i), false)
+    const r = P.rowOf(i, NOW)
+    assert.deepEqual(r.pill, { label: "bank", tone: "blue" })
+    assert.equal(r.bank, true)
+    assert.equal(r.reserve, false)
+    assert.deepEqual(r.supervision, { text: "bank", tone: "blue" })
+    assert.deepEqual(P.cardOffline(i, NOW).right, { text: "bank", tone: "blue" })
+    const nadzor = P.lastKnown(i, NOW).cols[2].rows.find((x) => x.k === "nadzór")
+    assert.match(nadzor.v, /^bank/)
+    const c = P.countersOf([i, by("kolanoth")])
+    assert.equal(c.bank, 1)
+    assert.equal(c.reserve, 0)
+    assert.equal(c.suspended, 1)        // tylko Kolanosh (zawieszony do terminu)
+    assert.equal(c.offline, 2)
+    assert.equal(P.suspendedNote(c), "w tym 1 zawieszona")
+  })
+  it("bank w grze zachowuje żywy stan (alarm/bot), stracona ma pierwszeństwo przed rolą bank", () => {
+    const w = clone(by("gebelish"))
+    w.przeglad.rola = "bank"
+    assert.equal(P.pillOf(w).label, "bot działa")
+    const l = clone(by("kutangen"))
+    l.przeglad.rola = "bank"
+    l.przeglad.stracony = true
+    assert.equal(P.isBank(l), false)
+    assert.equal(P.pillOf(l).label, "stracona")
+  })
+  it("zwykła rezerwa (zawieszony bez terminu, bez roli, bez `stracony`) dalej „rezerwa”; rola inna niż bank nie zmienia stanu", () => {
+    const i = clone(by("kutangen"))
+    i.przeglad.rola = null
+    i.przeglad.stracony = false
+    assert.equal(P.isReserve(i), true)
+    assert.deepEqual(P.pillOf(i), { label: "rezerwa", tone: "dim" })
+    assert.deepEqual(P.supervisionOf(i), { text: "nie · profil", tone: "dim" })
+    assert.equal(P.cardOffline(i, NOW).right.text, "rezerwa")
+    i.przeglad.rola = "sklep"
+    assert.equal(P.isBank(i), false)
+    assert.equal(P.pillOf(i).label, "rezerwa")
   })
   it("Wydra: miasto i depo", () => {
     const r = P.rowOf(by("wydra"), NOW)

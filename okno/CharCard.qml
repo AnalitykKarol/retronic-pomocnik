@@ -22,7 +22,8 @@ Rectangle {
   readonly property string mode: Prz.cardMode(inst)                // live | offline | legacy (brak pola przeglad: karta jak dotąd)
   readonly property bool offline: mode === "offline"
   readonly property var off: offline ? Prz.cardOffline(inst, now) : null
-  readonly property bool karolGra: Prz.stanOf(inst) === "karol_gra" && mode !== "legacy"
+  readonly property bool lost: mode !== "legacy" && Prz.isLost(inst)                // postać stracona (profil `stracony`): nie „Karol gra”, kropka szara
+  readonly property bool karolGra: Prz.stanOf(inst) === "karol_gra" && mode !== "legacy" && !lost
 
   signal chosen()
   signal previewRequested()
@@ -63,7 +64,7 @@ Rectangle {
         width: 9
         height: 9
         radius: 4.5
-        color: card.karolGra ? Theme.cyan : Theme.stateColor(card.klasa)
+        color: card.karolGra ? Theme.cyan : (card.lost ? Theme.dim2 : Theme.stateColor(card.klasa))
       }
       Item {
         id: nickBox
@@ -148,7 +149,7 @@ Rectangle {
         anchors.top: parent.top
         anchors.topMargin: 4
         text: Prz.cardSubtitleText(card.inst, Model.cardSubtitle(card.inst))
-        color: card.karolGra ? Theme.cyan : Theme.dim
+        color: card.karolGra ? Theme.cyan : (card.lost ? Theme.bad : Theme.dim)
         font.family: Theme.font
         font.pixelSize: Theme.tiny
         elide: Text.ElideRight

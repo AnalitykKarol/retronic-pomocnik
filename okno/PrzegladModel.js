@@ -102,20 +102,28 @@ function stanOf(inst) {
 function isTest(inst) { var p = przegladOf(inst); return !!(p && p.test === true) }
 function inGame(inst) { var p = przegladOf(inst); return !!(p && p.w_grze === true) }
 
-// wyłączona = postać stracona (profil.json `stracony`, np. Dawajkesh 24.10): nie wraca do puli, to nie rezerwa
-function isDisabled(inst) { var p = przegladOf(inst); return !!(p && p.stracony === true) }
+// Stany z profilu (Karol 24.10), osobne od stanu z API; pierwszeństwo: stracona > bank > rezerwa. Żaden z nich nie jest „zawieszony do …”.
+//  stracona = postać stracona (profil.json `stracony`, np. Dawajkesh i Invincible 24.10): nie wraca do puli, stan ostateczny, także gdy klient wciąż stoi na ekranie logowania
+//  bank     = postać-bank (profil.json `rola: "bank"`, np. Kutangen: trzyma złoto, nie expi); pigułka „bank” tylko poza grą, w grze zostaje żywy stan
+//  rezerwa  = poza nadzorem z profilu bez terminu, bez roli i bez `stracony`
+function isLost(inst) { var p = przegladOf(inst); return !!(p && p.stracony === true) }
 
-// rezerwa = poza nadzorem z profilu bez terminu (np. Kutangen: nadzor:false): to nie jest „zawieszony do …”
+function isBank(inst) { var p = przegladOf(inst); return !!(p && p.rola === "bank" && !isLost(inst)) }
+
 function isReserve(inst) {
   var p = przegladOf(inst)
-  return !!(p && p.stan === "zawieszony" && !(p.nadzor && p.nadzor.do) && !isDisabled(inst))
+  return !!(p && p.stan === "zawieszony" && !(p.nadzor && p.nadzor.do) && !isLost(inst) && !isBank(inst))
 }
 
-function stanDotTone(inst) { return STAN_DOT[stanOf(inst)] }
+// stracona w grze (klient na ekranie logowania) to dla Przeglądu postać poza grą: bez pasków HP/MP, nie „Karol gra”, nie w „W GRZE”
+function isOffline(inst) { return !inGame(inst) || isLost(inst) }
+
+function stanDotTone(inst) { return isLost(inst) ? STAN_DOT.offline : STAN_DOT[stanOf(inst)] }
 
 function pillOf(inst) {
   var stan = stanOf(inst)
-  if (isDisabled(inst)) return { label: "wyłączona", tone: "dim" }
+  if (isLost(inst)) return { label: "stracona", tone: "bad" }
+  if (isBank(inst) && !inGame(inst)) return { label: "bank", tone: "blue" }
   if (isReserve(inst)) return { label: "rezerwa", tone: "dim" }
   return STAN_PILL[stan]
 }
@@ -251,6 +259,7 @@ function sinceText(inst, now) {
   var p = przegladOf(inst)
   var stan = stanOf(inst)
   var o = ostatnieOf(inst)
+  if (isLost(inst)) return ""
   if (stan === "bot_dziala" || stan === "alarm") {
     if (o && o.sesja && isNum(o.sesja.start) && o.sesja.koniec === null && p && isNum(p.dane_wiek_s) && p.dane_wiek_s <= 300) {
       return spanLabel((now.getTime() / 1000) - o.sesja.start)
@@ -268,7 +277,7 @@ function sinceText(inst, now) {
 // Kolumna „NA SPOCIE / OSTATNI”: {pre, main, post} (pre przygaszone, main wyraźne, post przygaszone)
 function spotTimeOf(inst, now) {
   var p = przegladOf(inst)
-  var stan = stanOf(inst)
+  var stan = isLost(inst) ? "offline" : stanOf(inst)
   if (stan === "bot_dziala" || stan === "alarm") {
     if (p && isNum(p.na_spocie_od)) {
       var from = new Date(p.na_spocie_od * 1000)
@@ -300,6 +309,8 @@ function supervisionOf(inst) {
   var p = przegladOf(inst)
   if (!p || !p.nadzor) return { text: MISSING, tone: "dim2" }
   var n = p.nadzor
+  if (isLost(inst)) return { text: "stracona", tone: "bad" }
+  if (isBank(inst) && n.aktywny === false) return { text: "bank", tone: "blue" }
   if (n.aktywny === false) {
     if (n.do) return { text: "do " + doLabel(n.do), tone: "mag" }
     var why = { profil: "profil", konfiguracja: "konfiguracja", test: "test", brak_profilu: "brak profilu", glowna: "główna" }[n.zrodlo]
@@ -316,7 +327,7 @@ function rowOf(inst, now) {
   var alarm = alarmOf(inst, now)
   var p = przegladOf(inst)
   var stan = stanOf(inst)
-  var off = !inGame(inst)
+  var off = isOffline(inst)
   return {
     id: inst.id,
     nick: inst.nick ? String(inst.nick) : (inst.id === "" ? "główna" : String(inst.id)),
@@ -325,7 +336,9 @@ function rowOf(inst, now) {
     inGame: !off,
     test: isTest(inst),
     reserve: isReserve(inst),
-    disabled: isDisabled(inst),
+    lost: isLost(inst),
+    bank: isBank(inst),
+    order: STAN_ORDER[isLost(inst) ? "offline" : stan],
     dot: stanDotTone(inst),
     pill: pillOf(inst),
     since: sinceText(inst, now),
@@ -356,7 +369,7 @@ function rowsOf(instances, now) {
 }
 
 function byOrder(a, b) {
-  var d = STAN_ORDER[a.stan] - STAN_ORDER[b.stan]
+  var d = (a.order !== undefined ? a.order : STAN_ORDER[a.stan]) - (b.order !== undefined ? b.order : STAN_ORDER[b.stan])
   if (d !== 0) return d
   return a.nick < b.nick ? -1 : (a.nick > b.nick ? 1 : 0)
 }
@@ -400,17 +413,19 @@ function groupsOf(rows, filter) {
 
 // Do sum nie wchodzą instancje testowe (test:true); są widoczne w tabeli.
 function countersOf(instances) {
-  var c = { inGame: 0, total: 0, bot: 0, karol: 0, stopped: 0, offline: 0, reserve: 0, suspended: 0, expH: 0, expBots: 0, rescue: 0 }
+  var c = { inGame: 0, total: 0, bot: 0, karol: 0, stopped: 0, offline: 0, reserve: 0, suspended: 0, lost: 0, bank: 0, expH: 0, expBots: 0, rescue: 0 }
   for (var i = 0; i < instances.length; i++) {
     var inst = instances[i]
     if (isTest(inst)) continue
     var stan = stanOf(inst)
     c.total++
+    if (isLost(inst)) { c.lost++; c.offline++; continue }      // stracona: poza grą, bez botów/Karola/zatrzymanych, bez zawieszonych i rezerwy, bez exp/h
     if (inGame(inst)) c.inGame++
     if (stan === "bot_dziala" || stan === "alarm") c.bot++
     else if (stan === "karol_gra") c.karol++
     else if (stan === "zatrzymany") c.stopped++
-    else { c.offline++; if (stan === "zawieszony" && !isDisabled(inst)) c.suspended++ }
+    else { c.offline++; if (stan === "zawieszony" && !isBank(inst)) c.suspended++ }
+    if (isBank(inst)) c.bank++
     if (isReserve(inst)) c.reserve++
     var e = expH(inst)
     if (e !== null) { c.expH += e; c.expBots++ }
@@ -439,7 +454,7 @@ function navBadge(instances) {
 function cardMode(inst) {
   var p = przegladOf(inst)
   if (!p) return "legacy"                    // stare API / brak przeglądu: karta jak dotąd
-  return p.w_grze === true ? "live" : "offline"
+  return p.w_grze === true && !isLost(inst) ? "live" : "offline"
 }
 
 // Dwie linie zamiast pasków HP/MP (wysokość jak online: 2 x 14 px).
@@ -457,7 +472,8 @@ function cardOffline(inst, now) {
   var mp = resource(inst, "mana", "max_mana")
   var pr = przegladOf(inst)
   var right
-  if (isDisabled(inst)) right = { text: "wyłączona", tone: "dim" }
+  if (isLost(inst)) right = { text: "stracona", tone: "bad" }
+  else if (isBank(inst)) right = { text: "bank", tone: "blue" }
   else if (isReserve(inst)) right = { text: "rezerwa", tone: "dim" }
   else if (pr && pr.stan === "zawieszony" && pr.nadzor && pr.nadzor.do) right = { text: "do " + doShort(pr.nadzor.do), tone: "mag" }
   else if (pr && pr.stop && pr.stop.reczny === true) right = { text: "STOP ręczny", tone: "warn" }
@@ -475,8 +491,8 @@ function cardOffline(inst, now) {
 }
 
 // Podtytuł karty (linia 2): „Karol gra · bot stoi” (cyan) zamiast mapy i trybu
-function cardSubtitleTone(inst) { return stanOf(inst) === "karol_gra" ? "cyan" : "dim" }
-function cardSubtitleText(inst, fallback) { return stanOf(inst) === "karol_gra" ? "Karol gra · bot stoi" : fallback }
+function cardSubtitleTone(inst) { return isLost(inst) ? "bad" : (stanOf(inst) === "karol_gra" ? "cyan" : "dim") }
+function cardSubtitleText(inst, fallback) { return isLost(inst) ? "postać stracona" : (stanOf(inst) === "karol_gra" ? "Karol gra · bot stoi" : fallback) }
 
 // ---------------------------------------------------------------- „Ostatnio znane” (Sesja gry)
 
@@ -488,7 +504,7 @@ function koniecLabel(code) { return END_LABEL[code] || { text: MISSING, tone: "d
 function lastKnownVisible(inst) {
   if (!inst || inst.id === "") return false
   if (!przegladOf(inst)) return false
-  return inst.gra !== true && !inGame(inst)
+  return isLost(inst) || (inst.gra !== true && !inGame(inst))
 }
 
 function lastKnown(inst, now) {
@@ -555,7 +571,8 @@ function lastKnown(inst, now) {
   var al = alarmOf(inst, now)
   var sup = supervisionOf(inst)
   var supText = sup.text
-  if (isDisabled(inst)) supText = "wyłączona · postać stracona (profil)"
+  if (isLost(inst)) supText = "stracona · postać stracona (profil)"
+  else if (isBank(inst)) supText = "bank · poza nadzorem (profil: rola)"
   else if (pr && pr.stan === "zawieszony" && !(pr.nadzor && pr.nadzor.do)) supText = "rezerwa · poza nadzorem (profil)"
   else if (pr && pr.nadzor && pr.nadzor.aktywny === false && pr.nadzor.do) supText = "zawieszony do " + doLabel(pr.nadzor.do)
   var sections = [
@@ -581,7 +598,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     STAN_ORDER: STAN_ORDER, STAN_PILL: STAN_PILL, FILTERS: FILTERS, MISSING: MISSING,
     plural: plural, whenLabel: whenLabel, spanLabel: spanLabel, agoLabel: agoLabel, doLabel: doLabel,
-    stanOf: stanOf, isTest: isTest, inGame: inGame, isReserve: isReserve, isDisabled: isDisabled, pillOf: pillOf, stanDotTone: stanDotTone,
+    stanOf: stanOf, isTest: isTest, inGame: inGame, isReserve: isReserve, isLost: isLost, isBank: isBank, isOffline: isOffline, pillOf: pillOf, stanDotTone: stanDotTone,
     whereLabel: whereLabel, levelOf: levelOf, levelText: levelText, mlLabel: mlLabel, mlPctOf: mlPctOf, resource: resource, sinceText: sinceText, spotTimeOf: spotTimeOf,
     alarmOf: alarmOf, supervisionOf: supervisionOf, rowOf: rowOf, rowsOf: rowsOf, passes: passes, filterCounts: filterCounts,
     groupsOf: groupsOf, countersOf: countersOf, suspendedNote: suspendedNote, expBotsNote: expBotsNote, postaciLabel: postaciLabel,
