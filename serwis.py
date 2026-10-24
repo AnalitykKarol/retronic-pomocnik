@@ -30,13 +30,43 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 KATALOG = Path(__file__).resolve().parent
 TRASY = KATALOG / "trasy"
 KOSZT_LACZNIKA = 6.0                    # w "polach": przejście piętra
-DRZWI_PROB = 3                          # tyle prób przejścia przez jedne drzwi (Use + krok), potem SerwisBlad (jak wypad.DRZWI_PROB, ale krócej)
+DRZWI_PROB = 4                          # tyle prób przejścia przez jedne drzwi (krok, krok, Use + krok, krok), potem SerwisBlad; 24.10: było 3
 DRZWI_CZEKAJ_S = (0.6, 1.0)             # po Use czekamy, aż drzwi się otworzą (jak wypad._drzwi)
 SKLADOWA_MAKS_POL = 400000              # zalew spójności większy niż to = nie odrzucamy pary (A* sam zdecyduje)
 DRZWI_SPOKOJ_S = 0.4                    # odstęp dwóch odczytów pozycji „postać stoi” (jak cavebot._drzwi_spokoj)
 
 import marsz_klik  # noqa: E402
-from serwis_blad import SerwisBlad, cheb  # noqa: E402
+from serwis_blad import BrakOdpowiedziNpc, SerwisBlad, cheb  # noqa: E402
+
+# 23.10 (decyzja Karola ~11:00: „niech on próbuje pisać, jeśli nie ma przejścia”): gdy serwis nie może wejść na pole stania przy NPC
+# (pole zajęte, brak drogi, marsz utknął) albo NPC odszedł, rozmawia z miejsca w zasięgu NPC. Zasięg = odległość Czebyszewa na tym
+# samym piętrze. Wartość 3 z polecenia Karola (Tibia 7.x: NPC słyszy z kilku pól; w repo NIE MA zmierzonej wartości, są tylko pola
+# stania 1-2 pola od NPC, np. Frodo 2). Do zmierzenia na żywo: z jakiej odległości Frodo odpowiada na „hi”; przy mniejszej wartości
+# zmień tylko tę stałą. Wybierając pole do podejścia preferujemy pola nie dalej niż ZASIEG_PREFEROWANY od NPC (margines na błąd stałej).
+ZASIEG_ROZMOWY = 3
+ZASIEG_PREFEROWANY = 2
+MAKS_POL_DO_ZASIEGU = 3                 # tyle różnych pól w zasięgu NPC serwis próbuje, zanim odda oryginalny błąd
+NPC_WIDOK_X, NPC_WIDOK_Y = 7, 5         # widok mapy klienta (±7 x ±5 pól): dalej lista stworów NPC nie zawiera
+_DOSC = {"cel": None, "fn": None}       # hak marszu: patrz dosc_marszu
+
+
+class dosc_marszu:
+    """Kontekst: dla marszu `idz_pewnie` do pola `cel` (x, y, z) zajęte albo zablokowane pole docelowe nie każe czekać, tylko pyta
+    `fn(poz)` (23.10, rozmowa z NPC z miejsca): True = z `poz` NPC jest w zasięgu rozmowy, marsz kończy się sukcesem; False = NPC jest
+    poza zasięgiem, marsz kończy się od razu porażką (powód w stan["utkniecie"]), serwis szuka innego pola; None = nie wiadomo
+    (NPC niewidoczny), czekanie jak dotąd. Bez kontekstu (inne użycia idz_pewnie) nic się nie zmienia."""
+
+    def __init__(self, cel, fn):
+        self.cel, self.fn, self.poprzedni = tuple(cel), fn, None
+
+    def __enter__(self):
+        self.poprzedni = dict(_DOSC)
+        _DOSC.update(cel=self.cel, fn=self.fn)
+        return self
+
+    def __exit__(self, *_):
+        _DOSC.update(self.poprzedni)
+        return False
 
 
 def miasta(katalog=TRASY):
@@ -316,6 +346,42 @@ ID_BLANK_RUNY = 3147     # blank rune (jak serwis_akcje.ID_BLANK)
 # kroki, których wynik cofa depo (odkłada bag z runami razem z blankami); przy wznawianiu oceniane na nowo (Serwis._stan_zmieniony)
 KROKI_ZALEZNE_OD_DEPO = ("backpack", "blanki")
 
+# krok wirtualny (bez przystanku w danych miasta): wyprawa tylko po cap (refill_auto.KROKI_CAP = "bank,cap,wyjscie"); 24.10
+KROKI_WIRTUALNE = ("cap",)
+
+# 24.10 (invincible/gebelish/dawajkesh: kupione 5 ham zjadło cap, łupu z huntu nie było gdzie nosić). Pokrętła z na_zywo.json instancji
+# (serwis nie ładuje pokrętł cavebota, jak RATUNEK_HAIKU); 0 = dawne zachowanie. Zakresy i opis: pokretla.ZAKRESY.
+POKRETLA_SERWISU = {
+    "SERWIS_CAP_NA_LOOT": 50,     # oz capa, które zostaje wolne po zakupie ham (rezerwa na łup) i do którego krok `cap` odkłada nadmiar
+    "SERWIS_HAM_MIN": 2,          # tyle ham najmniej kupujemy, gdy postać nie ma jedzenia (jeśli cap pozwala), nawet gdy rezerwa każe 0
+    "SERWIS_CAP_DEPO_LOOT": 0,    # 1 = krok `cap` odkłada do depo ciężki łup-sprzęt (DO POTWIERDZENIA KAROLA, domyślnie wyłączone)
+}
+_CELE_STARE = {"cap_na_loot": 0, "ham_min": 0, "cap_depo_loot": 0}      # domyślne w Serwis(): atrapy i testy = jak dotąd
+_KLUCZE_CELE = {"SERWIS_CAP_NA_LOOT": "cap_na_loot", "SERWIS_HAM_MIN": "ham_min", "SERWIS_CAP_DEPO_LOOT": "cap_depo_loot"}
+
+
+def pokretla_serwisu(plik=None):
+    """{cap_na_loot, ham_min, cap_depo_loot} z na_zywo.json (domyślne POKRETLA_SERWISU; brak pliku albo śmieć w polu =
+    domyślna wartość tego pola, nigdy wyjątek). Wartość ujemna = 0."""
+    nz = {}
+    try:
+        if plik is None:
+            import instancja  # noqa: PLC0415
+            plik = instancja.S.na_zywo
+        nz = json.loads(Path(plik).read_text())
+        nz = nz if isinstance(nz, dict) else {}
+    except (OSError, ValueError, TypeError, AttributeError, ImportError):
+        nz = {}
+    wynik = {}
+    for k, nazwa in _KLUCZE_CELE.items():
+        try:
+            v = float(nz.get(k, POKRETLA_SERWISU[k]))
+            v = v if v == v else POKRETLA_SERWISU[k]
+        except (TypeError, ValueError):
+            v = POKRETLA_SERWISU[k]
+        wynik[nazwa] = max(0, int(v))
+    return wynik
+
 
 class Serwis:
     """Orkiestrator kroków. `akcje` = obiekt z metodami z serwis_akcje.AkcjeZywe (w testach atrapa); `chodz(punkty)` -> bool."""
@@ -333,7 +399,7 @@ class Serwis:
         self.chodz = chodz
         self.log = log
         self.spij = spij
-        self.cele = dict({"ham": 5, "blanki": 20, "platinum_zostaw": 3}, **(cele or {}))
+        self.cele = {"ham": 5, "blanki": 20, "platinum_zostaw": 3, **_CELE_STARE, **(cele or {})}
         self.wynik = {}
         self.kroki_przebiegu = []
 
@@ -358,6 +424,136 @@ class Serwis:
         if len(droga) > 1 and not self.chodz(droga, tolerancja):
             raise SerwisBlad(krok, f"nie doszedłem do {tuple(cel)} (stoję w {tuple(self.pozycja())})")
 
+    # --- rozmowa z NPC z miejsca (23.10, decyzja Karola) ---------------------------------------------
+
+    def _stwory(self):
+        """Lista stworów z akcji (puste, gdy akcje jej nie mają albo odczyt zawiódł: wtedy nic nie zgadujemy)."""
+        f = getattr(self.akcje, "_stwory", None)
+        if f is None:
+            return []
+        try:
+            return list(f())
+        except Exception:
+            return []
+
+    def _poz_npc(self, npc, z, od=None):
+        """Widoczna bieżąca pozycja NPC `npc` na piętrze `z` (lista stworów klienta, NPC chodzą), najbliższa `od`, albo None."""
+        wiersze = [(q["x"], q["y"], q["z"]) for q in self._stwory()
+                   if (q.get("nazwa") or "").casefold() == npc.casefold() and q.get("z") == z
+                   and q.get("x") is not None and q.get("y") is not None and not q.get("gracz")]
+        if not wiersze:
+            return None
+        return min(wiersze, key=lambda p: cheb(p, od) if od else 0)
+
+    def _npc_znany(self, przyst, poz):
+        """Gdzie jest NPC kroku: widoczny na liście stworów albo, gdy `poz` jest poza widokiem klienta (lista go wtedy nie zawiera),
+        pozycja z danych (`npc_poz`). Z bliska bez NPC na liście = None (nie zgadujemy: zachowanie jak dotąd)."""
+        n = self._poz_npc(przyst["npc"], poz[2], poz)
+        if n is not None:
+            return n
+        d = przyst.get("npc_poz")
+        if d and tuple(d)[2] == poz[2] and (abs(d[0] - poz[0]) > NPC_WIDOK_X or abs(d[1] - poz[1]) > NPC_WIDOK_Y):
+            return tuple(d)
+        return None
+
+    @staticmethod
+    def _w_zasiegu(poz, npc_poz):
+        return poz[2] == npc_poz[2] and cheb(poz, npc_poz) <= ZASIEG_ROZMOWY
+
+    def _idz_z_hakiem(self, krok, cel, przyst):
+        """`_idz` do `cel`, a gdy pole `cel` jest zajęte/zablokowane, marsz nie czeka: kończy od razu, jeśli NPC jest w zasięgu rozmowy
+        (sukces), albo gdy jest poza nim (porażka)."""
+        def hak(poz):
+            n = self._npc_znany(przyst, tuple(poz))
+            return None if n is None else self._w_zasiegu(tuple(poz), n)
+        with dosc_marszu(cel, hak):
+            self._idz(krok, cel)
+
+    def _pole_w_zasiegu(self, npc_poz, poz, wyklucz=()):
+        """Najbliższe postaci wolne pole w zasięgu rozmowy z NPC stojącym w `npc_poz` (z preferencją pól do ZASIEG_PREFEROWANY od NPC),
+        do którego planer zna drogę, albo None. Pomija pola zajęte (gracze, stwory, sam NPC), schody/dziury i już próbowane."""
+        zajete = {(q.get("x"), q.get("y")) for q in self._stwory()
+                  if q.get("z") == npc_poz[2] and q.get("nazwa") != getattr(self.akcje, "nick", None) and not q.get("widmo")}
+        schody = getattr(self.planer, "_schody", lambda _p: False)
+        kand = []
+        for dx in range(-ZASIEG_ROZMOWY, ZASIEG_ROZMOWY + 1):
+            for dy in range(-ZASIEG_ROZMOWY, ZASIEG_ROZMOWY + 1):
+                p = (npc_poz[0] + dx, npc_poz[1] + dy, npc_poz[2])
+                if p[:2] == tuple(npc_poz[:2]) or p[:2] in zajete or p in wyklucz:
+                    continue
+                kand.append((cheb(p, npc_poz) > ZASIEG_PREFEROWANY, cheb(poz, p) if poz[2] == p[2] else 99,
+                             abs(p[0] - poz[0]) + abs(p[1] - poz[1]), cheb(p, npc_poz), p))
+        for *_k, p in sorted(kand)[:8]:
+            if schody(p):
+                continue
+            if self.planer.droga(poz, p) is not None:
+                return p
+        return None
+
+    def _do_zasiegu_npc(self, krok, przyst, npc_poz, blad):
+        """Postać stoi poza zasięgiem NPC, który jest w `npc_poz`: idzie na najbliższe wolne pole w jego zasięgu (do
+        MAKS_POL_DO_ZASIEGU pól, każde z tym samym hakiem „zajęte pole, ale NPC w zasięgu”). Nic z tego = `blad` (oryginalny)."""
+        wyklucz = set()
+        for _ in range(MAKS_POL_DO_ZASIEGU):
+            poz = tuple(self.pozycja())
+            pole = self._pole_w_zasiegu(npc_poz, poz, wyklucz)
+            if pole is None:
+                break
+            wyklucz.add(pole)
+            self.log(f"serwis[{krok}]: NPC {przyst['npc']} w {npc_poz[:2]}, poza zasięgiem rozmowy ({ZASIEG_ROZMOWY}) z {poz[:2]}: "
+                     f"idę na pole {pole[:2]} w jego zasięgu (decyzja Karola 23.10: próbuję rozmowy zamiast czekać)")
+            try:
+                self._idz_z_hakiem(krok, pole, przyst)
+                return
+            except SerwisBlad as e:
+                if e.krok not in (krok, "marsz"):
+                    raise
+            poz = tuple(self.pozycja())
+            n = self._npc_znany(przyst, poz)
+            if n is not None:
+                npc_poz = n
+                if self._w_zasiegu(poz, n):
+                    return
+        raise blad
+
+    def _idz_npc(self, krok, przyst):
+        """Dojście do pola stania przy NPC (23.10). Zwykły przypadek bez zmian (`_idz` na pole stania, tolerancja 0). Gdy się nie udaje
+        (pole zajęte/zablokowane, brak drogi, marsz utknął, timeout), a NPC jest w zasięgu rozmowy z miejsca, w którym stoimy, rozmowa
+        zaczyna się od razu; gdy NPC jest widoczny poza zasięgiem, serwis idzie na najbliższe wolne pole w jego zasięgu. NPC niewidoczny
+        (z bliska) albo brak takiego pola = oryginalny błąd. Inne porażki (drzwi, STOP, ucieczka) nie są łagodzone."""
+        cel = tuple(przyst["stoi"])
+        try:
+            self._idz_z_hakiem(krok, cel, przyst)
+            return
+        except SerwisBlad as e:
+            if e.krok not in (krok, "marsz"):
+                raise
+            blad = e
+        poz = tuple(self.pozycja())
+        n = self._npc_znany(przyst, poz)
+        if n is None:
+            raise blad
+        if self._w_zasiegu(poz, n):
+            self.log(f"serwis[{krok}]: nie doszedłem na pole stania {cel[:2]} ({blad.powod}), ale NPC {przyst['npc']} jest w zasięgu rozmowy "
+                     f"({n[:2]}, odl. {cheb(poz, n)}): rozmawiam z miejsca {poz[:2]} (decyzja Karola 23.10)")
+            return
+        self._do_zasiegu_npc(krok, przyst, n, blad)
+
+    def _rozmowa(self, krok, przyst, f):
+        """Rozmowa z NPC (`f` = kup/bank_zmien). NPC, który nie odpowiada na `hi`, a stoi teraz poza zasięgiem (odszedł), dostaje JEDNĄ
+        ponowną próbę po podejściu do jego nowej pozycji (23.10). NPC w zasięgu albo niewidoczny: błąd jak dotąd."""
+        try:
+            return f()
+        except BrakOdpowiedziNpc as e:
+            poz = tuple(self.pozycja())
+            n = self._poz_npc(przyst["npc"], poz[2], poz)
+            if n is None or self._w_zasiegu(poz, n):
+                raise
+            self.log(f"serwis[{krok}]: {przyst['npc']} nie odpowiada na hi, a stoi teraz w {n[:2]} (poza zasięgiem z {poz[:2]}): "
+                     f"podchodzę i próbuję jeszcze raz (jedna próba, 23.10)")
+            self._do_zasiegu_npc(krok, przyst, n, e)
+            return f()
+
     def plan(self, kroki, od=None):
         """[(krok, cel, liczba punktów)] od `od` (bez inputu do gry); None w liczbie = brak drogi."""
         poz = tuple(od or self.pozycja())
@@ -379,6 +575,8 @@ class Serwis:
             return [tuple(s) for s in self.d.get("depo_stoiska", [])] or [tuple(self.d["przystanki"]["depo"]["stoi"])]
         if krok == "wyjscie":
             return [tuple(self.d["wyjscie"])]
+        if krok == "cap":
+            return self._cele_kroku("depo")           # krok wirtualny: odkłada nadmiar w depo (w planie liczymy dojście do skrzyni)
         return [tuple(self.d["przystanki"][krok]["stoi"])]
 
     # --- kroki ---------------------------------------------------------------------------------
@@ -407,6 +605,8 @@ class Serwis:
         k = 0
         if "jedzenie" in kroki:
             k += 10 * self.akcje.brakuje("ham", self.cele["ham"])
+        elif "cap" in kroki and self.cele["ham_min"] > 0:
+            k += 10 * self.akcje.brakuje("ham", min(self.cele["ham_min"], self.cele["ham"]))        # krok `cap` może dokupić minimum jedzenia
         if "backpack" in kroki:
             k += 20 * (1 if depo_przed else self.akcje.brakuje("backpack", 1))
         if "blanki" in kroki:
@@ -443,7 +643,7 @@ class Serwis:
         `pomin_brakujace`: kroki, których miasto nie ma w danych (Thais nie ma kroku bank), są pomijane z wpisem w logu zamiast
         błędu startu (refill zleca jedną listę kroków dla każdego miasta)."""
         kroki = list(kroki or self.d["kolejnosc"])
-        nieznane = [k for k in kroki if k not in self.d["przystanki"] and k != "wyjscie"]
+        nieznane = [k for k in kroki if k not in self.d["przystanki"] and k != "wyjscie" and k not in KROKI_WIRTUALNE]
         if nieznane and pomin_brakujace:
             self.log(f"serwis: miasto nie ma kroków {nieznane}, pomijam je")
             kroki = [k for k in kroki if k not in nieznane]
@@ -500,12 +700,19 @@ class Serwis:
         return False
 
     def _krok_bank(self):
-        self._idz("bank", self.d["przystanki"]["bank"]["stoi"])
-        self.akcje.bank_zmien(self.d["przystanki"]["bank"]["npc"])
+        s = self.d["przystanki"]["bank"]
+        self._idz_npc("bank", s)
+        self._rozmowa("bank", s, lambda: self.akcje.bank_zmien(s["npc"]))
 
     def _krok_depo(self):
         """Najbliższe wolne stanowisko przy skrzyni depo (liczone po długości drogi od bieżącej pozycji). Zajęte stanowisko
         i skrzynia, która się nie otworzyła, przechodzą do następnego; błąd chodzenia kończy serwis (STOP)."""
+        self._przy_depo(lambda st: self.akcje.depo_zloz(zostaw_platinum=self.cele["platinum_zostaw"],
+                                                         odejdz=lambda: self._odejdz_od_depo(st)))
+
+    def _przy_depo(self, f):
+        """Dojście do najbliższego wolnego stanowiska przy skrzyni depo i `f(stoisko)` (True = zrobione, False = skrzynia się nie
+        otworzyła -> następne stanowisko). Wspólne dla kroków depo i cap."""
         poz = tuple(self.pozycja())
         koszty = []
         for st in self._cele_kroku("depo"):
@@ -519,8 +726,7 @@ class Serwis:
                 self.log(f"serwis[depo]: stanowisko {stoisko} zajęte, następne")
                 continue
             self._idz("depo", stoisko, tolerancja=0)
-            if self.akcje.depo_zloz(zostaw_platinum=self.cele["platinum_zostaw"],
-                                    odejdz=lambda st=stoisko: self._odejdz_od_depo(st)):
+            if f(stoisko):
                 return
             self.log(f"serwis[depo]: skrzynia przy {stoisko} się nie otworzyła, następne stanowisko")
         raise SerwisBlad("depo", "wszystkie stanowiska zajęte albo skrzynie się nie otworzyły")
@@ -546,19 +752,56 @@ class Serwis:
 
     def _krok_jedzenie(self):
         s = self.d["przystanki"]["jedzenie"]
-        self._idz("jedzenie", s["stoi"])
+        self._idz_npc("jedzenie", s)
         cel = self.cele["ham"]
-        if "blanki" in self.kroki_przebiegu:
-            cel = self.akcje.cel_ham(cel, self.akcje.rezerwa_na_blanki(self.cele["blanki"]))   # ham nie może zabrać capa bagu z blankami
-        self.akcje.kup(s["npc"], "ham", cel, **self._kup_kw(s))
+        loot = self.cele["cap_na_loot"]
+        if "blanki" in self.kroki_przebiegu or loot > 0:
+            # ham nie może zabrać capa bagu z blankami ani miejsca na łup z huntu (24.10: pięć ham po 20 oz zjadło cap do zera)
+            rezerwa = loot + (self.akcje.rezerwa_na_blanki(self.cele["blanki"]) if "blanki" in self.kroki_przebiegu else 0)
+            cel = self.akcje.cel_ham(cel, rezerwa)
+        if self.cele["ham_min"] > 0:
+            # bez jedzenia nie idziemy na hunt (odchyd 24.10: 0 ham); minimum ograniczone tylko realnym capem, bez rezerwy
+            cel = max(cel, self.akcje.cel_ham(min(self.cele["ham_min"], self.cele["ham"]), 0))
+        self._rozmowa("jedzenie", s, lambda: self.akcje.kup(s["npc"], "ham", cel, **self._kup_kw(s)))
+
+    def _krok_cap(self):
+        """Krok wirtualny wyprawy tylko po cap (po banku, który zamienia gold na platinum). Ham NIE idzie do depo (korekta Karola
+        24.10: na łowisku bot najpierw zjada i wyrzuca jedzenie, wyprawa.py). Tu: (1) gdy SERWIS_CAP_DEPO_LOOT=1 i wolny cap
+        < SERWIS_CAP_NA_LOOT, odkłada w depo ciężki łup-sprzęt; (2) gdy ham < SERWIS_HAM_MIN, kupuje to minimum (tyle, ile pozwala
+        cap): postać po wyrzuceniu jedzenia nie może zostać bez niczego. Pokrętło 0 wyłącza odpowiednią część."""
+        c = self.cele
+        stan = getattr(self.akcje, "stan_cap", None)
+        if stan is None or (c["cap_na_loot"] <= 0 and c["ham_min"] <= 0):
+            self.log("serwis[cap]: wyłączone (SERWIS_CAP_NA_LOOT=0 i SERWIS_HAM_MIN=0), nic nie robię")
+            return
+        if c["cap_depo_loot"] and c["cap_na_loot"] > 0 and "depo" in self.d["przystanki"]:
+            from serwis_akcje import plan_nadmiaru  # noqa: PLC0415
+            cap, ham, przedmioty = stan()
+            loot = plan_nadmiaru(cap, c["cap_na_loot"], przedmioty)
+            self.log(f"serwis[cap]: wolne {cap:.1f} oz (cel {c['cap_na_loot']}), ham {ham}, łupu do depo {len(loot)} szt.")
+            if loot:
+                self._przy_depo(lambda st: self.akcje.depo_nadmiar(loot, odejdz=lambda: self._odejdz_od_depo(st)))
+        if c["ham_min"] <= 0 or "jedzenie" not in self.d["przystanki"]:
+            return
+        cap, ham, _ = stan()
+        cel = self.akcje.cel_ham(min(c["ham_min"], c["ham"]), 0)
+        if ham >= c["ham_min"] or cel <= ham:
+            self.log(f"serwis[cap]: ham {ham} (minimum {c['ham_min']}, wolne {cap:.1f} oz): nie kupuję")
+            return
+        if self._za_drzwiami("jedzenie"):
+            self.log(f"serwis[cap]: ham {ham} < minimum {c['ham_min']}, ale sklep jest za drzwiami, których serwis tu nie otwiera: nie kupuję")
+            return
+        s = self.d["przystanki"]["jedzenie"]
+        self._idz_npc("jedzenie", s)
+        self._rozmowa("jedzenie", s, lambda: self.akcje.kup(s["npc"], "ham", cel, **self._kup_kw(s)))
 
     def _krok_backpack(self):
         s = self.d["przystanki"]["backpack"]
         if not self.akcje.potrzeba_baga():
             self.log("serwis[backpack]: bag na runy już jest, nie kupuję")
             return
-        self._idz("backpack", s["stoi"])
-        self.akcje.kup(s["npc"], "backpack", 1, **self._kup_kw(s))
+        self._idz_npc("backpack", s)
+        self._rozmowa("backpack", s, lambda: self.akcje.kup(s["npc"], "backpack", 1, **self._kup_kw(s)))
         self.akcje.przygotuj_okna()        # nowy bag staje się osobnym oknem, zanim kupione blanki trafią do plecaka
 
     def _krok_blanki(self):
@@ -568,8 +811,8 @@ class Serwis:
         if brak > 0 and self.akcje.wolne_w_bagu() < brak:
             raise SerwisBlad("blanki", f"w bagu na runy jest miejsce na {self.akcje.wolne_w_bagu()} blanków, a brakuje {brak}: "
                                        "najpierw krok backpack (albo zrób miejsce), nic nie kupiłem")
-        self._idz("blanki", s["stoi"])
-        self.akcje.kup(s["npc"], "blank rune", self.cele["blanki"], **self._kup_kw(s))
+        self._idz_npc("blanki", s)
+        self._rozmowa("blanki", s, lambda: self.akcje.kup(s["npc"], "blank rune", self.cele["blanki"], **self._kup_kw(s)))
         self.akcje.przenies_blanki()
         self.akcje.przygotuj_okna()
 
@@ -599,6 +842,31 @@ def pole_schodow_lub_dziur(mp, x, y, z):
     „przy okazji” drogi po jednym piętrze, a klik w mapę nie może prowadzić przez prostokąt, w którym takie pole leży."""
     f = int(mp.flagi(x, y, z))
     return bool(f & marsz_klik.FLAGA_CHODLIWE and f & marsz_klik.FLAGA_SCHODY and not f & marsz_klik.FLAGA_BLOK)
+
+
+def przejscie_pewne_w_prostokacie(mp, a, b, margines=1, wyjatek=()):
+    """Jak schody_w_prostokacie, ale tylko PRAWDZIWE przejścia pięter (marsz_klik.przejscie_pewne: kolor 210 albo odpowiednik na z±1);
+    dekoracje z flagą 2 bez odpowiednika nie liczą się. Dla kliku w linii prostej (klient idzie prosto, nie skręca w bok)."""
+    x0, x1 = sorted((a[0], b[0]))
+    y0, y1 = sorted((a[1], b[1]))
+    z = a[2]
+    for x in range(x0 - margines, x1 + margines + 1):
+        for y in range(y0 - margines, y1 + margines + 1):
+            if (x, y) not in wyjatek and marsz_klik.przejscie_pewne(mp, x, y, z):
+                return True
+    return False
+
+
+def prosty_odcinek(sciezka, maks):
+    """Ile początkowych kroków `sciezki` ((x, y, ...) od pozycji postaci) leży w jednej linii (ta sama kolumna albo ten sam wiersz), najwyżej `maks`.
+    Klik na koniec takiego odcinka prowadzi klienta prosto: nie ma równorzędnych objazdów po bokach."""
+    najlepiej = 0
+    for os_ in (0, 1):
+        k = 0
+        while k < maks and k + 1 < len(sciezka) and sciezka[k + 1][os_] == sciezka[0][os_]:
+            k += 1
+        najlepiej = max(najlepiej, k)
+    return najlepiej
 
 
 def schody_w_prostokacie(mp, a, b, margines=1, wyjatek=()):
@@ -763,9 +1031,27 @@ def _czas_kroku(mp, pole):
     return min(KROK_S_MAX, max(KROK_S_MIN, t)) * _RUCH["skala"]
 
 
-def _po_kroku(czas_kroku=None):
-    """Zapamiętuje, kiedy skończy się krok, który właśnie się zaczął (Postac.krok wraca ok. 0,06 s po zmianie pozycji)."""
-    _RUCH["koniec"] = time.monotonic() - 0.06 + (czas_kroku if czas_kroku is not None else KROK_S_DOMYSLNY * _RUCH["skala"])
+# 23.10 (invincible, Edron, „chodzi po 1 kratce”): strzałki szły 0,72-0,82 s/krok przy kroku postaci ok. 0,4-0,5 s, bo kolejny klawisz
+# czekał na PEŁNY szacunek kroku plus opóźnienia wykrycia i wysyłki (martwy czas ok. 0,25-0,3 s między krokami). Płynny marsz wysyła następną
+# strzałkę PLYNNY_PRZED_S przed szacowanym końcem kroku (klawisz dociera do klienta, gdy krok już się kończy). To założenie NIE jest jeszcze
+# zmierzone na żywo, więc: tylko gdy skala czasu kroku <= 1 (po nieudanym kroku wraca do ostrożnego), a pierwszy zawód, który udaje się
+# po ponowieniu na tym samym polu (= klawisz odrzucony, nie ściana), wyłącza płynny marsz do końca procesu (_RUCH["plynny_wyl"]).
+# Wyłącznik: RETRONIC_MARSZ_PLYNNY=0 w środowisku serwisu (stare tempo, czas kroku - 0,06 s).
+PLYNNY_PRZED_S = 0.10
+
+
+def _plynny():
+    """True, gdy następną strzałkę wolno wysłać PLYNNY_PRZED_S przed szacowanym końcem kroku."""
+    return (os.environ.get("RETRONIC_MARSZ_PLYNNY", "1") != "0" and not _RUCH.get("plynny_wyl")
+            and _RUCH["skala"] <= 1.0)
+
+
+def _po_kroku(czas_kroku=None, plynnie=True):
+    """Zapamiętuje, kiedy skończy się krok, który właśnie się zaczął (Postac.krok wraca ok. 0,06 s po zmianie pozycji).
+    `plynnie=False` (po kliku: moment startu ostatniego kroku znamy tylko z odpytywania) = bez wyprzedzenia."""
+    przed = PLYNNY_PRZED_S if plynnie and _plynny() else 0.0
+    _RUCH["koniec"] = time.monotonic() - 0.06 - przed + (czas_kroku if czas_kroku is not None else KROK_S_DOMYSLNY * _RUCH["skala"])
+    _RUCH["przed"] = przed > 0
 
 
 def _czekaj_koniec_kroku():
@@ -844,8 +1130,7 @@ _DRZWI_OTWARTE = set()       # drzwi, przez które ten proces już przeszedł (z
 def przejdz_drzwi(postac, przed, drzwi, za, log=print, otworz=None, spij=time.sleep):
     """Przejście przez zamknięte drzwi sklepu (22.10, Thais): stoimy na `przed` (pole przed drzwiami), czekamy aż postać
     stoi, Use na drzwiach (Ctrl+klik), pauza, krok na kafelek drzwi, krok na `za`; po każdym kroku sprawdzamy pozycję.
-    Do DRZWI_PROB prób. Drzwi, przez które już przeszliśmy, zaczynają od samego kroku (Use na otwartych drzwiach by je zamknęło),
-    nieznane od Use; kolejne próby zmieniają tryb (Use / sam krok). Bez powodzenia SerwisBlad("drzwi"). True = stoimy na `za`.
+    Do DRZWI_PROB prób: krok, krok, Use + krok, krok (Use na otwartych drzwiach by je zamknęło, więc najpierw zawsze krok). Bez powodzenia SerwisBlad("drzwi"). True = stoimy na `za`.
     Wzór: cavebot._drzwi_trasa_tick, pietra._przed_use, wypad._drzwi."""
     przed, h, za = tuple(przed), tuple(drzwi), tuple(za)
     k_h, k_za = (_klawisz_ruchu(przed, h) if przed != h else "-"), _klawisz_ruchu(h, za)
@@ -860,7 +1145,9 @@ def przejdz_drzwi(postac, przed, drzwi, za, log=print, otworz=None, spij=time.sl
         return True
     if poz not in (przed, h):
         raise SerwisBlad("drzwi", f"drzwi {h[:2]}: stoję w {poz[:2]}, a powinienem na {przed[:2]} (przed drzwiami)")
-    tryby = ("krok", "use", "krok") if h in _DRZWI_OTWARTE else ("use", "krok", "use")
+    # 24.10 (Karol: „zamyka drzwi przed wejściem”): ZAWSZE najpierw dwa kroki, Use dopiero, gdy krok nie przeszedł; wcześniej
+    # nieznane drzwi zaczynały od Use, które zamykało otwarte drzwi (wydra, Thais 13:3x). Jak cavebot DRZWI_NAJPIERW_KROK.
+    tryby = ("krok", "krok", "use", "krok")
     for n in range(DRZWI_PROB):
         tryb = tryby[n % len(tryby)]
         poz = _postac_stoi(postac, spij)
@@ -938,6 +1225,17 @@ def idz_z_drzwiami(postac, punkty, drzwi, chodz1, tolerancja=0, log=print, otwor
 KLIK_MAKS_POL = marsz_klik.KLIK_MAKS_POL      # ile pól naprzód klikamy naraz (widok mapy ma ±7 x ±5 pól)
 
 
+def _dosc_npc(cel, poz):
+    """Hak `dosc_marszu` dla marszu do `cel`: True / False / None (patrz klasa); poza kontekstem albo przy innym celu None."""
+    fn = _DOSC.get("fn")
+    if fn is None or _DOSC.get("cel") != tuple(cel):
+        return None
+    try:
+        return fn(tuple(poz))
+    except Exception:
+        return None
+
+
 def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, unik=(), stan=None):
     """Marsz po kafelkach na jednym piętrze, bez chodzika mozg (ten ma ~20 s inicjalizacji na odcinek i kończy trasy
     jednopunktowe od razu): Dijkstra po polach chodliwych mapy (bez schodów i dziur poza celem; remis dróg rozstrzyga
@@ -956,6 +1254,7 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
     zablok, zawiodlo, wizyty = {}, {}, {}
     t0, ost_log = time.monotonic(), 0.0
     zle_z_rzedu, ok_krokow, zle_razem, ost_kier = 0, 0, 0, None
+    kliki, powody = 0, {}      # 23.10: ile razy szliśmy klikiem i dlaczego strzałką (w podsumowaniu: s/krok liczy tylko strzałki)
     marg = 8      # margines prostokąta szukania drogi wokół start-cel; rośnie, gdy ściana każe obejść poza prostokąt (21.10 Edron z7 do Xodeta)
 
     unik = {tuple(u)[:2] for u in unik if tuple(u)[2] == cel[2]}
@@ -970,7 +1269,9 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
             stan["utkniecie"] = powod
         if ok_krokow or zle_razem or powod:
             log(f"serwis: marsz do {cel[:2]}: {ok_krokow} kroków w {dt:.1f} s"
-                f"{f' ({dt / ok_krokow:.2f} s/krok)' if ok_krokow else ''}, nieudanych {zle_razem}"
+                f"{f' ({dt / ok_krokow:.2f} s/krok)' if ok_krokow and not kliki else ''}"
+                f"{f', klików {kliki}' if kliki else ''}"
+                f"{f', strzałką bo: {dict(powody)}' if powody and ok_krokow else ''}, nieudanych {zle_razem}"
                 f"{f', PRZERWANY: {powod}' if powod else ''}")
         return wynik
 
@@ -989,6 +1290,15 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
             zajete = set()
         zajete |= {pole for pole, do in zablok.items() if do > teraz}
         zajete.discard((poz[0], poz[1]))
+        if (cel[0], cel[1]) in zajete:
+            # 23.10 (decyzja Karola): zajęte/zablokowane pole stania przy NPC nie każe czekać do końca limitu
+            r = _dosc_npc(cel, poz)
+            if r is True:
+                log(f"serwis: pole stania {cel[:2]} zajęte, ale NPC jest w zasięgu rozmowy z {poz[:2]}: kończę marsz")
+                return koniec(True)
+            if r is False:
+                log(f"serwis: pole stania {cel[:2]} zajęte, NPC poza zasięgiem rozmowy z {poz[:2]}: kończę marsz (serwis szuka innego pola)")
+                return koniec(False, "pole stania zajęte, NPC poza zasięgiem rozmowy")
         start = (poz[0], poz[1])
         skad, d = {(start, ost_kier): None}, {(start, ost_kier): 0.0}
         kol, meta, n = [(0.0, 0, start, ost_kier)], None, 0
@@ -1019,6 +1329,13 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
             if marg < 64:
                 marg *= 2     # droga może prowadzić poza prostokątem: szukamy szerzej, zanim uznamy brak drogi
                 continue
+            r = _dosc_npc(cel, poz) if zajete else None            # 23.10: droga zablokowana ludźmi, a NPC w zasięgu = rozmowa z miejsca
+            if r is True:
+                log(f"serwis: brak drogi z {poz[:2]} do {cel[:2]}, ale NPC jest w zasięgu rozmowy: kończę marsz")
+                return koniec(True)
+            if r is False:
+                log(f"serwis: brak drogi z {poz[:2]} do {cel[:2]}, NPC poza zasięgiem rozmowy: kończę marsz (serwis szuka innego pola)")
+                return koniec(False, "brak drogi do pola stania, NPC poza zasięgiem rozmowy")
             if teraz - ost_log > 8:
                 log(f"serwis: brak drogi z {poz[:2]} do {cel[:2]} (ludzie na drodze albo nieznane pola), czekam")
                 ost_log = teraz
@@ -1034,11 +1351,26 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
         # klik w mapę (klient sam idzie ciągiem, kilka razy szybciej niż krok po kroku): najdalsze pole ścieżki w zasięgu
         # widoku, do którego wszystkie pola są zwykłe (bez flagi 2) i wolne
         dalej = marsz_klik.dalej_klik(sciezka, koszt, poz[2], KLIK_MAKS_POL)
+        powod_strzalki = "cel_blisko" if len(sciezka) <= 2 else ("pole_flagi_2_albo_zajete" if dalej < 2 else None)
+        dalej0 = dalej
         # 22.10 (wydra, depo Thais): klient prowadzi klik własną drogą (8 kierunków, skos przez róg), więc pole schodów NIE na naszej
         # ścieżce, ale w prostokącie poz-klik, potrafi wciągnąć postać na inne piętro. Przy schodach idziemy strzałkami po naszej ścieżce.
         wyjatek = {(cel[0], cel[1])}
         while dalej >= 2 and schody_w_prostokacie(mp, (poz[0], poz[1], poz[2]), sciezka[dalej] + (poz[2],), wyjatek=wyjatek):
             dalej -= 1
+        # 23.10 (Edron z6, 17 strzałek zamiast kliku): flaga 2 bez odpowiednika (dekoracja, kolor 129) obok korytarza skracała klik do 1 dla
+        # całego odcinka. Prosty odcinek ścieżki (ta sama kolumna/wiersz) klient przechodzi prosto, więc tam liczą się tylko PRAWDZIWE
+        # przejścia pięter w prostokącie z marginesem 1; i tylko gdy nikt (stwór, gracz, zablokowane pole) nie jest bliżej niż 2 pola od linii
+        # (obchodząc go klient mógłby skręcić w bok).
+        prosty = min(dalej0, prosty_odcinek(sciezka, dalej0)) if dalej0 >= 2 else 0
+        if prosty > dalej and prosty >= 2:
+            linia = sciezka[:prosty + 1]
+            blisko = any(max(abs(q[0] - l[0]), abs(q[1] - l[1])) <= 2 for q in zajete for l in linia)
+            while prosty >= 2 and not blisko and prosty > dalej and przejscie_pewne_w_prostokacie(
+                    mp, (poz[0], poz[1], poz[2]), sciezka[prosty] + (poz[2],), wyjatek=wyjatek):
+                prosty -= 1
+            if prosty > dalej and not blisko:
+                dalej = prosty
         if dalej >= 2:
             import ekran
             cel_kl = sciezka[dalej]
@@ -1046,16 +1378,26 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
                 ekran.klik_pola(cel_kl[0] - poz[0], cel_kl[1] - poz[1])
             except ValueError:
                 dalej = 1
+                powod_strzalki = "klik_poza_widokiem"
             else:
+                kliki += 1
                 wynik_kl = marsz_klik.klik_i_czekaj(postac, poz, cel_kl, dalej, zegar=time, log=log, prefiks="serwis")
                 if wynik_kl == "pietro":
                     return False
                 if wynik_kl == "ruch":
+                    if tuple(postac.pozycja())[:2] == tuple(cel_kl[:2]):
+                        # pozycja zmienia się na STARCIE kroku: ostatni krok kliku trwa jeszcze, strzałka teraz byłaby odrzucona (23.10: 2x w logu)
+                        _po_kroku(_czas_kroku(mp, (cel_kl[0], cel_kl[1], poz[2])), plynnie=False)
                     continue
                 dalej = 1                        # klik nic nie ruszył: ten krok strzałką
+                powod_strzalki = "klik_bez_ruchu"
+        elif powod_strzalki is None:
+            powod_strzalki = "schody_obok"
+        powody[powod_strzalki] = powody.get(powod_strzalki, 0) + 1
         nast = sciezka[1]
         dd = (nast[0] - poz[0], nast[1] - poz[1])
         czas_kroku = _czas_kroku(mp, (nast[0], nast[1], poz[2]))
+        wyslano_przed = bool(_RUCH.get("przed")) and _plynny()      # klawisz wyszedł PLYNNY_PRZED_S przed szacowanym końcem kroku
         _czekaj_koniec_kroku()
         nowa = postac.krok(klawisz[dd])
         if nowa is not None and nowa[2] != poz[2]:
@@ -1065,6 +1407,12 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
             zle_z_rzedu, ok_krokow, ost_kier = 0, ok_krokow + 1, kierunki.index(dd)
             wizyty[nast] = wizyty.get(nast, 0) + 1
             _RUCH["skala"] = max(1.0, _RUCH["skala"] * 0.995)     # skala po zawodach wraca do normy powoli (połowa po ok. 140 udanych krokach)
+            if _RUCH.get("podejrzany") == nast and not _RUCH.get("plynny_wyl"):
+                # to samo pole: wcześniej zawód klawisza wysłanego z wyprzedzeniem, teraz krok idzie = klawisz był odrzucony przez trwający krok
+                _RUCH["plynny_wyl"] = True
+                log(f"serwis: płynny marsz wyłączony do końca procesu (klawisz wysłany przed końcem kroku odrzucony na {nast}, "
+                    f"po ponowieniu poszło); strzałki wracają do pełnego czasu kroku")
+            _RUCH.pop("podejrzany", None)
             _po_kroku(czas_kroku)
             if wizyty[nast] > MAKS_WIZYT_POLA:
                 powod = f"krążę: {wizyty[nast]}. wejście na pole {nast}"
@@ -1084,6 +1432,8 @@ def idz_pewnie(postac, mp, akcje, cel, tolerancja=0, maks_s=150.0, log=print, un
             powod = f"{MAKS_ZLYCH_Z_RZEDU} nieudanych kroków z rzędu (stoję w {now}, cel {cel[:2]})"
             log(f"serwis: {powod}, przerywam marsz")
             return koniec(False, powod)
+        if wyslano_przed and jest in (None, tuple(poz[:2])):
+            _RUCH["podejrzany"] = nast                 # nie wiemy jeszcze: odrzucony klawisz czy zwykła przeszkoda; rozstrzyga ponowienie
         if zawiodlo[nast] >= 2:
             zablok[nast] = time.monotonic() + ZABLOK_POLA_S
         _RUCH["skala"] = min(SKALA_KROKU_MAX, _RUCH["skala"] * 1.25)      # krok trwa dłużej, niż zakładaliśmy
@@ -1227,7 +1577,9 @@ def main(argv=None):
         return bool(r) and chodz_pietra(punkty[j:], tolerancja)
 
     import instancja
-    s = Serwis(dane, akcje, planer, postac.pozycja, chodz, log=print, stan_plik=instancja.S.stan / "serwis_stan.json")
+    cele = pokretla_serwisu()
+    print(f"serwis: pokrętła {cele}", flush=True)
+    s = Serwis(dane, akcje, planer, postac.pozycja, chodz, log=print, cele=cele, stan_plik=instancja.S.stan / "serwis_stan.json")
     try:
         s.uruchom(kroki, od_nowa=a.od_nowa, pomin_brakujace=a.pomin_brakujace)
         powiadom("Serwis: gotowe", "Kroki: " + ", ".join(f"{k}={v}" for k, v in s.wynik.items()))

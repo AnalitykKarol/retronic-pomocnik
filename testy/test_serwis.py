@@ -301,6 +301,13 @@ sprawdz("5d cele zakupów: 5 ham, 20 blanków", ("kup", "Mirabell", "ham", 5) in
 sprawdz("5e dokładność: do depo tolerancja 0, do NPC tolerancja 0, wyjście 2", st["tol"][:-1] == [0] * (len(st["tol"]) - 1) and st["tol"][-1] == 2, st["tol"])
 
 a = AkcjeAtrapa()
+s, st = zbuduj(a)
+s.uruchom(["bank", "wyjscie"])
+nazwy = nazwy_akcji(a)
+sprawdz("5d2 24.10 powrót po samym cap (REFILL_KROKI=bank,wyjscie): tylko start, okna i bank; bez depo, zakupów, backpacka i blanków; kończy na wyjściu",
+        nazwy == ["start", "okna", "bank"] and st["poz"] == tuple(DANE["wyjscie"]) and not any(isinstance(x, tuple) and x[0] in ("depo", "kup") for x in a.log), (nazwy, st))
+
+a = AkcjeAtrapa()
 a.limit_ham = 2
 s, st = zbuduj(a)
 s.uruchom(["jedzenie", "blanki"])

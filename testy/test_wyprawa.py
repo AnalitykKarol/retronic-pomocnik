@@ -62,6 +62,7 @@ class Konf:
     WYPRAWA_BLANKI_MAX_KOSZT = 500
     WYPRAWA_POCHODNIE = 1
     WYPRAWA_CAP_REZERWA = 8
+    WYPRAWA_CAP_MIN = 10
     WYPRAWA_ZLOTO_MIN = 30
     WYPRAWA_MIN_HP = 70
     WYPRAWA_CO_MIN = 20
@@ -72,6 +73,7 @@ class Konf:
     WYPRAWA_WZNOW_WALIDUJ = 1
     WYPRAWA_TYLKO_DEPO = 0
     UH_STAN_PLIK = None
+    DEPO_EDRON_OBSZAR = 0        # 24.10: testy tej wyprawy sprawdzają stare stanowisko; obszar ma test_depo_edron_obszar
 
 
 def przejscia(punkty):
@@ -1846,6 +1848,233 @@ ok1, bl1 = pokretla.waliduj({"WYPRAWA_MARSZ_KLIK": 1, "WROC_REFILL": 1})
 sprawdz("20zf pokrętła: cavebot ma stałe = 0, na_zywo.json je przyjmuje (0/1), analityk nie włączy",
         cavebot.WYPRAWA_MARSZ_KLIK == 0 and cavebot.WROC_REFILL == 0 and ok1 == {"WYPRAWA_MARSZ_KLIK": 1, "WROC_REFILL": 1}
         and not okr and len(blr) == 2, (ok1, okr, blr))
+
+# --- 21. WYPRAWA_CAP_MIN (23.10, invincible cap 0.0: loot "za_ciezki", bot nie wracał): wolny cap < próg = powód "cap" -> wyprawa do depo ---
+# Tryb depo (WYPRAWA_TYLKO_DEPO=1): depo + refill (bank gold->platinum, platinum ponad 3 do depo) zwalnia wagę złota. Tryb zwykły: bez powodu "cap"
+# (wyprawa po zakupy złota nie odkłada, a zakupy tylko dokładają wagi; istniejąca kontrola „za mało capa na jedzenie” zostaje).
+def jl(p):
+    return json.loads(p.read_text()) if p.exists() else {}
+
+
+powiad21 = []
+_pw.powiadom = lambda *a, **kw: powiad21.append(a)
+try:
+    def swiat_cap(cap, **kw):
+        s_, cb_, w_, k_ = nowy(jedzenie=6, konf=konf_depo(**kw), sklepy=sp_bez)
+        s_.cap = cap
+        return s_, cb_, w_, k_
+
+    s, cb, w, k = swiat_cap(0.0)
+    sprawdz("21a cap 0 przez POTWIERDZ odczytów (zapas OK, bez głodu): start wyprawy do depo z powodem cap",
+            pre(s, cb, w, 4) and w.powod == "wyprawa:depo:cap" and w.w is not None and w.w["potrzeby"] == {"depo": True}, w.powod)
+    st21 = jl(w.plik_stanu)
+    sprawdz("21a2 stan zapisuje powód cap i cap z chwili startu (pamięć P7c)",
+            st21.get("depo_start_powody") == ["cap"] and st21.get("depo_start_cap") == 0.0, st21)
+    s, cb, w, k = swiat_cap(0.0)
+    sprawdz("21b pierwszy odczyt nie startuje (debounce)", not pre(s, cb, w, 1) and not cb.wypad_aktywny)
+    s, cb, w, k = swiat_cap(0.0)
+    pre(s, cb, w, 1)
+    s.cap = 50.0
+    pre(s, cb, w, 1)
+    s.cap = 0.0
+    sprawdz("21b2 cap w międzyczasie wrócił: licznik potwierdzeń zerowany, brak startu", not pre(s, cb, w, 1) and not cb.wypad_aktywny)
+    s, cb, w, k = swiat_cap(25.0)
+    sprawdz("21c cap 25 >= próg 10: brak startu", not pre(s, cb, w, 6) and not cb.wypad_aktywny)
+    s, cb, w, k = swiat_cap(10.0)
+    sprawdz("21c2 cap równy progowi (10): brak startu (próg ostry <)", not pre(s, cb, w, 6))
+    s, cb, w, k = swiat_cap(9.5)
+    sprawdz("21c3 cap 9.5 < 10: start z powodem cap", pre(s, cb, w, 4) and w.powod == "wyprawa:depo:cap", w.powod)
+    s, cb, w, k = swiat_cap(0.0, WYPRAWA_CAP_MIN=0)
+    sprawdz("21d WYPRAWA_CAP_MIN=0 wyłącza: cap 0, brak startu", not pre(s, cb, w, 6) and not cb.wypad_aktywny)
+    s, cb, w, k = swiat_cap(20.0, WYPRAWA_CAP_MIN=30)
+    sprawdz("21d2 próg 30, cap 20: start (próg z pokrętła, nie stała)", pre(s, cb, w, 4) and w.powod == "wyprawa:depo:cap", w.powod)
+    s, cb, w, k = swiat_cap(0.0)
+    cb.gracz = lambda: {"hp": 100, "max_hp": 100, "proc": 100.0, "mana": 50, "max_mana": 95}
+    sprawdz("21e brak odczytu capa (None): brak powodu, brak startu", not pre(s, cb, w, 6))
+    s, cb, w, k = nowy(jedzenie=6, konf=Konf(), sklepy=sp_bez)
+    s.cap = 0.0
+    sprawdz("21f tryb zwykły (TYLKO_DEPO=0): cap 0 nie jest powodem wyprawy po zakupy (zapas OK, brak startu)",
+            not pre(s, cb, w, 6) and not cb.wypad_aktywny)
+    s, cb, w, k = swiat_cap(0.0)
+    cb.jedzenie_nie_do = s.t + 100000
+    s.plecak[3582] = 0
+    sprawdz("21g głód + cap 0: jeden start, powody połączone", pre(s, cb, w, 4) and "cap" in w.powod
+            and ("glod" in w.powod or "zapas" in w.powod), w.powod)
+
+    # --- pętla: po depo z powodu cap i bez poprawy capa nie startujemy w kółko (jak P7c dla blanków) ---
+    s, cb, w, k = swiat_cap(0.0)
+    krok_dokladny(cb)
+    stan_p = w.plik_stanu
+    pre(s, cb, w, 4)
+    n, wyst = bieg(s, cb, w, maks=12000)
+    kon = ev(s, "wyprawa_koniec")
+    st_p = jl(stan_p)
+    sprawdz("21h wyprawa z powodem cap dochodzi do depo; pamięć: depo_powody=[cap], depo_cap=0",
+            wyst and kon and kon[-1]["wynik"] == "depo" and st_p.get("depo_powody") == ["cap"] and st_p.get("depo_cap") == 0.0, (kon, st_p))
+    sprawdz("21h2 powiadomienia mówią o capie, nie o głodzie (start i dotarcie do depo)",
+            any(a[0] == "Wyprawa do depo: ruszam" and "cap" in a[1] and "głód" not in a[1] for a in powiad21)
+            and any(a[0] == "Wyprawa: jestem w depo" and "za mały cap" in a[1] and "brak jedzenia" not in a[1] for a in powiad21), powiad21)
+    st_p["nast_wall"] = 0
+    migawka21 = dict(st_p)               # stan po dojściu do depo; każdy scenariusz restartu dostaje własną kopię
+
+    def po_restarcie(cap, stan=None):
+        if stan is None:
+            stan = TMP / f"cap_rest{_n[0]}.json"
+            _n[0] += 1
+            stan.write_text(json.dumps(migawka21))
+        s2, cb2, w2, k2 = nowy(jedzenie=6, konf=konf_depo(), sklepy=sp_bez, stan=stan)
+        s2.cap = cap
+        return s2, cb2, w2, k2
+
+    powiad21.clear()
+    s, cb, w, k = po_restarcie(0.0)
+    sprawdz("21i po depo z cap i cap bez poprawy (0 -> 0): brak ponownej wyprawy", not pre(s, cb, w, 8) and not cb.wypad_aktywny)
+    sprawdz("21i2 jedno ostrzeżenie w logu i jedno zwykłe powiadomienie (nie critical), bez STOP",
+            sum("cap" in l and "czekam" in l for l in w.logi) == 1
+            and len([a for a in powiad21 if a[2] == "normal" and "cap" in (a[0] + a[1]).lower()]) == 1
+            and not any(a[2] == "critical" for a in powiad21) and not w.zablokowany, (w.logi[-4:], powiad21))
+    pre(s, cb, w, 8)
+    sprawdz("21i3 kolejne odczyty nie powtarzają ostrzeżenia ani powiadomienia",
+            sum("cap" in l and "czekam" in l for l in w.logi) == 1
+            and len([a for a in powiad21 if "cap" in (a[0] + a[1]).lower()]) == 1, (w.logi[-4:], powiad21))
+    s.cap = 6.0
+    sprawdz("21j cap wzrósł (0 -> 6, nadal < progu): pamięć kasowana, wyprawa rusza ponownie",
+            pre(s, cb, w, 4) and w.powod == "wyprawa:depo:cap", (w.powod, w.logi[-3:]))
+    s, cb, w, k = po_restarcie(60.0)
+    sprawdz("21k po refillu cap 60 >= próg: brak startu, brak ostrzeżenia", not pre(s, cb, w, 6)
+            and not any("czekam" in l for l in w.logi), w.logi[-3:])
+    # pamięć dotyczy tylko powodu cap: stare depo z głodu nie blokuje startu z cap
+    st_g = dict(migawka21, depo_powody=["glod"], depo_cap=0.0)
+    pg = TMP / f"cap_gl{_n[0]}.json"
+    _n[0] += 1
+    pg.write_text(json.dumps(st_g))
+    s, cb, w, k = po_restarcie(0.0, stan=pg)
+    sprawdz("21l pamięć depo z innego powodu (glod) nie blokuje wyprawy z powodu cap", pre(s, cb, w, 4) and w.powod == "wyprawa:depo:cap", w.powod)
+finally:
+    _pw.powiadom = _stare
+
+sprawdz("21m pokrętło WYPRAWA_CAP_MIN: cavebot = 10, ZAKRESY, analityk nie podniesie powyżej domyślnej",
+        getattr(cavebot, "WYPRAWA_CAP_MIN", None) == 10 and "WYPRAWA_CAP_MIN" in pokretla.ZAKRESY
+        and pokretla.KIERUNEK.get("WYPRAWA_CAP_MIN") == "nie_wyzej"
+        and pokretla.waliduj({"WYPRAWA_CAP_MIN": 25}, {"WYPRAWA_CAP_MIN": 10})[0] == {}
+        and pokretla.waliduj({"WYPRAWA_CAP_MIN": 0}, {"WYPRAWA_CAP_MIN": 10})[0] == {"WYPRAWA_CAP_MIN": 0}
+        and pokretla.waliduj({"WYPRAWA_CAP_MIN": 25})[0] == {"WYPRAWA_CAP_MIN": 25})
+_przyklad21 = json.load(open(Path(__file__).resolve().parent.parent / "na_zywo.przyklad.json"))
+sprawdz("21n na_zywo.przyklad.json opisuje pokrętło (10)", _przyklad21.get("WYPRAWA_CAP_MIN") == 10, _przyklad21.get("WYPRAWA_CAP_MIN"))
+
+# --- 22. cap za mały -> najpierw JEDZ i WYRZUCAJ jedzenie PO 1 SZTUCE (Karol 24.10), wyprawa do miasta dopiero bez jedzenia ---
+# Zjadanie ile się da (do "You are full"), potem po każdej wyrzuconej sztuce czytany cap: >= WYPRAWA_CAP_MIN = koniec i gra dalej
+# (reszta jedzenia zostaje), inaczej kolejna sztuka aż jedzenie <= CAP_JEDZ_ZOSTAW; walka/potwór przerywa; cykl powtarzalny bez limitu minut.
+class OpsJ(Ops):
+    """Atrapa z wyrzucaniem: każdy wyrzut to 1 sztuka ham (+13.6 oz capa); haki do podmiany scenariusza."""
+    def __init__(o, s):
+        super().__init__(s)
+        o.uzyc, o.wyrzuty, o.hak_po_wyrzucie, o.wyrzuc_wynik = 0, 0, None, None
+
+    def zjedz(o):
+        o.uzyc += 1
+        return super().zjedz()
+
+    def wyrzuc_jedzenie(o):
+        s = o.s
+        s.t += 1.5
+        if o.wyrzuc_wynik is not None:
+            return o.wyrzuc_wynik
+        if s.plecak.get(3582, 0) <= 0:
+            return 0, 0, "brak jedzenia w plecaku"
+        s.plecak[3582] -= 1
+        s.cap += 13.6
+        o.wyrzuty += 1
+        if o.hak_po_wyrzucie:
+            o.hak_po_wyrzucie(o.wyrzuty)
+        return 1, s.plecak[3582], None
+
+
+def swiat_j(cap=0.0, ham=6, pelny=True, **kw):
+    s_, cb_, w_, k_ = nowy(jedzenie=ham, konf=konf_depo(**kw), sklepy=sp_bez)
+    s_.cap = cap
+    s_.syt = s_.SYT_MAX if pelny else 0
+    o_ = OpsJ(s_)
+    o_.log = w_.logi.append
+    w_.ops = o_
+    cb_.stwory = lambda: list(s_.stwory)
+    return s_, cb_, w_, o_
+
+
+def start_j(w, cb):
+    return w.w is not None or cb.wypad_aktywny
+
+
+MOB = {"x": START[0] + 2, "y": START[1], "z": START[2], "hp": 100, "nazwa": "Troll"}
+_pw.powiadom = lambda *a, **kw: None
+try:
+    s, cb, w, o = swiat_j(0.0, ham=6, pelny=False)
+    pre(s, cb, w, 4)
+    sprawdz("22a cap 0, głodna postać: zjada ile się da (do 'full' po 4), cap wystarcza, nic nie wyrzuca, bez wyprawy",
+            s.zjedzone_tyle == 4 and o.wyrzuty == 0 and s.cap >= 10 and not start_j(w, cb), (s.zjedzone_tyle, o.wyrzuty, s.cap))
+    s, cb, w, o = swiat_j(0.0, ham=6, pelny=True)
+    pre(s, cb, w, 4)
+    sprawdz("22b pełna postać, cap 0: jedno Use (nie mieli), wyrzuca 1 sztukę, cap > progu = stop, reszta jedzenia zostaje, bez wyprawy",
+            o.uzyc == 1 and o.wyrzuty == 1 and s.plecak[3582] == 5 and not start_j(w, cb), (o.uzyc, o.wyrzuty, s.plecak, w.logi[-3:]))
+    s, cb, w, o = swiat_j(0.0, ham=6, pelny=True, WYPRAWA_CAP_MIN=30)
+    pre(s, cb, w, 4)
+    sprawdz("22c wyrzucanie liczy sztuki i staje, gdy cap >= progu (próg 30 = 3 sztuki po 13.6)",
+            o.wyrzuty == 3 and s.plecak[3582] == 3 and s.cap >= 30 and not start_j(w, cb), (o.wyrzuty, s.plecak, s.cap))
+    s, cb, w, o = swiat_j(0.0, ham=2, pelny=True, WYPRAWA_CAP_MIN=50)
+    pre(s, cb, w, 4)
+    sprawdz("22d jedzenie wyrzucone do 0, cap nadal < progu: dopiero teraz wyprawa do miasta (powód cap)",
+            o.wyrzuty == 2 and s.plecak.get(3582, 0) == 0 and w.powod == "wyprawa:depo:cap", (o.wyrzuty, s.plecak, w.powod))
+    s, cb, w, o = swiat_j(0.0, ham=0, pelny=True)
+    pre(s, cb, w, 4)
+    sprawdz("22e brak jedzenia i cap 0: od razu wyprawa, bez próby jedzenia i wyrzucania",
+            o.uzyc == 0 and o.wyrzuty == 0 and w.powod == "wyprawa:depo:cap", (o.uzyc, o.wyrzuty, w.powod))
+    s, cb, w, o = swiat_j(0.0, ham=6, pelny=False)
+    s.stwory = [dict(MOB)]
+    pre(s, cb, w, 4)
+    sprawdz("22f potwór w pobliżu: nie je, nie wyrzuca, nie rusza na wyprawę",
+            o.uzyc == 0 and o.wyrzuty == 0 and s.plecak[3582] == 6 and not start_j(w, cb), (o.uzyc, o.wyrzuty))
+    s, cb, w, o = swiat_j(0.0, ham=6, pelny=True, WYPRAWA_CAP_MIN=50)
+    o.hak_po_wyrzucie = lambda n: s.stwory.append(dict(MOB)) if n == 1 else None
+    pre(s, cb, w, 4)
+    sprawdz("22g potwór pojawia się po 1. sztuce: pętla przerwana, jedzenie zostaje (5), bez wyprawy w walce",
+            o.wyrzuty == 1 and s.plecak[3582] == 5 and not start_j(w, cb) and any("przerwane" in l for l in w.logi), (o.wyrzuty, w.logi[-3:]))
+    s, cb, w, o = swiat_j(0.0, ham=6, pelny=True, CAP_JEDZ_I_WYRZUC=0)
+    pre(s, cb, w, 4)
+    sprawdz("22h CAP_JEDZ_I_WYRZUC=0 = dawne zachowanie: wyprawa po cap, zero Use i wyrzutów",
+            o.uzyc == 0 and o.wyrzuty == 0 and w.powod == "wyprawa:depo:cap", (o.uzyc, o.wyrzuty, w.powod))
+    s, cb, w, o = swiat_j(0.0, ham=6, pelny=True, WYPRAWA_CAP_MIN=1)
+    for _ in range(3):
+        s.cap = 0.0                                      # ciężki łup znów zjadł cap
+        pre(s, cb, w, 4)
+    sprawdz("22i cykl powtarzalny (cap 0 -> wyrzuć 1 -> gra -> cap 0 ...) 3 razy bez wyprawy i bez limitu na minuty; reszta jedzenia (3) zostaje",
+            o.wyrzuty == 3 and s.plecak[3582] == 3 and not start_j(w, cb), (o.wyrzuty, s.plecak, w.logi[-3:]))
+    sprawdz("22i2 po 'full' kolejne cykle w ciągu minuty nie mielą Use (1 próba)", o.uzyc <= 2, o.uzyc)
+    s, cb, w, o = swiat_j(0.0, ham=6, pelny=True, WYPRAWA_CAP_MIN=100, CAP_JEDZ_ZOSTAW=3)
+    pre(s, cb, w, 4)
+    sprawdz("22j CAP_JEDZ_ZOSTAW=3: wyrzuca tylko do 3 sztuk, cap nadal za mały = wyprawa",
+            o.wyrzuty == 3 and s.plecak[3582] == 3 and w.powod == "wyprawa:depo:cap", (o.wyrzuty, s.plecak, w.powod))
+    s, cb, w, o = swiat_j(0.0, ham=6, pelny=True)
+    o.wyrzuc_wynik = (0, 6, "brak okna ilości po przeciągnięciu stosu")
+    pre(s, cb, w, 4)
+    pierwsza = not start_j(w, cb)
+    for _ in range(6):
+        pre(s, cb, w, 4)
+    sprawdz("22k wyrzucanie nie działa: pierwsza porażka czeka, druga wraca do dawnej wyprawy po cap",
+            pierwsza and w.powod == "wyprawa:depo:cap" and o.wyrzuty == 0, (pierwsza, w.powod, w.logi[-3:]))
+    s, cb, w, o = swiat_j(0.0, ham=6, pelny=True)
+    s.hp = 50
+    pre(s, cb, w, 4)
+    sprawdz("22l niskie HP (< WYPRAWA_MIN_HP): bez jedzenia i wyrzucania", o.uzyc == 0 and o.wyrzuty == 0, (o.uzyc, o.wyrzuty))
+    s, cb, w, k = swiat_cap(0.0)
+    pre(s, cb, w, 4)
+    sprawdz("22m ops bez wyrzuc_jedzenie (stary Ops): dawna wyprawa po cap", w.powod == "wyprawa:depo:cap", w.powod)
+finally:
+    _pw.powiadom = _stare
+sprawdz("22n pokrętła: DOMYSLNE, ZAKRESY, STALE_Z_WYPRAWY, domyślnie jedz+wyrzuć=1, zostaw=0",
+        all(k in W.DOMYSLNE and k in pokretla.ZAKRESY and k in pokretla.STALE_Z_WYPRAWY
+            for k in ("CAP_JEDZ_I_WYRZUC", "CAP_JEDZ_ZOSTAW", "CAP_JEDZ_ODSTEP_S"))
+        and W.DOMYSLNE["CAP_JEDZ_I_WYRZUC"] == 1 and W.DOMYSLNE["CAP_JEDZ_ZOSTAW"] == 0
+        and pokretla.waliduj({"CAP_JEDZ_ZOSTAW": 2})[0] == {"CAP_JEDZ_ZOSTAW": 2})
 
 if _os.environ.get("DBG"):
     print(DBGLOG)

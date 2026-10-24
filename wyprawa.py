@@ -49,10 +49,43 @@ PLIK_STANU = instancja.S.stan / "wyprawa_stan.json"
 PLIK_NPC = instancja.S.stan / "wyprawa_npc.json"
 PLIK_DEPO = "depo_troll_cave.json"          # początek tej trasy = pole depo
 DEPO_POLE = (32366, 32215, 7)               # gdy pliku brak
+PLIK_SERWIS_EDRON = "serwis_edron.json"     # 24.10: tu `depo_stoiska`, `depo_sala` i `depo_obszar` Edronu (jedno źródło dla serwisu, panelu i wyprawy)
+
+
+def obszar_depo(katalog, cel):
+    """24.10 (Karol: „punkt dojścia do depo w Edron na jakiś neutralny na środku albo obręb, żeby za każdym razem w to samo miejsce nie
+    przychodził, bo może być zajęte”): ({pola obszaru}, sala) dla celu depo `cel`, gdy `cel` jest stanowiskiem przy skrzyni depo Edronu
+    (koniec nagranych tras "do" Edronu to (33173, 31796, 8)). `sala` = (x0, y0, x1, y1, z). None, gdy `cel` nie jest takim stanowiskiem,
+    plik/klucze nie istnieją albo są zepsute (wtedy dawne zachowanie: dojście na samo stanowisko `cel`)."""
+    try:
+        d = json.loads((Path(katalog) / PLIK_SERWIS_EDRON).read_text())
+        stoiska = {tuple(int(v) for v in p) for p in d.get("depo_stoiska") or ()}
+        pola = [tuple(int(v) for v in p) for p in d.get("depo_obszar") or ()]
+        sala = tuple(int(v) for v in d.get("depo_sala") or ())
+    except (OSError, ValueError, TypeError):
+        return None
+    cel = tuple(int(v) for v in cel)
+    if cel not in stoiska or not pola or len(sala) != 5 or any(len(p) != 3 for p in pola):
+        return None
+    if not all(sala[0] <= p[0] <= sala[2] and sala[1] <= p[1] <= sala[3] and p[2] == sala[4] for p in pola):
+        return None                          # obszar poza salą = zepsute dane, nie ryzykujemy
+    return pola, sala
+
+
+def w_sali(poz, sala):
+    return int(poz[2]) == sala[4] and sala[0] <= poz[0] <= sala[2] and sala[1] <= poz[1] <= sala[3]
+
+
+def wybierz_pole_obszaru(pola, zajete=(), los=random):
+    """Losowe pole `pola` bez `zajete` ((x, y) albo (x, y, z)); gdy wszystkie zajęte, None (wołający zostaje przy stanowisku)."""
+    zaj = {(int(q[0]), int(q[1])) for q in zajete}
+    wolne = [p for p in pola if (p[0], p[1]) not in zaj]
+    return los.choice(wolne) if wolne else None
 
 BAZY = ("troll", "thais_kanaly")       # plany wypadu (wypad.PLANY) kończące się u Gorna w Thais; rook ma inne miasto
 # 15.10 obrona PK: plany WYŁĄCZNIE do ucieczki do depo i powrotu z niego (nie biorą udziału w zwykłej wyprawie po zapasy:
 # BAZY ich nie zawiera). "do" = z łowiska do depo, "z" = z depo na łowisko (oba nagrane, edron_*.json)
+ZASIEG_KAZORDOON = 400                 # pola (Chebyshev) od depo Thais; spot Kazordoon ~305 (klucz "zasieg" planu, patrz zasieg_planu)
 PLANY_PK = (
     {"nazwa": "edron", "do": "edron_do_depo.json", "z": "edron_depo_trolle.json", "npc": None, "prefix": False,
      "wyjscia": (((33092, 31837, 9), (33092, 31838, 8), "gobliny_edron_do_depo.json"),      # 19.10: _baza_dojscie wybiera "edron" także z goblinów z9
@@ -72,6 +105,14 @@ PLANY_PK = (
     # jedną postacią (dane_tibia/ruch/DIAGNOZA_kutangen_zgon_dziura_thais_pn_1021.md). Test: testy/test_powrot_thais_pn.py
     {"nazwa": "thais_pn", "do": "thais_pn_z8_do_depo.json", "z": "thais_pn_z8_dojscie.json", "npc": None, "prefix": False,
      "wyjscia": (((32347, 32123, 8), (32347, 32124, 7), "thais_pn_z8_do_depo.json", ((32347, 32124, 8),)),)},
+    # 23.10: Thais północ, jaskinia trolli z9 (thais_pn_z9, Gebelish) — zachodnia sala z9 jest zamknięta: wyjście = dojście odwrócone
+    # (generuj_powrot_thais_pn_z9.py): dziura (32339,32122,z9) w dół, kieszeń z10, LINA z10 -> z9 wschód (pole liny (32343,32122,z10),
+    # stoimy (32343,32123)), korytarz Poison Spiderów y=32123 (3 szt.), LINA z9 -> z8 (pole liny (32356,32122,z9), stoimy (32356,32123)),
+    # z8 na zachód do (32347,32124,z8), dalej "do" thais_pn_z8 (przejście z8 -> z7 PRZESZŁO w przejscia_nauczone).
+    # NIEZWERYFIKOWANE NA ŻYWO: dwie liny (z10 i z9 wschód) i cały powrót; potrzebne lina i łopata w plecaku; powrót wiedzie przez korytarz jadu
+    # (tu zginął kutangen 21.10). Mapa potwierdza układ lina+dziura, nagranie 23.10 tylko lina (32339,32122,z10). Wyłączenie planu = usunięcie
+    # tej krotki (wtedy postać z z9 dostaje "pozycja poza planami", jak przed 23.10). Test: testy/test_powrot_thais_pn_z9.py
+    {"nazwa": "thais_pn_z9", "do": "thais_pn_z9_do_depo.json", "z": "thais_pn_z9_dojscie.json", "npc": None, "prefix": False},
     # 21.10: Rookgaard — powrót do miasta przez drabiny/schody (SPEC_powrot_rook_1020). Trasy odwrócone z dojść.
     # Cel: (32061,32180,7) Al Dee, STOP. "z" = nagrane dojście (miasto->spot) na wypadek powrotu po PK.
     # NIEZWERYFIKOWANE botem: przejście w górę (drabina/schody z8->z7 itd.) — ryzyko zapisane w specu.
@@ -80,6 +121,21 @@ PLANY_PK = (
     {"nazwa": "rook_raty_z10",   "do": "rook_raty_z10_dojscie_odwrocona.json",   "z": "rook_raty_z10_dojscie.json",   "npc": None, "prefix": False},
     {"nazwa": "rook_kanaly_z11", "do": "rook_kanaly_z11_dojscie_odwrocona.json", "z": "rook_kanaly_z11_dojscie.json", "npc": None, "prefix": False},
     {"nazwa": "rook_bugi_z10",   "do": "rook_bugi_z10_dojscie_odwrocona.json",   "z": "rook_bugi_z10_dojscie.json",   "npc": None, "prefix": False},
+    # 23.10: trolle pod Kazordoonem (generuj_trasy_kazordoon_trolle.py; dojście z depo Thais drogą, powrót liną do depo Thais).
+    # "do" = jawna trasa powrotu spot -> depo Thais (z8: rozwidlenie (32647,32003,z8) -> lina z dziury (32663,31962,z8), stoimy
+    # OBOK pola liny (32663,31961,z8) -> lądowanie (32663,31963,z7) -> drzwi -> most -> brama -> depo; z9 dokłada schody w górę
+    # (32648,32003,z9) -> (32648,32004,z8)), "z" = dojście z depo (dla powrotu po karencji PK). Bez "wyjscia": oba pliki "do" zawierają
+    # przejścia pięter, a pętla z8/z9 leży na tym samym piętrze co ich początek (A* po piętrze do trasy "do").
+    # "zasieg": spot leży ~300 pól od depo Thais (DEPO_DOJSCIE_ZASIEG = 200 odrzucał drogę: "brak drogi" -> stara trasa od rozwidlenia).
+    # Przejście liną/dziura (32663,31962,z8): może być zasypana, wtedy łopata (patrz CLAUDE.md, pietra.ZASYPANE); NIE wpisana bez dowodu z gry.
+    {"nazwa": "trolle_kazordoon_z8", "do": "trolle_kazordoon_z8_do_depo.json", "z": "trolle_kazordoon_z8_dojscie.json",
+     "npc": None, "prefix": False, "zasieg": ZASIEG_KAZORDOON},
+    {"nazwa": "trolle_kazordoon_z9", "do": "trolle_kazordoon_z9_do_depo.json", "z": "trolle_kazordoon_z9_dojscie.json",
+     "npc": None, "prefix": False, "zasieg": ZASIEG_KAZORDOON},
+    # 24.10: Kazordoon, powierzchnia z7 (generuj_trasy_kazordoon_powierzchnia.py): pętla i start powrotu w (32660,31985,z7), "do" = z pętli tą samą drogą po z7
+    # przez most Thais do depo (bez liny i dziury), "z" = dojście = prefiks dojść z8/z9. Bez "wyjscia": pętla i początek "do" leżą na jednym piętrze (A* po z7).
+    {"nazwa": "trolle_kazordoon_z7", "do": "trolle_kazordoon_z7_do_depo.json", "z": "trolle_kazordoon_z7_dojscie.json",
+     "npc": None, "prefix": False, "zasieg": ZASIEG_KAZORDOON},
 )
 BAZY_PK = BAZY + tuple(p["nazwa"] for p in PLANY_PK)     # plany dostępne dla ucieczki PK (troll: istniejące depo Thais)
 PK_PLAN_ZASIEG = 80                    # pola: ucieczka PK startuje z dalszej okolicy trasy niż zwykły wypad (zasięg 40)
@@ -130,12 +186,16 @@ NPC_DOMYSLNE = {"gorn": "Gorn", "frodo": "Frodo", "xodet": "Xodet"}
 DOMYSLNE = {                                             # gdy konf (cavebot) nie ma stałej
     "WYPRAWA_AKTYWNA": 0, "WYPRAWA_ZAPAS_PROG": 0, "WYPRAWA_JEDZENIE_CEL": 20, "WYPRAWA_JEDZENIE_DOKUP": 5,
     "WYPRAWA_JEDZ_NA_MIEJSCU": 1, "WYPRAWA_JEDZ_MAKS": 12, "WYPRAWA_BLANKI": 0, "WYPRAWA_BLANKI_PROG": 2,
-    "WYPRAWA_BLANKI_MAX_KOSZT": 500, "WYPRAWA_POCHODNIE": 1, "WYPRAWA_CAP_REZERWA": 8, "WYPRAWA_ZLOTO_MIN": 30,
+    "WYPRAWA_BLANKI_MAX_KOSZT": 500, "WYPRAWA_POCHODNIE": 1, "WYPRAWA_CAP_REZERWA": 8, "WYPRAWA_CAP_MIN": 10, "WYPRAWA_ZLOTO_MIN": 30,
     "WYPRAWA_MIN_HP": 70, "WYPRAWA_CO_MIN": 20, "WYPRAWA_MAX_CZAS_S": 1800, "WYPRAWA_MAX_KROKOW": 6000,
-    "WYPRAWA_STOP_PRZY_UTKNIECIU": 1, "WYPRAWA_ROTACJA_NAPRAW": 3, "WYPRAWA_CZEKAJ_NA_GLOD": 0, "WYPRAWA_JEDZENIE": 1, "GLOD_ZAPAS_WAZNY_S": 120, "WYPRAWA_WZNOW_WALIDUJ": 1, "WYPRAWA_DEPO_W_WALCE": 1, "WYPRAWA_DEPO_ZLOZ": 0, "WYPRAWA_DOJSCIE_PATROLEM": 1, "WYPRAWA_TYLKO_DEPO": 0, "WYPRAWA_DEPO_POWROT": 0, "WYPRAWA_DEPO_POSTOJ_S": 0, "WYPRAWA_DEPO_BLANKI": 1, "WYPRAWA_PO_DEPO_S": 900, "WYPRAWA_PO_DOJSCIU_S": 300, "BLANKI_AUTO_BAG": 1, "BLANKI_AUTO_BAG_MIN": 10, "JEDZENIE_ZAPAS_MIN": 5, "WYPAD_ILE_TORCHY": 5,
+    "WYPRAWA_STOP_PRZY_UTKNIECIU": 1, "WYPRAWA_ROTACJA_NAPRAW": 3, "WYPRAWA_CZEKAJ_NA_GLOD": 0, "WYPRAWA_JEDZENIE": 1, "GLOD_ZAPAS_WAZNY_S": 120, "WYPRAWA_WZNOW_WALIDUJ": 1, "WYPRAWA_DEPO_W_WALCE": 1, "WYPRAWA_DEPO_ZLOZ": 0, "WYPRAWA_DOJSCIE_PATROLEM": 1, "WYPRAWA_TYLKO_DEPO": 0, "WYPRAWA_DEPO_POWROT": 0, "DEPO_EDRON_OBSZAR": 1, "WYPRAWA_DEPO_POSTOJ_S": 0, "WYPRAWA_DEPO_BLANKI": 1, "WYPRAWA_PO_DEPO_S": 900, "WYPRAWA_PO_DOJSCIU_S": 300, "BLANKI_AUTO_BAG": 1, "BLANKI_AUTO_BAG_MIN": 10, "JEDZENIE_ZAPAS_MIN": 5, "WYPAD_ILE_TORCHY": 5,
+    "CAP_JEDZ_I_WYRZUC": 1, "CAP_JEDZ_ZOSTAW": 0, "CAP_JEDZ_ODSTEP_S": 8,
 }
 
 POTWIERDZ = 2                  # kolejne odczyty z warunkiem = start
+CAP_JEDZ_MAKS_SZTUK = 40       # 24.10: tyle sztuk jedzenia najwyżej wyrzuci jedno podejście (bezpiecznik pętli)
+CAP_JEDZ_PELNY_S = 60.0        # 24.10: po "You are full" przez tyle s nie próbujemy jeść ponownie (nie mielimy Use na pełnej postaci)
+CAP_POPRAWA_OZ = 1.0           # 23.10 WYPRAWA_CAP_MIN: o tyle oz musi wzrosnąć cap od poprzedniego depo "z powodu cap", by wyprawa ruszyła znowu
 WROC_BLOKADA_MAX_S = 180.0     # s: ręczne "Wróć do miasta" (plik WROC) czeka na spokojną chwilę najwyżej tyle, potem rezygnuje z komunikatem
 GLOD_WAZNY_S = 600.0           # s: jak długo pamiętamy potwierdzony głód (cb.jedzenie_nie_do trwa tylko JEDZENIE_PONOW = 240 s)
 WZNOW_MAX_S = 2400.0           # s (zegar ścienny): starszy zapis stanu = nie wznawiamy
@@ -318,10 +378,22 @@ def punkty_bazy(katalog=TRASY, plany=wypad.PLANY + PLANY_PK, nazwy=BAZY):
     return wynik
 
 
+# 23.10: plan, który wybierany po najbliższym punkcie "do" tylko z podanych pięter. thais_pn_z9 ma w pliku "do" siedem punktów z8
+# (korytarz y=32123 do liny), bliżej wschodniego końca pętli thais_pn_z8 niż "do" planu thais_pn: bez tego postać z pętli z8 dostawała
+# plan z9 i szła A* pod dziurę (32356,32122,z8), w której zginął kutangen (test: testy/test_powrot_thais_pn_z9.py 4f).
+# 24.10 (trolle_kazordoon_z7, generuj_trasy_kazordoon_powierzchnia.py): "do" planów z8/z9 zawiera całą drogę z7 (+ most z6), a pętla spotu z7
+# leży przy niej; bez ograniczenia postać z pętli z7 dostawała plan z8 (bliższy punkt "do" = lądowanie liny) i szła obok dziury
+# (32663,31962,z7). Z8/z9 wybierane więc tylko z pięter jaskini; z7/z6 obsługuje plan trolle_kazordoon_z7 (to samo "do" na drodze).
+# SUBSTITUTE DECISION (be-dev, do przeglądu leada): zmiana wyboru bazy dla postaci na z7/z6 po wyjściu liną z jaskini z8.
+PLAN_PIETRA_WYBOR = {"thais_pn_z9": (9, 10), "trolle_kazordoon_z8": (8, 9, 10), "trolle_kazordoon_z9": (8, 9, 10, 11)}
+
+
 def wybierz_baze(baza, poz, zasieg=wypad.PLAN_ZASIEG):
     """Nazwa planu bazowego z punktem do_miasta najbliżej `poz` na tym piętrze (<= zasieg pól) albo None."""
     najl = None
     for nazwa, (do, _z, _n) in baza.items():
+        if nazwa in PLAN_PIETRA_WYBOR and poz[2] not in PLAN_PIETRA_WYBOR[nazwa]:
+            continue
         d = min((cheb(poz, q) for q in do if q[2] == poz[2]), default=None)
         if d is not None and d <= zasieg and (najl is None or d < najl[0]):
             najl = (d, nazwa)
@@ -334,6 +406,15 @@ def wybierz_baze(baza, poz, zasieg=wypad.PLAN_ZASIEG):
 # i dalej jej końcówką, (2) dojście do pętli łowiska (cb.punkty), marsz po niej do przodu albo wstecz (przejścia pięter
 # wstecz tylko z pietra.kandydaci "pewne", czyli mapa potwierdza dziurę/linę/schody) i zejście z pętli A* do trasy "do".
 DEPO_DOJSCIE_ZASIEG = 200      # pola (Chebyshev): dalej od depo planu nie ruszamy tą drogą (inne miasto/serwer)
+
+
+def zasieg_planu(nazwa):
+    """Zasięg (pola od depo) drogi do depo dla planu `nazwa` z PLANY_PK: klucz "zasieg" planu, domyślnie DEPO_DOJSCIE_ZASIEG.
+    23.10: trolle Kazordoon leżą ~305 pól od depo Thais, więc plan ma zasięg 400; reszta planów bez zmian."""
+    for p in PLANY_PK:
+        if p["nazwa"] == nazwa:
+            return int(p.get("zasieg") or DEPO_DOJSCIE_ZASIEG)
+    return DEPO_DOJSCIE_ZASIEG
 DEPO_KOSZT_DOL = 4             # koszt (w "polach") zejścia o piętro (dziura/schody w dół)
 DEPO_KOSZT_GORA = 8            # wejścia o piętro (lina/drabina/schody w górę)
 DEPO_KOSZT_ODWROT = 10         # kara za przejście pięter w odwrotną stronę niż nagranie (nie było przećwiczone przez bota)
@@ -385,7 +466,7 @@ def _przejscie_odwrotne(mapa, a, b):
     return None
 
 
-def _droga_do_depo(poz, petla, do, zalew, mapa=None, limit_s=None):
+def _droga_do_depo(poz, petla, do, zalew, mapa=None, limit_s=None, zasieg=None):
     """Najkrótsza droga z `poz` do końca nagranej trasy `do` (depo). `petla` = zamknięta trasa łowiska (cb.punkty)
     albo []. `zalew(a, cele)` -> {cel: punkty a..cel na jednym piętrze} dla osiągalnych celów (jedno przeszukanie na
     wielu celów). -> (punkty, koszt, opis) albo None. Wynik jest ciągły: kolejne punkty to kroki nagranej trasy, marsz
@@ -395,7 +476,7 @@ def _droga_do_depo(poz, petla, do, zalew, mapa=None, limit_s=None):
     poz = (int(poz[0]), int(poz[1]), int(poz[2]))
     do = [tuple(q) for q in do]
     petla = [tuple(q) for q in (petla or [])]
-    if not do or cheb(poz, do[-1]) > DEPO_DOJSCIE_ZASIEG:
+    if not do or cheb(poz, do[-1]) > (DEPO_DOJSCIE_ZASIEG if zasieg is None else zasieg):
         return None
     n, nd = len(petla), len(do)
     rem = [0] * nd                       # koszt końcówki do[j:]
@@ -549,7 +630,7 @@ def _po_petli_do_liny(poz, petla, pole, ext):
     return pts, koszt_punktow(pts), f"po pętli {d} pól do liny {pole}"
 
 
-def droga_do_depo(poz, petla, do, zalew, mapa=None, limit_s=None, wyjscia=()):
+def droga_do_depo(poz, petla, do, zalew, mapa=None, limit_s=None, wyjscia=(), zasieg=None):
     """Jak _droga_do_depo, a gdy pętla łowiska nie ma przejścia pięter (Edron gobliny z9), `wyjscia` =
     ((pole liny na piętrze poz, lądowanie piętro wyżej), ...) dodaje wariant: nagrana trasa "do" poprzedzona liną
     pole -> lądowanie i marszem po górnym piętrze (zalew) do niej. Wygrywa tańszy wariant."""
@@ -591,12 +672,12 @@ def droga_do_depo(poz, petla, do, zalew, mapa=None, limit_s=None, wyjscia=()):
                     if alt is not None:
                         szybko = True
                     else:
-                        alt = _droga_do_depo(poz, petla, ext, zalew, mapa, limit_s)
+                        alt = _droga_do_depo(poz, petla, ext, zalew, mapa, limit_s, zasieg)
                     if alt is not None and (wyn is None or alt[1] < wyn[1]):
                         wyn = (alt[0], alt[1], alt[2] if szybko else f"wyjście liną {pole} -> {lad}; {alt[2]}")
                 break
     if wyn is None or not szybko:          # stoimy poza pętlą albo brak wyjść: zwykłe szukanie (pętla/trasa "do"), tańszy wygrywa
-        baza = _droga_do_depo(poz, petla, do, zalew, mapa, limit_s)
+        baza = _droga_do_depo(poz, petla, do, zalew, mapa, limit_s, zasieg)
         if baza is not None and (wyn is None or baza[1] < wyn[1]):
             wyn = baza
     return wyn
@@ -686,6 +767,11 @@ class OperacjeZywe(wypad.OperacjeZywe):
         """Jeden Use na jedzeniu z plecaka (loot.zjedz): lista zjedzonych nazw; [] = nic nie ubyło (najedzony)."""
         import loot  # noqa: PLC0415
         return loot.zjedz(1, log=self.log)
+
+    def wyrzuc_jedzenie(self):
+        """Jedna sztuka jedzenia z plecaka na ziemię pod postacią (loot.wyrzuc_jedzenie): (wyrzucono 0/1, zostało albo None, powód)."""
+        import loot  # noqa: PLC0415
+        return loot.wyrzuc_jedzenie(log=self.log)
 
 
 def kup_u_npc(npc, przedmiot, n, limit_gp, ops=None, log=print, ja=None, czekaj_s=9.0, spij=time.sleep):
@@ -781,6 +867,10 @@ class Wyprawa(Wypad):
 
     def _kw(self, nazwa):
         return self._k(nazwa, DOMYSLNE.get(nazwa))
+
+    _cap_jedz_nast = float("-inf")     # 24.10: najwcześniejsza chwila kolejnego podejścia "zjedz i wyrzuć" (krótki odstęp ochronny)
+    _cap_jedz_pelny = float("-inf")    # chwila ostatniego "You are full" / jedzenie nie ubyło
+    _cap_jedz_bledy = 0                # kolejne nieudane wyrzucenia (2 = wracamy do dawnej wyprawy po cap)
 
     def _tryb_depo(self):
         """Pokrętło: nowe wyprawy idą tylko do depo."""
@@ -922,11 +1012,15 @@ class Wyprawa(Wypad):
 
     # --- wyzwalacz ---
 
-    def _blokada_startu(self, teraz, poz, lista, w_walce=False):
+    def _blokada_startu(self, teraz, poz, lista, w_walce=False, reczny=False):
+        """Dlaczego wyprawa jeszcze nie może ruszyć (None = może). `reczny` (24.10, plik WROC): w dojściu na spot ręczne
+        "Wróć do miasta" przerywa dojście zamiast czekać na jego koniec, a potwory w pobliżu go nie blokują (dojście i tak
+        biegnie przez nie, wyprawa też); walka, ucieczka, loot, czar, GM, gracz i HP blokują jak zawsze."""
         cb = self.cb
         if getattr(cb, "wypad_aktywny", False):
             return "wypad"
-        if getattr(cb, "dojscie_aktywne", False):      # P7a: dojście z depo na spot nie startuje wyprawy
+        w_dojsciu = bool(getattr(cb, "dojscie_aktywne", False))
+        if w_dojsciu and not reczny:      # P7a: dojście z depo na spot nie startuje AUTOMATYCZNEJ wyprawy (blanki, cap, jedzenie)
             return "dojscie"
         if w_walce:
             # wyprawa do depo po potwierdzonym głodzie startuje także w walce (potem biegnie, bije tylko zablokowana):
@@ -960,7 +1054,7 @@ class Wyprawa(Wypad):
         if czat is not None and getattr(czat, "zablokowany", False):
             return "alarm_gm"
         moby = cb._zywe_w_promieniu(lista, poz, wypad.MOBY_ODL)
-        if moby:
+        if moby and not (reczny and w_dojsciu):
             return "moby"
         ja = getattr(getattr(cb, "postac", None), "nazwa", None)
         if getattr(cb, "stanowisko", None) is not None:
@@ -1073,7 +1167,7 @@ class Wyprawa(Wypad):
             return "blokada po nieudanym wypadzie"
         if poz is None:
             return "nieznana pozycja postaci"
-        blok = self._blokada_startu(teraz, poz, getattr(cb, "ostatnie_stwory", []))
+        blok = self._blokada_startu(teraz, poz, getattr(cb, "ostatnie_stwory", []), reczny=True)
         if blok is not None:
             return f"postać nie jest w spokoju ({blok})"
         proc = cb.gracz().get("proc", 100.0)
@@ -1094,6 +1188,10 @@ class Wyprawa(Wypad):
             stare = (self.nast_wyprawa, self.potw_w, self.glod_potw_do)
             try:
                 if self._start_wyprawa("depo:reczny", dane, teraz):
+                    if getattr(cb, "dojscie_aktywne", False):
+                        # 24.10: WROC w trakcie dojścia na spot; po wyprawie CavebotDojscie kończy dojście (nie wraca do niego)
+                        cb.dojscie_wroc = True
+                        self.log("Wróć do miasta: przerywam dojście na spot, idę do depo od bieżącej pozycji")
                     self._wroc_zdejmij()              # dopiero po ruszeniu: nieudany start nie gubi zlecenia po cichu
                     return True
             except bot.Zatrzymano:
@@ -1216,9 +1314,20 @@ class Wyprawa(Wypad):
                 else:
                     self.ostrzezenia.discard("blanki_pamiec")
                     powody.append("blanki")
+        if self._powod_cap(powody):
+            powody.append("cap")
         self.potw_w = self.potw_w + 1 if powody else 0
         if self.potw_w < POTWIERDZ:
             return False
+        if powody == ["cap"] and self._tryb_depo() and not w_walce:
+            try:
+                if self._cap_jedz_i_wyrzuc(teraz, plecak, poz, proc):
+                    self.potw_w = 0
+                    return True
+            except bot.Zatrzymano:
+                raise
+            except Exception as ex:
+                self._blad("cap_jedz", opis=repr(ex))
         # warunki sensu: złoto i miejsce w capie (bez nich wyprawa byłaby marszem na darmo); do depo nic nie kupujemy
         zloto = self._zloto(plecak)
         if self._tryb_depo():
@@ -1237,6 +1346,143 @@ class Wyprawa(Wypad):
         dane = {"powody": powody, "zapas": zapas, "blanki": blanki, "zloto": zloto, "cap": cap, "hp": round(proc),
                 "pochodnie": self._ile(plecak, "torch")}
         return self._start_wyprawa("+".join(powody), dane, teraz)
+
+    def _powod_cap(self, powody):
+        """23.10 WYPRAWA_CAP_MIN (oz, 0 = wyłączone): wolny cap poniżej progu w TRYBIE DEPO = powód "cap" (invincible miał cap 0.0:
+        loot "za_ciezki", a bot nie wracał). Refill po wyprawie (bank gold->platinum, depo) zwalnia wagę złota. W trybie zwykłym
+        powód nie istnieje: wyprawa po zakupy złota nie odkłada, a zakupy tylko dokładają wagi (osobna kontrola "za mało capa").
+        Pamięć jak P7c dla blanków: ostatnie depo było z powodu cap, a cap od tamtej pory nie wzrósł (> CAP_POPRAWA_OZ) = ciężki
+        sprzęt, więc ŻADNEJ kolejnej wyprawy w kółko: jedno ostrzeżenie w logu i jedno zwykłe powiadomienie, dalej gra jak dotąd.
+        Cap wzrósł albo wrócił ponad próg = pamięć kasowana. -> True, gdy "cap" ma wejść do powodów."""
+        cap_min = float(self._kw("WYPRAWA_CAP_MIN") or 0)
+        if cap_min <= 0 or not self._tryb_depo():
+            return False
+        cap = self._cap()
+        if cap is None:
+            return False
+        st = self._stan_czytaj()
+        w_pamieci = "cap" in (st.get("depo_powody") or ())
+        if cap >= cap_min:
+            if w_pamieci:                                    # cap w normie: stara pamięć nie może zablokować następnego razu
+                self._stan_zapisz(depo_powody=[p for p in st.get("depo_powody") or () if p != "cap"])
+            self.ostrzezenia.discard("cap_pamiec")
+            return False
+        if w_pamieci:
+            if cap <= float(st.get("depo_cap") or 0.0) + CAP_POPRAWA_OZ:
+                if "cap_pamiec" not in self.ostrzezenia:
+                    self.ostrzezenia.add("cap_pamiec")
+                    self.log(f"Wyprawa: wolny cap {cap:.1f} oz < {cap_min:.0f}, ale po ostatnim depo z tego powodu się nie poprawił "
+                             f"(było {float(st.get('depo_cap') or 0.0):.1f}), czekam na wzrost capa (ciężki sprzęt?), bez kolejnej wyprawy")
+                    self._powiadom("Za mały cap", f"Wolny cap {cap:.1f} oz (próg {cap_min:.0f}), a depo i bank go nie poprawiły. "
+                                   "Wyprawa po cap nie powtarza się; sprawdź ekwipunek.", "normal", "wyprawa_cap")
+                return False
+            self.ostrzezenia.discard("cap_pamiec")
+            self._stan_zapisz(depo_powody=[p for p in st.get("depo_powody") or () if p != "cap"])
+            self.log(f"Wyprawa: cap wzrósł ({float(st.get('depo_cap') or 0.0):.1f} -> {cap:.1f} oz), kasuję pamięć ostatniego depo po cap")
+        return True
+
+    def _cap_spokoj(self, poz, proc0):
+        """Powód przerwania jedzenia/wyrzucania (None = spokój): świeża lista stworów (w pętli synchronicznej `ostatnie_stwory` jest
+        nieaktualne) przez te same bezpieczniki co start wyprawy (walka, potwór w MOBY_ODL, loot, czar, gracz) oraz spadek HP."""
+        cb = self.cb
+        lista = cb.stwory()
+        blok = self._blokada_startu(cb.zegar(), poz, lista)
+        if blok is not None:
+            return blok
+        proc = cb.gracz().get("proc", 100.0)
+        if proc < float(self._kw("WYPRAWA_MIN_HP")) or proc < proc0 - 10:
+            return f"hp {proc:.0f}%"
+        return None
+
+    def _cap_jedz_i_wyrzuc(self, teraz, plecak, poz, proc0):
+        """24.10 (Karol: "brakuje capa, bo postać kupiła za dużo hama"): zamiast wyprawy do depo po cap najpierw jedzenie.
+        (1) zjada ile się da (Use w kółko do "You are full" albo do braku ubytku; po "full" przez CAP_JEDZ_PELNY_S nie próbuje),
+        (2) cap >= WYPRAWA_CAP_MIN = koniec, gra dalej; (3) inaczej wyrzuca PO JEDNEJ SZTUCE jedzenie na ziemię pod postacią i po
+        KAŻDEJ czyta cap: ponad progiem = koniec (reszta jedzenia zostaje), inaczej kolejna sztuka aż jedzenie <= CAP_JEDZ_ZOSTAW
+        (domyślnie 0). Walka/potwór/gracz/spadek HP przerywa w każdej chwili. Cykl może się powtarzać bez limitu na minutę
+        (cap znów 0 = znów zjedz / wyrzuć 1 sztukę); między podejściami tylko CAP_JEDZ_ODSTEP_S.
+        -> True = obsłużone albo odłożone, BEZ wyprawy; None = nie dotyczy / jedzenia nie ma, a cap nadal za mały / wyrzucanie
+        nie działa (2 porażki z rzędu) = idzie dawna wyprawa po cap. CAP_JEDZ_I_WYRZUC=0 = None od razu (dawne zachowanie)."""
+        if not int(self._kw("CAP_JEDZ_I_WYRZUC") or 0):
+            return None
+        wyrzuc = getattr(self.ops, "wyrzuc_jedzenie", None)
+        if wyrzuc is None:
+            return None
+        cb = self.cb
+        cap_min = float(self._kw("WYPRAWA_CAP_MIN") or 0)
+        zostaw = max(0, int(self._kw("CAP_JEDZ_ZOSTAW") or 0))
+        ma = self._jedzenie_ile(plecak)
+        if ma is not None and ma <= 0:
+            return None                                       # jedzenia już nie ma, cap nadal za mały: wyprawa do miasta
+        if teraz < self._cap_jedz_nast:
+            return True
+        cap0 = self._cap()
+        self.log(f"Wyprawa: cap {'?' if cap0 is None else format(cap0, '.1f')} oz < {cap_min:.0f}, jedzenia {ma if ma is not None else '?'}: najpierw jem i wyrzucam "
+                 f"(po jednej sztuce, zostawiam {zostaw}), bez wyprawy do miasta")
+        zjedzone, wyrzucone, powod_konca = 0, 0, None
+        if cb.zegar() - self._cap_jedz_pelny >= CAP_JEDZ_PELNY_S and ma != 0:
+            for _ in range(int(self._kw("WYPRAWA_JEDZ_MAKS"))):
+                if self._cap_spokoj(poz, proc0) is not None:
+                    powod_konca = "przerwa_jedzenie"
+                    break
+                zj = self.ops.zjedz()
+                pelny = any(ODP_PELNY.search(w["tekst"]) for w in (self.ops.wiadomosci() or ()))
+                zjedzone += len(zj)
+                if pelny or not zj:
+                    self._cap_jedz_pelny = cb.zegar()
+                    break
+                cb.pauza(0.1, 0.3)
+            if ma is not None:
+                ma = max(0, ma - zjedzone)
+        cap = self._cap()
+        wynik = None
+        if powod_konca is None and cap is not None and cap >= cap_min:
+            wynik = True
+        while wynik is None and powod_konca is None:
+            if ma is not None and ma <= zostaw:
+                break
+            if wyrzucone >= CAP_JEDZ_MAKS_SZTUK:
+                powod_konca = "limit"
+                break
+            blok = self._cap_spokoj(poz, proc0)
+            if blok is not None:
+                powod_konca = f"przerwa ({blok})"
+                break
+            ok, zostalo, blad = wyrzuc()
+            if not ok:
+                if zostalo == 0:                              # jedzenia nie ma
+                    ma = 0
+                    break
+                self._cap_jedz_bledy += 1
+                self.log(f"Wyprawa: wyrzucenie jedzenia nie wyszło ({blad}), próba {self._cap_jedz_bledy}")
+                self._tele("wyprawa_krok", rodzaj="cap_jedz_blad", powod=blad)
+                self._cap_jedz_nast = cb.zegar() + 60.0
+                return None if self._cap_jedz_bledy >= 2 else True
+            self._cap_jedz_bledy = 0
+            wyrzucone += 1
+            ma = zostalo
+            cb.pauza(0.3, 0.6)
+            cap = self._cap()
+            if cap is None:
+                powod_konca = "brak odczytu capa"
+            elif cap >= cap_min:
+                wynik = True
+        self._cap_jedz_nast = cb.zegar() + float(self._kw("CAP_JEDZ_ODSTEP_S") or 0)
+        self._tele("wyprawa_krok", rodzaj="cap_jedz", zjedzone=zjedzone, wyrzucone=wyrzucone, cap=cap, zostalo=ma, powod=powod_konca)
+        if wynik:
+            self.log(f"Wyprawa: cap {'?' if cap is None else format(cap, '.1f')} oz po jedzeniu: zjedzone {zjedzone}, wyrzucone {wyrzucone} szt. (zostało {ma if ma is not None else '?'}), "
+                     "gram dalej")
+            return True
+        if powod_konca is not None:
+            self.log(f"Wyprawa: jedzenie/wyrzucanie przerwane ({powod_konca}), zjedzone {zjedzone}, wyrzucone {wyrzucone}; cap {cap}, bez wyprawy")
+            return True
+        self.log(f"Wyprawa: jedzenia nie ma (zjedzone {zjedzone}, wyrzucone {wyrzucone}), a cap {'?' if cap is None else format(cap, '.1f')} oz nadal < {cap_min:.0f}: wyprawa do miasta")
+        return None
+
+    def _depo_z_capa(self):
+        """Trwająca wyprawa do depo wystartowała wyłącznie z powodu cap (tekst powiadomienia o dotarciu)."""
+        p = set(self._stan_czytaj().get("depo_start_powody") or ())
+        return "cap" in p and not ({"zapas", "glod"} & p)
 
     def _odloz(self, teraz, powod, s):
         self.potw_w = 0
@@ -1417,6 +1663,11 @@ class Wyprawa(Wypad):
             pts = list(do) + [q for q in seg if tuple(q) != biez]
         if tuple(pts[-1]) != cel:
             pts.append(cel)
+        obszar = None
+        if self._plan_tylko_pk(baza_nazwa) and int(self._kw("DEPO_EDRON_OBSZAR")):
+            pts, obszar = self._dojscie_do_obszaru(pts, cel)          # 24.10: pole dojścia losowane z obszaru hali, nie jedno stałe
+            if obszar:
+                cel = tuple(pts[-1])
         mapa = getattr(self.cb, "mapa", None)
         etapy = zbuduj_etapy([_punkt(q) for q in pts], mapa)
         powrot = zbuduj_etapy([cel], mapa)           # bez WYPRAWA_DEPO_POWROT nieużywany: po dojściu STOP
@@ -1433,8 +1684,65 @@ class Wyprawa(Wypad):
         for b in sprawdz_plan(etapy, mapa, rampy_ok=True):
             self.log(f"Wyprawa: plan depo: {b}")
         st = {"id": "depo", "npc": "", "stoi": cel, "zakupy": [], "depo": True}
+        if obszar:
+            st["obszar"] = obszar                    # pola, z których dowolne = "depo osiągnięte" (patrz _cel_dokroku); po restarcie plan buduje się od nowa (_wznow -> _zbuduj), więc obszar wraca z danych
         return {"stops": [st], "legs": [etapy], "powrot": powrot, "k": 0, "baza": baza_nazwa,
                 "wyniki": {}, "kroki": 0, "sukces": False, "potrzeby": dict(potrzeby)}, None
+
+    def _dojscie_do_obszaru(self, pts, cel):
+        """24.10 (Karol: „punkt dojścia do depo w Edron na jakiś neutralny na środku albo obręb, żeby za każdym razem w to samo miejsce
+        nie przychodził, bo może być zajęte”): trasa `pts` (kończy się na stanowisku depo `cel`) zostaje do pierwszego punktu w sali depo,
+        stamtąd A* do losowego wolnego pola obszaru hali (`depo_obszar` w serwis_edron.json). -> (nowe punkty, lista pól obszaru) albo
+        (pts, None) = dawne dojście na stanowisko `cel` (pokrętło/dane/droga niedostępne, wszystkie pola zajęte, trasa nie wchodzi do sali)."""
+        o = obszar_depo(self.katalog, cel)
+        if o is None:
+            return pts, None
+        pola, sala = o
+        try:
+            zaj = self._zajete_pola(tuple(self.cb.postac.pozycja()))
+        except bot.Zatrzymano:
+            raise
+        except Exception:
+            zaj = set()
+        wybrane = wybierz_pole_obszaru(pola, zaj)
+        if wybrane is None:
+            self.log("Wyprawa: depo: wszystkie pola obszaru zajęte, idę na stanowisko jak dawniej")
+            return pts, None
+        pts = [tuple(q) for q in pts]
+        i = next((k for k, q in enumerate(pts) if w_sali(q, sala)), None)
+        if i is None:
+            return pts, None
+        nowe = pts[:i + 1]
+        if nowe[-1] != wybrane:
+            seg = self._odc(nowe[-1], wybrane)
+            if not seg:
+                self.log(f"Wyprawa: depo: brak drogi w sali do pola obszaru {wybrane}, idę na stanowisko jak dawniej")
+                return pts, None
+            nowe += [tuple(q) for q in seg if tuple(q) != nowe[-1]]
+        if nowe[-1] != wybrane:
+            nowe.append(wybrane)
+        self.log(f"Wyprawa: depo Edron: pole dojścia {wybrane} z obszaru ({len(pola)} pól) zamiast stanowiska {tuple(cel)}")
+        return nowe, [list(p) for p in pola]
+
+    def _cel_dokroku(self, poz, st):
+        """Pole, na które w `_sklep` (depo) dokładamy krok po dojściu, albo None (nic nie dokładamy). Bez obszaru: stanowisko `stoi`
+        (jak dotąd). Z obszarem (24.10): stoimy w obszarze = depo osiągnięte (None); inaczej `stoi`, a gdy zajęte przez gracza/stwora,
+        najbliższe wolne pole obszaru; wszystkie zajęte = None (zostajemy tam, gdzie etap nas zostawił, byle w sali)."""
+        stoi = tuple(st["stoi"])
+        obszar = [tuple(p) for p in st.get("obszar") or ()]
+        if not obszar:
+            return stoi
+        poz = tuple(poz)
+        if poz in obszar:
+            return None
+        zaj = self._zajete_pola(poz)
+        wolne = [p for p in obszar if p[2] == poz[2] and (p[0], p[1]) not in zaj]
+        if not wolne:
+            return None
+        if stoi in wolne:
+            return stoi
+        najb = min(cheb(poz, p) for p in wolne)
+        return random.choice([p for p in wolne if cheb(poz, p) == najb])
 
     _z_poz = None          # pozycja startu wyprawy do depo (plan PLANY_PK): z niej liczymy najkrótszą drogę
 
@@ -1474,7 +1782,8 @@ class Wyprawa(Wypad):
         try:
             if klucz not in self._droga_memo:
                 self._droga_memo[klucz] = droga_do_depo(poz, self._petla_lowiska(), [_punkt(q) for q in do],
-                                                        self._zalew_pietra, mapa, wyjscia=self._wyjscia_planu(baza_nazwa))
+                                                        self._zalew_pietra, mapa, wyjscia=self._wyjscia_planu(baza_nazwa),
+                                                        zasieg=zasieg_planu(baza_nazwa))
             wyn = self._droga_memo[klucz]
         except bot.Zatrzymano:
             raise
@@ -1509,7 +1818,7 @@ class Wyprawa(Wypad):
 
         inne = sorted((p["nazwa"] for p in PLANY_PK if p["nazwa"] in baza and p["nazwa"] != nazwa), key=odl)
         for n in inne:
-            if cheb(poz, baza[n][0][-1]) > DEPO_DOJSCIE_ZASIEG:
+            if cheb(poz, baza[n][0][-1]) > zasieg_planu(n):
                 continue
             if self._droga_z_pozycji(poz, baza[n][0], n, cicho=True) is not None:
                 self.log(f"Wyprawa: baza {nazwa} nie ma drogi z {poz} (najbliższy punkt za ścianą), biorę {n}")
@@ -1604,7 +1913,7 @@ class Wyprawa(Wypad):
             if p["nazwa"] not in baza:
                 continue
             d = cheb(poz, baza[p["nazwa"]][0][-1])
-            if d <= DEPO_DOJSCIE_ZASIEG and (najl is None or d < najl[0]):
+            if d <= zasieg_planu(p["nazwa"]) and (najl is None or d < najl[0]):
                 najl = (d, p["nazwa"])
         return najl[1] if najl else None
 
@@ -1729,12 +2038,16 @@ class Wyprawa(Wypad):
         if self._z_poz is not None:
             self._stan_zapisz(z_poz=list(self._z_poz))     # wznowienie po restarcie buduje ten sam plan
         if dane.get("depo"):                 # P7c: z jakiego powodu i przy jakim plecaku idziemy do depo
-            self._stan_zapisz(depo_start_powody=list(dane.get("powody") or []), depo_start_blanki=dane.get("blanki"))
+            self._stan_zapisz(depo_start_powody=list(dane.get("powody") or []), depo_start_blanki=dane.get("blanki"),
+                              depo_start_cap=dane.get("cap"))
         self.log(f"Wyprawa: start ({powod}), baza {nazwa}, przystanki {[st['id'] for st in w['stops']]}")
         if dane.get("reczny"):
             self._powiadom("Wróć do miasta: ruszam", f"Ręczne wywołanie, idę do depo ({nazwa}).", "normal", "wyprawa_depo_start")
         elif dane.get("depo") and not pk:
-            self._powiadom("Wyprawa do depo: ruszam", f"Brak jedzenia i głód ({powod}), idę do depo Thais.",
+            self._powiadom("Wyprawa do depo: ruszam",
+                           (f"Za mały wolny cap ({dane.get('cap')} oz), idę do depo ({powod}); bank i depo zwolnią wagę." if "cap" in (dane.get("powody") or ())
+                            and not ({"zapas", "glod"} & set(dane.get("powody") or ()))
+                            else f"Brak jedzenia i głód ({powod}), idę do depo Thais."),
                            "normal", "wyprawa_depo_start")
         return True
 
@@ -2065,9 +2378,11 @@ class Wyprawa(Wypad):
 
     def _sklep(self, poz, teraz):
         if self._w_depo():
-            stoi = tuple(self.w["stops"][0]["stoi"])
+            st0 = self.w["stops"][0]
+            stoi = self._cel_dokroku(poz, st0)       # bez obszaru = stanowisko depo (jak dotąd); z obszarem patrz _cel_dokroku
+            zasieg_dok = 3 if st0.get("obszar") else 1
             # tolerancja dojścia kończy etap już o pole przed celem: dokładamy krok na pole depo (do 3 prób)
-            if tuple(poz) != stoi and poz[2] == stoi[2] and cheb(poz, stoi) <= 1 \
+            if stoi is not None and tuple(poz) != stoi and poz[2] == stoi[2] and cheb(poz, stoi) <= zasieg_dok \
                     and self.w.get("dokroki", 0) < 3:
                 self.w["dokroki"] = self.w.get("dokroki", 0) + 1
                 try:
@@ -2356,7 +2671,7 @@ class Wyprawa(Wypad):
         if wynik == "depo":
             self.log(f"Wyprawa: DEPO osiągnięte w {poz}, koniec wyprawy, zatrzymuję bota")
             refill = self._auto_refill(poz) if int(self._k("WROC_REFILL", 0)) else None     # 20.10: tylko przy WROC_REFILL=1
-            self._powiadom("Wyprawa: jestem w depo", f"Bot stoi w depo {poz}{'' if reczny else ' (brak jedzenia)'}. "
+            self._powiadom("Wyprawa: jestem w depo", f"Bot stoi w depo {poz}{'' if reczny else (' (za mały cap)' if self._depo_z_capa() else ' (brak jedzenia)')}. "
                            + ("Bot zatrzymany, refill startuje sam." if refill and refill[0] == "czeka"
                               else "Bot zatrzymany, potrzebny człowiek."), "critical", "wyprawa_depo")
             self._zapisz_stop(f"dotarłem do depo {poz}")
@@ -2373,6 +2688,7 @@ class Wyprawa(Wypad):
         if wynik == "depo":                  # P7c: pamięć "depo z powodu X" (przeżywa restart)
             st0 = self._stan_czytaj()
             pam = {"depo_powody": st0.get("depo_start_powody") or [], "depo_blanki": st0.get("depo_start_blanki"),
+                   "depo_cap": st0.get("depo_start_cap"),
                    "depo_wall": self.czas()}
         self._stan_koniec(wynik=wynik, opis=opis, kupione={}, nast_wall=self.czas() + co_min,
                           wyniki=(w or {}).get("wyniki"), **pam)

@@ -9,6 +9,8 @@ Wyjście `trasy/serwis_edron.json` używa serwis.py:
   przystanki  nazwa -> {rodzaj, npc, stoi}  (pole stania zmierzone na żywo przy NPC / skrzyni depo)
   laczniki    [{"z": [x,y,z], "do": [x,y,z]}]  wszystkie przejścia pięter z nagrania (obie strony, bo Karol przeszedł je w obie)
   depo_stoiska pola stania przy skrzyniach depo (osiem wnęk), od najbliższego wejścia
+  depo_sala    prostokąt sali depo [x0, y0, x1, y1, z]: panel.py liczy całą salę jako „w depo”, wyprawa.py tnie trasę dojścia na wejściu do sali
+  depo_obszar  pola neutralne w hali (cel dojścia do depo, losowany przy każdym dojściu; wyprawa.py, pokrętło DEPO_EDRON_OBSZAR)
   wyjscie     pole na z7 przy wyjściu z depo, skąd uruchom.sh startuje z dojściem do spotu
   kolejnosc   domyślna kolejność kroków (edytowalna ręcznie w pliku)
 """
@@ -41,6 +43,12 @@ KOLEJNOSC = ["bank", "depo", "jedzenie", "backpack", "blanki", "wyjscie"]
 DEPO_X = list(range(33161, 33176, 2))
 DEPO_Y = 31796
 DEPO_Z = 8
+# 24.10 (Karol: „punkt dojścia do depo w Edron na jakiś neutralny na środku albo obręb, żeby za każdym razem w to samo miejsce nie przychodził, bo może być zajęte”):
+# sala depo = prostokąt x 33161..33175, y 31796..31801 (wnęki ze skrzyniami + hala 4 pola szeroka; wejście od południa y=31802 kolumnami 33166..33170, mapa klienta);
+# obszar dojścia = dwa boki hali (2 wiersze y=31799..31800, x 33162..33165 i 33171..33174; 16 pól chodliwych, flaga mapy 1): nie na wnękach, nie przed ich wejściami
+# (y=31798), nie w kolumnach wejścia 33166..33170. wyprawa.py losuje z niego pole dojścia (DEPO_EDRON_OBSZAR=1), panel.py uznaje całą salę za „w depo”.
+DEPO_SALA = [33161, 31796, 33175, 31801, 8]                       # x0, y0, x1, y1, z
+DEPO_OBSZAR = [[x, y, 8] for y in (31799, 31800) for x in (*range(33162, 33166), *range(33171, 33175))]
 
 
 def laczniki(punkty):
@@ -74,6 +82,8 @@ def zbuduj(punkty, znaczniki):
         "wyjscie": list(po_etykiecie["koniec_nagrania_pod_depo"]["poz"]),
         "laczniki": laczniki(punkty),
         "depo_stoiska": stanowiska_depo(),
+        "depo_sala": list(DEPO_SALA),
+        "depo_obszar": [list(p) for p in DEPO_OBSZAR],
         "kolejnosc": KOLEJNOSC,
     }
 

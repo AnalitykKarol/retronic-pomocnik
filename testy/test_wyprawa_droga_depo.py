@@ -131,6 +131,7 @@ class KonfW:
     WYPRAWA_PO_DEPO_S = 900
     WYPRAWA_DEPO_POWROT = 0
     WYPRAWA_TYLKO_DEPO = 1
+    DEPO_EDRON_OBSZAR = 0        # 24.10: stare stanowisko; obszar ma test_depo_edron_obszar
 
 
 class CBW:

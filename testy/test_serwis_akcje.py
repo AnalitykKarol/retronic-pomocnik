@@ -559,6 +559,66 @@ sym = Symulacja([{"id": GOLD, "ilosc": 500}, {"id": PLAT, "ilosc": 0}])
 e = zglasza(lambda: Testowe(sym, RozmowaAtrapa(sym, efekt=tylko_platinum)).bank_zmien("Ebenizer"))
 sprawdz("4d bank (#7): platinum przybyło, ale gold nie spadł = błąd (sprawdzamy oba końce)", e and e.krok == "bank", e)
 
+# 23.10 (wydra, bank Suzy w Thais): złoto w slocie 10 ekwipunku (amunicja) też idzie do wymiany, a platinum ląduje w tym slocie;
+# kontrola po wymianie porównuje SUMY (kontenery + slot 10), nie same kontenery.
+def probuj(f):
+    """Wynik albo wyjątek SerwisBlad (czerwony test zamiast przerwanego pliku)."""
+    try:
+        return f()
+    except SerwisBlad as e:
+        return e
+
+
+def wymiana_slot(ile_plat, zabierz_z_plecaka):
+    """Serwer zabiera `zabierz_z_plecaka` gold z plecaka, resztę z baku slotu 10, i wkłada platinum do slotu 10 (stack)."""
+    def f(sym):
+        sym.glowny()["p"][0]["ilosc"] -= zabierz_z_plecaka
+        e = sym.ekw.get(10)
+        if e and e["id"] == GOLD:                              # złoto ze slotu 10 zeszło w całości (wyjmowane wcześniej)
+            sym.ekw[10] = {"id": PLAT, "ilosc": ile_plat}
+        elif e and e["id"] == PLAT:
+            e["ilosc"] += ile_plat
+        else:
+            sym.ekw[10] = {"id": PLAT, "ilosc": ile_plat}
+    return f
+
+
+sym = Symulacja([{"id": GOLD, "ilosc": 595}])
+sym.ekw = {10: {"id": GOLD, "ilosc": 88}}
+r = RozmowaAtrapa(sym, efekt=wymiana_slot(6, 512))           # 683 - 600 = 83: 512 z plecaka, 88 ze slotu -> w plecaku zostaje 83
+a = Testowe(sym, r)
+sprawdz("4e bank (23.10): 595 gp w plecaku + 88 w slocie 10 -> prosi o 6 platinum, platinum w slocie 10, 83 gp zostaje",
+        probuj(lambda: a.bank_zmien("Suzy")) == 6 and r.log == [("zmien_gold", "Suzy", 6)] and sym.ekw[10] == {"id": PLAT, "ilosc": 6}
+        and sym.ile({GOLD}) == 83, (r.log, sym.ekw, sym.ile({GOLD})))
+sym = Symulacja([{"id": GOLD, "ilosc": 183}])
+sym.ekw = {10: {"id": PLAT, "ilosc": 5}}
+r = RozmowaAtrapa(sym, efekt=wymiana_slot(1, 100))
+sprawdz("4f bank (23.10): stan po porażce, 183 gp + 5 platinum w slocie 10 -> prosi o 1 platinum, slot 10 = 6 (stack), plecak 83",
+        probuj(lambda: Testowe(sym, r).bank_zmien("Suzy")) == 1 and r.log == [("zmien_gold", "Suzy", 1)] and sym.ekw[10] == {"id": PLAT, "ilosc": 6}
+        and sym.ile({GOLD}) == 83, (r.log, sym.ekw))
+sym = Symulacja([{"id": GOLD, "ilosc": 595}])
+sym.ekw = {10: {"id": 3446, "ilosc": 50}}                     # w slocie 10 strzały, nie monety
+sym.glowny()["p"].append({"id": PLAT, "ilosc": 0})
+
+
+def wymiana5(sym):
+    sym.glowny()["p"][0]["ilosc"] -= 500
+    sym.glowny()["p"][1]["ilosc"] += 5
+r = RozmowaAtrapa(sym, efekt=wymiana5)
+sprawdz("4g bank (23.10): w slocie 10 amunicja (nie monety) -> jak dotąd 5 platinum z plecaka",
+        probuj(lambda: Testowe(sym, r).bank_zmien("Suzy")) == 5 and r.log == [("zmien_gold", "Suzy", 5)] and sym.ile({PLAT}) == 5, r.log)
+sym = Symulacja([{"id": GOLD, "ilosc": 595}])
+sym.ekw = {10: {"id": GOLD, "ilosc": 88}}
+e = zglasza(lambda: Testowe(sym, RozmowaAtrapa(sym)).bank_zmien("Suzy"))
+sprawdz("4h bank (23.10): nic się nie zmieniło mimo złota w slocie 10 = nadal błąd", e and e.krok == "bank", e)
+
+# depo po takiej wymianie: platinum w slocie 10 nie jest ruszane, w plecaku nie ma czego odkładać (nie błąd)
+sym = Symulacja([{"id": BAG, "ilosc": 1}, {"id": GOLD, "ilosc": 83}], depo=[])
+sym.ekw = {10: {"id": PLAT, "ilosc": 6}}
+a = Testowe(sym)
+sprawdz("4i depo (23.10): platinum tylko w slocie 10 -> depo składa bag i nie rzuca błędu, slot 10 nietknięty",
+        probuj(lambda: a.depo_zloz(3)) is True and sym.ekw[10] == {"id": PLAT, "ilosc": 6} and any(q["id"] == BAG for q in sym.depo()["p"]), sym.ekw)
+
 # --- blanki do baga na runy -------------------------------------------------------------------------------------------
 
 sym = Symulacja([{"id": BLANK, "ilosc": 1}] * 15 + [{"id": GOLD, "ilosc": 48}], bag=[{"id": BLANK, "ilosc": 1}] * 5)
@@ -581,6 +641,100 @@ sym = Symulacja([{"id": BLANK, "ilosc": 1}] * 3, bag=[])
 sym.spada = True
 e = zglasza(lambda: Testowe(sym).przenies_blanki())
 sprawdz("5e blanki (#1): blank spadł na podłogę = błąd (oba końce)", e and "obu końcach" in e.powod, e)
+
+# 23.10 14:06 (wydra, Thais, Xodet): po zakupie 20 blank run plecak (20 slotów, pełny) trzyma 15 blanków, worek 5; przeniesienie
+# stanęło na "przeciągnięcie blanku do bagu nie dało skutku na obu końcach" (w worku 9, w plecaku 11), choć wolnych pól było 11.
+# `przenies_blanki` czytało pamięć raz, po stałych 0,9 s, i każdy brak skutku (opóźniony odczyt, chwilowo pusta lista kontenerów,
+# połknięte przeciągnięcie) kończył krokiem SerwisBlad + STOP; depo od 22.10 czeka na skutek (`_poczekaj_na_skutek`).
+PERELKI = 3033
+
+
+def thais_po_zakupie():
+    """Układ z ekranu 14:07: główny plecak pełny (gold, 15 blanków, worek, perełki x2, mięso x5, łopata), worek z 5 blankami."""
+    glowny = [{"id": GOLD, "ilosc": 89}] + [{"id": BLANK, "ilosc": 1}] * 15 + [{"id": WOREK, "ilosc": 1}, {"id": PERELKI, "ilosc": 2},
+                                                                              {"id": 3577, "ilosc": 5}, {"id": LOPATA, "ilosc": 1}]
+    return Symulacja(glowny, bag=[{"id": BLANK, "ilosc": 1}] * 5, nazwa_bagu="backpack")
+
+
+class Opozniony(Testowe):
+    """Pamięć klienta zalega: po kazdym przeciągnięciu `zalega` kolejnych odczytów kontenerów oddaje stan sprzed ruchu
+    (`pusto`: oddaje pustą listę, jak `kontenery()` przy odczycie w trakcie zmiany deque), ruch `polykaj` razy w ogóle nie dochodzi do gry."""
+
+    def __init__(self, sym, zalega=0, pusto=False, polykaj=0, **kw):
+        super().__init__(sym, **kw)
+        self.zalega, self.pusto, self.polykaj = zalega, pusto, polykaj
+        self._stary, self._ile = None, 0
+        self.ruchy = []
+
+    def kontenery(self):
+        if self._ile > 0:
+            self._ile -= 1
+            return [] if self.pusto else self._stary
+        return self.sym.pamiec()
+
+    def _przeciagnij(self, m, okno_z, i_z, okno_do, i_do):
+        self.ruchy.append((i_z, i_do))
+        if self.polykaj > 0:
+            self.polykaj -= 1
+            return
+        self._stary = self.sym.pamiec()
+        Testowe._przeciagnij(self, m, okno_z, i_z, okno_do, i_do)
+        self._ile = self.zalega
+
+
+def blanki_w(k):
+    return sum(1 for q in k["p"] if q["id"] == BLANK)
+
+
+_stare = (A.SKUTEK_CZEKAJ_S, A.SKUTEK_KROK_S, getattr(A, "PRZERWA_PONOWIENIA_S", None))
+A.SKUTEK_CZEKAJ_S, A.SKUTEK_KROK_S, A.PRZERWA_PONOWIENIA_S = 1.0, 0.01, 0.0
+
+sym = thais_po_zakupie()
+Testowe(sym).przenies_blanki()
+sprawdz("5f blanki (Thais 23.10): układ z ekranu, pełny plecak 15 + worek 5 -> worek 20, w plecaku zostaje reszta bez blanków",
+        blanki_w(sym.kon[0]) == 20 and blanki_w(sym.kon[1]) == 0 and len(sym.kon[1]["p"]) == 5, (sym.kon[0]["p"], sym.kon[1]["p"]))
+
+for zalega in (1, 2, 5):
+    sym = thais_po_zakupie()
+    a = Opozniony(sym, zalega=zalega)
+    e = zglasza(a.przenies_blanki)
+    sprawdz(f"5g blanki (23.10): pamięć zalega o {zalega} odczytów po każdym przeciągnięciu, a ruch się udał -> czekamy, nie błąd, "
+            "bez zbędnych przeciągnięć", e is None and blanki_w(sym.kon[0]) == 20 and len(a.ruchy) == 15, (e, len(a.ruchy)))
+
+sym = thais_po_zakupie()
+a = Opozniony(sym, zalega=2, pusto=True)
+e = zglasza(a.przenies_blanki)
+sprawdz("5h blanki (23.10): chwilowo pusta lista kontenerów po przeciągnięciu (odczyt w trakcie zmiany) nie przerywa kroku",
+        e is None and blanki_w(sym.kon[0]) == 20 and len(a.ruchy) == 15, (e, len(a.ruchy)))
+
+A.SKUTEK_CZEKAJ_S = 0.05
+sym = thais_po_zakupie()
+a = Opozniony(sym, polykaj=1)
+e = zglasza(a.przenies_blanki)
+sprawdz("5i blanki (23.10): jedno przeciągnięcie nie doszło do gry -> ponowione (16 ruchów), kończy 20 w worku",
+        e is None and blanki_w(sym.kon[0]) == 20 and len(a.ruchy) == 16, (e, a.ruchy))
+sprawdz("5i2 blanki (23.10): ponowienie celuje w inne wolne pole worka niż nieudana próba (rotacja, nie ten sam klik)",
+        len(a.ruchy) > 1 and a.ruchy[0][1] != a.ruchy[1][1], a.ruchy[:3])
+sprawdz("5i3 blanki (23.10): nic poza blankami nie ruszone (gold, worek, perełki, mięso, łopata zostają w plecaku)",
+        [q["id"] for q in sym.kon[1]["p"]] == [GOLD, WOREK, PERELKI, 3577, LOPATA], sym.kon[1]["p"])
+
+sym = thais_po_zakupie()
+a = Opozniony(sym, polykaj=99)
+e = zglasza(a.przenies_blanki)
+sprawdz("5j blanki (23.10): przeciągnięcie nigdy nie działa -> po 3 próbach błąd (nie pętla), z opisem prób i pól",
+        e and e.krok == "blanki" and "obu końcach" in e.powod and len(a.ruchy) == 3 and blanki_w(sym.kon[1]) == 15, (e, a.ruchy))
+
+sym = thais_po_zakupie()
+sym.spada = True
+a = Opozniony(sym)
+e = zglasza(a.przenies_blanki)
+sprawdz("5k blanki (23.10): blank zniknął z plecaka, a w worku nie przybył -> błąd od razu, bez ponawiania (nie ruszamy dalej na ślepo)",
+        e and "obu końcach" in e.powod and len(a.ruchy) == 1, (e, a.ruchy))
+A.SKUTEK_CZEKAJ_S, A.SKUTEK_KROK_S = _stare[0], _stare[1]
+if _stare[2] is None:
+    del A.PRZERWA_PONOWIENIA_S
+else:
+    A.PRZERWA_PONOWIENIA_S = _stare[2]
 
 # --- układ okien na prawdziwych zrzutach z 19.10 ------------------------------------------------------------------------
 

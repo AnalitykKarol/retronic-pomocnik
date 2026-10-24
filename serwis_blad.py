@@ -10,5 +10,10 @@ class SerwisBlad(RuntimeError):
         self.powod = powod
 
 
+class BrakOdpowiedziNpc(SerwisBlad):
+    """NPC nie odpowiedział na `hi` (23.10): za daleko albo odszedł. Podklasa SerwisBlad (krok „rozmowa”), więc stare łapanie
+    SerwisBlad działa bez zmian; serwis rozpoznaje po niej jedyny przypadek, w którym warto podejść do NPC i spróbować jeszcze raz."""
+
+
 def cheb(a, b):
     return max(abs(a[0] - b[0]), abs(a[1] - b[1]))

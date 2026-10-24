@@ -12,7 +12,7 @@ import time
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from serwis_blad import SerwisBlad  # noqa: E402
+from serwis_blad import BrakOdpowiedziNpc, SerwisBlad  # noqa: E402
 import widma  # noqa: E402
 
 ID_GOLD, ID_PLATINUM, ID_BLANK, ID_HAM = 3031, 3035, 3147, 3582
@@ -28,11 +28,17 @@ BAG_ILE_RZEDOW = 5                          # okna plecaków rozciągamy do 5 rz
 SASIEDZI_SKRZYNI = ((0, -1), (1, 0), (0, 1), (-1, 0))     # skrzynia depo Edron stoi na północ od pola stania (zmierzone)
 STRZALKA_LEWA = (-50, 1)                    # środek okna "Move Objects" -> strzałka suwaka w lewo (kalibracja 19.10)
 WAGA_HAM_OZ, WAGA_BLANK_OZ, WAGA_BAGU_OZ = 20.0, 1.2, 18.0   # oz; dane_tibia/przedmioty.json, bag z 20 blankami = 42 oz (Karol 21.10)
+SPRZET_KATEGORIE = ("miecze", "inne_bronie", "helmy", "zbroje", "nogi", "buty", "tarcze")   # 24.10: łup, który wolno odłożyć do depo, gdy brakuje capa
+SPRZET_CHRONIONE = {3409, 3426}             # steel shield i tarcza z UH_STAN_PLIK (loot.ID_TARCZ_W_POJEMNIKU): bot ich używa, nie odkładamy
+SPRZET_MIN_WAGA_OZ = 10.0                   # lżejszego łupu nie ruszamy (nie zwalnia sensownie capa)
+SPRZET_MAKS_SZTUK = 6                       # tyle sztuk łupu najwyżej na jedno składanie
 LIMITY_CENY = {"ham": 12, "blank rune": 12, "backpack": 25}   # gp za sztukę; dwa razy więcej = oferta odrzucona
 ODP_OFERTA = re.compile(r"do you want to buy (?:(\d+) |an? )?(.+?) for (\d+) gold", re.I)
 ODP_PYTANIE_PLATINUM = re.compile(r"how many platinum", re.I)
 ODP_SUKCES = re.compile(r"here you are|here it is|there you are", re.I)
 SKUTEK_CZEKAJ_S, SKUTEK_KROK_S = 3.0, 0.4   # 22.10: tyle czekamy, aż pamięć klienta pokaże skutek przeciągnięcia (jeden odczyt po 0,9 s bywał za wcześnie)
+SKUTEK_BLANKU_PROB = 3                      # 23.10: tyle kolejnych przeciągnięć blanku do worka bez skutku, zanim krok blanki zgłosi błąd
+PRZERWA_PONOWIENIA_S = 0.7                  # pauza między nieudaną próbą a następną (świeży zrzut i odczyt pamięci)
 SASIAD_PX = 40                              # sloty okna co 37 px: sąsiad (także po przekątnej) leży bliżej niż tyle
 ODP_BRAK = re.compile(r"not have enough|cannot carry|too heavy|do not have|don't have|no room|capacity", re.I)
 
@@ -225,7 +231,8 @@ class Rozmowa:
                     continue
                 return r
             self.spij(1.0)
-        raise SerwisBlad("rozmowa", f"{npc} nie odpowiada na hi (nie stoi obok?)")
+        # 23.10: osobny typ (podklasa SerwisBlad), żeby Serwis wiedział, że warto podejść do NPC, który odszedł (decyzja Karola)
+        raise BrakOdpowiedziNpc("rozmowa", f"{npc} nie odpowiada na hi (nie stoi obok?)")
 
     def zamow(self, npc, tekst, max_cena_sztuki, ile=None, slepy_yes=False):
         """Zamówienie (np. "5 ham" albo "backpack") -> oferta -> yes -> potwierdzenie. Zwraca (ile_sztuk, cena).
@@ -355,6 +362,50 @@ def _suma(k, ids):
     return sum(max(1, q.get("ilosc", 1)) for q in k.get("przedmioty", []) if q["id"] in ids)
 
 
+_SPRZET_WAGI = None
+
+
+def wagi_sprzetu():
+    """{id_klienta: waga oz} łupu-sprzętu (kategorie SPRZET_KATEGORIE z dane_tibia/przedmioty.json, bez SPRZET_CHRONIONE i lżejszego niż
+    SPRZET_MIN_WAGA_OZ); brak pliku = {} (wtedy nic nie jest łupem do odłożenia). Raz na proces."""
+    global _SPRZET_WAGI
+    if _SPRZET_WAGI is None:
+        wagi = {}
+        try:
+            import json
+            from pathlib import Path
+            with open(Path(__file__).resolve().parent / "dane_tibia" / "przedmioty.json", encoding="utf-8") as f:
+                kat = json.load(f).get("kategorie") or {}
+            for nazwa in SPRZET_KATEGORIE:
+                for it in kat.get(nazwa) or []:
+                    i, w = it.get("id_klienta"), it.get("waga_oz")
+                    if isinstance(i, int) and isinstance(w, (int, float)) and w >= SPRZET_MIN_WAGA_OZ and i not in SPRZET_CHRONIONE:
+                        wagi[i] = float(w)
+        except Exception:
+            wagi = {}
+        _SPRZET_WAGI = wagi
+    return _SPRZET_WAGI
+
+
+def plan_nadmiaru(cap, cap_cel, przedmioty, wagi=None, maks_sztuk=SPRZET_MAKS_SZTUK):
+    """Które sztuki ciężkiego łupu-sprzętu odłożyć do depo, by wolny cap doszedł do `cap_cel` oz (czysta funkcja, bez ruchu):
+    lista ID, najcięższe pierwsze (z głównego plecaka `przedmioty` = [{slot, id, ilosc}], tylko ID z `wagi`, każda sztuka osobno).
+    Cap już >= cel albo cel 0 = []. Ham NIE idzie do depo (korekta Karola 24.10: jedzenie się zjada albo wyrzuca w wyprawie.py)."""
+    potrzeba = cap_cel - cap
+    if cap_cel <= 0 or potrzeba <= 0:
+        return []
+    wagi = wagi_sprzetu() if wagi is None else wagi
+    wybrane = []
+    sztuki = sorted(((wagi[q["id"]], q["id"]) for q in przedmioty if q["id"] in wagi for _ in range(max(1, q.get("ilosc", 1)))),
+                    reverse=True)
+    for w, ident in sztuki:
+        if potrzeba <= 0 or len(wybrane) >= maks_sztuk:
+            break
+        wybrane.append(ident)
+        potrzeba -= w
+    return wybrane
+
+
 class AkcjeZywe:
     """Interfejs używany przez serwis.Serwis. Każda metoda weryfikuje skutek w pamięci klienta (kontenery), na obu końcach."""
 
@@ -400,11 +451,21 @@ class AkcjeZywe:
             return None
         return None if not isinstance(e, dict) else e
 
+    def _slot_amunicji(self):
+        """{"id", "ilosc"} ze slotu 10 ekwipunku albo {} (brak odczytu lub pusty slot)."""
+        e = self._ekwipunek() or {}
+        return e.get(str(SLOT_AMUNICJI)) or e.get(SLOT_AMUNICJI) or {}
+
+    def ilosc_w_ekwipunku(self, ids):
+        """Sztuki przedmiotu o ID z `ids` leżące w slocie 10 ekwipunku (amunicja); 0 przy braku odczytu, pustym slocie lub innym
+        przedmiocie. 23.10 wydra (bank Suzy): bank liczył gold/platinum tylko w kontenerach, a monety leżą też w tym slocie."""
+        q = self._slot_amunicji()
+        return max(1, q.get("ilosc", 1)) if q.get("id") in ids else 0
+
     def majatek_w_ekwipunku(self):
         """Gold + 100 * platinum + 10000 * crystal leżące w slocie 10 ekwipunku (amunicja). 22.10 wydra (Thais): bank zamienił
         złoto w tym slocie na 6 platinum, a odczyt samych kontenerów widział 13 gp. Brak odczytu = 0."""
-        e = self._ekwipunek() or {}
-        q = e.get(str(SLOT_AMUNICJI)) or e.get(SLOT_AMUNICJI) or {}
+        q = self._slot_amunicji()
         wartosc = {ID_GOLD: 1, ID_PLATINUM: 100, 3043: 10000}.get(q.get("id"), 0)
         return wartosc * max(1, q.get("ilosc", 1)) if wartosc else 0
 
@@ -456,7 +517,7 @@ class AkcjeZywe:
         ma = self.ilosc({ID_HAM})
         wolne = self.cap() - rezerwa_oz
         ile = max(0, min(cel - ma, int(wolne // WAGA_HAM_OZ)))
-        self.log(f"cap: wolne {self.cap():.1f} oz, rezerwa {rezerwa_oz:.1f} oz na bag z blankami, ham w plecaku {ma}, kupię {ile} (cel {cel})")
+        self.log(f"cap: wolne {self.cap():.1f} oz, rezerwa {rezerwa_oz:.1f} oz (bag z blankami + łup z huntu), ham w plecaku {ma}, kupię {ile} (cel {cel})")
         return ma + ile
 
     def _glowny(self, kon=None):
@@ -648,15 +709,18 @@ class AkcjeZywe:
     # --- bank ---
 
     def bank_zmien(self, npc):
-        gold = self.ilosc({ID_GOLD})
-        plat0 = self.ilosc({ID_PLATINUM})
+        """Wymienia całe setki gold na platinum. 23.10 (wydra, Thais): gold i platinum liczymy w kontenerach ORAZ w slocie 10
+        ekwipunku (serwer zabiera złoto także stamtąd i tam wkłada platinum), a kontrola po wymianie porównuje te SUMY."""
+        gold = self.ilosc({ID_GOLD}) + self.ilosc_w_ekwipunku({ID_GOLD})
+        plat0 = self.ilosc({ID_PLATINUM}) + self.ilosc_w_ekwipunku({ID_PLATINUM})
         n = gold // 100
         if n <= 0:
             self.log(f"bank: {gold} gold, nic do wymiany")
             return 0
         self.rozmowa.zmien_gold(npc, n)
         time.sleep(1.0)
-        plat1, gold1 = self.ilosc({ID_PLATINUM}), self.ilosc({ID_GOLD})
+        plat1 = self.ilosc({ID_PLATINUM}) + self.ilosc_w_ekwipunku({ID_PLATINUM})
+        gold1 = self.ilosc({ID_GOLD}) + self.ilosc_w_ekwipunku({ID_GOLD})
         if plat1 != plat0 + n or gold1 != gold - 100 * n:
             raise SerwisBlad("bank", f"wymiana {n} platinum: platinum {plat0} -> {plat1}, gold {gold} -> {gold1}")
         self.log(f"bank: wymieniono {n * 100} gold na {n} platinum")
@@ -778,6 +842,35 @@ class AkcjeZywe:
         if plat > zostaw_platinum:
             raise SerwisBlad("depo", f"platinum w plecaku {plat}, miało zostać {zostaw_platinum}")
         self.log(f"depo: złożone (platinum w plecaku {plat})")
+        return True
+
+    def stan_cap(self):
+        """(wolny cap w oz, ham w plecaku, [przedmioty głównego plecaka {slot, id, ilosc}]) do planu odłożenia nadmiaru (24.10)."""
+        glowny = self._glowny() or {}
+        return self.cap(), self.ilosc({ID_HAM}), [dict(q) for q in glowny.get("przedmioty", [])]
+
+    def depo_nadmiar(self, loot=(), odejdz=None):
+        """24.10 (powrót po cap): otwiera depo, odkłada po jednej sztuce każdy ID z `loot` (ciężki sprzęt z głównego plecaka; jeden
+        przeciągnięty przedmiot = jedna weryfikacja na obu końcach), zamyka depo. Ham NIE idzie do depo. -> False tylko gdy skrzynia
+        się nie otworzyła (nic nie ruszone). Błąd przy sztuce kończy odkładanie BEZ porażki serwisu (łup jest dodatkiem)."""
+        loot = list(loot)
+        with self._mysz() as m:
+            if not self._otworz_depo(m):
+                return False
+            odlozone = 0
+            for ident in loot:
+                glowny = self._glowny() or {}
+                q = next((q for q in glowny.get("przedmioty", []) if q["id"] == ident), None)
+                if q is None:
+                    continue
+                try:
+                    self._przenies_do_depo(m, q["slot"])
+                    odlozone += 1
+                except SerwisBlad as e:
+                    self.log(f"depo[cap]: łup {ident} zostaje w plecaku ({e.powod}), kończę odkładanie łupu")
+                    break
+            self.log(f"depo[cap]: odłożone sztuk łupu {odlozone}/{len(loot)}")
+        self._zamknij_poza_plecakiem(odejdz)
         return True
 
     def _zamknij_poza_plecakiem(self, odejdz=None):
@@ -939,10 +1032,33 @@ class AkcjeZywe:
 
     # --- blanki do baga na runy ---
 
+    def _czekaj_skutek_blanku(self, num_z, num_d, z_przed, d_przed):
+        """("ok" | "brak" | "niezgodny", źródło, cel) po przeciągnięciu blanku z plecaka do worka. Czeka do SKUTEK_CZEKAJ_S, aż
+        źródło straci tyle blanków, ile cel zyska (>= 1; więcej, gdy wcześniejsza próba dotarła z opóźnieniem). "brak" = nic się
+        nie zmieniło albo odczyt był pusty/niepełny (pamięć klienta bywa o chwilę za ekranem, a odczyt w trakcie zmiany daje pustą
+        listę); "niezgodny" = zmiana tylko po jednej stronie albo różna po obu (blank zniknął albo przybył z nieznanego miejsca)."""
+        t0 = time.monotonic()
+        while True:
+            z_po, d_po = self._kontener(num_z), self._kontener(num_d)
+            stan = "brak"
+            if z_po is not None and d_po is not None:
+                zmiana_z, zmiana_d = z_przed - _suma(z_po, {ID_BLANK}), _suma(d_po, {ID_BLANK}) - d_przed
+                if zmiana_z == zmiana_d and zmiana_z >= 1:
+                    return "ok", z_po, d_po
+                stan = "brak" if zmiana_z == 0 and zmiana_d == 0 else "niezgodny"
+            if time.monotonic() - t0 >= SKUTEK_CZEKAJ_S:
+                return stan, z_po, d_po
+            time.sleep(SKUTEK_KROK_S)
+
     def przenies_blanki(self):
-        """Blanki z plecaka do bagu na runy (jedyny otwarty kontener-bag poza plecakiem); weryfikacja na obu końcach."""
+        """Blanki z plecaka do bagu na runy (jedyny otwarty kontener-bag poza plecakiem); weryfikacja na obu końcach.
+        23.10 (wydra, Thais, 14:06): pojedynczy odczyt po 0,9 s i twardy błąd przy każdym braku skutku zatrzymywały serwis po 4
+        z 15 przeniesionych blanków. Teraz skutek jest czekany jak w depo, a brak skutku (nic się nie zmieniło) = kolejna próba na
+        świeżym zrzucie, w INNYM wolnym polu worka i z innego blanku, do SKUTEK_BLANKU_PROB prób z rzędu. Zmiana niezgodna po
+        obu stronach (blank zniknął, nie przybył) nadal przerywa od razu: nie ruszamy dalej na ślepo."""
+        bez_skutku = []                          # (slot źródła, slot celu) prób bez skutku z rzędu
         with self._mysz() as m:
-            for _ in range(40):
+            for _ in range(60):
                 pary = self._okna_numery(self._zrzut(m))
                 kon = [k for _, k in pary]
                 glowny = next(((o, k) for o, k in pary if _czy_glowny(k, kon)), None)
@@ -954,14 +1070,30 @@ class AkcjeZywe:
                 zrodlo = [q for q in k_z.get("przedmioty", []) if q["id"] == ID_BLANK and q["slot"] < len(o_z.sloty)]
                 if not zrodlo:
                     break
-                wolny = wolny_slot(o_d, {q["slot"] for q in k_d.get("przedmioty", [])})
-                if wolny is None:
+                zajete = {q["slot"] for q in k_d.get("przedmioty", [])}
+                wolne = [i for i in range(len(o_d.sloty)) if i not in zajete]
+                if not wolne:
                     raise SerwisBlad("blanki", "bag na runy pełny albo bez wolnego widocznego pola")
+                proba = len(bez_skutku)
+                slot_z = zrodlo[min(proba, len(zrodlo) - 1)]["slot"]
+                wolny = wolne[min(proba, len(wolne) - 1)]
                 z_przed, d_przed = _suma(k_z, {ID_BLANK}), _suma(k_d, {ID_BLANK})
-                self._przeciagnij(m, o_z, zrodlo[0]["slot"], o_d, wolny)
-                z_po, d_po = self._kontener(k_z.get("numer")), self._kontener(k_d.get("numer"))
-                if z_po is None or d_po is None or _suma(z_po, {ID_BLANK}) != z_przed - 1 or _suma(d_po, {ID_BLANK}) != d_przed + 1:
-                    raise SerwisBlad("blanki", "przeciągnięcie blanku do bagu nie dało skutku na obu końcach")
+                self._przeciagnij(m, o_z, slot_z, o_d, wolny)
+                stan, z_po, d_po = self._czekaj_skutek_blanku(k_z.get("numer"), k_d.get("numer"), z_przed, d_przed)
+                if stan == "ok":
+                    bez_skutku = []
+                    continue
+                opis = (f"plecak {z_przed} -> {'brak odczytu' if z_po is None else _suma(z_po, {ID_BLANK})}, "
+                        f"bag {d_przed} -> {'brak odczytu' if d_po is None else _suma(d_po, {ID_BLANK})} "
+                        f"(blank ze slotu {slot_z} na slot {wolny})")
+                if stan == "niezgodny":
+                    raise SerwisBlad("blanki", f"przeciągnięcie blanku do bagu nie dało skutku na obu końcach: {opis}")
+                bez_skutku.append((slot_z, wolny))
+                if len(bez_skutku) >= SKUTEK_BLANKU_PROB:
+                    raise SerwisBlad("blanki", f"przeciągnięcie blanku do bagu nie dało skutku na obu końcach po {len(bez_skutku)} próbach "
+                                               f"(sloty źródło->cel: {bez_skutku}): {opis}")
+                self.log(f"blanki: próba {len(bez_skutku)}/{SKUTEK_BLANKU_PROB} bez skutku ({opis}), ponawiam w innym polu")
+                time.sleep(PRZERWA_PONOWIENIA_S)
         glowny = self._glowny()
         if glowny and any(q["id"] == ID_BLANK for q in glowny.get("przedmioty", [])):
             raise SerwisBlad("blanki", "blanki zostały w plecaku")

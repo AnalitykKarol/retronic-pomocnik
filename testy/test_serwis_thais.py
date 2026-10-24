@@ -94,7 +94,7 @@ sprawdz("2i bank Suzy ZMIERZONY (22.10): w przystankach z polem stania (32319,32
         bk["rodzaj"] == "bank" and bk["npc"] == "Suzy" and tuple(bk["stoi"]) == BANK_STOI == tuple(G.BANK["stoi"])
         and [tuple(d) for d in bk["drzwi"]] == [BANK_DRZWI] and "bank" not in DANE["do_pomiaru"] and "zmierzone" in bk["status"], bk)
 sprawdz("2j układ zgodny z serwis_edron.json: te same wymagane klucze", {"przystanki", "laczniki", "kolejnosc", "wyjscie", "depo_stoiska", "miasto"} <= set(DANE)
-        and set(json.loads((KAT / "trasy" / "serwis_edron.json").read_text())) - {"_opis"} <= set(DANE))
+        and set(json.loads((KAT / "trasy" / "serwis_edron.json").read_text())) - {"_opis", "depo_sala", "depo_obszar"} <= set(DANE))   # 24.10: depo_sala/depo_obszar = tylko Edron (losowe pole dojścia do depo)
 sprawdz("2k Thais w jednym piętrze: łączniki puste, wszystkie punkty na z7",
         DANE["laczniki"] == [] and {tuple(v["stoi"])[2] for v in DANE["przystanki"].values()} == {7})
 
@@ -365,8 +365,8 @@ sprawdz("9e podział trasy na drzwiach: marsz do pola przed drzwiami (32366,3220
 S_OTW.clear()
 w = SwiatDrzwi((32366, 32208, 7), FRODO)
 r = S.przejdz_drzwi(w, (32366, 32208, 7), FRODO, (32364, 32208, 7), log=lambda *_: None, otworz=w.otworz, spij=BEZ_SPANIA)
-sprawdz("9f zamknięte drzwi: jedno Use na drzwiach, krok na kafelek, krok za nie, postać stoi za drzwiami",
-        r is True and w.uzycia == [FRODO] and w.kroki == ["Left", "Left"] and w.poz == (32364, 32208, 7) and w.otwarte, (r, w.uzycia, w.kroki, w.poz))
+sprawdz("9f zamknięte drzwi (24.10: najpierw 2 kroki bez skutku, potem jedno Use, krok na kafelek, krok za nie), postać stoi za drzwiami",
+        r is True and w.uzycia == [FRODO] and w.kroki == ["Left"] * 4 and w.poz == (32364, 32208, 7) and w.otwarte, (r, w.uzycia, w.kroki, w.poz))
 S_OTW.clear()
 w = SwiatDrzwi((32366, 32208, 7), FRODO, otwarte=True)
 r = S.przejdz_drzwi(w, (32366, 32208, 7), FRODO, (32364, 32208, 7), log=lambda *_: None, otworz=w.otworz, spij=BEZ_SPANIA)
@@ -375,12 +375,12 @@ sprawdz("9g drzwi już otwarte: przechodzimy i drzwi zostają otwarte (Use na ot
 S_OTW.clear()
 w = SwiatDrzwi((32400, 32216, 7), XODET)
 r = S.przejdz_drzwi(w, (32400, 32216, 7), XODET, (32400, 32218, 7), log=lambda *_: None, otworz=w.otworz, spij=BEZ_SPANIA)
-sprawdz("9h drzwi Xodeta (oś y): Use, krok w dół, krok w dół", r is True and w.kroki == ["Down", "Down"] and w.poz == (32400, 32218, 7), (r, w.kroki))
+sprawdz("9h drzwi Xodeta (oś y): 2 kroki bez skutku, Use, krok w dół, krok w dół", r is True and w.kroki == ["Down"] * 4 and w.poz == (32400, 32218, 7), (r, w.kroki))
 S_OTW.clear()
 w = SwiatDrzwi((32364, 32208, 7), FRODO)
 r = S.przejdz_drzwi(w, (32364, 32208, 7), FRODO, (32366, 32208, 7), log=lambda *_: None, otworz=w.otworz, spij=BEZ_SPANIA)
-sprawdz("9i przejście w drugą stronę (wyjście ze sklepu): Use dokładnie na drzwiach, krok w prawo dwa razy",
-        r is True and w.uzycia == [FRODO] and w.kroki == ["Right", "Right"] and w.poz == (32366, 32208, 7), (r, w.uzycia, w.kroki))
+sprawdz("9i przejście w drugą stronę (wyjście ze sklepu): 2 kroki bez skutku, Use dokładnie na drzwiach, krok w prawo dwa razy",
+        r is True and w.uzycia == [FRODO] and w.kroki == ["Right"] * 4 and w.poz == (32366, 32208, 7), (r, w.uzycia, w.kroki))
 S_OTW.clear()
 w = SwiatDrzwi((32366, 32208, 7), FRODO, otwieraja=False)
 e = zglasza(lambda: S.przejdz_drzwi(w, (32366, 32208, 7), FRODO, (32364, 32208, 7), log=lambda *_: None, otworz=w.otworz, spij=BEZ_SPANIA))
@@ -396,7 +396,12 @@ S_OTW.clear(); S_OTW.add(FRODO)
 w = SwiatDrzwi((32366, 32208, 7), FRODO, otwarte=False)
 r = S.przejdz_drzwi(w, (32366, 32208, 7), FRODO, (32364, 32208, 7), log=lambda *_: None, otworz=w.otworz, spij=BEZ_SPANIA)
 sprawdz("9n drzwi znane jako otwarte, ale ktoś je zamknął: sam krok nie wchodzi, więc Use (jedno), potem przejście",
-        r is True and w.uzycia == [FRODO] and w.poz == (32364, 32208, 7) and w.kroki[0] == "Left" and len(w.kroki) == 3, (r, w.uzycia, w.kroki))
+        r is True and w.uzycia == [FRODO] and w.poz == (32364, 32208, 7) and w.kroki[0] == "Left" and len(w.kroki) == 4, (r, w.uzycia, w.kroki))
+S_OTW.clear()
+w = SwiatDrzwi((32366, 32208, 7), FRODO, otwarte=True)
+r = S.przejdz_drzwi(w, (32366, 32208, 7), FRODO, (32364, 32208, 7), log=lambda *_: None, otworz=w.otworz, spij=BEZ_SPANIA)
+sprawdz("9r (24.10, wydra) NIEZNANE drzwi, które są otwarte: ZERO Use (najpierw krok; dawniej Use na starcie je zamykało)",
+        r is True and w.uzycia == [] and w.otwarte and w.poz == (32364, 32208, 7), (r, w.uzycia, w.kroki))
 S_OTW.clear(); S_OTW.add(FRODO)
 w = SwiatDrzwi((32366, 32208, 7), FRODO, otwarte=True)
 r = S.przejdz_drzwi(w, (32366, 32208, 7), FRODO, (32364, 32208, 7), log=lambda *_: None, otworz=w.otworz, spij=BEZ_SPANIA)
@@ -504,6 +509,12 @@ e = zglasza(lambda: sr.uruchom(["bank", "depo", "jedzenie", "backpack", "blanki"
 sprawdz("10e dane bez kroku bank, pomin_brakujace: bank pominięty (nie ma go w wyniku), reszta zrobiona, bez wywołania banku",
         e is None and "bank" not in sr.wynik and sr.wynik.get("blanki") == "ok" and not any(isinstance(x, tuple) and x[0] == "bank" for x in a.log),
         (e, sr.wynik, a.log))
+S_OTW.clear()
+sr, a, sw, ch = pelny_serwis()
+e = zglasza(lambda: sr.uruchom(["bank", "wyjscie"], pomin_brakujace=True))
+sprawdz("10d3 24.10 powrót po samym cap (REFILL_KROKI=bank,wyjscie) w Thais: bank zrobiony, bez depo, jedzenia, backpacka i blanków",
+        e is None and sr.wynik.get("bank") == "ok" and ("bank", "Suzy") in a.log and "depo" not in sr.wynik and "blanki" not in sr.wynik
+        and not any(isinstance(x, tuple) and x[0] in ("depo", "kup") for x in a.log), (e, sr.wynik, a.log))
 ED_ = json.loads((KAT / "trasy" / "serwis_edron.json").read_text())
 sed2 = S.Serwis(ED_, AkcjeAtrapa(), Planer0(), lambda: (0, 0, 7), lambda *a_, **k: True, log=lambda *_: None)
 sed2.uruchom(["bank", "depo"], pomin_brakujace=True)
