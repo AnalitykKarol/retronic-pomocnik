@@ -1,0 +1,54 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "depo Thais (start depo_troll_cave), wygenerowane z mapy 21.10"
+  },
+  {
+   "idx": 145,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "zejście z7 (32347, 32123) do jaskini Thais północ (flaga 2, bez z6 nad nim); (32347,32123) = zasypana dziura, ŁOPATA (pietra.ZASYPANE, sprawdzone 21.10)"
+  },
+  {
+   "idx": 146,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z8 (32347, 32123); dalej po z8 do pętli drogą omijającą strefę poison spiderów"
+  },
+  {
+   "idx": 152,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "dziura (32356, 32122) z8 -> z9 (w dziury_nauczone.json, trasa wchodzi w nią celowo; pole (32356,32123,z8) przed nią NIE jest dziurą, Use tam nic nie robi); nagranie Karola 23.10: krok na północ = upadek. Lądowanie w korytarzu Poison Spiderów (3 szt., spawn (32352, 32122)): zgon kutangena 21.10 19:11; Karol przeszedł 23.10"
+  },
+  {
+   "idx": 153,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z9 (32356,32122) = (x,y) dziury; HP i trucizna pod kontrolą (antidote/exura), nie zatrzymywać się w korytarzu"
+  },
+  {
+   "idx": 161,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole z9 przed dziurą (32343, 32122) (flaga 2 na mapie, nagranie: krok na zachód = upadek na z10)"
+  },
+  {
+   "idx": 162,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z10 (32343,32122) = (x,y) dziury: kieszeń pod ścianą x=32341..32342, poza Poison Spiderami"
+  },
+  {
+   "idx": 169,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "LINA na polu (32339, 32122) z10 (pod dziurą (32339,32122,z9)): stoimy OBOK na (32339, 32123) (pole liny wolne), lądowanie (x, y+1) pola liny; nagranie 23.10 tak przeszło; potrzebna lina w plecaku"
+  },
+  {
+   "idx": 170,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z9 (32339, 32123) w zachodniej sali (składowa pętli thais_pn_z9_petla)"
+  },
+  {
+   "idx": 182,
+   "typ": "koniec",
+   "komentarz": "styk z pętlą thais_pn_z9_petla (32332, 32126) (najbliższy punkt pętli; 9 pól A* od końca nagrania)"
+  }
+ ]
+}

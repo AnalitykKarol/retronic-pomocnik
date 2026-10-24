@@ -1,0 +1,143 @@
+{
+ "start": [
+  32660,
+  31985,
+  7
+ ],
+ "dlugosc_petli": 196,
+ "strefa_zakazana": 6,
+ "dziura_bufor": 2,
+ "zakazane": [
+  [
+   "bear",
+   32560,
+   31886
+  ],
+  [
+   "dragon",
+   32650,
+   31901
+  ],
+  [
+   "bear",
+   32666,
+   31930
+  ],
+  [
+   "scorpion",
+   32721,
+   31954
+  ],
+  [
+   "wolf",
+   32579,
+   31958
+  ],
+  [
+   "skeleton",
+   32754,
+   31966
+  ],
+  [
+   "poison spider",
+   32704,
+   31986
+  ],
+  [
+   "slime",
+   32731,
+   31992
+  ],
+  [
+   "beholder",
+   32718,
+   32006
+  ],
+  [
+   "wolf",
+   32597,
+   32011
+  ],
+  [
+   "wolf",
+   32640,
+   32011
+  ],
+  [
+   "wolf",
+   32625,
+   32048
+  ],
+  [
+   "wolf",
+   32602,
+   32058
+  ],
+  [
+   "lion",
+   32648,
+   32068
+  ],
+  [
+   "amazon",
+   32759,
+   32068
+  ]
+ ],
+ "przystanki": [
+  {
+   "kolejnosc": 0,
+   "x": 32660,
+   "y": 31985,
+   "z": 7
+  },
+  {
+   "kolejnosc": 1,
+   "x": 32662,
+   "y": 31974,
+   "z": 7,
+   "potworow": 5,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 2,
+   "x": 32668,
+   "y": 31967,
+   "z": 7,
+   "potworow": 2,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 3,
+   "x": 32666,
+   "y": 31949,
+   "z": 7,
+   "potworow": 3,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 4,
+   "x": 32656,
+   "y": 31963,
+   "z": 7,
+   "potworow": 5,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 5,
+   "x": 32661,
+   "y": 31966,
+   "z": 7,
+   "potworow": 5,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 6,
+   "x": 32645,
+   "y": 31972,
+   "z": 7,
+   "potworow": 4,
+   "spawnow": 1
+  }
+ ]
+}

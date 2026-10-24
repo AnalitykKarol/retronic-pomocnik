@@ -1,0 +1,34 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "depo Thais (z7), wspólny odcinek z dojściami z8/z9 (24.10: prefiks do rozgałęzienia, potem pętla na powierzchni z7)"
+  },
+  {
+   "idx": 356,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura (32548, 32076) z7 -> z6; MOST Thais: rampa z7 w górę na pomost z6 (32549..32553); lądowanie NIEZMIERZONE w grze (założenie jak schody 210/210)"
+  },
+  {
+   "idx": 357,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z6 (32549, 32076)"
+  },
+  {
+   "idx": 362,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura (32554, 32076) z6 -> z7; MOST Thais: rampa z pomostu w dół na z7; lądowanie NIEZMIERZONE w grze"
+  },
+  {
+   "idx": 363,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z7 (32555, 32076)"
+  },
+  {
+   "idx": 565,
+   "typ": "koniec",
+   "komentarz": "rozgałęzienie (32660, 31985) z7: start i koniec pętli (dalej wspólny odcinek skręca na północ ku drzwiom/dziurze, tego spot NIE używa)"
+  }
+ ]
+}

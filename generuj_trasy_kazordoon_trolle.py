@@ -15,6 +15,14 @@ działania (jeden wpis `dojscie` na spot), więc generator trzyma JEDNĄ listę 
 odgałęzienie z9 (ODGALEZIENIE_Z9); `dojscie` każdego spotu to sklejenie tych samych punktów. Test: testy/test_kazordoon_trolle.py
 (oba dojścia mają identyczny prefiks).
 
+ZMIANA 24.10 (Karol, na żywo przy pierwszym przejściu odchyda: "Pętla powinna się zaczynać przy wejściu do dziury, a nie przy schodach na -2"):
+dojście z8 (a z nim WSPÓLNY odcinek obu dojść) kończy się teraz na polu lądowania pod dziurą (32663,31962,z8), a pętla z8 zaczyna się i kończy przy dziurze, na
+polu STOI8 (32663,31961,z8) obok pola liny: najpierw kieszeń z trollami (spawn (32658,31960)), potem przez drzwi (32657,31965,z8) i korytarz DO DOTYCHCZASOWEJ pętli
+(ta sama składowa i te same przystanki co do 24.10, obieg liczony od wejścia z korytarza, bez pól schodów na z9 i bufora 1 wokół nich), cały jej obieg i ten sam korytarz z powrotem do dziury.
+Jedyne podwojone odcinki to korytarz drzwi -> pętla (jedno wejście, droga tam i z powrotem) i same drzwi. Pole liny (32663,31962,z8) jest ścianą dla pętli
+(lina wymaga wolnego pola), pętla trzyma się STOI8. Dojście z9 BEZ ZMIAN: wspólny prefiks (do lądowania) + dotychczasowy odcinek dziura -> rozwidlenie + schody.
+Powroty (*_do_depo) bez zmian: startują z rozwidlenia, wyprawa wchodzi na nie z dowolnego punktu pętli (wyprawa.droga_do_depo).
+
 Wspólny odcinek (22.10 ~20:30, korekta Karola "chciałem na trolle trochę pod", NIE przez miasto Kazordoon): z depo THAIS (32348,32225,z7)
 drogą (A* z preferencją szarej drogi, kolor 129) przez bramę północną, MOST nad wodą (pomost z6 (32549..32553,32076)), wschodni brzeg z7 ->
 drzwi (32659,31966,z7) -> dziura (32663,31962,z7) -> z8, kieszeń z trollami -> drzwi (32657,31965,z8) -> rozwidlenie (32647,32003,z8) =
@@ -52,19 +60,43 @@ DEPO = _thais.DEPO_THAIS                # depo Thais (32348,32225,z7): start doj
 ROZWIDLENIE = _thais.ROZWIDLENIE        # koniec wspólnego odcinka = start pętli z8 = początek odgałęzienia na z9
 SCHODY_Z9 = (32648, 32003, 8)           # schody z8 -> z9 (pietra.kandydaci: pewne)
 LAD_Z9 = (32648, 32004, 9)             # spot_lib.ladowanie: pole schodów z9 (32648,32003) ma flagę 2, więc stoimy pole na południe
-DRZWI = ((32659, 31966, 7), (32657, 31965, 8))   # zamknięte drzwi na wspólnej trasie
+DRZWI8 = (32657, 31965, 8)                       # zamknięte drzwi z8 na trasie (otwierają się)
+DRZWI7_NIE = (32659, 31966, 7)                   # 24.10 12:51: mapa widzi tu ścianę/drzwi (kolor 186), ale w grze NIE otwierają się (6 prób Use w 12:50, też 09:56 i 12:31);
+                                                 # droga omija je przez (32661,31966): to NIE drzwi trasy, A* traktuje je jak ścianę
+DRZWI = (DRZWI8,)                                # drzwi, które trasa przekracza i które A* zna jako przejście
+# 24.10 12:51: wejście do dziury z7 to wyjątek od bufora ognia: nowy ogień (32664,31963,z7) (stały, na polu mapy-ścianie tuż przy dziurze) daje bufor 1 = pola
+# (32663..32665,31962..31964), czyli SAMĄ dziurę, pole lądowania liny i pole przed nim. Bez tego trasa do dziury nie istnieje. Wyjątek to dokładnie te 3 pola
+# (ogień nie jest na nich, tylko obok); reszta trasy (z7 i z8) omija ogień i bufor jak dotąd.
+WEJSCIE_DZIURY_Z7 = frozenset({(32663, 31962, 7), (32663, 31963, 7), (32663, 31964, 7)})
+PRZED_DRZWIAMI7 = (32659, 31967, 7)              # koniec wspólnego odcinka drogi: tu skręca ku dziurze (to samo pole co w generuj_trasy_kazordoon_powierzchnia.PRZED_DRZWIAMI)
 
 # Punkty kontrolne wspólnego odcinka (jedyne źródło prawdy dla obu dojść). Kroki:
 #   ("start", P)                       punkt startu
 #   ("przejscie", T, L)                dojdź do pola obok T (prostopadle), wejdź na T (schody/dziura), L = pierwszy punkt na nowym piętrze
 #   ("do", P)                          idź A* dokładnie do P
 #   ("drzwi", D, kier)                 dojdź do pola przed D, przekrocz D prostopadle w kierunku kier, wyjdź na pole za nim
-WSPOLNA = _thais.THAIS_DO_TROLLI           # depo Thais -> brama -> droga -> most -> z7 -> drzwi -> dziura -> z8 -> drzwi -> rozwidlenie
-ODGALEZIENIE_Z9 = (("przejscie", SCHODY_Z9, LAD_Z9),)
+# 24.10: wspólny odcinek kończy się na lądowaniu pod dziurą (dojście z8 = ten odcinek); dalsza droga do rozwidlenia (drzwi z8 + marsz) należy tylko do z9
+# (dotychczasowy odcinek dziura -> rozwidlenie, bez zmian).
+_DO_TROLLI = _thais.THAIS_DO_TROLLI
+assert _DO_TROLLI[-2][:2] == ("drzwi", DRZWI8) and _DO_TROLLI[-1] == ("do", ROZWIDLENIE) and _DO_TROLLI[-3][0] == "przejscie", "THAIS_DO_TROLLI zmieniony"
+_i_drzwi7 = [i for i, k in enumerate(_DO_TROLLI) if k[0] == "drzwi" and k[1] == DRZWI7_NIE]
+assert len(_i_drzwi7) == 1 and _DO_TROLLI[_i_drzwi7[0] + 1][0] == "przejscie", "THAIS_DO_TROLLI: krok drzwi z7 zmieniony"
+# 24.10: krok "drzwi" z7 zastąpiony zwykłym "do" na pole przed nimi (ten sam A* i ten sam prefiks drogi co dojście z7); stamtąd A* idzie dookoła przez (32661,31966)
+WSPOLNA = _DO_TROLLI[:_i_drzwi7[0]] + (("do", PRZED_DRZWIAMI7),) + _DO_TROLLI[_i_drzwi7[0] + 1:-2]   # depo Thais -> brama -> droga -> most -> z7 -> (bez drzwi) -> dziura -> z8: lądowanie (32663,31962,z8)
+DZIURA_LAD = WSPOLNA[-1][2]                # (32663,31962,8): pole lądowania = pole liny powrotu
+DOJSCIE_DO_ROZWIDLENIA = _DO_TROLLI[-2:]   # drzwi z8 -> rozwidlenie (tylko dojście z9)
+ODGALEZIENIE_Z9 = DOJSCIE_DO_ROZWIDLENIA + (("przejscie", SCHODY_Z9, LAD_Z9),)
+STOI8 = (32663, 31961, 8)                  # pole stania OBOK pola liny (powrót: wyprawa stoi tu przed Use liny) = start i koniec pętli z8
+PRZED_DRZWI8 = (32657, 31964, 8)           # pole przed drzwiami z8 od strony kieszeni (pętla wchodzi tu na korytarz)
+ZA_DRZWI8 = (32657, 31966, 8)              # pole za drzwiami od strony korytarza do pętli
+BUFOR_SCHODOW = [(SCHODY_Z9[0] + dx, SCHODY_Z9[1] + dy, 8) for dx in (-1, 0, 1) for dy in (-1, 0, 1)]   # 24.10: schody na z9 (NIE schodzimy) + bufor 1
+assert STOI8[:2] != DZIURA_LAD[:2] and abs(STOI8[0] - DZIURA_LAD[0]) + abs(STOI8[1] - DZIURA_LAD[1]) == 1
 
 # Powrót (jawnie, nie odwrócone dojście): z rozwidlenia z8 do depo Thais. JEDNO wejście liną: z dziury z8 (32663,31962) lina w górę, stoimy
 # obok pola liny (pole liny wolne), lądowanie (32663,31963,z7); dalej drzwi, powierzchnia z7 -> most -> brama -> depo Thais.
-POWROT_Z8 = _thais.THAIS_Z_TROLLI
+_j_drzwi7 = [i for i, k in enumerate(_thais.THAIS_Z_TROLLI) if k[0] == "drzwi" and k[1] == DRZWI7_NIE]
+assert len(_j_drzwi7) == 1 and _thais.THAIS_Z_TROLLI[_j_drzwi7[0] + 1] == ("do", _thais.MOST_E), "THAIS_Z_TROLLI: krok drzwi z7 zmieniony"
+POWROT_Z8 = _thais.THAIS_Z_TROLLI[:_j_drzwi7[0]] + ((("do", PRZED_DRZWIAMI7),)) + _thais.THAIS_Z_TROLLI[_j_drzwi7[0] + 1:]    # 24.10: bez drzwi z7; z pola liny dookoła przez (32661,31966) na tę samą drogę co dojście (korytarz x=32659), dalej A* do mostu
 # Powrót z z9: schody w górę z9 -> z8 w rozwidleniu, potem dokładnie ten sam powrót z8 (wspólny sufiks).
 POWROT_Z9_PREFIKS = (
     ("start", LAD_Z9),
@@ -234,14 +266,89 @@ def potwory_przy_trasie(trasa, promien=4):
     return sorted(out)
 
 
+def zbuduj_petla_z8(m, zajete, ogien):
+    """Pętla z8 (24.10): start i koniec przy dziurze (STOI8), kieszeń z trollami, drzwi, korytarz i dotychczasowa pętla (wpięta w najbliższym punkcie).
+    Zwraca dict(comp, st, order, nodes, pelna); pelna = [(x, y)], pierwszy = ostatni = STOI8[:2]."""
+    sc8 = [p for p in zajete if p[2] == 8]
+    drzwi_z8 = klucze_drzwi([d for d in DRZWI if d[2] == 8])
+    # 1) dotychczasowa pętla: jej składowa, przystanki i obieg (jak przed 24.10, ale bez bufora schodów na z9 i z nowym ogniem z ogien_*.json)
+    # 24.10 (Karol, incydent 08:51: odchyd w pościgu za trollem wszedł na SCHODY_Z9 i spadł na z9, "bardzo niebezpieczna część questa"): pole schodów
+    # z8 -> z9 i bufor 1 wokół niego są ścianą dla pętli; pętla liczona od ZA_DRZWI8 (wejście z korytarza), nie od rozwidlenia, które leży w buforze
+    sc8 = sc8 + BUFOR_SCHODOW
+    comp_stara = skladowa(m, ZA_DRZWI8, sc8)
+    sp8 = spot_lib.spawny(8, CEL)
+    # 2) kieszeń przy dziurze: składowa od STOI8 bez pola liny (lina wymaga wolnego pola) i bez ognia
+    sciany_kieszeni = sc8 + [DZIURA_LAD]
+    comp_kieszen = skladowa(m, STOI8, sciany_kieszeni)
+    assert PRZED_DRZWI8[:2] in comp_kieszen, "pole przed drzwiami poza kieszenią"
+
+    def odl(s, comp):
+        return min(max(abs(c[0] - s["x"]), abs(c[1] - s["y"])) for c in comp)
+    sp_kieszen = [s for s in sp8 if odl(s, comp_kieszen) <= spot_lib.SNAP and odl(s, comp_kieszen) < odl(s, comp_stara)]
+    sp_stara = [s for s in sp8 if s not in sp_kieszen]
+    st_stara = przystanki(sp_stara, comp_stara)
+    st_kieszen = przystanki(sp_kieszen, comp_kieszen)
+    order_s, nodes_s, pelna_s = petla(m, 8, ZA_DRZWI8[:2], st_stara, sc8)
+    print(f"{N8}: dotychczasowa pętla: składowa {len(comp_stara)} pól, przystanków {len(st_stara)}, trolli {sum(t['n'] for t in st_stara)}, "
+          f"obieg {len(pelna_s)} pól, kolejność {order_s}")
+    print(f"{N8}: kieszeń przy dziurze: {len(comp_kieszen)} pól, przystanków {len(st_kieszen)}, trolli {sum(t['n'] for t in st_kieszen)} "
+          f"{[(t['pt'], t['n']) for t in st_kieszen]}")
+    if not st_kieszen:
+        raise SystemExit("kieszeń bez przystanków: pętla przy dziurze nie ma sensu")
+    # 3) wpięcie: punkt dotychczasowej pętli o najkrótszej drodze (A* z drzwiami) od pola za drzwiami
+    pl = Planista(m, set(zajete))
+    pl.pts = [ZA_DRZWI8]
+    cykl = [(x, y, 8) for x, y in pelna_s[:-1]]           # pelna_s zamknięta (ostatni = pierwszy)
+    najl = None
+    for i, c in enumerate(cykl):
+        if max(abs(c[0] - ZA_DRZWI8[0]), abs(c[1] - ZA_DRZWI8[1])) > 40:
+            continue
+        d = [ZA_DRZWI8] if c == ZA_DRZWI8 else [ZA_DRZWI8] + pl._a(ZA_DRZWI8, c)
+        if najl is None or len(d) < len(najl[1]):
+            najl = (i, d)
+    if najl is None:
+        raise SystemExit("dotychczasowa pętla poza zasięgiem korytarza od drzwi")
+    i0, tam = najl
+    ob = cykl[i0:] + cykl[:i0] + [cykl[i0]]               # obieg zamknięty od punktu wpięcia
+    print(f"{N8}: wpięcie dotychczasowej pętli w {cykl[i0]} (indeks {i0}), korytarz od drzwi {len(tam) - 1} pól w jedną stronę")
+    # 4) obieg kieszeni: STOI8 -> przystanki kieszeni -> pole przed drzwiami -> STOI8 (NN + 2-opt po A*, jak każda pętla)
+    st_wyj = st_kieszen + [{"pt": PRZED_DRZWI8[:2], "n": 0, "spawny": 0}]
+    order_k, nodes_k, pelna_k = petla(m, 8, STOI8[:2], st_wyj, sciany_kieszeni)
+    kieszen = [(x, y, 8) for x, y in pelna_k]
+    gdzie = [j for j, p in enumerate(kieszen) if p == PRZED_DRZWI8]
+    if not gdzie:
+        raise SystemExit("obieg kieszeni nie dotyka pola przed drzwiami")
+    k = gdzie[0] if len(gdzie) == 1 else next(j for j in gdzie if j > 0)
+    # 5) złożenie: kieszeń do pola przed drzwiami, drzwi, korytarz, obieg, korytarz z powrotem, drzwi, reszta kieszeni do STOI8
+    wyjscie = [DRZWI8] + tam + ob[1:] + tam[::-1][1:] + [DRZWI8, PRZED_DRZWI8]
+    pelna3 = kieszen[:k + 1] + wyjscie + kieszen[k + 1:]
+    sprawdz(m, pelna3, [], ogien)
+    assert pelna3[0] == STOI8 == pelna3[-1], (pelna3[0], pelna3[-1])
+    assert DZIURA_LAD not in pelna3, "pole liny w pętli"
+    assert {p[2] for p in pelna3} == {8}
+    # stare przystanki muszą nadal leżeć na pętli (ten sam obieg), nowe też
+    na_petli = set(pelna3)
+    for t in st_stara + st_kieszen:
+        assert (t["pt"][0], t["pt"][1], 8) in na_petli, ("przystanek poza pętlą", t)
+    # wyświetlanie (PNG/JSON): węzły = STOI8, przystanki kieszeni, przystanki dotychczasowej pętli; kolejność wg pierwszego wejścia na punkt
+    st_all = st_kieszen + st_stara
+    nodes = [STOI8[:2]] + [t["pt"] for t in st_all]
+    pozycja = {}
+    for j, p in enumerate(pelna3):
+        pozycja.setdefault(p[:2], j)
+    order = [0] + sorted(range(1, len(nodes)), key=lambda o: pozycja[nodes[o]])
+    return dict(comp=comp_kieszen | comp_stara, st=st_all, order=order, nodes=nodes, pelna=[p[:2] for p in pelna3],
+                kieszen=len(kieszen), korytarz=len(tam) - 1, st_kieszen=st_kieszen, st_stara=st_stara)
+
+
 def zbuduj():
     m = _mapa.Mapa()
     dz = [tuple(p) for p in json.loads((ROOT / "trasy" / "dziury_nauczone.json").read_text()).get("dziury", [])]
-    ogien = ogien_pola()
+    ogien = ogien_pola() - WEJSCIE_DZIURY_Z7          # 24.10: wejście do dziury to wyjątek od bufora ognia (patrz WEJSCIE_DZIURY_Z7)
     zajete = set(dz) | ogien
     # strefy zakazane z7 (promień 6 wokół spawnów groźniejszych niż troll) jak w trasie Thais -> Kazordoon; punkty kontrolne zwolnione
     strefy = _thais.strefy_zakazane(m, ogien, dz)
-    ok_pkt = {k[1] for k in WSPOLNA + POWROT_Z8 if k[0] in ("start", "do")} | {(32663, 31961, 8), (32663, 31963, 7), _thais.DZIURA_TROLLE}
+    ok_pkt = {k[1] for k in WSPOLNA + DOJSCIE_DO_ROZWIDLENIA + POWROT_Z8 if k[0] in ("start", "do")} | {(32663, 31961, 8), (32663, 31963, 7), _thais.DZIURA_TROLLE}
     zajete |= {p for p in strefy if p not in ok_pkt}
     for d in DRZWI:
         if not drzwi_ok(m, d):
@@ -251,19 +358,16 @@ def zbuduj():
     wsp = pl.zbuduj(WSPOLNA)
     sprawdz(m, wsp, pl.przejscia, ogien)
     przej_wsp = list(pl.przejscia)
-    print(f"wspólny odcinek (Thais -> rozwidlenie z8): {len(wsp)} pkt, {DEPO} -> {wsp[-1]}, piętra {sorted({p[2] for p in wsp})}, przejść {len(przej_wsp)}")
+    print(f"wspólny odcinek (Thais -> lądowanie pod dziurą z8): {len(wsp)} pkt, {DEPO} -> {wsp[-1]}, piętra {sorted({p[2] for p in wsp})}, przejść {len(przej_wsp)}")
+    assert wsp[-1] == DZIURA_LAD, wsp[-1]
     print("   spawny potworów <= 4 pola od wspólnego odcinka (z, nazwa, x, y, ilość, odl):", potwory_przy_trasie(wsp))
-    # --- z8 ---
+    # --- z8: pętla przy dziurze (24.10) ---
     wyn = {}
-    sc8 = [p for p in zajete if p[2] == 8]
-    comp8 = skladowa(m, ROZWIDLENIE, sc8)
-    sp8 = spot_lib.spawny(8, CEL)
-    st8 = przystanki(sp8, comp8)
-    order8, nodes8, pelna8 = petla(m, 8, ROZWIDLENIE[:2], st8, sc8)
-    print(f"{N8}: składowa {len(comp8)} pól, przystanków {len(st8)}, trolli {sum(t['n'] for t in st8)}, pętla {len(pelna8)} pól, kolejność {order8}")
+    petla8 = zbuduj_petla_z8(m, zajete, ogien)
     meta8 = [{"idx": 0, "typ": "start", "komentarz": "depo Thais (z7), wygenerowane z mapy 22.10 (jedno wspólne dojście z drogi przez most)"}] \
         + meta_z_przejsc(przej_wsp, wsp, KOMENTARZE)
-    wyn[N8] = dict(z=8, comp=comp8, st=st8, order=order8, nodes=nodes8, pelna=pelna8, strefa=None, doj=list(wsp), meta=meta8)
+    wyn[N8] = dict(z=8, comp=petla8["comp"], st=petla8["st"], order=petla8["order"], nodes=petla8["nodes"], pelna=petla8["pelna"], strefa=None,
+                   doj=list(wsp), meta=meta8)
     # --- z9 ---
     odg = Planista(m, zajete)
     odg.pts = list(wsp)
@@ -307,8 +411,11 @@ def zbuduj():
     print(f"{N9}: składowa {len(comp9)} pól (bez stref; z nimi {len(comp_pelna)}), przystanków {len(st9)}, trolli {sum(t['n'] for t in st9)} "
           f"(spawnów {sum(t['spawny'] for t in st9)} z {len(sp9)}), pętla {len(pelna9)} pól, kolejność {order9}")
     print("   najbliższe inne potwory od pętli z9 (nazwa, x, y, ilość, odl):", odl)
-    odl8 = potwory_obok(8, pelna8)[:4]
+    odl8 = potwory_obok(8, petla8["pelna"])[:4]
     print("   najbliższe inne potwory od pętli z8:", odl8)
+    print(f"{N8}: dojście {len(wsp)} pkt (kończy się na lądowaniu {wsp[-1]}); pętla {len(petla8['pelna'])} pól (start/koniec {STOI8}); "
+          f"w tym kieszeń {petla8['kieszen']} pól, korytarz drzwi -> pętla {petla8['korytarz']} pól w jedną stronę; "
+          f"trolli: kieszeń {sum(t['n'] for t in petla8['st_kieszen'])} w {len(petla8['st_kieszen'])} spawn(ach), dotychczasowa pętla {sum(t['n'] for t in petla8['st_stara'])}")
     meta9 = [{"idx": 0, "typ": "start", "komentarz": "depo Thais (z7), wygenerowane z mapy 22.10 (jedno wspólne dojście z drogi przez most)"}] \
         + meta_z_przejsc(przej9, doj9, KOMENTARZE)
     wyn[N9] = dict(z=9, comp=comp9, st=st9, order=order9, nodes=nodes9, pelna=pelna9, strefa=zle, doj=doj9, meta=meta9,
@@ -327,7 +434,7 @@ def zbuduj():
     przej_pow9 = list(pr9.przejscia) + [(i + n_pref, T, L, r) for i, T, L, r in przej_pow8]
     sprawdz(m, pow9, przej_pow9, ogien)
     kom_pow = {((32663, 31962, 8), (32663, 31963, 7)): "LINA na (32663,31962,z8): stoimy obok (pole liny wolne), lądowanie (x, y+1) na z7"}
-    meta_pow8 = [{"idx": 0, "typ": "start", "komentarz": "rozwidlenie z8 (koniec dojścia, start pętli)"}] + meta_z_przejsc(przej_pow8, pow8, kom_pow) \
+    meta_pow8 = [{"idx": 0, "typ": "start", "komentarz": "rozwidlenie z8 (do 24.10 koniec dojścia z8; dalej start powrotu: wyprawa dochodzi tu pętlą z dowolnego jej punktu)"}] + meta_z_przejsc(przej_pow8, pow8, kom_pow) \
         + [{"idx": len(pow8) - 1, "typ": "koniec", "komentarz": "depo Thais (z7), pole przybycia wyprawy"}]
     meta_pow9 = [{"idx": 0, "typ": "start", "komentarz": "lądowanie z9 (start pętli z9)"}] + meta_z_przejsc(przej_pow9, pow9, kom_pow) \
         + [{"idx": len(pow9) - 1, "typ": "koniec", "komentarz": "depo Thais (z7), pole przybycia wyprawy"}]

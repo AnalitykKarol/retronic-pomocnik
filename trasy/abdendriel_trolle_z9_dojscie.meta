@@ -1,0 +1,74 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "świątynia Ab'Dendriel (depo UNKNOWN, brak w danych); start dojścia wygenerowany z mapy 23.10"
+  },
+  {
+   "idx": 121,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "z7 (32695, 31621) kolor 24 flaga 2 (trójka (32695..32697,31621)): zasypana dziura -> ŁOPATA (niepotwierdzone na żywo; po otwartej dziurze zwykły krok); nad nią z6 ściana"
+  },
+  {
+   "idx": 122,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z8 (32695, 31621) w składowej 748 pól (jaskinia, wejście na ścieżkę do dziur w dół)"
+  },
+  {
+   "idx": 173,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "DZIURA z8 (32709, 31593) (kolor 210, flaga 2, nad nią z7 ściana) -> z9; pod nią pole liny"
+  },
+  {
+   "idx": 174,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z9 (32709, 31593) w kieszeni (80 pól); to jest pole liny tej dziury, zejść z niego"
+  },
+  {
+   "idx": 198,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "LINA na polu (32700, 31580) z9 (pod dziurą z8 tych samych xy): stoimy OBOK na (32701, 31581), pole liny wolne; lądowanie (x, y+1) pola liny. Potrzebna LINA"
+  },
+  {
+   "idx": 199,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z8 (32700, 31581) po linie (składowa 55 pól)"
+  },
+  {
+   "idx": 213,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "DZIURA z8 (32711, 31577) -> z9 (kolor 210, nad nią z7 ściana)"
+  },
+  {
+   "idx": 214,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z9 (32711, 31577) (składowa 37 pól)"
+  },
+  {
+   "idx": 224,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "DZIURA z9 (32713, 31585) -> z10 (kolor 210; nad nią z8 ściana)"
+  },
+  {
+   "idx": 225,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z10 (32713, 31585) = start pętli abdendriel_trolle_z10 (składowa spotu 1244 pól, ok. 34 trolli)"
+  },
+  {
+   "idx": 302,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "LINA na polu (32668, 31624) z10 (pod dziurą z9 tych samych xy): stoimy OBOK na (32669, 31625); NIE na (32668,31625,z10) - tam flaga 2. Lądowanie (x, y+1). Potrzebna LINA"
+  },
+  {
+   "idx": 303,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z9 (32668, 31625) = start pętli abdendriel_trolle_z9 (składowa 686 pól, ok. 27 trolli)"
+  },
+  {
+   "idx": 303,
+   "typ": "koniec",
+   "komentarz": "start pętli abdendriel_trolle_z9"
+  }
+ ]
+}

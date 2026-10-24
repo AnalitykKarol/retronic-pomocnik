@@ -1,0 +1,34 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "rozgałęzienie z7 (start i koniec pętli); wyprawa dochodzi tu pętlą z dowolnego jej punktu"
+  },
+  {
+   "idx": 204,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura (32554, 32076) z7 -> z6"
+  },
+  {
+   "idx": 205,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z6 (32553, 32076)"
+  },
+  {
+   "idx": 210,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody/dziura (32548, 32076) z6 -> z7"
+  },
+  {
+   "idx": 211,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z7 (32547, 32076)"
+  },
+  {
+   "idx": 567,
+   "typ": "koniec",
+   "komentarz": "depo Thais (z7), pole przybycia wyprawy"
+  }
+ ]
+}

@@ -1,0 +1,15 @@
+--- a/wyprawa.py	2026-10-22 14:56:58.612840421 +0200
++++ b/wyprawa.py	2026-10-22 14:56:58.620293563 +0200
+@@ -66,6 +66,12 @@
+     # lina w górę pod dziurą z8 (33092,31837) (mapa: "pewne"); z8 dalej A* do nagranej trasy "do" (start (33106,31849,z8))
+     {"nazwa": "gobliny_edron", "do": "gobliny_edron_do_depo.json", "z": "gobliny_edron_z_depo.json", "npc": None, "prefix": False,
+      "wyjscia": (((33092, 31837, 9), (33092, 31838, 8), "gobliny_edron_do_depo.json"),)},
++    # 22.10: Thais północ, jaskinia trolli z8 (thais_pn_z8) — powrót do depo odwróconym dojściem (generuj_powrot_thais_pn.py):
++    # z8 -> pole stania (32347,32124,z8) obok pola liny/drabiny (32347,32123,z8), przejście w górę, lądowanie (32347,32124,z7), z7 do depo.
++    # WYŁĄCZONY od 21.10 (zgon kutangena w dziurze (32356,32122,z8)); przejście w górę NIEPRZETESTOWANE na żywo: włączyć dopiero po teście
++    # jedną postacią (dane_tibia/ruch/DIAGNOZA_kutangen_zgon_dziura_thais_pn_1021.md). Test: testy/test_powrot_thais_pn.py
++    {"nazwa": "thais_pn", "do": "thais_pn_z8_do_depo.json", "z": "thais_pn_z8_dojscie.json", "npc": None, "prefix": False,
++     "wyjscia": (((32347, 32123, 8), (32347, 32124, 7), "thais_pn_z8_do_depo.json", ((32347, 32124, 8),)),)},
+     # 21.10: Rookgaard — powrót do miasta przez drabiny/schody (SPEC_powrot_rook_1020). Trasy odwrócone z dojść.
+     # Cel: (32061,32180,7) Al Dee, STOP. "z" = nagrane dojście (miasto->spot) na wypadek powrotu po PK.
+     # NIEZWERYFIKOWANE botem: przejście w górę (drabina/schody z8->z7 itd.) — ryzyko zapisane w specu.

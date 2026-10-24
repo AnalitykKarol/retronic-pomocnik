@@ -1,0 +1,44 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "początek nagrania"
+  },
+  {
+   "idx": 23,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 7"
+  },
+  {
+   "idx": 24,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 8 -> 7 (w górę), z (32655,31674)"
+  },
+  {
+   "idx": 26,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 7, potem piętro 8"
+  },
+  {
+   "idx": 27,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 7 -> 8 (w dół), z (32654,31673)"
+  },
+  {
+   "idx": 29,
+   "typ": "przed_teleportem",
+   "komentarz": "ostatnie pole przed skokiem o 3 pól"
+  },
+  {
+   "idx": 30,
+   "typ": "teleport",
+   "komentarz": "skok o 3 pól w 0.3 s z (32655,31673)"
+  },
+  {
+   "idx": 31,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 8 -> 9 (w dół), z (32655,31670)"
+  }
+ ]
+}

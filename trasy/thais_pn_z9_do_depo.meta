@@ -1,0 +1,54 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "styk z pętlą (32332, 32126) (koniec dojścia thais_pn_z9_dojscie), zachodnia sala z9"
+  },
+  {
+   "idx": 12,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "dziura (32339, 32122) z9 -> z10: krok na północ z (32339, 32123) (flaga 2, pole pod nią kolor 210; to ta sama dziura, pod którą Karol 23.10 wszedł liną w górę); zmiana w dół = upadek, bez liny"
+  },
+  {
+   "idx": 13,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z10 (32339, 32122) = (x, y) dziury = pole liny dojścia (nie wchodzimy na nie ponownie); kieszeń pod ścianą x=32341..32342"
+  },
+  {
+   "idx": 20,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "LINA na polu (32343, 32122) z10 (pod dziurą (32343,32122,z9), tam Karol spadł 23.10): stoimy OBOK na (32343, 32123) (pole liny wolne), lądowanie (x, y+1). NIEZWERYFIKOWANE na żywo (ten sam układ co lina (32339,32122,z10) z nagrania); potrzebna lina w plecaku"
+  },
+  {
+   "idx": 21,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z9 (32343, 32123): korytarz Poison Spiderów (3 szt., spawn (32352, 32122)), idź prosto na wschód do (32356, 32123)"
+  },
+  {
+   "idx": 28,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "LINA na polu (32356, 32122) z9 (pod dziurą (32356,32122,z8)): stoimy OBOK na (32356, 32123) (pole liny wolne), lądowanie (x, y+1). NIEZWERYFIKOWANE na żywo; tu zginął kutangen 21.10 (wpadł dziurą z z8), z liną w plecaku to wyjście"
+  },
+  {
+   "idx": 29,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z8 (32356, 32123); dalej korytarz z8 na zachód BEZ pola liny (32347,32123,z8) i BEZ dziury (32356,32122,z8)"
+  },
+  {
+   "idx": 35,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "stanie (32347, 32124) obok pola liny/Use (32347, 32123) z8 (wolne); przejście w górę PRZESZŁO (przejscia_nauczone 32347,32123,8>7: use)"
+  },
+  {
+   "idx": 36,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z7 (32347, 32124) = (x, y+1) pola liny; dalej dojście z7 odwrócone"
+  },
+  {
+   "idx": 180,
+   "typ": "koniec",
+   "komentarz": "depo Thais (start depo_troll_cave)"
+  }
+ ]
+}
