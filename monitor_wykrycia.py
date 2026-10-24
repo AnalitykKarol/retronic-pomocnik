@@ -9,6 +9,10 @@ Co 15 s dla każdej instancji z działającym botem czyta przyrost logu mozg-std
   GM/CM w pobliżu albo w czacie.
 Ryzyko: OK / UWAGA / RYZYKO. RYZYKO = obcy patrzy, a bot w tym czasie robi coś „botowego”, albo czat/GM.
 Przy RYZYKU dymek `notify-send` (najwyżej raz na 5 min na postać i rodzaj).
+23.10: (a) wypowiedzi NPC (rozmowa handlowa/bankowa, odpowiedź NPC na „hi”) NIE są „czatem od obcych” i nie podnoszą RYZYKA:
+  gracz widziany w telemetrii nigdy nie jest NPC; potem lista imion NPC serwera (dane_tibia/serwer74/npc_pelne.json + NPC_DODATKOWE);
+  potem struktura rozmowy (nadawca, który odpowiedział na >= 2 kolejne własne wypowiedzi postaci w Default, jest NPC przez godzinę);
+  (b) sygnał „duch w kliencie”: ten sam cel z „klików bez efektu” >= 3 razy w 5 min = jeden dymek critical na postać na 15 min.
 
   python3 -I monitor_wykrycia.py            tabela co 15 s (Ctrl+C kończy)
   python3 -I monitor_wykrycia.py --raz      jeden przebieg, wypisz i wyjdź
@@ -38,6 +42,16 @@ NIE_GRACZE = re.compile(r"growth|fungal", re.I)          # wpisy „gracz” z t
 GM = re.compile(r"^(gm|cm|god|tutor|gamemaster)\b|gamemaster", re.I)
 KANALY_PUBLICZNE = {"server log", "trade", "game-chat", "help", "advertising", "loot channel", "rl-chat",
                     "english chat", "world chat", "npcs"}
+NPC_PLIK = Path("dane_tibia") / "serwer74" / "npc_pelne.json"
+NPC_DODATKOWE = {"ebenizer", "mirabell", "beatrice", "alexander", "bonifacius", "xodet", "gorn", "suzy", "frodo"}
+                                # imiona z trasy/serwis_*.json i logów serwisu 22–23.10; zapas, gdy brak npc_pelne.json
+NPC_ODP_MIN = 2                 # tyle własnych wypowiedzi, na które ten sam nadawca odpowiada, uznaje go za NPC
+NPC_ODP_RESET_S = 300.0         # przerwa dłuższa niż to zeruje licznik odpowiedzi nadawcy
+NPC_NAUCZONY_S = 3600.0         # jak długo nauczony z rozmowy NPC jest uznawany za NPC
+DUCH = re.compile(r"\[ATAK\] \d+ klików bez efektu w (.+) id(\S+?), Escape")
+DUCH_OKNO_S = 300.0
+DUCH_MIN = 3
+DUCH_DYMEK_CO_S = 900.0
 CZAT_ALARM = re.compile(r"\bbot|makro|macro|afk|cave ?bot|\?|hello|hej|siema|elo|yo\b|hi\b|cze", re.I)
 
 WZORY = [  # (klucz, regex na linii logu, waga „botowości”)
@@ -61,6 +75,40 @@ def teraz():
     return time.time()
 
 
+_NPC_CACHE = {}
+
+
+def imiona_npc(kat=None):
+    """Imiona NPC (casefold): baza serwera + NPC_DODATKOWE. Brak albo błędny plik = same NPC_DODATKOWE (monitor nie pada)."""
+    plik = (kat or KAT) / NPC_PLIK
+    if plik not in _NPC_CACHE:
+        nazwy = set(NPC_DODATKOWE)
+        try:
+            with open(plik, encoding="utf-8") as f:
+                nazwy |= {str(n["nazwa"]).casefold() for n in json.load(f)["npc"]}
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+        _NPC_CACHE[plik] = nazwy
+    return _NPC_CACHE[plik]
+
+
+NICKI_WLASNE = {}               # id instancji -> nick postaci z profil.json (Gebelish gra jako „Geblish”, nie ma go w WLASNE)
+
+
+def minuta_czasu(czas):
+    """„HH:MM” z klienta -> minuta doby albo None."""
+    m = re.match(r"\s*(\d{1,2}):(\d{2})", czas or "")
+    return int(m.group(1)) * 60 + int(m.group(2)) if m else None
+
+
+def _notify(tytul, tresc):
+    try:
+        subprocess.run(["notify-send", "-u", "critical", "-a", "Monitor botów", tytul, tresc[:300]],
+                       timeout=5, check=False)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
 class Postac:
     def __init__(self, id_, kat=None):
         self.id = id_
@@ -81,6 +129,21 @@ class Postac:
         self.hp = None
         self.bot = False
         self.sesja = False              # działa strażnik (klient gry) tej instancji, bot niekoniecznie
+        self.kat = kat or KAT
+        self.nick = self._nick()
+        if self.nick:
+            NICKI_WLASNE[id_] = self.nick.casefold()
+        self.czeka_odp = None           # minuta doby własnej wypowiedzi w Default bez odpowiedzi (-1 = czas nieznany)
+        self.odpowiedzi = {}            # nadawca (casefold) -> [liczba odpowiedzi na własne wypowiedzi, czas ostatniej]
+        self.npc_nauczone = {}          # nadawca (casefold) -> czas nauczenia z rozmowy
+        self.duchy = deque()            # (t, nazwa celu, końcówka id) z „klików bez efektu”
+        self.duch_dymek = 0.0
+
+    def _nick(self):
+        try:
+            return (json.loads((Path(self.s.stan) / "profil.json").read_text(encoding="utf-8")).get("postac") or "").strip()
+        except (OSError, ValueError, AttributeError):
+            return ""
 
     # --- źródła -------------------------------------------------------------------------------
     def _najnowszy(self, wzor):
@@ -130,6 +193,9 @@ class Postac:
             if t > teraz() + 60:
                 t -= 86400
             tekst = m.group(2)
+            d = DUCH.search(tekst)
+            if d:                                   # nie zamienia wzorców poniżej: to osobny sygnał („duch w kliencie”)
+                self.duchy.append((t, d.group(1), d.group(2)))
             for klucz, rx, waga in WZORY:
                 r = rx.search(tekst)
                 if r:
@@ -180,15 +246,84 @@ class Postac:
         self.czat_nr, self.czat_epoka = odp.get("znacznik"), odp.get("epoka")
         if pierwszy:
             return                              # start: tylko znacznik, bez starej historii
-        for w in odp.get("wiadomosci", []):
+        self.przyjmij_czat(odp.get("wiadomosci", []))
+
+    def wlasne_nicki(self):
+        return WLASNE | set(NICKI_WLASNE.values())
+
+    def widziany_jako_gracz(self, klucz):
+        return any(n.casefold() == klucz for n in self.obcy)
+
+    def jest_npc(self, autor, t=None):
+        """Czy nadawca to NPC. Kolejność: (1) gracz widziany w telemetrii (okno OKNO_S) nigdy nie jest NPC — NPC-e nie
+        występują w telemetrii (sprawdzone na wszystkich plikach 20–23.10), a gracz obok mówi w Default;
+        (2) imię z bazy NPC serwera; (3) nauczony ze struktury rozmowy (`przyjmij_czat`)."""
+        k = autor.casefold()
+        t = teraz() if t is None else t
+        if self.widziany_jako_gracz(k):
+            return False
+        if k in imiona_npc(self.kat):
+            return True
+        return t - self.npc_nauczone.get(k, float("-inf")) <= NPC_NAUCZONY_S
+
+    def _ucz_sie_rozmowy(self, lista, wlasne, t):
+        """Struktura rozmowy: własna wypowiedź postaci w Default, a zaraz po niej (ta sama lub następna minuta klienta)
+        odpowiedź nadawcy w Default albo w zakładce o jego imieniu (NPC odpowiada prywatnie w zakładce nazwanej jego
+        imieniem). Nadawca, który odpowiedział na NPC_ODP_MIN kolejnych własnych wypowiedzi, jest NPC. Ogłoszenia Trade
+        i inne kanały publiczne rozmowy nie przerywają. Czat gracza obok nie uczy: gracz w telemetrii jest wykluczony."""
+        for w in lista:
+            autor = (w.get("autor") or w.get("nadawca") or "").strip()
+            kanal = (w.get("kanal") or "").lower()
+            if not autor or not kanal or kanal in KANALY_PUBLICZNE:
+                continue
+            minuta = minuta_czasu(w.get("czas"))
+            if autor.lower() in wlasne:
+                if kanal == "default":
+                    self.czeka_odp = -1 if minuta is None else minuta
+                continue
+            k = autor.casefold()
+            if self.czeka_odp is None or not (kanal == "default" or kanal == k):
+                continue
+            if minuta is not None and self.czeka_odp >= 0 and (minuta - self.czeka_odp) % 1440 > 1:
+                self.czeka_odp = None            # odpowiedź po minucie: to nie jest odpowiedź na tę wypowiedź
+                continue
+            self.czeka_odp = None
+            lic, ost = self.odpowiedzi.get(k, [0, t])
+            lic = 1 if t - ost > NPC_ODP_RESET_S else lic + 1
+            self.odpowiedzi[k] = [lic, t]
+            if lic >= NPC_ODP_MIN and not self.widziany_jako_gracz(k):
+                self.npc_nauczone[k] = t
+
+    def przyjmij_czat(self, lista, t=None):
+        """Wiadomości ze strażnika -> `self.czat` (tylko Default i prywatne zakładki, bez NPC, bez własnych postaci)."""
+        t = teraz() if t is None else t
+        wlasne = self.wlasne_nicki()
+        self._ucz_sie_rozmowy(lista, wlasne, t)            # najpierw cała porcja, żeby pierwsza wypowiedź nowego NPC też odpadła
+        for w in lista:
             autor = (w.get("autor") or w.get("nadawca") or "").strip()
             tekst = (w.get("tekst") or "").strip()
             kanal = (w.get("kanal") or "").lower()
-            if not autor or autor.lower() in WLASNE or not kanal or kanal in KANALY_PUBLICZNE:
+            if not autor or autor.lower() in wlasne or not kanal or kanal in KANALY_PUBLICZNE:
                 continue                        # tylko Default (gracze obok) i prywatne zakładki; kanał nieznany = pomiń
                                                 # (22.10: invincible ma kanały nieprzypisane, Trade wyglądał jak czat obok)
-            self.czat.append((teraz(), autor, tekst))
+            if self.jest_npc(autor, t):
+                continue                        # 23.10: rozmowa z NPC (handel, bank, „hi”) to nie obcy gracz
+            self.czat.append((t, autor, tekst))
             self.ostatnie.append(f"{time.strftime('%H:%M:%S')} CZAT {autor}: {tekst[:80]}")
+
+    def duch(self):
+        """(nazwa, końcówka id, liczba) celu z >= DUCH_MIN „klików bez efektu” w ostatnich DUCH_OKNO_S s albo None.
+        Klient widzi potwora, którego serwer nie ma (23.10 wydra: Troll id..1363, 6x w 4 min): pomaga tylko restart klienta."""
+        granica = teraz() - DUCH_OKNO_S
+        self.duchy = deque(x for x in self.duchy if x[0] >= granica)
+        licz = {}
+        for _, nazwa, id_ in self.duchy:
+            if id_ != "?":                           # cel bez id: nie wiadomo, czy ten sam
+                licz[(nazwa, id_)] = licz.get((nazwa, id_), 0) + 1
+        if not licz:
+            return None
+        (nazwa, id_), n = max(licz.items(), key=lambda x: x[1])
+        return (nazwa, id_, n) if n >= DUCH_MIN else None
 
     def odswiez(self):
         self.bot = bool(instancja.procesy(r"(mozg|cavebot)\.py", id_=self.id))
@@ -248,6 +383,10 @@ class Postac:
         if c.get("stop") and not self.bot:
             poziom = max(poziom, 1)
             powody.append("bot zatrzymany")
+        d = self.duch()
+        if d:
+            poziom = max(poziom, 1)                 # sam dymek „duch” idzie osobną drogą (dymek_duch), bez RYZYKA
+            powody.append(f"duch w kliencie: {d[0]} id{d[1]} {d[2]}x")
         return poziom, powody
 
     def _co_botowe(self, okno):
@@ -272,10 +411,31 @@ def dymek(p, poziom, powody):
     if teraz() - p.dymki.get(klucz, 0) < DYMEK_CO_S:
         return
     p.dymki[klucz] = teraz()
+    _notify(f"Ryzyko: {p.id}", "\n".join(powody))
+
+
+def dymek_duch(p):
+    """Jeden dymek critical (tytuł + 2 linie) „duch w kliencie”, najwyżej raz na DUCH_DYMEK_CO_S na postać. Bez akcji w grze.
+    Zwraca treść dymka albo None."""
+    d = p.duch()
+    if not d or teraz() - p.duch_dymek < DUCH_DYMEK_CO_S:
+        return None
+    p.duch_dymek = teraz()
+    nick = p.nick or p.id
+    tresc = (f"{nick}: klient widzi potwora, którego nie da się bić (duch) — restart klienta: zatrzymaj bota, "
+             f"sesja_gry zamknij/start, zaloguj\nCel: {d[0]} id{d[1]}, {d[2]}x „klików bez efektu” w 5 min")
+    _notify(f"Duch w kliencie: {nick}", tresc)
+    dopisz_log(f"{p.id} DUCH {nick}: {d[0]} id{d[1]} {d[2]}x")
+    return tresc
+
+
+def dopisz_log(linia):
+    kat = KAT / "instancje" / "_wspolne" / "logi"
     try:
-        subprocess.run(["notify-send", "-u", "critical", "-a", "Monitor botów", f"Ryzyko: {p.id}",
-                        "\n".join(powody)[:300]], timeout=5, check=False)
-    except (OSError, subprocess.SubprocessError):
+        kat.mkdir(parents=True, exist_ok=True)
+        with open(kat / time.strftime("monitor-wykrycia-%Y%m%d.log"), "a") as f:
+            f.write(f"{time.strftime('%H:%M:%S')} {linia}\n")
+    except OSError:
         pass
 
 
@@ -283,13 +443,7 @@ def zapisz(p, poziom, powody, ost):
     if poziom == 0 or (poziom, tuple(powody)) == ost.get(p.id):
         return
     ost[p.id] = (poziom, tuple(powody))
-    kat = KAT / "instancje" / "_wspolne" / "logi"
-    try:
-        kat.mkdir(parents=True, exist_ok=True)
-        with open(kat / time.strftime("monitor-wykrycia-%Y%m%d.log"), "a") as f:
-            f.write(f"{time.strftime('%H:%M:%S')} {p.id} {NAZWA[poziom]} {' | '.join(powody)}\n")
-    except OSError:
-        pass
+    dopisz_log(f"{p.id} {NAZWA[poziom]} {' | '.join(powody)}")
 
 
 def tabela(postacie):
@@ -371,6 +525,7 @@ def main():
         for p in aktywne:
             poziom, powody = p.ocena()
             dymek(p, poziom, powody)
+            dymek_duch(p)
             zapisz(p, poziom, powody, ost)
         print(tabela(aktywne), flush=True)
         if raz:

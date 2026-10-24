@@ -1,0 +1,122 @@
+{
+ "opis": "KANDYDACI na stale pola trucizny Ab'Dendriel (trolle) - NIEPOTWIERDZONE; format jak ogien_stale.json (pola = [x, y, z])",
+ "zrodlo": "mapa klienta mapa/map74.otmm: pole flagi 2 (BEZ_DROGI) w kolorze podlogi poza z7 (spot_lib.przeszkoda_na_podlodze), skan z8..z12, prostokaty [32600, 31560, 32760, 31650] (z8..z10) i [32600, 31580, 32760, 31680] (z11, z12); generuj_trasy_abdendriel_trolle.py 23.10",
+ "skan_pietra": {
+  "8": {
+   "prostokat": [
+    32600,
+    31560,
+    32760,
+    31650
+   ],
+   "kandydatow": 5
+  },
+  "9": {
+   "prostokat": [
+    32600,
+    31560,
+    32760,
+    31650
+   ],
+   "kandydatow": 6
+  },
+  "10": {
+   "prostokat": [
+    32600,
+    31560,
+    32760,
+    31650
+   ],
+   "kandydatow": 0
+  },
+  "11": {
+   "prostokat": [
+    32600,
+    31580,
+    32760,
+    31680
+   ],
+   "kandydatow": 0
+  },
+  "12": {
+   "prostokat": [
+    32600,
+    31580,
+    32760,
+    31680
+   ],
+   "kandydatow": 0
+  }
+ },
+ "uwaga": "Mapa klienta nie ma przedmiotow, wiec pole trucizny nie jest odroznialne od ognia ani innej blokady autowalku. Trasy traktuja te pola jak znany ogien (bufor 1 = sciana dla A*). Bot w locie tego pliku nie czyta (czyta tylko ogien_stale.json), ale pola maja flage 2 w mapie, wiec jego A* ich i tak nie uzywa.",
+ "pola": [
+  [
+   32690,
+   31596,
+   8
+  ],
+  [
+   32710,
+   31624,
+   8
+  ],
+  [
+   32711,
+   31629,
+   8
+  ],
+  [
+   32719,
+   31626,
+   8
+  ],
+  [
+   32734,
+   31593,
+   8
+  ],
+  [
+   32636,
+   31632,
+   9
+  ],
+  [
+   32651,
+   31633,
+   9
+  ],
+  [
+   32654,
+   31622,
+   9
+  ],
+  [
+   32677,
+   31632,
+   9
+  ],
+  [
+   32683,
+   31641,
+   9
+  ],
+  [
+   32684,
+   31622,
+   9
+  ]
+ ],
+ "kolory": {
+  "32690,31596,8": 121,
+  "32710,31624,8": 121,
+  "32711,31629,8": 121,
+  "32719,31626,8": 121,
+  "32734,31593,8": 121,
+  "32636,31632,9": 121,
+  "32651,31633,9": 121,
+  "32654,31622,9": 121,
+  "32677,31632,9": 121,
+  "32683,31641,9": 121,
+  "32684,31622,9": 121
+ }
+}

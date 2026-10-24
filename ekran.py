@@ -34,6 +34,10 @@ _ostatni_rozmiar = None          # ostatni rozmiar ekranu, jaki widzieliśmy (do
 _rozmiar_od = 0.0                # time.monotonic() ostatniej zmiany rozmiaru
 _zalogowane = {}                 # rozmiar -> czas ostatniego logu (bez zalewu, gdy zrzut i X na chwilę się różnią)
 ROZMIAR_STABILNY_S = 2.0         # tyle s po zmianie rozmiaru prostokąta mapy nie zapamiętujemy (klient może jeszcze rysować stary kadr)
+NIEPEWNY_TTL_S = 3.0             # 23.10: wykrycie z rozjazdem ("blok mapy X px zamiast Y px") NIE idzie do _cache_mapy; aktualny_prostokat
+                                 # trzyma je tyle s (bez nowego zrzutu PNG na każde wywołanie), potem wykrywa od nowa
+_niepewny = {}                   # (szerokość, wysokość) -> (prostokąt, time.monotonic()) niepewnego wykrycia (patrz NIEPEWNY_TTL_S)
+_zapomniany = {}                 # (szerokość, wysokość) -> prostokąt unieważniony przez zapomnij_prostokat (do logu przy nowym wykryciu)
 
 
 def log(*a):
@@ -126,10 +130,31 @@ def _przedzialy(maska):
     return list(zip(np.where(d == 1)[0].tolist(), np.where(d == -1)[0].tolist()))
 
 
+def zapomnij_prostokat(rozmiar=None):
+    """Unieważnia cache prostokąta mapy (dla `rozmiar` albo wszystkich rozmiarów): następne wywołanie wykrywa od nowa.
+    23.10: cavebot woła to po serii kliknięć ataku bez efektu (ramka_false), bo cache mógł zapamiętać prostokąt z chwili,
+    gdy klient miał przejściowy układ (okno UI nad mapą po serwisie). Zwraca prostokąt, który był w cache (dla `rozmiar`),
+    albo słownik rozmiar -> prostokąt (bez `rozmiaru`); pusty/None, gdy nic nie było zapamiętane."""
+    if rozmiar is not None:
+        rozmiar = tuple(rozmiar)
+        _niepewny.pop(rozmiar, None)
+        stary = _cache_mapy.pop(rozmiar, None)
+        if stary is not None:
+            _zapomniany[rozmiar] = stary
+        return stary
+    stare = dict(_cache_mapy)
+    _zapomniany.update(stare)
+    _cache_mapy.clear()
+    _niepewny.clear()
+    return stare
+
+
 def prostokat_mapy(obraz, zapamietaj=True):
     """Wykrywa (L, T, R, B) mapy na zrzucie. Tło UI jest jednolicie ciemnoszare
     (R~G~B, 10..40), treść mapy już nie (nawet czarna winieta ma wartości < 10).
-    Wynik w cache pod kluczem = rozmiar zrzutu."""
+    Wynik w cache pod kluczem = rozmiar zrzutu - ale tylko pewny: wykrycie z rozjazdem proporcji ("blok mapy X px zamiast
+    Y px") zwraca się, lecz NIE jest zapamiętywane (23.10: wydra zapamiętała taki prostokąt na cały proces, każdy klik
+    ataku trafiał obok celu)."""
     klucz = obraz.size
     _zauwaz_rozmiar(klucz)
     if klucz in _cache_mapy:
@@ -168,8 +193,9 @@ def prostokat_mapy(obraz, zapamietaj=True):
             else:
                 continue
             break
-    if abs((B - T) - wysokosc) > max(6, wysokosc // 25):
-        print(f"UWAGA: blok mapy {B - T} px zamiast {wysokosc} px, przyjmuję górę bloku", file=sys.stderr)
+    rozjazd = abs((B - T) - wysokosc) > max(6, wysokosc // 25)
+    if rozjazd:
+        print(f"UWAGA: blok mapy {B - T} px zamiast {wysokosc} px, przyjmuję górę bloku (wynik niepewny, nie zapamiętuję)", file=sys.stderr)
     B = T + wysokosc
     # przy krawędzi ekranu pierwszy/ostatni piksel bywa tłem lub winietą
     if L <= 2:
@@ -178,6 +204,14 @@ def prostokat_mapy(obraz, zapamietaj=True):
         R = szer
     if not zapamietaj or _rozmiar_swiezy():
         return (L, T, R, B)              # świeżo po zmianie rozmiaru: wykrycie bez zapamiętania (kolejne zrzuty liczą od nowa)
+    if rozjazd:
+        _niepewny[klucz] = ((L, T, R, B), time.monotonic())   # tylko dla aktualny_prostokat (TTL); _cache_mapy zostaje czysty
+        return (L, T, R, B)
+    _niepewny.pop(klucz, None)
+    stary = _zapomniany.pop(klucz, None)
+    if stary is not None and any(abs(a - b) > 3 for a, b in zip(stary, (L, T, R, B))):
+        log(f"[EKRAN] mapa: nowe wykrycie {(L, T, R, B)} po unieważnieniu (było {stary}, rozjazd "
+            f"{[b - a for a, b in zip(stary, (L, T, R, B))]} px)")
     _cache_mapy[klucz] = (L, T, R, B)
     return _cache_mapy[klucz]
 
@@ -187,6 +221,9 @@ def aktualny_prostokat(ekran=None):
     rozmiar = _rozmiar_ekranu(ekran)
     _zauwaz_rozmiar(rozmiar)
     if rozmiar not in _cache_mapy:
+        n = _niepewny.get(rozmiar)
+        if n and time.monotonic() - n[1] < NIEPEWNY_TTL_S:
+            return n[0]                  # niepewne wykrycie sprzed chwili: bez nowego zrzutu PNG na każde wywołanie
         obraz = zrzut()
         if obraz.size != rozmiar:
             # zrzut (Wayland) i ekran X zmieniają rozmiar nie w tej samej chwili (zmiana w locie): rozciągnięty obraz
@@ -354,7 +391,25 @@ class Mysz:
     def przeciagnij_pola(self, dx1, dy1, dx2, dy2):
         """Przeciągnięcie z pola (dx1, dy1) na pole (dx2, dy2) względem gracza."""
         prostokat = aktualny_prostokat(self.ekran)
-        self.przeciagnij(*pole_na_ekran(dx1, dy1, prostokat), *pole_na_ekran(dx2, dy2, prostokat))
+        x1, y1 = pole_na_ekran(dx1, dy1, prostokat)
+        x2, y2 = pole_na_ekran(dx2, dy2, prostokat)
+        if not self._cel_poza_ekwipunkiem(x2, y2, f"pole ({dx1},{dy1}) -> ({dx2},{dy2})"):
+            return
+        self.przeciagnij(x1, y1, x2, y2)
+
+    def _cel_poza_ekwipunkiem(self, x, y, co):
+        """23.10 (lina invincible, gold wydry na slocie 10): przy błędnym prostokącie mapy upuszczenie rzeczy z pola mogło
+        trafić w panel Inventory. Cel na slocie ekwipunku = odmowa ([EKW] + powiadomienie), nic nie idzie do gry.
+        Błąd samej kontroli nie blokuje przeciągnięcia."""
+        try:
+            import straz_ekw  # noqa: PLC0415
+            for numer, xy in sorted(straz_ekw.sloty_ekwipunku(zrzut()).items()):
+                if straz_ekw._na_slocie((x, y), xy):
+                    straz_ekw.odmowa(print, co, f"cel ({x}, {y}) leży na slocie ekwipunku {numer} (zły prostokąt mapy?)", "pole")
+                    return False
+        except Exception:      # noqa: BLE001
+            pass
+        return True
 
 
 def klik_pola(dx, dy, przycisk=1, modyfikator=None):
