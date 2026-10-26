@@ -37,6 +37,13 @@ BEZ_OKNA="${RETRONIC_BEZ_OKNA:-1}"
 ROZ="${RETRONIC_BEZ_OKNA_ROZ:-1175x910}"
 if [ -z "${RETRONIC_ID:-}" ]; then PORT_DOM=5901; else PORT_DOM=$((5902 + $(printf '%s' "$RETRONIC_ID" | cksum | cut -d' ' -f1) % 90)); fi
 mkdir -p "$STAN"
+# 26.10: czytnik powiadomień o wiadomościach (dymek przy wisperze/priv, log rozmów) startuje z sesją postaci, której profil.json ma
+# "powiadom_czat": true. Idempotentny (drugi start = "już działa"), best effort (błąd nie psuje sesji), działa niezależnie od sesji
+# (sam czeka na strażnika, wznawia się po restarcie klienta). Wyłączenie: flaga false w profilu (powiadom_czat.py, nagłówek).
+[ -z "${RETRONIC_ID:-}" ] || python3 -I "$DIR/powiadom_czat.py" --uruchom >&2 || true
+# 26.10: dymek „obcy gracz obok” (powiadom_obcy.py: czytnik telemetrii, tylko odczyt) startuje analogicznie, gdy profil.json ma
+# "powiadom_obcy": true (domyślnie wyłączone). Idempotentny, best effort. Włączenie: RETRONIC_ID=<id> python3 -I powiadom_obcy.py --wlacz
+[ -z "${RETRONIC_ID:-}" ] || python3 -I "$DIR/powiadom_obcy.py" --uruchom >&2 || true
 rm -f "$STAN/wayland" "$STAN/vnc_port"
 # Port podglądu: RETRONIC_PODGLAD_PORT wygrywa. Inaczej baza z cksum (PORT_DOM) i, dla instancji, pierwszy WOLNY port od niej
 # (23.10: odchyd i dawajkesh mieli oba 5952): nikt na nim nie słucha i nie ma go w vnc_port innej żywej sesji; wybór i zapis

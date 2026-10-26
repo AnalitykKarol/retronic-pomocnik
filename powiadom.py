@@ -30,8 +30,9 @@ def _notify_send(arg):
 
 
 class Powiadamiacz:
-    def __init__(self, uruchom=_notify_send, zegar=time.time, cisza=CISZA, watek=True):
+    def __init__(self, uruchom=_notify_send, zegar=time.time, cisza=CISZA, watek=True, limit_h=None):
         self.uruchom, self.zegar, self.cisza, self.watek = uruchom, zegar, Path(cisza), watek
+        self.limit_h = LIMIT_H if limit_h is None else limit_h      # 26.10: osobny czytnik (powiadom_obcy.py) ma własny, wyższy limit
         self.po_kluczach = {}          # klucz -> czas ostatniego powiadomienia
         self.godzina = deque()         # czasy powiadomień nie-critical
         self.blokada = threading.Lock()
@@ -59,7 +60,7 @@ class Powiadamiacz:
                 while self.godzina and t - self.godzina[0] >= 3600:
                     self.godzina.popleft()
                 if pilnosc != "critical":
-                    if len(self.godzina) >= LIMIT_H:
+                    if len(self.godzina) >= self.limit_h:
                         return False
                     self.godzina.append(t)
                 self.po_kluczach[klucz] = t
