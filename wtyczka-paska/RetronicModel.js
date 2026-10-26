@@ -149,7 +149,9 @@ var ACTION_SCRIPTS = {
   wroc: ["wroc.sh", ""], "wroc-anuluj": ["wroc.sh", "--anuluj"],
   refill: ["refill.sh", "--tlo"], spot: ["refill.sh", "--spot"], "refill-stop": ["refill.sh", "--przerwij"],
   // sesja gry jednej instancji (sesja_gry.py, spec okna F4a + spec 2026-10-20-retronic-lvl-i-podglad.md); główna = odmowa
-  podglad: ["sesja_gry.py", "podglad"], "gra-start": ["sesja_gry.py", "start"], "gra-zamknij": ["sesja_gry.py", "zamknij"]
+  podglad: ["sesja_gry.py", "podglad"], "gra-start": ["sesja_gry.py", "start"], "gra-zamknij": ["sesja_gry.py", "zamknij"],
+  // „Zaloguj postać" (tylko okno, 24.10): start sesji gdy trzeba + czekanie na zgodne IP + zaloguj.sh --reczny-ok, BEZ bota
+  zaloguj: ["zaloguj_postac.sh", ""]
 }
 
 // "Otwórz okno": okno.sh to długo żyjący proces (quickshell), więc odpalamy go przez setsid -f, w osobnej sesji, z
@@ -183,7 +185,7 @@ function statusCommand(helperDir, id) {
   return ["bash", "-c", STATUS_SCRIPT, "retronic-status", String(id), helperDir]
 }
 
-var SESSION_KINDS = { podglad: true, "gra-start": true, "gra-zamknij": true }
+var SESSION_KINDS = { podglad: true, "gra-start": true, "gra-zamknij": true, zaloguj: true }
 
 function actionCommand(helperDir, id, kind) {
   if (!validId(id) || !helperDir || !Object.prototype.hasOwnProperty.call(ACTION_SCRIPTS, kind)) return null

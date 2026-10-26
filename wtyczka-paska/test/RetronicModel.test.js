@@ -745,6 +745,12 @@ describe("akcja podglad", () => {
     assert.notEqual(M.actionCommand("/d", "", "stop"), null)
     assert.notEqual(M.actionCommand("/d", "x", "gra-start"), null)
   })
+  it("zaloguj (okno, 24.10): zaloguj_postac.sh z ID instancji jako argument pozycyjny; główna = null", () => {
+    const c = M.actionCommand("/d", "odchyd", "zaloguj")
+    assert.deepEqual(c.slice(3), ["retronic-zaloguj", "odchyd", "/d", "zaloguj_postac.sh"])
+    assert.ok(!c[2].includes("odchyd"))
+    assert.equal(M.actionCommand("/d", "", "zaloguj"), null)
+  })
   it("wynik: odmowa skryptu ('brak socketu') to 'Gra nie działa', inne błędy krótko", () => {
     assert.deepEqual(M.parseActionResult("podgląd już otwarty (fokus)\nRC=0\n"), { ok: true, message: "" })
     assert.equal(M.parseActionResult("brak socketu gry\nRC=1\n").message, "Gra nie działa")
