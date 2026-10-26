@@ -225,6 +225,17 @@ function groupDigits(n) {
   return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ")
 }
 
+// Blanki i gotowe runy z otwartych kontenerów (okno_api `runy`, odczyt pamięci przez gniazdo bota; 25.10). Brak odczytu = "—".
+function runyText(inst) {
+  var r = inst && inst.runy
+  if (!r || typeof r !== "object" || !isNum(r.blanki)) return ""
+  var out = ["bl " + r.blanki]
+  var ks = Object.keys(r.runy || {}).sort()
+  for (var i = 0; i < ks.length; i++) out.push(ks[i] + " " + r.runy[ks[i]])
+  return out.join(" · ")
+}
+function runyLow(inst) { var r = inst && inst.runy; return !!(r && isNum(r.blanki) && r.blanki < 5) }
+
 function expH(inst) { var p = przegladOf(inst); return p && isNum(p.exp_h) ? p.exp_h : null }
 function zabH(inst) { var p = przegladOf(inst); return p && isNum(p.zab_h) ? p.zab_h : null }
 
@@ -356,9 +367,12 @@ function rowOf(inst, now) {
     spotTime: spotTimeOf(inst, now),
     zabH: off ? null : zabH(inst),
     expH: off ? null : expH(inst),
+    runy: off ? "" : runyText(inst),
+    runyLow: off ? false : runyLow(inst),
     alarm: alarm,
     alarmFlag: !!(p && (p.stan === "alarm" || p.alarm_24h === true)),
-    supervision: supervisionOf(inst)
+    supervision: supervisionOf(inst),
+    lastT: off ? lastDataT(inst) : now.getTime() / 1000       // „ostatnio aktywna” do sortowania: w grze = teraz, poza grą = chwila wyjścia z gry
   }
 }
 
@@ -368,41 +382,132 @@ function rowsOf(instances, now) {
   return out
 }
 
-function byOrder(a, b) {
-  var d = (a.order !== undefined ? a.order : STAN_ORDER[a.stan]) - (b.order !== undefined ? b.order : STAN_ORDER[b.stan])
-  if (d !== 0) return d
-  return a.nick < b.nick ? -1 : (a.nick > b.nick ? 1 : 0)
+// ---------------------------------------------------------------- sortowanie (25.10: „sortowanie po lvl i wybór sortowania, domyślnie po lvlu”)
+
+// Jedno ustawienie sortowania dla Przeglądu (grupy tabeli) i dla listy postaci w pasku bocznym (proste i spójne: ta sama kolejność wszędzie).
+// Brak danych (poziom, exp/h, HP% poza grą, czas) zawsze ląduje na końcu, niezależnie od kierunku. Remis: wyższy poziom, wyższy % do następnego poziomu,
+// nazwa alfabetycznie, id, potem kolejność wejściowa (stabilnie). Filtry i ukrywanie straconych działają przed sortowaniem (sortujemy to, co widoczne).
+var DEFAULT_SORT = "level"
+var SORTS = [
+  { key: "level", label: "w grze, poziom ↓" },
+  { key: "nazwa", label: "nazwa A→Z" },
+  { key: "exp_h", label: "exp/h ↓" },
+  { key: "stan", label: "stan" },
+  { key: "hp", label: "HP% ↑" },
+  { key: "ostatnio", label: "ostatnio ↓" }
+]
+
+// klucz sortowania, jeśli znany; inaczej null (do odczytu zapisanego wyboru z pliku)
+function validSort(key) {
+  var k = String(key === undefined || key === null ? "" : key).replace(/^\s+|\s+$/g, "")
+  for (var i = 0; i < SORTS.length; i++) if (SORTS[i].key === k) return k
+  return null
 }
+
+// a, b liczby albo brak (null/undefined/NaN); brak zawsze na końcu, także przy desc
+function cmpNum(a, b, desc) {
+  var ma = !isNum(a)
+  var mb = !isNum(b)
+  if (ma || mb) return ma === mb ? 0 : (ma ? 1 : -1)
+  if (a === b) return 0
+  return (a < b) !== desc ? -1 : 1
+}
+
+// polskie litery sortują się jak podstawowe (ł po l, nie za z), niezależnie od ustawień językowych systemu; remis rozstrzyga zapis dokładny
+var PL_FOLD = { "ą": "a", "ć": "c", "ę": "e", "ł": "l", "ń": "n", "ó": "o", "ś": "s", "ź": "z", "ż": "z" }
+function foldText(v) {
+  return String(v === undefined || v === null ? "" : v).toLowerCase().replace(/[ąćęłńóśźż]/g, function (ch) { return PL_FOLD[ch] })
+}
+
+function cmpText(a, b) {
+  var x = foldText(a)
+  var y = foldText(b)
+  if (x !== y) return x < y ? -1 : 1
+  var rx = String(a === undefined || a === null ? "" : a).toLowerCase()
+  var ry = String(b === undefined || b === null ? "" : b).toLowerCase()
+  return rx < ry ? -1 : (rx > ry ? 1 : 0)
+}
+
+function levelKey(row) { return isNum(row.level) && row.level >= 1 ? row.level : null }
+function hpKey(row) { return row.hp && row.hp.live === true && isNum(row.hp.frac) ? row.hp.frac : null }
+
+function sortPrimary(a, b, key) {
+  if (key === "nazwa") return cmpText(a.nick, b.nick)
+  if (key === "exp_h") return cmpNum(a.expH, b.expH, true)
+  if (key === "stan") return cmpNum(a.order !== undefined ? a.order : STAN_ORDER[a.stan], b.order !== undefined ? b.order : STAN_ORDER[b.stan], false)
+  if (key === "hp") return cmpNum(hpKey(a), hpKey(b), false)
+  if (key === "ostatnio") return cmpNum(a.lastT, b.lastT, true)
+  // 26.10 (Karol): domyślnie najpierw postacie w grze, dopiero potem wylogowane; w obu grupach poziom malejąco
+  if (a.inGame !== b.inGame) return a.inGame ? -1 : 1
+  return cmpNum(levelKey(a), levelKey(b), true)
+}
+
+function sortCompare(a, b, key) {
+  var d = sortPrimary(a, b, key)
+  if (d !== 0) return d
+  d = cmpNum(levelKey(a), levelKey(b), true)
+  if (d !== 0) return d
+  d = cmpNum(a.levelPct, b.levelPct, true)
+  if (d !== 0) return d
+  d = cmpText(a.nick, b.nick)
+  if (d !== 0) return d
+  return cmpText(a.id, b.id)
+}
+
+// Wspólny silnik: items posortowane wg wiersza rowFn(item); nie zmienia wejścia, stabilny (indeks wejściowy jako ostatni klucz).
+function sortWith(items, rowFn, key) {
+  var k = validSort(key) || DEFAULT_SORT
+  var dec = []
+  for (var i = 0; i < items.length; i++) dec.push({ item: items[i], row: rowFn(items[i]), i: i })
+  dec.sort(function (a, b) {
+    var d = sortCompare(a.row, b.row, k)
+    return d !== 0 ? d : a.i - b.i
+  })
+  var out = []
+  for (var j = 0; j < dec.length; j++) out.push(dec[j].item)
+  return out
+}
+
+function sortRows(rows, key) { return sortWith(rows, function (r) { return r }, key) }
+
+// Lista instancji (pasek boczny) w tej samej kolejności co wiersze Przeglądu; `now` jak w rowOf.
+function sortInstances(instances, key, now) { return sortWith(instances, function (inst) { return rowOf(inst, now || new Date()) }, key) }
 
 // ---------------------------------------------------------------- filtry i grupy
 
-var FILTERS = ["wszystkie", "w grze", "z alarmem"]
+var FILTERS = ["wszystkie", "w grze", "z alarmem", "stracone"]
 
+// Stracone (25.10) są domyślnie ukryte: „wszystkie”, „w grze” i „z alarmem” ich nie pokazują, widać je tylko w filtrze „stracone”;
+// licznik „wszystkie” (i chipów) liczy więc same postacie nie-stracone, a stracone ma osobny licznik „stracone”.
 function passes(row, filter) {
+  if (filter === "stracone") return row.lost
+  if (row.lost) return false
   if (filter === "w grze") return row.inGame
   if (filter === "z alarmem") return row.alarmFlag
   return true
 }
 
 function filterCounts(rows) {
-  var c = { "wszystkie": rows.length, "w grze": 0, "z alarmem": 0 }
+  var c = { "wszystkie": 0, "w grze": 0, "z alarmem": 0, "stracone": 0 }
   for (var i = 0; i < rows.length; i++) {
+    if (rows[i].lost) { c["stracone"]++; continue }
+    c["wszystkie"]++
     if (rows[i].inGame) c["w grze"]++
     if (rows[i].alarmFlag) c["z alarmem"]++
   }
   return c
 }
 
-// Grupy tabeli po filtrze: „W GRZE” (dane na żywo) i „OFFLINE” (ostatnio znane); puste grupy znikają.
-function groupsOf(rows, filter) {
+// Grupy tabeli po filtrze: „W GRZE” (dane na żywo) i „OFFLINE” (ostatnio znane); puste grupy znikają. Wiersze w grupie wg sortKey (domyślnie poziom ↓).
+function groupsOf(rows, filter, sortKey) {
   var live = []
   var off = []
   for (var i = 0; i < rows.length; i++) {
     if (!passes(rows[i], filter)) continue
     (rows[i].inGame ? live : off).push(rows[i])
   }
-  live.sort(byOrder)
-  off.sort(byOrder)
+  live = sortRows(live, sortKey)
+  off = sortRows(off, sortKey)
   var out = []
   if (live.length) out.push({ key: "gra", title: "W GRZE", count: live.length, note: "dane na żywo, co 2–5 s", rows: live })
   if (off.length) out.push({ key: "offline", title: "OFFLINE", count: off.length, note: "ostatnio znane, wyszarzone; „ostatnio” = chwila wyjścia z gry", rows: off })
@@ -412,14 +517,15 @@ function groupsOf(rows, filter) {
 // ---------------------------------------------------------------- liczniki
 
 // Do sum nie wchodzą instancje testowe (test:true); są widoczne w tabeli.
+// Stracone (25.10) są ukryte, więc nie wchodzą też do „total” ani „offline” (tylko c.lost, osobny chip „stracone”): „W grze 4 / 7” znaczy 7 widocznych postaci.
 function countersOf(instances) {
   var c = { inGame: 0, total: 0, bot: 0, karol: 0, stopped: 0, offline: 0, reserve: 0, suspended: 0, lost: 0, bank: 0, expH: 0, expBots: 0, rescue: 0 }
   for (var i = 0; i < instances.length; i++) {
     var inst = instances[i]
     if (isTest(inst)) continue
     var stan = stanOf(inst)
+    if (isLost(inst)) { c.lost++; continue }      // stracona: tylko c.lost; bez total/offline, botów/Karola/zatrzymanych, zawieszonych, rezerwy i exp/h
     c.total++
-    if (isLost(inst)) { c.lost++; c.offline++; continue }      // stracona: poza grą, bez botów/Karola/zatrzymanych, bez zawieszonych i rezerwy, bez exp/h
     if (inGame(inst)) c.inGame++
     if (stan === "bot_dziala" || stan === "alarm") c.bot++
     else if (stan === "karol_gra") c.karol++
@@ -442,6 +548,32 @@ function suspendedNote(c) {
 function expBotsNote(c) { return c.expBots + " " + plural(c.expBots, "bot", "boty", "botów") }
 
 function postaciLabel(n) { return n + " " + plural(n, "postać", "postaci", "postaci") }
+
+// ---------------------------------------------------------------- lista postaci w pasku bocznym (stracone ukryte domyślnie)
+
+// Lista instancji do paska bocznego, stopki i wyboru: bez straconych, chyba że showLost (przełącznik „pokaż stracone” w pasku).
+function visibleInstances(instances, showLost) {
+  if (showLost) return instances
+  var out = []
+  for (var i = 0; i < instances.length; i++) if (!isLost(instances[i])) out.push(instances[i])
+  return out
+}
+
+function lostCount(instances) {
+  var n = 0
+  for (var i = 0; i < instances.length; i++) if (isLost(instances[i])) n++
+  return n
+}
+
+// Wybór po odświeżeniu stanu / ukryciu straconych: zostaje, gdy wybrana jest na liście widocznych; inaczej pierwsza widoczna (puste = brak zmiany).
+// Gdy nic nie jest widoczne (same stracone), zostaje stary wybór (albo pierwsza instancja, gdy starego nie ma), żeby nie zostać bez postaci.
+function selectionAfter(instances, selectedId, showLost) {
+  var vis = visibleInstances(instances, showLost)
+  for (var i = 0; i < vis.length; i++) if (vis[i].id === selectedId) return selectedId
+  if (vis.length) return vis[0].id
+  for (var j = 0; j < instances.length; j++) if (instances[j].id === selectedId) return selectedId
+  return instances.length ? instances[0].id : selectedId
+}
 
 // Plakietka pozycji „Przegląd” w pasku bocznym: „4/7 w grze”
 function navBadge(instances) {
@@ -602,7 +734,8 @@ if (typeof module !== "undefined" && module.exports) {
     whereLabel: whereLabel, levelOf: levelOf, levelText: levelText, mlLabel: mlLabel, mlPctOf: mlPctOf, resource: resource, sinceText: sinceText, spotTimeOf: spotTimeOf,
     alarmOf: alarmOf, supervisionOf: supervisionOf, rowOf: rowOf, rowsOf: rowsOf, passes: passes, filterCounts: filterCounts,
     groupsOf: groupsOf, countersOf: countersOf, suspendedNote: suspendedNote, expBotsNote: expBotsNote, postaciLabel: postaciLabel,
-    navBadge: navBadge, cardMode: cardMode, cardOffline: cardOffline, cardSubtitleTone: cardSubtitleTone, cardSubtitleText: cardSubtitleText,
+    navBadge: navBadge, visibleInstances: visibleInstances, lostCount: lostCount, selectionAfter: selectionAfter, cardMode: cardMode, cardOffline: cardOffline, cardSubtitleTone: cardSubtitleTone, cardSubtitleText: cardSubtitleText,
+    DEFAULT_SORT: DEFAULT_SORT, SORTS: SORTS, validSort: validSort, sortRows: sortRows, sortInstances: sortInstances,
     expToNext: expToNext, lastKnownVisible: lastKnownVisible, lastKnown: lastKnown, groupDigits: groupDigits, numOrDash: numOrDash, sessionRate: sessionRate
   }
 }

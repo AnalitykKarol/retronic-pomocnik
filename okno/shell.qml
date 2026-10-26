@@ -1,17 +1,24 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import "OknoModel.js" as Model
 import "RetronicModel.js" as Rules
 
 // Okno zarządzania Retronic (spec wtyczka-paska/specs/2026-10-19-retronic-okno.md, faza F2, F3): osobny proces Quickshella
 // (`quickshell -p <repo>/okno/`, patrz ../okno.sh), niezależny od paska i powłoki Omarchy. Okno tylko czyta JSON z ../okno_api.py
-// i woła skrypty bota; własnej logiki bota nie ma. Układ: pasek boczny 260 px + sekcja (Przegląd, Sesja gry, Ratunek, Mapa i tryb, Ustawienia) + stopka;
+// i woła skrypty bota; własnej logiki bota nie ma. Układ: pasek boczny 260 px + sekcja (Przegląd, Sesja gry, Mapa i tryb, Ustawienia, Spotkania; Ratunek wyłączony z menu 26.10) + stopka;
 // Ctrl+K otwiera wyszukiwarkę pokręteł, map i trybów (F3).
 ShellRoot {
   id: shell
 
   Backend { id: ctl }
+
+  // `quickshell -p <okno> ipc call okno otworz <id>`: otwiera widok postaci (sesja + podgląd); używa tego klik w powiadomienie
+  IpcHandler {
+    target: "okno"
+    function otworz(id: string): void { ctl.openChar(id) }
+  }
 
   FloatingWindow {
     id: win
@@ -130,10 +137,10 @@ ShellRoot {
               visible: ctl.loaded && ctl.section === "sesja"
               ctl: ctl
             }
-            RatunekView {
-              objectName: "widok-ratunek"
+            SpotkaniaView {
+              objectName: "widok-spotkania"
               anchors.fill: parent
-              visible: ctl.loaded && ctl.section === "ratunek"
+              visible: ctl.loaded && ctl.section === "spotkania"
               ctl: ctl
             }
             MapaView {
@@ -185,7 +192,7 @@ ShellRoot {
             Text {
               objectName: "stopka-boty"
               width: Math.max(0, root.width - 260 - 14 - 190)
-              text: Model.footerSummary(ctl.instances, ctl.statuses, Rules.stateLabel)
+              text: Model.footerSummary(ctl.visibleInstances, ctl.statuses, Rules.stateLabel)
               color: Theme.dim
               font.family: Theme.font
               font.pixelSize: Theme.small

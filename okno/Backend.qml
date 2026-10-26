@@ -3,6 +3,7 @@ import Quickshell
 import "OknoModel.js" as Model
 import "UstawieniaModel.js" as Ust
 import "RetronicModel.js" as Rules
+import "PrzegladModel.js" as Prz
 
 // Stan i procesy okna: odczyty z okno_api.py (stan wybranej postaci co 2 s, pełny stan co 5 s, ratunek i mapy-tryby dla
 // otwartej sekcji) i akcje na botach. Akcje woła tymi samymi poleceniami co pasek (Rules.actionCommand z RetronicModel.js),
@@ -20,6 +21,7 @@ QtObject {
   readonly property string repoDir: envOr("RETRONIC_OKNO_REPO", String(Quickshell.shellDir) + "/..")
   readonly property string helperDir: envOr("RETRONIC_OKNO_KATALOG", repoDir)
   readonly property string opener: envOr("RETRONIC_OKNO_OTWIERACZ", "xdg-open")
+  readonly property string sortFile: envOr("RETRONIC_OKNO_SORT_PLIK", envOr("XDG_STATE_HOME", envOr("HOME", "") + "/.local/state") + "/retronic-okno/sortowanie")
 
   property var instances: []
   property var statuses: ({})          // id -> Rules.parseStatus (ten sam kształt co na pasku)
@@ -27,10 +29,22 @@ QtObject {
   property string stanError: ""
   property var refreshedAt: null
   property string selectedId: ""
-  property string section: "przeglad"   // przeglad | sesja | mapa | ustawienia | ratunek
+  // Stracone postacie (profil `stracony`) są domyślnie ukryte w pasku bocznym i stopce (25.10); przełącznik „pokaż stracone” w pasku,
+  // chip „stracone” w Przeglądzie działa niezależnie. Klik w straconą w Przeglądzie (openChar) włącza showLost, żeby wybór nie spadł.
+  property bool showLost: false
+  property string section: "przeglad"   // przeglad | sesja | mapa | ustawienia | spotkania (26.10: „Spotkania” zajęło miejsce „Ratunek” w menu; RATUNEK_HAIKU=0 u wszystkich)
+  // Sortowanie postaci (25.10; domyślnie poziom ↓): jedno ustawienie dla tabeli Przeglądu i listy w pasku bocznym (prosto i spójnie). Zmiana nie resetuje się
+  // przy odświeżeniu stanu i przeżywa restart okna: zapis w pliku stanu okna (jedna linia z kluczem; RETRONIC_OKNO_SORT_PLIK albo ~/.local/state/retronic-okno/sortowanie).
+  property string sortKey: Prz.DEFAULT_SORT
+  property bool sortTouched: false      // wybór zrobiony przed odczytem pliku wygrywa z plikiem
+  property bool sortDirty: false        // zapis czeka, bo poprzedni jeszcze trwa
 
-  property var ratunekData: null
+  property var ratunekData: null           // Ratunek wyłączony z menu (26.10): nic go już nie odczytuje, pola zostają dla RatunekView.qml
   property string ratunekError: ""
+  // Spotkania z graczami (26.10): `okno_api spotkania` = zmiany spotu dziś i unikane spoty (+ pełne wpisy); liczniki kart i tabeli idą ze `stan` (inst.spotkania).
+  // Zaplecze liczy z telemetrii i trzyma wynik w cache (60 s), więc odpytujemy co 30 s zawsze (karty potrzebują cache) i co 5 s przy otwartej zakładce.
+  property var spotkaniaData: null
+  property string spotkaniaError: ""
   property var mapyData: null
   property string mapyError: ""
 
@@ -68,7 +82,13 @@ QtObject {
   property var messages: ({})          // id -> krótki błąd ostatniej akcji (gaśnie sam)
   property string markNote: ""         // wynik "To fałszywy alarm"
   property string startNote: ""        // wynik "Start z tym"
+  // „Zaloguj postać” (24.10): jedno logowanie naraz z okna. loginId = instancja, której logowanie trwa ("" brak; główna ma id "", ale się nie loguje).
+  // loginNotes: id -> {ok, text}, wynik ostatniego logowania (gaśnie po 40 s, patrz loginFade).
+  property string loginId: ""
+  property var loginNotes: ({})
 
+  readonly property var visibleInstances: Prz.sortInstances(Prz.visibleInstances(instances, showLost), sortKey, refreshedAt || new Date())
+  readonly property int lostCount: Prz.lostCount(instances)
   readonly property var selected: {
     for (var i = 0; i < instances.length; i++) if (instances[i].id === selectedId) return instances[i]
     return null
@@ -87,14 +107,47 @@ QtObject {
     var merged = Model.mergeInstances(instances, r.data.instancje || [], only)
     var map = {}
     for (var i = 0; i < merged.length; i++) map[merged[i].id] = Rules.parseStatus(Model.panelOutput(merged[i]))
-    var known = false
-    for (var j = 0; j < merged.length; j++) if (merged[j].id === selectedId) known = true
+    var pick = Prz.selectionAfter(merged, selectedId, showLost)       // wybrana postać stała się stracona/ukryta lub zniknęła: pierwsza widoczna
+    var changed = pick !== selectedId
     instances = merged
     statuses = map
     refreshedAt = new Date()
-    if (!known && merged.length) { selectedId = merged[0].id; refreshSection() }
+    if (changed && merged.length) { selectedId = pick; refreshSection() }
     loaded = true
   }
+
+  // Przełącznik „pokaż stracone” (pasek boczny). Ukrycie, gdy wybrana jest stracona: wybór spada na pierwszą widoczną.
+  function setShowLost(on) {
+    showLost = on
+    var pick = Prz.selectionAfter(instances, selectedId, showLost)
+    if (pick !== selectedId) select(pick)
+  }
+
+  // Wybór sortowania (chipy w Przeglądzie): zapamiętany w pliku, żeby przeżył restart okna. Nieznany klucz = bez zmian.
+  function setSort(key) {
+    var k = Prz.validSort(key)
+    if (!k) return
+    sortTouched = true
+    if (k === sortKey) return
+    sortKey = k
+    saveSort()
+  }
+
+  function saveSort() {
+    var cmd = ["sh", "-c", "mkdir -p \"$(dirname \"$1\")\" && printf '%s\\n' \"$2\" > \"$1\"", "sh", sortFile, sortKey]
+    if (!sortWriteJob.start(cmd, sortKey)) sortDirty = true
+  }
+
+  function onSortSaved() {
+    if (sortDirty) { sortDirty = false; saveSort() }
+  }
+
+  function onSortLoaded(text) {
+    var k = Prz.validSort(text)
+    if (k && !sortTouched) sortKey = k
+  }
+
+  Component.onCompleted: sortReadJob.start(["sh", "-c", "cat \"$1\" 2>/dev/null", "sh", sortFile], "")
 
   function select(id) {
     if (id === selectedId) return
@@ -118,13 +171,14 @@ QtObject {
   }
 
   function setSection(name) {
-    if (name !== "przeglad" && name !== "sesja" && name !== "mapa" && name !== "ratunek" && name !== "ustawienia") return
+    if (name !== "przeglad" && name !== "sesja" && name !== "mapa" && name !== "spotkania" && name !== "ustawienia") return
     section = name
     refreshSection()
   }
 
   // Klik w wiersz Przeglądu / kartę postaci w Przeglądzie: wybiera postać i otwiera jej Sesję gry (spec przeglądu: „klik w wiersz otwiera postać”).
   function openChar(id) {
+    for (var i = 0; i < instances.length; i++) if (instances[i].id === id && Prz.isLost(instances[i])) showLost = true
     select(id)
     setSection("sesja")
   }
@@ -132,12 +186,20 @@ QtObject {
   function refreshSection() {
     if (section === "przeglad") return           // Przegląd czyta tylko stan z pollAll (instances), własnego odczytu nie ma
     if (section === "sesja") loadSesja()
-    else if (section === "ratunek") loadRatunek()
+    else if (section === "spotkania") loadSpotkania()
     else if (section === "mapa") loadMapy()
     else if (section === "ustawienia") { loadPokretla(); loadMapy() }       // mapy-tryby: ostrzeżenie o trybie z ostatniego startu
   }
 
-  function loadRatunek() { ratunekJob.start(Model.ratunekCommand(repoDir, selectedId), selectedId) }
+  function loadRatunek() { ratunekJob.start(Model.ratunekCommand(repoDir, selectedId), selectedId) }       // nieużywane od 26.10 (sekcja wyłączona z menu)
+  function loadSpotkania() { spotkaniaJob.start(Model.spotkaniaCommand(repoDir), "") }
+
+  function onSpotkania(text) {
+    var r = Model.parseApi(text)
+    if (!r.ok) { spotkaniaError = r.blad; return }       // dane z poprzedniego odczytu zostają widoczne; błąd pokazuje widok
+    spotkaniaError = ""
+    spotkaniaData = r.data
+  }
   function loadMapy() { mapyJob.start(Model.mapyCommand(repoDir, selectedId), selectedId) }
 
   function loadSesja() { sesjaJob.start(Model.sesjaCommand(repoDir, selectedId), selectedId) }
@@ -391,7 +453,30 @@ QtObject {
     run.kind = kind
     run.job.timeoutMs = Model.actionTimeoutMs(kind)
     if (!run.job.start(command, id)) { endBusy(id); return false }
+    if (kind === Model.LOGIN_KIND) { loginId = id; setLoginNote(id, null) }
     return true
+  }
+
+  function setLoginNote(id, note) {
+    var copy = {}
+    for (var k in loginNotes) copy[k] = loginNotes[k]
+    if (note === null) delete copy[id]
+    else copy[id] = note
+    loginNotes = copy
+    if (note !== null) loginFade.restart()
+  }
+
+  // „Zaloguj postać”: loguje postać instancji `id` do gry BEZ bota (zaloguj_postac.sh). Stan guzika liczy Model.loginState;
+  // to samo sprawdzenie stoi tu, żeby klik z innej ścieżki (scenariusz) nie ominął szarości.
+  function loginState(id) {
+    var inst = null
+    for (var i = 0; i < instances.length; i++) if (instances[i].id === id) inst = instances[i]
+    return Model.loginState(inst, { loginId: loginId, busy: isBusy(id) })
+  }
+
+  function runLogin(id) {
+    if (!loginState(id).enabled) return false
+    return beginAction(Rules.actionCommand(helperDir, id, Model.LOGIN_KIND), id, Model.LOGIN_KIND)
   }
 
   // kind: stop | start | wroc | wroc-anuluj | refill | spot | refill-stop (Rules.ACTION_SCRIPTS: dokładnie to, co robi pasek)
@@ -409,6 +494,14 @@ QtObject {
   // Wynik akcji instancji `id` (rodzaj niesie jej własny przebieg: równoległe akcje innych instancji go nie nadpisują).
   function onActionFinished(text, id, kind) {
     runFor(id).cooldown.restart()                                  // blokada tej instancji ok. 1,5 s po akcji
+    if (kind === Model.LOGIN_KIND) {
+      var login = Model.parseLoginResult(text)
+      if (loginId === id) loginId = ""
+      setLoginNote(id, { ok: login.ok, text: login.message })
+      pollSelected()
+      pollAll()
+      return
+    }
     if (Model.isSessionAction(kind)) { onSessionAction(text, id, kind); return }
     var result = Rules.parseActionResult(text)
     setMessage(id, result.ok ? "" : result.message)
@@ -453,6 +546,10 @@ QtObject {
     timeoutMs: 8000
     onFinished: function(text, tag) { ctl.onRatunek(text, tag) }
   }
+  property Job spotkaniaJob: Job {
+    timeoutMs: 30000                       // pierwsze obliczenie z telemetrii trwa kilka sekund; potem cache 60 s
+    onFinished: function(text, tag) { ctl.onSpotkania(text) }
+  }
   property Job mapyJob: Job {
     timeoutMs: 8000
     onFinished: function(text, tag) { ctl.onMapy(text, tag) }
@@ -474,6 +571,14 @@ QtObject {
     onFinished: function(text, tag) { ctl.onMarked(text, tag) }
   }
   property Job openJob: Job { timeoutMs: 8000 }
+  property Job sortReadJob: Job {
+    timeoutMs: 3000
+    onFinished: function(text, tag) { ctl.onSortLoaded(text) }
+  }
+  property Job sortWriteJob: Job {
+    timeoutMs: 3000
+    onFinished: function(text, tag) { ctl.onSortSaved() }
+  }
   // Przebieg akcji jednej instancji: ActionRun.qml (Job + cooldown), patrz runFor.
   property Component runFactory: Component { ActionRun {} }
 
@@ -484,6 +589,10 @@ QtObject {
   property Timer noteFade: Timer {
     interval: 12000
     onTriggered: ctl.knobNote = ({ text: "", tone: "" })
+  }
+  property Timer loginFade: Timer {
+    interval: 40000
+    onTriggered: ctl.loginNotes = ({})
   }
   property Timer messageFade: Timer {
     interval: 8000
@@ -509,6 +618,14 @@ QtObject {
     repeat: true
     triggeredOnStart: true
     onTriggered: ctl.pollAll()
+  }
+  // Odświeżanie danych spotkań: zawsze co 30 s po pierwszym odczycie stanu (karty postaci pokazują licznik z cache zaplecza), zakładka dodatkowo co 5 s (sectionTimer)
+  property Timer spotkaniaTimer: Timer {
+    interval: 30000
+    running: ctl.loaded
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: ctl.loadSpotkania()
   }
   property Timer sectionTimer: Timer {
     interval: 5000

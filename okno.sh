@@ -15,5 +15,17 @@ if quickshell -p "$QML" list 2>/dev/null | grep -q '^Instance '; then
   fi
   exit 0
 fi
+# 26.10: okno startuje z powłoki Omarchy (quickshell), a ta ma RLIMIT_RTTIME=0 (twardy, dziedziczony). Sway 1.12 (sway/realtime.c) wchodzi
+# w czas rzeczywisty i przy takim limicie dostaje SIGKILL po ok. 0,2 s: każda sesja gry startowana z okna (Zaloguj, Uruchom grę) ginęła.
+# Przez `systemd-run --user` okno dziedziczy limity menedżera użytkownika (unlimited), reszta środowiska jest ta sama (porównane 26.10).
+# RETRONIC_OKNO_BEZ_SYSTEMD=1 (albo brak systemd-run): dawny start bez zmiany limitu. Cofnięcie: okno.sh.bak-20261026-rttime.
+if [ "${RETRONIC_OKNO_BEZ_SYSTEMD:-0}" != "1" ] && command -v systemd-run >/dev/null 2>&1; then
+  USTAW=()
+  for z in RETRONIC_OKNO_KATALOG RETRONIC_OKNO_REPO RETRONIC_OKNO_OTWIERACZ RETRONIC_OKNO_SCENARIUSZ RETRONIC_OKNO_SORT_PLIK QT_QPA_PLATFORM; do
+    [ -n "${!z:-}" ] && USTAW+=("--setenv=$z=${!z}")
+  done
+  exec systemd-run --user --quiet --collect --unit=retronic-okno --description="Retronic: okno zarządzania" \
+    --setenv=QS_DISABLE_FILE_WATCHER=1 --setenv=QS_NO_RELOAD_POPUP=1 "${USTAW[@]}" -- quickshell -p "$QML" --no-duplicate
+fi
 # --no-duplicate domyka wyścig dwóch startów w tej samej chwili
 exec quickshell -p "$QML" --no-duplicate

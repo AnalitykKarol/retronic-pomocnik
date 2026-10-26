@@ -1,6 +1,8 @@
 import QtQuick
+import QtQuick.Controls
 import "OknoModel.js" as Model
 import "PrzegladModel.js" as Prz
+import "SpotkaniaModel.js" as Spo
 
 // Karta postaci w pasku bocznym (makieta wariant B): kropka stanu, nick, instancja, mapa · tryb, lvl, mini HP/MP. Klik = wybór postaci.
 // Klik w nick = podgląd tej instancji (`previewRequested`, spec 2026-10-20-retronic-lvl-i-podglad.md Q1); znacznik przy nicku jak na pasku:
@@ -21,6 +23,7 @@ Rectangle {
   readonly property var marker: Model.previewMarker(preview)
   readonly property string mode: Prz.cardMode(inst)                // live | offline | legacy (brak pola przeglad: karta jak dotąd)
   readonly property bool offline: mode === "offline"
+  readonly property var spo: Spo.cardLines(inst)                   // 26.10: dwie linie spotkań z graczami (okno_api `spotkania` w `stan`); stary stan bez pola = bez linii
   readonly property var off: offline ? Prz.cardOffline(inst, now) : null
   readonly property bool lost: mode !== "legacy" && Prz.isLost(inst)                // postać stracona (profil `stracony`): nie „Karol gra”, kropka szara
   readonly property bool karolGra: Prz.stanOf(inst) === "karol_gra" && mode !== "legacy" && !lost
@@ -158,6 +161,95 @@ Rectangle {
 
     Mini { visible: !card.offline; width: parent.width; label: "HP"; fillColor: Theme.bad; value: Model.hpFraction(card.inst) }
     Mini { visible: !card.offline; width: parent.width; label: "MP"; fillColor: Theme.blue; value: Model.mpFraction(card.inst) }
+
+    // blanki i gotowe runy (okno_api `runy`, odczyt pamięci; 25.10): jedna linia pod paskami, mało blanków = żółty, brak odczytu = linia ukryta
+    Item {
+      objectName: "karta-runy"
+      readonly property string txt: Prz.runyText(card.inst)
+      visible: !card.offline && txt !== ""
+      width: parent.width
+      height: visible ? 14 : 0
+      Text {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        text: parent.txt
+        color: Prz.runyLow(card.inst) ? Theme.warn : Theme.fg2
+        font.family: Theme.font
+        font.pixelSize: Theme.tiny
+        elide: Text.ElideRight
+      }
+    }
+
+    // spotkania z graczami (26.10): cienka linia i dwie krótkie linie pod paskami. Licznik n/próg od ostatniego startu bota + najczęstszy gracz; czas na spocie + spotkań/h.
+    // Licznik >= próg: bursztyn (Theme.warn). Brak danych (bot stoi, inna sesja, jeszcze nie policzone): „-” zamiast zer; powód w podpowiedzi.
+    Rectangle {
+      objectName: "karta-spotkania-linia"
+      visible: !card.offline && card.spo.shown
+      width: parent.width
+      height: visible ? 1 : 0
+      color: Theme.line
+    }
+    Item {
+      objectName: "karta-spotkania-" + (card.inst.id === undefined ? "" : card.inst.id)
+      visible: !card.offline && card.spo.shown
+      width: parent.width
+      height: visible ? 16 + 14 + 16 : 0                    // + trzecia linia „widziani” (26.10)
+      readonly property string meetText: card.spo.meet
+      readonly property string timeText: card.spo.time
+      readonly property string seenText: card.spo.seen
+      readonly property bool hot: card.spo.hot
+
+      Text {
+        id: meetLine
+        objectName: "karta-spotkania-licznik"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.topMargin: 5
+        height: 14
+        text: card.spo.meet
+        color: card.spo.hot ? Theme.warn : (card.spo.ok ? Theme.fg2 : Theme.dim2)
+        font.family: Theme.font
+        font.pixelSize: Theme.tiny
+        font.bold: card.spo.hot
+        verticalAlignment: Text.AlignVCenter
+        elide: Text.ElideRight
+      }
+      Text {
+        objectName: "karta-spotkania-czas"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: meetLine.bottom
+        anchors.topMargin: 2
+        height: 14
+        text: card.spo.time
+        color: card.spo.ok ? Theme.dim : Theme.dim2
+        font.family: Theme.font
+        font.pixelSize: Theme.tiny
+        verticalAlignment: Text.AlignVCenter
+        elide: Text.ElideRight
+      }
+      // 26.10 (Karol): widziani = różni obcy gracze w zasięgu wzroku od wejścia na ten spot (>= 1 próbka, bez progu 15 s); „-” gdy brak początku huntu / danych
+      Text {
+        objectName: "karta-spotkania-widziani"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.topMargin: 5 + 14 + 2 + 14 + 2
+        height: 14
+        text: card.spo.seen
+        color: card.spo.seenOk ? Theme.fg2 : Theme.dim2
+        font.family: Theme.font
+        font.pixelSize: Theme.tiny
+        verticalAlignment: Text.AlignVCenter
+        elide: Text.ElideRight
+      }
+      HoverHandler { id: spoHover }                         // pasywny: nie zabiera kliknięcia karcie
+      ToolTip.visible: spoHover.hovered && card.spo.tip !== ""
+      ToolTip.delay: 500
+      ToolTip.text: card.spo.tip
+    }
 
     // postać poza grą: ostatnio znane dane zamiast pasków (dwie linie po 14 px = wysokość dwóch pasków)
     Item {

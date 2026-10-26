@@ -88,11 +88,13 @@ describe("liczniki", () => {
 
 describe("grupy i filtry", () => {
   const rows = P.rowsOf(STAN.instancje, NOW)
-  it("wszystkie: W GRZE (2) potem OFFLINE (5), sort stan->nick", () => {
+  it("wszystkie: W GRZE (2) potem OFFLINE (5); domyślnie poziom ↓ (sortowanie 25.10), sortowanie „stan” trzyma dawną kolejność stanów", () => {
     const g = P.groupsOf(rows, "wszystkie")
     assert.deepEqual(g.map((x) => x.key + ":" + x.count), ["gra:2", "offline:5"])
     assert.deepEqual(g[0].rows.map((r) => r.nick), ["Geblish", "Odchyd"])
-    assert.deepEqual(g[1].rows.map((r) => r.stan), ["zawieszony", "zawieszony", "offline", "offline", "offline"])
+    assert.deepEqual(g[1].rows.map((r) => r.nick), ["Invincible", "Dawajkesh", "Wydra", "Kutangen", "Kolanosh"])
+    const s = P.groupsOf(rows, "wszystkie", "stan")
+    assert.deepEqual(s[1].rows.map((r) => r.stan), ["zawieszony", "zawieszony", "offline", "offline", "offline"])
   })
   it("w grze: tylko pierwsza grupa; z alarmem: wg alarm_24h/stan alarm", () => {
     assert.deepEqual(P.groupsOf(rows, "w grze").map((x) => x.key), ["gra"])
@@ -101,7 +103,85 @@ describe("grupy i filtry", () => {
     assert.deepEqual(al[0].rows.map((r) => r.nick).sort(), ["Dawajkesh", "Kolanosh"])
   })
   it("liczniki filtrów", () => {
-    assert.deepEqual(P.filterCounts(rows), { "wszystkie": 7, "w grze": 2, "z alarmem": 2 })
+    assert.deepEqual(P.filterCounts(rows), { "wszystkie": 7, "w grze": 2, "z alarmem": 2, "stracone": 0 })
+  })
+  it("stracone: tylko postacie z `stracony`, także stracona z otwartym klientem; licznik chipa", () => {
+    const inst = clone(STAN.instancje)
+    const d = inst.find((i) => i.id === "dawajkesh")
+    Object.assign(d.przeglad, { stan: "zawieszony", stracony: true })
+    const g = inst.find((i) => i.id === "gebelish")
+    Object.assign(g.przeglad, { stan: "karol_gra", w_grze: true, stracony: true })
+    const r = P.rowsOf(inst, NOW)
+    const st = P.groupsOf(r, "stracone")
+    assert.deepEqual(st.map((x) => x.key + ":" + x.count), ["offline:2"])
+    assert.deepEqual(st[0].rows.map((x) => x.nick).sort(), ["Dawajkesh", "Geblish"])
+    assert.equal(P.filterCounts(r)["stracone"], 2)
+    assert.equal(P.filterCounts(r)["w grze"], 1)
+    assert.ok(P.FILTERS.includes("stracone"))
+  })
+  it("ukryj stracone (25.10): „wszystkie”, „w grze” i „z alarmem” ich nie pokazują, licznik „wszystkie” bez straconych, chip „stracone” je pokazuje", () => {
+    const inst = clone(STAN.instancje)
+    const d = inst.find((i) => i.id === "dawajkesh")                  // offline z alarmem 24 h w zrzucie: po utracie nie ma go także w „z alarmem”
+    Object.assign(d.przeglad, { stan: "zawieszony", stracony: true })
+    const g = inst.find((i) => i.id === "gebelish")                   // stracona z otwartym klientem: nie w „w grze”
+    Object.assign(g.przeglad, { stan: "karol_gra", w_grze: true, stracony: true })
+    const r = P.rowsOf(inst, NOW)
+    const ids = (f) => P.groupsOf(r, f).flatMap((x) => x.rows.map((y) => y.id))
+    assert.equal(ids("wszystkie").length, 5)
+    assert.ok(!ids("wszystkie").includes("dawajkesh") && !ids("wszystkie").includes("gebelish"))
+    assert.ok(!ids("w grze").includes("gebelish"))
+    assert.ok(!ids("z alarmem").includes("dawajkesh"))
+    assert.deepEqual(ids("stracone").sort(), ["dawajkesh", "gebelish"])
+    const c = P.filterCounts(r)
+    assert.equal(c["wszystkie"], 5)
+    assert.equal(c["stracone"], 2)
+    assert.equal(c["wszystkie"] + c["stracone"], r.length)
+    assert.equal(c["w grze"], ids("w grze").length)
+    assert.equal(c["z alarmem"], ids("z alarmem").length)
+    // liczniki u góry spójne z tabelą: total = widoczne, stracone osobno
+    const k = P.countersOf(inst)
+    assert.equal(k.total, 5)
+    assert.equal(k.lost, 2)
+    assert.equal(P.navBadge(inst), k.inGame + "/5 w grze")
+  })
+  it("wszystkie stracone: „wszystkie” puste, chip „stracone” pokazuje komplet", () => {
+    const inst = clone(STAN.instancje)
+    inst.forEach((i) => { i.przeglad = Object.assign({}, i.przeglad, { stracony: true }) })
+    const r = P.rowsOf(inst, NOW)
+    assert.deepEqual(P.groupsOf(r, "wszystkie"), [])
+    assert.deepEqual(P.filterCounts(r), { "wszystkie": 0, "w grze": 0, "z alarmem": 0, "stracone": inst.length })
+  })
+})
+
+describe("lista postaci w pasku bocznym: stracone ukryte", () => {
+  const withLost = (ids) => {
+    const inst = clone(STAN.instancje)
+    inst.forEach((i) => { if (ids.includes(i.id)) i.przeglad = Object.assign({}, i.przeglad, { stracony: true }) })
+    return inst
+  }
+  it("visibleInstances: bez straconych, a z showLost wszystkie; lostCount", () => {
+    const inst = withLost(["dawajkesh", "gebelish"])
+    assert.equal(inst.length, 7)
+    assert.deepEqual(P.visibleInstances(inst, false).map((i) => i.id), inst.map((i) => i.id).filter((id) => id !== "dawajkesh" && id !== "gebelish"))
+    assert.equal(P.visibleInstances(inst, true).length, 7)
+    assert.equal(P.lostCount(inst), 2)
+    assert.equal(P.lostCount(clone(STAN.instancje)), 0)
+    assert.equal(P.visibleInstances(clone(STAN.instancje), false).length, 7)
+  })
+  it("selectionAfter: wybór zostaje, gdy widoczny; stracona/ukryta spada na pierwszą widoczną; showLost trzyma straconą", () => {
+    const inst = withLost(["dawajkesh"])
+    const first = P.visibleInstances(inst, false)[0].id
+    assert.equal(P.selectionAfter(inst, "gebelish", false), "gebelish")
+    assert.equal(P.selectionAfter(inst, "dawajkesh", false), first)
+    assert.equal(P.selectionAfter(inst, "dawajkesh", true), "dawajkesh")
+    assert.equal(P.selectionAfter(inst, "nie-ma-takiej", false), first)
+  })
+  it("selectionAfter: same stracone, nic widocznego: zostaje stary wybór, a nieznany daje pierwszą instancję (bez wyjątku)", () => {
+    const inst = withLost(STAN.instancje.map((i) => i.id))
+    assert.equal(P.visibleInstances(inst, false).length, 0)
+    assert.equal(P.selectionAfter(inst, "gebelish", false), "gebelish")
+    assert.equal(P.selectionAfter(inst, "nie-ma-takiej", false), inst[0].id)
+    assert.equal(P.selectionAfter([], "x", false), "x")
   })
 })
 
@@ -204,11 +284,13 @@ describe("wiersz", () => {
     assert.equal(c.karol, 0)
     assert.equal(c.inGame, 2)
     assert.equal(c.bot, 2)
-    assert.equal(c.offline, 1)
-    assert.equal(c.total, 3)
-    assert.equal(P.navBadge([i, by("gebelish"), by("odchyd")]), "2/3 w grze")
+    assert.equal(c.offline, 0)       // stracone są ukryte (25.10): poza total i offline, tylko c.lost
+    assert.equal(c.total, 2)
+    assert.equal(P.navBadge([i, by("gebelish"), by("odchyd")]), "2/2 w grze")
     const grupy = P.groupsOf(P.rowsOf([i, by("gebelish")], NOW), "wszystkie")
-    assert.deepEqual(grupy.map((g) => g.key + ":" + g.rows.map((x) => x.id).join(",")), ["gra:gebelish", "offline:invincible"])
+    assert.deepEqual(grupy.map((g) => g.key + ":" + g.rows.map((x) => x.id).join(",")), ["gra:gebelish"])
+    const naZadanie = P.groupsOf(P.rowsOf([i, by("gebelish")], NOW), "stracone")
+    assert.deepEqual(naZadanie.map((g) => g.key + ":" + g.rows.map((x) => x.id).join(",")), ["offline:invincible"])
   })
   it("stracona także z zamkniętym klientem (stan zawieszony/offline z API) i bez klucza `rola`", () => {
     for (const stan of ["zawieszony", "offline"]) {
@@ -431,5 +513,144 @@ describe("tempo sesji postaci (widok Sesja gry)", () => {
     assert.equal(P.sessionRate(by("kolanoth")).expText, "—")
     assert.equal(P.sessionRate({ id: "x" }).zabText, "—")
     assert.equal(P.sessionRate(null).expText, "—")
+  })
+})
+
+describe("sortowanie (25.10): domyślnie poziom ↓, wybór sortowania", () => {
+  const R = (id, nick, over) => Object.assign({ id, nick, level: null, levelPct: null, expH: null, order: 1, stan: "bot_dziala", hp: { live: false, frac: 0 }, lastT: null, lost: false, inGame: true, alarmFlag: false }, over || {})
+  const ids = (rows) => rows.map((r) => r.id)
+
+  it("domyślnie (bez klucza, nieznany klucz) i „level”: najwyższy poziom pierwszy", () => {
+    const rows = [R("a", "A", { level: 8 }), R("b", "B", { level: 13 }), R("c", "C", { level: 10 })]
+    assert.equal(P.DEFAULT_SORT, "level")
+    assert.deepEqual(ids(P.sortRows(rows)), ["b", "c", "a"])
+    assert.deepEqual(ids(P.sortRows(rows, "level")), ["b", "c", "a"])
+    assert.deepEqual(ids(P.sortRows(rows, "nie-ma-takiego")), ["b", "c", "a"])
+    assert.deepEqual(P.SORTS.map((s) => s.key), ["level", "nazwa", "exp_h", "stan", "hp", "ostatnio"])
+  })
+  it("remis poziomu: wyższy % do następnego poziomu, potem nazwa alfabetycznie (bez względu na wielkość liter), potem id", () => {
+    const rows = [R("n1", "Zeta", { level: 10, levelPct: 40 }), R("n2", "alfa", { level: 10, levelPct: 40 }), R("n3", "Beta", { level: 10, levelPct: 84 }),
+                  R("n4", "Gama", { level: 10, levelPct: null }), R("n5", "Alfa", { level: 10, levelPct: 40, id: "n0" })]
+    assert.deepEqual(ids(P.sortRows(rows, "level")), ["n3", "n0", "n2", "n1", "n4"])      // 84% / 40% (Alfa id n0 < alfa id n2 przy równym tekście) / 40% Zeta / brak % na końcu remisu
+  })
+  it("brak poziomu (null, 0) zawsze na końcu, w sortowaniu po poziomie i po innych kluczach z tym samym remisem", () => {
+    const rows = [R("x", "X"), R("l", "L", { level: 3 }), R("z", "Z", { level: 0 }), R("h", "H", { level: 20 })]
+    assert.deepEqual(ids(P.sortRows(rows, "level")), ["h", "l", "x", "z"])                 // brak: dalej wg nazwy
+    assert.deepEqual(ids(P.sortRows(rows, "stan")), ["h", "l", "x", "z"])                   // ten sam stan: remis rozstrzyga poziom, brak na końcu
+  })
+  it("nazwa A→Z (bez względu na wielkość liter), remis -> wyższy poziom", () => {
+    const rows = [R("1", "kolanoth", { level: 10 }), R("2", "Gebelish", { level: 13 }), R("3", "adam", { level: 1 }), R("4", "Adam", { level: 5 })]
+    assert.deepEqual(ids(P.sortRows(rows, "nazwa")), ["4", "3", "2", "1"])
+  })
+  it("nazwa: polskie litery jak podstawowe (Łukasz po Leonie i przed Marią, Żaba jak Zaba przed Zosią)", () => {
+    const rows = [R("1", "Maria"), R("2", "Łukasz"), R("3", "Leon"), R("4", "Żaba"), R("5", "Zosia"), R("6", "Ćma"), R("7", "Cezar")]
+    assert.deepEqual(ids(P.sortRows(rows, "nazwa")), ["7", "6", "3", "2", "1", "4", "5"])      // Cezar, Ćma, Leon, Łukasz, Maria, Żaba, Zosia
+  })
+  it("exp/h ↓: największe pierwsze, brak (null) na końcu, remis -> poziom", () => {
+    const rows = [R("a", "A", { expH: 1200, level: 5 }), R("b", "B", { expH: null, level: 99 }), R("c", "C", { expH: 4500, level: 1 }), R("d", "D", { expH: 1200, level: 9 })]
+    assert.deepEqual(ids(P.sortRows(rows, "exp_h")), ["c", "d", "a", "b"])
+    assert.deepEqual(ids(P.sortRows([R("n", "N", { expH: null }), R("o", "O", { expH: 0 })], "exp_h")), ["o", "n"])      // 0 to liczba, null to brak
+  })
+  it("stan: alarm, bot działa, Karol gra, zatrzymany, zawieszony, offline; remis -> poziom", () => {
+    const rows = [R("off", "Off", { order: 5, stan: "offline", level: 50 }), R("bot", "Bot", { order: 1, level: 5 }), R("al", "Al", { order: 0, stan: "alarm", level: 1 }),
+                  R("zaw", "Zaw", { order: 4, stan: "zawieszony", level: 9 }), R("bot2", "Bot2", { order: 1, level: 7 })]
+    assert.deepEqual(ids(P.sortRows(rows, "stan")), ["al", "bot2", "bot", "zaw", "off"])
+  })
+  it("HP% ↑: najniższe pierwsze, bez odczytu na żywo (offline) na końcu", () => {
+    const hp = (f) => ({ live: true, frac: f })
+    const rows = [R("a", "A", { hp: hp(0.9), level: 1 }), R("b", "B", { level: 99 }), R("c", "C", { hp: hp(0.25), level: 1 }), R("d", "D", { hp: hp(0.9), level: 7 })]
+    assert.deepEqual(ids(P.sortRows(rows, "hp")), ["c", "d", "a", "b"])
+  })
+  it("ostatnio ↓: najświeższa aktywność pierwsza, brak czasu na końcu", () => {
+    const rows = [R("a", "A", { lastT: 100 }), R("b", "B"), R("c", "C", { lastT: 900 }), R("d", "D", { lastT: 500 })]
+    assert.deepEqual(ids(P.sortRows(rows, "ostatnio")), ["c", "d", "a", "b"])
+  })
+  it("stabilność i czystość: równe klucze zachowują kolejność wejściową, wejście nie jest zmieniane", () => {
+    const a = { id: "s", nick: "Sam", level: 5 }
+    const b = { id: "s", nick: "Sam", level: 5 }      // identyczne w każdym kluczu: rozstrzyga kolejność wejściowa
+    const rows = [R("s", "Sam", a), R("s", "Sam", b), R("t", "Tom", { level: 5 })]
+    const copy = rows.slice()
+    for (const k of P.SORTS.map((s) => s.key)) {
+      const out = P.sortRows(rows, k)
+      assert.equal(out.length, 3)
+      assert.ok(out.indexOf(rows[0]) < out.indexOf(rows[1]), "stabilnie przy kluczu " + k)
+    }
+    assert.deepEqual(rows, copy)
+    assert.equal(P.sortRows(rows, "level") === rows, false)
+    assert.deepEqual(P.sortRows([], "level"), [])
+  })
+  it("validSort: znane klucze (z białymi znakami z pliku), reszta null", () => {
+    assert.equal(P.validSort("nazwa\n"), "nazwa")
+    assert.equal(P.validSort(" exp_h "), "exp_h")
+    assert.equal(P.validSort("zly"), null)
+    assert.equal(P.validSort(""), null)
+    assert.equal(P.validSort(undefined), null)
+    assert.equal(P.validSort(null), null)
+  })
+
+  // ---- na prawdziwym zrzucie okno_api stan (7 instancji; poziomy: Invincible 15, Dawajkesh 13, Wydra 12, Kutangen 10/84%, Kolanosh 10/13%, Geblish 8, Odchyd 5)
+  it("zrzut: domyślnie poziom ↓ w każdej grupie, remis 10 lvl rozstrzyga %; w grze 8 i 5", () => {
+    const rows = P.rowsOf(STAN.instancje, NOW)
+    const g = P.groupsOf(rows, "wszystkie")
+    assert.deepEqual(g[0].rows.map((r) => r.id), ["gebelish", "odchyd"])
+    assert.deepEqual(g[1].rows.map((r) => r.id), ["invincible", "dawajkesh", "wydra", "kutangen", "kolanoth"])
+    assert.deepEqual(ids(P.sortRows(rows)).slice(0, 3), ["gebelish", "odchyd", "invincible"])     // 26.10: w grze pierwsze, potem poziom
+  })
+  it("zrzut: każda opcja sortuje grupy po swojemu (nazwa, exp/h, stan, HP%, ostatnio)", () => {
+    const inst = clone(STAN.instancje)
+    inst.find((i) => i.id === "gebelish").przeglad.exp_h = 800
+    inst.find((i) => i.id === "odchyd").przeglad.exp_h = 2500
+    const rows = P.rowsOf(inst, NOW)
+    const first = (key) => P.groupsOf(rows, "wszystkie", key).map((g) => g.rows.map((r) => r.id))
+    assert.deepEqual(first("nazwa")[1], ["dawajkesh", "invincible", "kolanoth", "kutangen", "wydra"])
+    assert.deepEqual(first("exp_h")[0], ["odchyd", "gebelish"])
+    assert.deepEqual(first("stan")[1], ["kutangen", "kolanoth", "invincible", "dawajkesh", "wydra"])      // zawieszeni przed offline, remis 10 lvl: wyższy %
+    assert.deepEqual(first("ostatnio")[1], ["wydra", "invincible", "dawajkesh", "kolanoth", "kutangen"])
+    assert.deepEqual(first("hp")[0], ["gebelish", "odchyd"])                                              // oboje 100% HP: remis rozstrzyga poziom
+    assert.deepEqual(first("hp")[1], ["invincible", "dawajkesh", "wydra", "kutangen", "kolanoth"])     // offline bez HP na żywo: wg poziomu
+  })
+  it("zgodność z filtrami i straconymi: sortowanie działa na tym, co przepuszcza filtr; stracone ukryte też przy każdym sortowaniu", () => {
+    const inst = clone(STAN.instancje)
+    Object.assign(inst.find((i) => i.id === "invincible").przeglad, { stracony: true })     // najwyższy poziom, ale stracony
+    const rows = P.rowsOf(inst, NOW)
+    for (const k of P.SORTS.map((s) => s.key)) {
+      const all = P.groupsOf(rows, "wszystkie", k).flatMap((g) => g.rows.map((r) => r.id))
+      assert.equal(all.length, 6, k)
+      assert.ok(!all.includes("invincible"), k)
+      assert.deepEqual(P.groupsOf(rows, "stracone", k).flatMap((g) => g.rows.map((r) => r.id)), ["invincible"], k)
+      assert.deepEqual(P.groupsOf(rows, "w grze", k).flatMap((g) => g.rows.map((r) => r.id)).sort(), ["gebelish", "odchyd"], k)
+    }
+    assert.deepEqual(P.groupsOf(rows, "wszystkie", "level")[1].rows.map((r) => r.id), ["dawajkesh", "wydra", "kutangen", "kolanoth"])
+    assert.deepEqual(P.groupsOf(rows, "z alarmem", "level").flatMap((g) => g.rows.map((r) => r.id)), ["dawajkesh", "kolanoth"])
+  })
+  it("lista w pasku bocznym: sortInstances = ta sama kolejność co wiersze, widoczne bez straconych, wejście nietknięte", () => {
+    const inst = clone(STAN.instancje)
+    Object.assign(inst.find((i) => i.id === "invincible").przeglad, { stracony: true })
+    const before = inst.map((i) => i.id)
+    const vis = P.visibleInstances(inst, false)
+    const side = P.sortInstances(vis, "level", NOW).map((i) => i.id)
+    assert.deepEqual(side, ["gebelish", "odchyd", "dawajkesh", "wydra", "kutangen", "kolanoth"])     // 26.10: w grze pierwsze, potem poziom
+    assert.deepEqual(inst.map((i) => i.id), before)
+    assert.deepEqual(P.sortInstances(vis, "nazwa", NOW).map((i) => i.id), ["dawajkesh", "gebelish", "kolanoth", "kutangen", "odchyd", "wydra"])
+    assert.deepEqual(P.sortInstances(P.visibleInstances(inst, true), "level", NOW).map((i) => i.id).slice(0, 3), ["gebelish", "odchyd", "invincible"])     // showLost: stracona wraca, wśród wylogowanych nadal wg poziomu
+  })
+  it("26.10: domyślne sortowanie stawia postacie w grze przed wylogowanymi, w obu grupach poziom ↓; inne klucze bez zmian", () => {
+    const inst = clone(STAN.instancje)
+    const rows = P.rowsOf(inst, NOW)
+    const sorted = P.sortRows(rows, "level")
+    const flags = sorted.map((r) => r.inGame)
+    assert.ok(flags.indexOf(false) === -1 || flags.lastIndexOf(true) < flags.indexOf(false), "najpierw wszystkie w grze")
+    for (const g of [true, false]) {
+      const lv = sorted.filter((r) => r.inGame === g).map((r) => r.level).filter((x) => x != null)
+      assert.deepEqual(lv, lv.slice().sort((x, y) => y - x))
+    }
+    assert.deepEqual(P.sortRows(rows, "nazwa").map((r) => r.id), ["dawajkesh", "gebelish", "invincible", "kolanoth", "kutangen", "odchyd", "wydra"])
+  })
+  it("selectionAfter nie zależy od sortowania: spadek wyboru nadal na pierwszą widoczną w kolejności instancji", () => {
+    const inst = clone(STAN.instancje)
+    Object.assign(inst.find((i) => i.id === "invincible").przeglad, { stracony: true })
+    assert.equal(P.selectionAfter(inst, "invincible", false), P.visibleInstances(inst, false)[0].id)
+    assert.equal(P.selectionAfter(inst, "wydra", false), "wydra")
+    assert.equal(P.selectionAfter(inst, "invincible", true), "invincible")
   })
 })

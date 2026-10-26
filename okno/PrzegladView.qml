@@ -5,7 +5,7 @@ import QtQuick.Layouts
 import "PrzegladModel.js" as Prz
 
 // Przegląd (spec wtyczka-paska/specs/2026-10-22-retronic-przeglad.md, F2; makieta wariant A „tabela”): co na czym stoi, wszystkie postacie naraz.
-// Liczniki u góry, filtry (wszystkie / w grze / z alarmem), tabela w grupach „W GRZE” (dane na żywo) i „OFFLINE” (ostatnio znane, wyszarzone).
+// Liczniki u góry, filtry (wszystkie / w grze / z alarmem / stracone), wybór sortowania (domyślnie poziom ↓, 25.10), tabela w grupach „W GRZE” (dane na żywo) i „OFFLINE” (ostatnio znane, wyszarzone).
 // Okno niczego tu nie liczy poza prezentacją: stany, nadzór, zab/h i exp/h przychodzą z `okno_api stan` (przeglad, ostatnie), logika w PrzegladModel.js.
 // Instancje test:true są w tabeli, ale poza sumami. Klik w wiersz = Sesja gry tej postaci. Dane odświeża Backend (co 5 s, wybrana co 2 s).
 // Tabela ma szerokość z makiety (14 kolumn); w wąskim oknie przewija się poziomo.
@@ -20,20 +20,20 @@ Item {
   readonly property var rows: Prz.rowsOf(ctl.instances, now)
   readonly property var counts: Prz.countersOf(ctl.instances)
   readonly property var filterCounts: Prz.filterCounts(rows)
-  readonly property var groups: Prz.groupsOf(rows, filter)
+  readonly property var groups: Prz.groupsOf(rows, filter, ctl.sortKey)       // sortowanie (25.10): jedno ustawienie Backend.sortKey, wspólne z listą w pasku bocznym
 
   // kolumny jak w makiecie: POSTAĆ · STAN · SPOT·PIĘTRO · TRYB · LEVEL · ML · HP · MANA · EXP/H · NA SPOCIE/OSTATNI · ZAB/H · ALARM (elastyczna) · NADZÓR
   // (GDZIE, czyli współrzędne, zniknęło z tabeli 23.10: jest w widoku postaci i w podpowiedzi po najechaniu na wiersz; EXP/H stoi tam, gdzie było GDZIE,
   // żeby było widać przy każdej szerokości okna)
-  readonly property var fixedW: [220, 190, 190, 130, 80, 76, 140, 130, 76, 190, 56]
-  readonly property int lastW: 190
-  readonly property int gap: 14
+  readonly property var colW: [200, 220, 220, 80, 76, 120, 120, 76, 56]
+  readonly property int gap: 10
   readonly property int pad: 22
-  readonly property int fixedSum: 220 + 190 + 190 + 130 + 80 + 76 + 140 + 130 + 76 + 190 + 56
-  readonly property int alarmW: Math.max(220, flick.width - (fixedSum + lastW + 12 * gap + 2 * pad))
-  readonly property int tableW: fixedSum + alarmW + lastW + 12 * gap + 2 * pad
-  readonly property var colW: fixedW.concat([alarmW, lastW])
-  readonly property var heads: ["postać", "stan", "spot · piętro", "tryb", "level", "ML", "HP", "mana", "exp/h", "na spocie / ostatni", "zab/h", "ostatni alarm", "nadzór"]
+  readonly property int tableW: Math.max(flick.width, 1300)
+  // druga linia wiersza: spot, tryb, na spocie, alarm (elastyczna), nadzór; zaczyna się pod kolumną „stan”
+  readonly property int alarmW: Math.max(200, tableW - 2 * pad - (colW[0] + gap) - (220 + 220 + 190 + 150) - 4 * gap)
+  readonly property var colWB: [220, 220, 190, alarmW, 150]
+  readonly property var heads: ["postać", "stan", "blanki · runy", "level", "ML", "HP", "mana", "exp/h", "zab/h"]
+  readonly property var headsB: ["spot · piętro", "tryb", "na spocie / ostatni", "ostatni alarm", "nadzór"]
 
   function textColor(tone) { return Theme.tone(tone) }
 
@@ -43,7 +43,7 @@ Item {
 
     SectionHeader {
       Layout.fillWidth: true
-      title: "Przegląd · " + Prz.postaciLabel(view.rows.length)
+      title: "Przegląd · " + Prz.postaciLabel(view.filterCounts["wszystkie"])       // stracone ukryte (25.10): liczymy tylko widoczne, stracone mają własny chip
       subtitle: "co na czym stoi: w grze u góry, offline z ostatnimi znanymi danymi · klik w wiersz otwiera postać"
 
       Chip {
@@ -69,6 +69,52 @@ Item {
         label: "z alarmem " + view.filterCounts["z alarmem"]
         textColor: view.filter === "z alarmem" ? Theme.fg : Theme.fg2
         onActivated: view.filter = "z alarmem"
+      }
+      Chip {
+        objectName: "filtr-stracone"
+        clickable: true
+        on: view.filter === "stracone"
+        label: "stracone " + view.filterCounts["stracone"]
+        textColor: view.filter === "stracone" ? Theme.fg : Theme.fg2
+        onActivated: view.filter = "stracone"
+      }
+    }
+
+    // ---------- sortowanie (25.10): chipy pod nagłówkiem; to samo ustawienie porządkuje listę postaci w pasku bocznym i przeżywa restart okna
+    Rectangle {
+      Layout.fillWidth: true
+      Layout.preferredHeight: 34
+      color: "transparent"
+      Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: Theme.line }
+
+      Row {
+        objectName: "przeglad-sortowanie"
+        x: 22
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 8
+
+        Text {
+          anchors.verticalCenter: parent.verticalCenter
+          text: "SORTUJ"
+          color: Theme.dim
+          font.family: Theme.font
+          font.pixelSize: Theme.tiny
+          font.letterSpacing: 1
+          rightPadding: 4
+        }
+        Repeater {
+          model: Prz.SORTS
+          delegate: Chip {
+            required property var modelData
+            objectName: "sort-" + modelData.key
+            small: true
+            clickable: true
+            on: view.ctl.sortKey === modelData.key
+            label: modelData.label
+            textColor: on ? Theme.fg : Theme.fg2
+            onActivated: view.ctl.setSort(modelData.key)
+          }
+        }
       }
     }
 
@@ -123,15 +169,16 @@ Item {
         id: table
         width: view.tableW
 
-        // nagłówek kolumn
+        // nagłówek kolumn (dwie linie, jak wiersze)
         Rectangle {
           width: parent.width
-          height: 31
+          height: 46
           color: Theme.bg
           Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: Theme.line }
           Row {
             x: view.pad
-            height: parent.height
+            y: 0
+            height: 23
             spacing: view.gap
             Repeater {
               model: view.heads
@@ -140,11 +187,35 @@ Item {
                 required property int index
                 required property string modelData
                 width: view.colW[index]
-                height: 31
+                height: 23
                 Text {
                   anchors.verticalCenter: parent.verticalCenter
-                  anchors.right: (index === 4 || index === 8 || index === 10) ? parent.right : undefined
+                  anchors.right: (index === 3 || index === 7 || index === 8) ? parent.right : undefined
                   text: headCell.modelData.toUpperCase()
+                  color: Theme.dim2
+                  font.family: Theme.font
+                  font.pixelSize: Theme.tiny
+                  font.letterSpacing: 1
+                }
+              }
+            }
+          }
+          Row {
+            x: view.pad + view.colW[0] + view.gap
+            y: 23
+            height: 23
+            spacing: view.gap
+            Repeater {
+              model: view.headsB
+              delegate: Item {
+                id: headCellB
+                required property int index
+                required property string modelData
+                width: view.colWB[index]
+                height: 23
+                Text {
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: headCellB.modelData.toUpperCase()
                   color: Theme.dim2
                   font.family: Theme.font
                   font.pixelSize: Theme.tiny
@@ -222,7 +293,7 @@ Item {
     readonly property bool off: !row.inGame
 
     objectName: "wiersz-" + row.id
-    height: 40
+    height: 74
     color: mouse.containsMouse ? Theme.alpha(Theme.blue, 0.07) : (off ? Theme.alpha(Theme.bg2, 0.35) : "transparent")
 
     function tryClick() { view.ctl.openChar(row.id) }
@@ -244,7 +315,8 @@ Item {
 
     Row {
       x: view.pad
-      height: parent.height
+      y: 2
+      height: 36
       spacing: view.gap
 
       // 0 POSTAĆ
@@ -277,26 +349,40 @@ Item {
             Text { id: pillText; anchors.centerIn: parent; text: tr.row.pill.label; color: Theme.tone(tr.row.pill.tone); font.family: Theme.font; font.pixelSize: Theme.small; font.bold: true }
           }
           Text { text: tr.row.since; visible: text !== ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.small; anchors.verticalCenter: parent.verticalCenter }
+          // „Zaloguj postać” (24.10): tylko dla postaci niezalogowanej (offline albo ekran logowania), nie straconej i nie głównej; szary z powodem, gdy trwa inne logowanie
+          // albo inna akcja tej postaci. Loguje do gry BEZ bota (Backend.runLogin -> zaloguj_postac.sh). Klik nie otwiera wiersza (własny MouseArea Btn).
+          Btn {
+            id: loginBtn
+            readonly property var spec: view.ctl.loginState(tr.row.id)
+            objectName: "zaloguj-" + tr.row.id
+            visible: (spec.reason === "" || spec.reason === "other" || spec.reason === "busy" || spec.reason === "login")
+            compact: true
+            tone: "neutral"
+            label: spec.label
+            active: spec.enabled
+            busy: spec.busy
+            anchors.verticalCenter: parent.verticalCenter
+            ToolTip.visible: hovered
+            ToolTip.delay: 400
+            ToolTip.text: spec.hint
+            onActivated: view.ctl.runLogin(tr.row.id)
+          }
         }
       }
-      // 2 SPOT · PIĘTRO
+      // 11 BLANKI · RUNY (25.10: ile blanków i gotowych run ma postać, odczyt pamięci; mało blanków = żółty)
       Cell {
         w: view.colW[2]
-        Row {
+        Text {
+          objectName: "runy-" + tr.row.id
           anchors.verticalCenter: parent.verticalCenter
-          spacing: 6
-          Text { text: tr.row.spot !== "" ? tr.row.spot : "—"; color: tr.off ? Theme.dim : Theme.fg2; font.family: Theme.font; font.pixelSize: Theme.body }
-          Text { visible: tr.row.floor !== ""; text: "· " + tr.row.floor; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.body }
+          text: tr.row.runy !== "" ? tr.row.runy : "—"
+          color: tr.row.runy === "" ? Theme.dim2 : (tr.row.runyLow ? Theme.warn : Theme.fg2)
+          font.family: Theme.font; font.pixelSize: Theme.body
         }
-      }
-      // 3 TRYB
-      Cell {
-        w: view.colW[3]
-        Text { anchors.verticalCenter: parent.verticalCenter; text: tr.row.mode !== "" ? tr.row.mode : "—"; color: tr.off ? Theme.dim : Theme.fg2; font.family: Theme.font; font.pixelSize: Theme.body }
       }
       // 4 LEVEL (po prawej)
       Cell {
-        w: view.colW[4]
+        w: view.colW[3]
         Row {
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
@@ -307,7 +393,7 @@ Item {
       }
       // 5 ML
       Cell {
-        w: view.colW[5]
+        w: view.colW[4]
         Row {
           anchors.verticalCenter: parent.verticalCenter
           spacing: 6
@@ -316,11 +402,11 @@ Item {
         }
       }
       // 6 HP, 7 MANA
-      Cell { w: view.colW[6]; Resource { res: tr.row.hp; barColor: Theme.bad } }
-      Cell { w: view.colW[7]; Resource { res: tr.row.mana; barColor: Theme.blue } }
+      Cell { w: view.colW[5]; Resource { res: tr.row.hp; barColor: Theme.bad } }
+      Cell { w: view.colW[6]; Resource { res: tr.row.mana; barColor: Theme.blue } }
       // 8 EXP/H (po prawej; to samo pole co dawniej kolumna z prawej, groupDigits jak kafelek „Exp/h razem”, brak/offline/zawieszona = „—”)
       Cell {
-        w: view.colW[8]
+        w: view.colW[7]
         Text {
           objectName: "exp-h-" + tr.row.id
           anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
@@ -328,9 +414,42 @@ Item {
           color: tr.row.expH === null ? Theme.dim2 : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.body; font.bold: tr.row.expH !== null
         }
       }
+      // 10 ZAB/H (po prawej)
+      Cell {
+        w: view.colW[8]
+        Text {
+          anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+          text: tr.row.zabH === null ? "—" : String(Math.round(tr.row.zabH))
+          color: tr.row.zabH === null ? Theme.dim2 : Theme.fg2; font.family: Theme.font; font.pixelSize: Theme.body
+        }
+      }
+    }
+
+    // druga linia: spot, tryb, czas na spocie, alarm, nadzór (pod kolumnami „stan” i dalej)
+    Row {
+      x: view.pad + view.colW[0] + view.gap
+      y: 38
+      height: 34
+      spacing: view.gap
+
+      // 2 SPOT · PIĘTRO
+      Cell {
+        w: view.colWB[0]
+        Row {
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: 6
+          Text { text: tr.row.spot !== "" ? tr.row.spot : "—"; color: tr.off ? Theme.dim : Theme.fg2; font.family: Theme.font; font.pixelSize: Theme.body }
+          Text { visible: tr.row.floor !== ""; text: "· " + tr.row.floor; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.body }
+        }
+      }
+      // 3 TRYB
+      Cell {
+        w: view.colWB[1]
+        Text { anchors.verticalCenter: parent.verticalCenter; text: tr.row.mode !== "" ? tr.row.mode : "—"; color: tr.off ? Theme.dim : Theme.fg2; font.family: Theme.font; font.pixelSize: Theme.body }
+      }
       // 9 NA SPOCIE / OSTATNI
       Cell {
-        w: view.colW[9]
+        w: view.colWB[2]
         Row {
           anchors.verticalCenter: parent.verticalCenter
           spacing: 6
@@ -339,18 +458,9 @@ Item {
           Text { visible: tr.row.spotTime.post !== ""; text: tr.row.spotTime.post; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.body }
         }
       }
-      // 10 ZAB/H (po prawej)
+      // 12 OSTATNI ALARM
       Cell {
-        w: view.colW[10]
-        Text {
-          anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-          text: tr.row.zabH === null ? "—" : String(Math.round(tr.row.zabH))
-          color: tr.row.zabH === null ? Theme.dim2 : Theme.fg2; font.family: Theme.font; font.pixelSize: Theme.body
-        }
-      }
-      // 11 OSTATNI ALARM
-      Cell {
-        w: view.colW[11]
+        w: view.colWB[3]
         Text { visible: tr.row.alarm === null; anchors.verticalCenter: parent.verticalCenter; text: "—"; color: Theme.dim2; font.family: Theme.font; font.pixelSize: Theme.body }
         Text {
           id: alarmTime
@@ -371,9 +481,9 @@ Item {
           elide: Text.ElideRight
         }
       }
-      // 12 NADZÓR
+      // 13 NADZÓR
       Cell {
-        w: view.colW[12]
+        w: view.colWB[4]
         Text { anchors.verticalCenter: parent.verticalCenter; text: tr.row.supervision.text; color: Theme.tone(tr.row.supervision.tone); font.family: Theme.font; font.pixelSize: Theme.body }
       }
     }
@@ -382,7 +492,7 @@ Item {
   component Cell: Item {
     property int w: 100
     width: w
-    height: 40
+    height: parent ? parent.height : 36
     clip: true
   }
 

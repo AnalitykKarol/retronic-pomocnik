@@ -39,6 +39,11 @@ function ratunekCommand(repoDir, id) {
   return apiCommand(repoDir, ["ratunek", "--instancja", String(id)])
 }
 
+// 26.10: statystyki spotkań z graczami (zakładka Spotkania; zaplecze liczy z telemetrii i trzyma wynik w cache, więc wywołanie jest tanie)
+function spotkaniaCommand(repoDir) {
+  return apiCommand(repoDir, ["spotkania"])
+}
+
 function mapyCommand(repoDir, id) {
   if (!validId(id)) return null
   return apiCommand(repoDir, ["mapy-tryby", "--instancja", String(id)])
@@ -444,6 +449,68 @@ var CLOSE_SLOW_MESSAGE = "zamykanie trwa dłużej, stan odświeży się sam"
 var SESSION_TIMEOUT_MS = 120000     // sesja_gry.py zamknij: najgorszy przypadek ok. 90 s
 var ACTION_TIMEOUT_MS = 25000
 
+// ---------------------------------------------------------------- „Zaloguj postać” (24.10, Karol: „loguj same postacie”, bez bota)
+//
+// Akcja `zaloguj` (Rules.ACTION_SCRIPTS -> zaloguj_postac.sh): start sesji, gdy nie działa, czekanie na zgodne IP proxy (do 60 s)
+// i zaloguj.sh --reczny-ok (do 90 s). Nie jest „akcją sesji” (nie przechodzi przez onSessionAction): ma własny wynik i limit czasu.
+// Nie dotyka STOP/STOP_RECZNY, bota, profilu ani planu. Jedno logowanie naraz z okna (Backend.loginId); skrypt pilnuje tego też
+// względem logowań spoza okna.
+var LOGIN_KIND = "zaloguj"
+var LOGIN_TIMEOUT_MS = 240000       // start sesji ok. 20 s + IP do 60 s + logowanie do 90 s + zapas
+var LOGIN_MAIN_HINT = "główna instancja loguje się ręcznie (okno jej nie dotyka)"
+var LOGIN_LABEL = "Zaloguj"
+var LOGIN_BUSY_LABEL = "Loguję…"
+
+// Czy postać jest już w grze (zalogowana). `w_grze` z Przeglądu to „działa klient/sesja”, więc NIE wystarcza (ekran logowania też to ma):
+// zalogowana = pozycja z panelu (lista), gracz z telemetrii albo działający bot. Fałszywe „nie w grze” jest bezpieczne: zaloguj.sh
+// na ekranie gry nic nie klika.
+function loggedIn(inst) {
+  if (!inst) return false
+  var pz = inst.panel && inst.panel.pozycja
+  return !!(isList(pz) && pz.length || inst.gracz || inst.bot === true)
+}
+
+function loginSessionUp(inst) {
+  return !!(inst && (inst.sesja === true || inst.gra === true || isList(inst.klient_pids) && inst.klient_pids.length))
+}
+
+// Stan guzika „Zaloguj” instancji `inst`. ctx = { loginId: id logowania trwającego z okna ("" brak), busy: czy ta instancja ma
+// inną akcję w toku }. -> { enabled, busy, label, hint, reason } (reason: main | lost | other | in-game | busy | login | "" gdy aktywny)
+function loginState(inst, ctx) {
+  var c = ctx || {}
+  var label = LOGIN_LABEL
+  if (!inst) return { enabled: false, busy: false, label: label, hint: "brak odczytu", reason: "none" }
+  if (inst.id === "") return { enabled: false, busy: false, label: label, hint: LOGIN_MAIN_HINT, reason: "main" }
+  var pr = inst.przeglad
+  if (pr && pr.stracony === true) return { enabled: false, busy: false, label: label, hint: "postać stracona (profil): nie loguję", reason: "lost" }
+  if (c.loginId && c.loginId === inst.id) return { enabled: false, busy: true, label: LOGIN_BUSY_LABEL, hint: "logowanie trwa (do kilku minut)", reason: "login" }
+  if (c.loginId) return { enabled: false, busy: false, label: label, hint: "trwa logowanie innej postaci (" + c.loginId + "): jedno naraz", reason: "other" }
+  if (loggedIn(inst)) return { enabled: false, busy: false, label: label, hint: "już w grze", reason: "in-game" }
+  if (c.busy) return { enabled: false, busy: false, label: label, hint: "inna akcja tej postaci trwa", reason: "busy" }
+  return { enabled: true, busy: false, label: label,
+           hint: loginSessionUp(inst) ? "loguje postać do gry (sesja stoi), BEZ uruchamiania bota"
+                                      : "uruchomi sesję gry, potwierdzi IP proxy i zaloguje postać, BEZ uruchamiania bota",
+           reason: "" }
+}
+
+// Wyjście ACTION_SCRIPT (zaloguj_postac.sh + `RC=<kod>`) -> { ok, message }. Ostatnia linia skryptu to zdanie po polsku (kody w jego nagłówku).
+function parseLoginResult(output) {
+  var lines = String(output || "").split("\n").map(function (l) { return l.trim() })
+  var rc = null
+  var body = []
+  for (var i = 0; i < lines.length; i++) {
+    var m = /^RC=(\d+)$/.exec(lines[i])
+    if (m) { rc = Number(m[1]); continue }
+    if (lines[i] !== "") body.push(lines[i])
+  }
+  if (rc === null) return { ok: false, message: "Brak wyniku skryptu logowania" }
+  if (rc === 124) return { ok: false, message: "Logowanie przerwane po 4 min bez wyniku: sprawdź podgląd i logowanie.log" }
+  var last = body.length ? body[body.length - 1] : ""
+  if (rc === 0) return { ok: true, message: last || "Postać zalogowana; bot nie został uruchomiony" }
+  var text = last || "Logowanie nie powiodło się (kod " + rc + ")"
+  return { ok: false, message: text.length > 160 ? text.substring(0, 159) + "…" : text }
+}
+
 function isSessionAction(kind) {
   return Object.prototype.hasOwnProperty.call(SESSION_ACTIONS, kind)
 }
@@ -631,7 +698,10 @@ function sessionActionLabel(kind) {
 
 // ---- zajętość akcji per instancja: akcja instancji A nie blokuje instancji B; na jedną instancję jedna akcja naraz.
 // Mapa id -> true (niezmienna: każda zmiana zwraca kopię, więc binding QML się odświeża).
-function actionTimeoutMs(kind) { return isSessionAction(kind) ? SESSION_TIMEOUT_MS : ACTION_TIMEOUT_MS }
+function actionTimeoutMs(kind) {
+  if (kind === LOGIN_KIND) return LOGIN_TIMEOUT_MS
+  return isSessionAction(kind) ? SESSION_TIMEOUT_MS : ACTION_TIMEOUT_MS
+}
 
 function isBusy(map, id) { return !!map && map[id] === true }
 
@@ -662,7 +732,7 @@ function logTail(lines, n, width) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    validId: validId, apiCommand: apiCommand, stanCommand: stanCommand, ratunekCommand: ratunekCommand,
+    validId: validId, apiCommand: apiCommand, stanCommand: stanCommand, ratunekCommand: ratunekCommand, spotkaniaCommand: spotkaniaCommand,
     mapyCommand: mapyCommand, oznaczCommand: oznaczCommand, startCommand: startCommand, START_SCRIPT: START_SCRIPT,
     parseApi: parseApi, panelOutput: panelOutput, mergeInstances: mergeInstances,
     instanceLabel: instanceLabel, nickOf: nickOf, cardSubtitle: cardSubtitle, fraction: fraction,
@@ -678,6 +748,7 @@ if (typeof module !== "undefined" && module.exports) {
     profileNotice: profileNotice, ipAdvice: ipAdvice, startHint: startHint, parseSessionAction: parseSessionAction, sessionActionLabel: sessionActionLabel,
     logTail: logTail, MAIN_SESSION_HINT: MAIN_SESSION_HINT, CLOSE_SLOW_MESSAGE: CLOSE_SLOW_MESSAGE,
     SESSION_TIMEOUT_MS: SESSION_TIMEOUT_MS, ACTION_TIMEOUT_MS: ACTION_TIMEOUT_MS, actionTimeoutMs: actionTimeoutMs,
+    LOGIN_KIND: LOGIN_KIND, LOGIN_TIMEOUT_MS: LOGIN_TIMEOUT_MS, loggedIn: loggedIn, loginSessionUp: loginSessionUp, loginState: loginState, parseLoginResult: parseLoginResult,
     isBusy: isBusy, busyBegin: busyBegin, busyEnd: busyEnd,
     toggleMode: toggleMode, sameSet: sameSet, isLastChoice: isLastChoice, startState: startState, chosenText: chosenText
   }

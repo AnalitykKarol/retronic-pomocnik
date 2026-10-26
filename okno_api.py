@@ -21,6 +21,10 @@ Wynik: JSON na stdout; sukces `{"ok": true, ...}` i kod 0; błąd `{"ok": false,
   mapy-tryby [--instancja ID]                  mapy.json, tryby.json, ostatnia mapa/tryb instancji
   ml-ustaw --instancja ID N                    ręczne ustawienie magic levelu (Przegląd, Q2): zapis TYLKO ml/ml_proc/ml_t/ml_zrodlo
                                                w instancje/<id>/ostatnie.json; nic nie wysyła do gry ani do bota
+  spotkania                                    statystyki spotkań z obcymi graczami na spocie (26.10): per postać (licznik n/próg, bywalec, czas na spocie, spotkań/h,
+                                               ostatnio widziany gracz), zmiany spotu z dziennika nadzorcy z dzisiaj i unikane spoty; TYLKO ODCZYT, liczone z telemetrii
+                                               (`spotkania_okno.py`) i cache'owane w katalogu runtime (TTL 60 s). Sekcja `spotkania` jest też w każdej instancji `stan`
+                                               (tylko z cache, lekka, dla karty postaci).
   sesja --instancja ID                         sesja gry (F4): procesy, podgląd VNC, profil bez hasła (tylko odczyt, D-F4-1),
                                                tożsamość, czy start możliwy, ostatnie linie logu startu i wynik sprawdzenia IP.
                                                Uruchamianie i zamykanie gry robi sesja_gry.py, nie to CLI.
@@ -58,6 +62,7 @@ import ostatnie  # noqa: E402
 import pokretla  # noqa: E402
 import profil  # noqa: E402
 import ratunek as modul_ratunek  # noqa: E402
+import spotkania_okno  # noqa: E402
 
 def _limit_z_env(nazwa, domyslny):
     """22.10: nadzór (tick co 5 min) podnosi limity przez środowisko (poziom postaci ginął w budżecie okna); zła wartość = domyślny."""
@@ -812,7 +817,7 @@ def pusty_stan(id_):
             "level": None, "level_procent": None, "podglad": dict(PODGLAD_PUSTY),
             "gra": None, "sesja": None, "bot": None, "bot_procesy": [], "klient_pids": [], "nick": None,
             "mapa": None, "tryb": [], "ratunek_dzis": None,
-            "ostatnie": None, "przeglad": None}      # Przegląd (F1): ostatnie.json z wiek_s i pola wyliczone; None = brak pliku / nie policzone
+            "ostatnie": None, "przeglad": None, "spotkania": None}      # Przegląd (F1): ostatnie.json z wiek_s i pola wyliczone; None = brak pliku / nie policzone
 
 
 # --- Przegląd (F1): pola wyliczone z ostatnie.json, profilu i plików STOP; kontrakt zamrożony w specu przeglad §„Kontrakt `stan`” ---
@@ -894,6 +899,52 @@ def przeglad_instancji(id_, w, sc, kiedy):
             "koniec_sesji": ost.get("koniec_sesji"), "nadzor": nadzor, "stop": stop}
 
 
+RUNY_NAZWY = {3147: "blanki", 3160: "UH", 3198: "HMM", 3155: "SD", 3191: "GFB", 3200: "EXP", 3152: "IH"}
+RUNY_TTL_S = 10.0
+
+
+def runy_instancji(id_, sc, w):
+    """25.10 (Karol: „ile mają blank run i jakich run ile zrobione jako status postaci”): liczba blanków i gotowych run w otwartych
+    kontenerach postaci. TYLKO ODCZYT: komenda `kontenery` z gniazda bota (pamięć klienta, zero myszy i klawiszy). None = bez odczytu
+    (poza grą, bez gniazda, plecak zamknięty); {"blanki": n, "runy": {"UH": n, ...}, "t": epoch}. Cache 10 s w katalogu runtime."""
+    if not id_ or not (w.get("bot") or w.get("gra")):
+        return None
+    gniazdo = getattr(sc, "gniazdo", None)
+    if not gniazdo or not Path(gniazdo).exists():
+        return None
+    cache = Path(f"/run/user/{os.getuid()}") / f"retronic-okno-runy-{id_}.json"
+    try:
+        c = json.loads(cache.read_text())
+        if time.time() - c["t"] < RUNY_TTL_S:
+            return c["dane"]
+    except Exception:
+        pass
+    dane = None
+    try:
+        import socket
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as so:
+            so.settimeout(2.0)
+            so.connect(str(gniazdo))
+            so.sendall((json.dumps({"cmd": "kontenery"}) + "\n").encode())
+            odp = json.loads(so.makefile("rb").readline())
+        kon = odp.get("kontenery") if odp.get("ok") else None
+        if kon:
+            licz = collections.Counter()
+            for k in kon:
+                for q in k.get("przedmioty", []):
+                    n = RUNY_NAZWY.get(q.get("id"))
+                    if n:
+                        licz[n] += max(1, int(q.get("ilosc", 1) or 1))
+            dane = {"blanki": licz.pop("blanki", 0), "runy": dict(licz), "t": round(time.time(), 1)}
+    except Exception:
+        dane = None
+    try:
+        cache.write_text(json.dumps({"t": time.time(), "dane": dane}))
+    except Exception:
+        pass
+    return dane
+
+
 def stan_instancji(id_, procesy):
     sc = sciezki(id_)
     bledy = []
@@ -948,6 +999,10 @@ def stan_instancji(id_, procesy):
     krok("ratunek", ratunek_dzis)
     krok("ostatnie", lambda: w.__setitem__("ostatnie", ostatnie.dla_api(sc.stan, teraz())))
     krok("przeglad", lambda: w.__setitem__("przeglad", przeglad_instancji(id_, w, sc, teraz())))
+    krok("runy", lambda: w.__setitem__("runy", runy_instancji(id_, sc, w)))
+    # 26.10: statystyki spotkań z graczami (tylko z cache; błąd = sekcja z `blad`, nie psuje reszty stanu)
+    ses_start = ((w.get("ostatnie") or {}).get("sesja") or {}).get("start") if isinstance((w.get("ostatnie") or {}).get("sesja"), dict) else None
+    w["spotkania"] = spotkania_okno.sekcja_dla_stanu(katalog(), id_, [b["pid"] for b in w.get("bot_procesy") or ()], ses_start, teraz())
     w["blad"] = "; ".join(bledy) or None
     return w
 
@@ -975,6 +1030,25 @@ def cmd_stan(id_=None):
     finally:
         ex.shutdown(wait=False, cancel_futures=True)
     return {"czas": teraz(), "czas_odczytu_s": round(time.monotonic() - t0, 3), "instancje": wynik}
+
+
+# ---------- spotkania (26.10) ----------
+def cmd_spotkania():
+    """Pełne dane zakładki „Spotkania”: wpisy per instancja (z cache; przeliczenie najwyżej raz na 60 s), zmiany spotu dziś, unikane spoty. Tylko odczyt."""
+    kiedy = teraz()
+    kat = katalog()
+    ids = [i for i in lista_instancji() if i]
+    procesy = skan_procesow()
+    pidy = {i: [b["pid"] for b in procesy.get(i, {"bot": []})["bot"]] for i in ids}
+    cache, status = spotkania_okno.odswiez(kat, pidy, kiedy)
+    wpisy = list((cache or {}).get("instancje", {}).values())
+    wpisy = [e for e in wpisy if e.get("id") in pidy]
+    nazwy = {i: spotkania_okno.postac_instancji(kat, i) for i in ids}
+    uz = spotkania_okno.unikane_i_zmiany(kat, kiedy, nazwy)
+    return {"czas": kiedy, "prog": spotkania_okno.PROG, "status_cache": status, "wiek_cache_s": round(max(0.0, kiedy - cache["t"]), 1) if cache else None,
+            "czas_liczenia_s": (cache or {}).get("czas_liczenia_s"), "instancje": wpisy, "ostatni_gracz": spotkania_okno.ostatni_gracz(wpisy),
+            "zmiany": spotkania_okno.zmiany_dzis(kat, kiedy, nazwy), "unikane": uz["unikane"], "zmian_doba": uz["zmian_doba"],
+            "granice": list(spotkania_okno.GRANICE)}
 
 
 # ---------- ml-ustaw (Przegląd, Q2) ----------
@@ -1137,6 +1211,7 @@ def zbuduj_parser():
     sp = sub.add_parser("mapy-tryby"); inst(sp, False)
     sp = sub.add_parser("ml-ustaw"); inst(sp, True); sp.add_argument("ml", type=int, metavar="N", help="magic level 0-999")
     sp = sub.add_parser("sesja"); inst(sp, True)
+    sub.add_parser("spotkania")
     return p
 
 
@@ -1144,6 +1219,8 @@ def wykonaj(a):
     c = a.polecenie
     if c == "stan":
         return cmd_stan(None if a.instancja is None else normalizuj_id(a.instancja))
+    if c == "spotkania":
+        return cmd_spotkania()
     if getattr(a, "instancja", None) is None:
         raise Blad(f"{c}: wymagane --instancja ID (\"\" albo \"{NAZWA_GLOWNEJ}\" = główna)", kod=2)
     id_ = normalizuj_id(a.instancja)

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Quickshell
 import "OknoModel.js" as Model
 import "PrzegladModel.js" as Prz
 
@@ -152,6 +153,48 @@ Item {
         y: 18
         width: flick.width - 44
         spacing: 14
+
+        // podgląd na żywo wybranej postaci (tylko gdy sesja gry działa i ta sekcja jest otwarta)
+        Rectangle {
+          objectName: "sesja-podglad-wbudowany"
+          visible: Model.sessionAlive(view.s)
+          width: Math.min(parent.width, 1175)
+          height: visible ? width * 0.7745 : 0
+          radius: 10
+          color: "#000000"
+          border.width: 1
+          border.color: Theme.line
+          clip: true
+          PodgladKlatka {
+            anchors.fill: parent
+            anchors.margins: 1
+            instId: view.ctl.selectedId
+            repoDir: view.ctl.helperDir
+            live: view.visible && Model.sessionAlive(view.s) && !view.isMain
+          }
+          // klik = pełne sterowanie: RETRONIC_OKNO_GRAJ (np. `retronic-gram`, Remmina na pełnym ekranie) z id postaci; bez zmiennej = akcja „podgląd” (Remmina na tym komputerze)
+          MouseArea {
+            objectName: "sesja-podglad-graj"
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: {
+              var cmd = Quickshell.env("RETRONIC_OKNO_GRAJ")
+              if (cmd) Quickshell.execDetached([cmd, view.ctl.selectedId])
+              else view.ctl.sessionAction("podglad")
+            }
+          }
+          Text {
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.margins: 8
+            text: "▶ kliknij: graj (Remmina, pełny ekran)"
+            color: Theme.fg2
+            font.family: Theme.font
+            font.pixelSize: Theme.small
+            style: Text.Outline
+            styleColor: "#000000"
+          }
+        }
 
         Rectangle {
           objectName: "sesja-tempo"

@@ -14,6 +14,19 @@ F4 (Sesja gry): `XDG_RUNTIME_DIR` wskazuje na `KATALOG/run` (okno_api liczy ści
   ipzle       sesja i gra działają, bot stoi, podgląd zamknięty (port 5902), IP z ostatniego startu SPOZA profilu, konto nieprzypisane
   bezprofilu  brak sesji i brak profil.json (błąd profilu, start niemożliwy)
 a `test` ma profil ok i brak sesji (start możliwy). Główna: bez profilu, sesja nie działa.
+
+„Zaloguj postać” (24.10): opcja `--zaloguj` dokłada trzy postacie na ekranie logowania (panel bez pozycji, bot stoi):
+  ekran     sesja żyje (sway, proxy, IP zgodne), klient na ekranie logowania: „Zaloguj” aktywny
+  bezsesji  brak sesji, profil ok: „Zaloguj” aktywny (skrypt sam wystartowałby sesję)
+  strata    profil `stracony: true`: „Zaloguj” szary (postać stracona)
+Spotkania z graczami (26.10): opcja `--spotkania` dokłada pięć postaci z telemetrią (próbki co 2 s do „teraz”), `ostatnie.json` i działającym botem (pid = pid0+5):
+  spohot   Wojownik  84 min na spocie, gracz „Statutum” 3 razy (3/3 = próg, wyróżnienie) i „Mleczko” raz
+  spolow   Czarodziej 52 min, „Statutum” 1 raz (1/3)
+  spozero  Łucznik   38 min, gracz widziany 5 s (nie spotkanie): 0/3, bez bywalca
+  spobot   Druid     2h 10m, licznik z `spotkania_graczy.json` bieżącej sesji bota (źródło „bot”, 2/3)
+  spostoi  Paladyn   bot stoi (sesja żyje, bota brak): same „-”
+oraz dziennik nadzorcy z dzisiaj (zmiana spotu wykonana, powrót do miasta w cieniu) i `nadzor_stan.json` z dwoma unikanymi spotami.
+Stub `zaloguj_postac.sh` tylko dopisuje wywołanie do dziennika (nic nie loguje). `test` i `p2..` mają pozycję, więc są „już w grze”.
 """
 import json
 import os
@@ -101,7 +114,44 @@ def sesja_instancji(kat, run, proc, teraz, id_, nick, panel_json, mapa, pid0, *,
         zapisz(inst / "logi" / f"sesja-{data}.log", "\n".join(log_akcji) + "\n", False)
 
 
-def buduj(korzen, ile=2, sesja=False):
+def probka_spotkan(t, pid, sesja, nick, widoczni):
+    stwory = [{"n": nick, "dx": 0, "dy": 0, "odl": 0, "hp": 100, "gracz": True}, {"n": "Troll", "dx": 1, "dy": 0, "odl": 1, "hp": 100, "gracz": False}]
+    stwory += [{"n": n, "dx": 4, "dy": 1, "odl": 4, "hp": 100, "gracz": True} for n in widoczni]
+    return json.dumps({"t": round(t, 1), "typ": "probka", "stan": "WALKA", "poz": [33000, 31800, 8], "hp": 100, "stwory": stwory,
+                       "pid": pid, "sesja": sesja, "src": "mozg"}, ensure_ascii=False)
+
+
+def spotkania_instancji(kat, run, proc, teraz, id_, nick, pid0, minuty, okna, *, level, exp_h, zab_h, bot=True, plik_bota=None):
+    """Postać z danymi do zakładki Spotkania: bot w atrapie /proc (pid0+5), telemetria z `okna` {gracz: [(od_s, do_s)]} liczonymi od startu sesji, ostatnie.json."""
+    start = teraz - minuty * 60
+    sesja_instancji(kat, run, proc, teraz, id_, nick, panel(
+        "dziala" if bot else "stop", f"Retronic: {'działa' if bot else 'stop'}\nTryb: mozg.py skrypt, działa {minuty // 60}h {minuty % 60:02d}m\nHP 180/200  mana 60/100",
+        [33000, 31800, 8], level=level, level_procent=40.0, podglad={"port": None, "otwarty": False, "pid": None}), "trolle_patrol", pid0,
+        wiek_s=minuty * 60, sway=True, bot=bot, proxy=True, port=5950 + pid0 // 100, tozsamosc=True,
+        profil_json=profil("fx-s", "10.0.1.1", nick, "konto-s", "atrapa: spotkania"), ip_log="siec_proxy: IP wyjściowe 10.0.1.1 (zgodne z profilem)")
+    pid = pid0 + 5
+    dzien = time.strftime("%Y%m%d", time.localtime(teraz))
+    linie = []
+    if bot:
+        t = 10
+        while start + t < teraz - 2:
+            wid = [n for n, ws in okna.items() if any(a <= t <= b for a, b in ws)]
+            linie.append(probka_spotkan(start + t, pid, start, nick, wid))
+            t += 2
+        zapisz(kat / "instancje" / id_ / "logi" / f"telemetria-{dzien}.jsonl", "\n".join(linie) + "\n", False)
+        godz = minuty / 60
+        zapisz(kat / "instancje" / id_ / "ostatnie.json", json.dumps({
+            "v": 1, "zapisano": teraz - 1, "zrodlo": "bot", "dane_t": teraz - 2, "postac": nick, "exp": int(100000 + exp_h * godz), "level": level, "level_proc": 40.0,
+            "hp": 180, "max_hp": 200, "mana": 60, "max_mana": 100, "poz": [33000, 31800, 8], "pietro": 8, "mapa": "trolle_patrol", "tryb": ["ostrozny"],
+            "stan_bota": "WALKA", "sesja": {"start": start, "koniec": None, "zab": int(zab_h * godz), "exp_start": 100000, "gold": 0, "uh": 0},
+            "na_spocie_od": start + 120, "w_grze_t": teraz - 2, "alarm": None, "stop": None, "koniec_sesji": None}), False)
+    if plik_bota:
+        zapisz(kat / "instancje" / id_ / "spotkania_graczy.json", json.dumps({"v": 1, "zapis_t": teraz - 10, "sesja": f"{pid}-{int(start)}", "zadania": [], "gracze": {
+            k.lower(): {"nick": k, "spotkan": n, "pierwsze_t": start + 300, "ostatnio_t": ost, "epizod_od_t": ost, "widok_s": 3.0, "zaliczone": True, "mapa": ""}
+            for k, (n, ost) in plik_bota.items()}}), False)
+
+
+def buduj(korzen, ile=2, sesja=False, zaloguj=False, spotkania=False):
     """ile = liczba instancji łącznie (główna + test + p2..); ponad dwie to postacie pomocnicze do testu układu na 10.
     sesja=True dokłada instancje do testu sekcji Sesja gry (dzial, ipzle, bezprofilu, patrz opis modułu)."""
     korzen = Path(korzen)
@@ -117,8 +167,12 @@ def buduj(korzen, ile=2, sesja=False):
     dziennik.write_text("", encoding="utf-8")
     stub = (f'#!/bin/bash\necho "$(basename "$0") RETRONIC_ID=${{RETRONIC_ID-<brak>}} MAPA=${{MAPA-<brak>}} TRYB=${{TRYB-<brak>}} '
             f'POSTAC=${{RETRONIC_POSTAC-<brak>}} ARGS=[$*]" >> "{dziennik}"\nexit 0\n')
-    for nazwa in ("zatrzymaj.sh", "uruchom.sh", "wroc.sh", "refill.sh"):
+    for nazwa in ("zatrzymaj.sh", "uruchom.sh", "wroc.sh", "refill.sh", "zaloguj_postac.sh"):
         zapisz(kat / nazwa, stub, True)
+    # zaloguj_postac.sh: dziennik + (test) opóźnienie `opoznienie-zaloguj-<id>` s, żeby dało się zobaczyć logowanie „w toku”; wynik jak prawdziwy (zdanie)
+    zapisz(kat / "zaloguj_postac.sh", stub.replace("\nexit 0\n", "\n") +
+           f'[ -f "{korzen}/opoznienie-zaloguj-$RETRONIC_ID" ] && sleep "$(cat "{korzen}/opoznienie-zaloguj-$RETRONIC_ID")"\n'
+           'echo "Postać zalogowana (atrapa); bot nie został uruchomiony"\nexit 0\n', True)
     zapisz(korzen / "otwieracz.sh", f'#!/bin/bash\necho "otwieracz ARGS=[$*]" >> "{dziennik}"\nexit 0\n', True)
     # sesja_gry.py (start | zamknij | podglad): dziennik wywołań + jedna linia wyniku (jak prawdziwy skrypt) + zmiana STANU ATRAPY
     # (pliki w run/ i wpisy atrapy /proc), żeby okno po akcji zobaczyło sesję wstającą, zamkniętą albo podgląd otwarty. Nic prawdziwego nie rusza.
@@ -209,6 +263,45 @@ def buduj(korzen, ile=2, sesja=False):
         sesja_instancji(kat, run, proc, teraz, "bezprofilu", "Bez Profilu", panel(
             "brak", "Retronic: brak gry", [33002, 31802, 8], podglad=pg(None, False)), "raty", 9200)
 
+    if zaloguj:
+        zapisz(korzen / "opoznienie-zaloguj-ekran", "3\n", False)       # logowanie `ekran` trwa 3 s (test „jedno naraz”)
+        bez_pozycji = lambda: panel("brak", "Retronic: brak gry", None, podglad={"port": None, "otwarty": False, "pid": None})
+        sesja_instancji(kat, run, proc, teraz, "ekran", "Ekran Logowania", panel(
+            "brak", "Retronic: brak gry", None, podglad={"port": 5910, "otwarty": False, "pid": None}), "raty", 9300,
+            wiek_s=120, sway=True, proxy=True, port=5910, tozsamosc=True,
+            profil_json=profil("fx-4", "10.0.0.4", "Ekran Logowania", "konto-ekran", "atrapa: klient na ekranie logowania"),
+            ip_log="siec_proxy: IP wyjściowe 10.0.0.4 (zgodne z profilem)")
+        sesja_instancji(kat, run, proc, teraz, "bezsesji", "Bez Sesji", bez_pozycji(), "raty", 9400, tozsamosc=True,
+                        profil_json=profil("fx-5", "10.0.0.5", "Bez Sesji", "konto-bezsesji", "atrapa: sesja zatrzymana"))
+        sesja_instancji(kat, run, proc, teraz, "strata", "Postac Stracona", bez_pozycji(), "raty", 9500, tozsamosc=True,
+                        profil_json=json.dumps({"proxy": {"host": "p.example.test", "port": 80, "user": "fx-6"}, "ip_oczekiwane": ["10.0.0.6"],
+                                                "postac": "Postac Stracona", "konto": "konto-strata", "stracony": True,
+                                                "uwagi": "atrapa: postać stracona"}, ensure_ascii=False))
+
+    if spotkania:
+        T = teraz
+        okna_hot = {"Statutum": [(600, 650), (1500, 1560), (3000, 3070)], "Mleczko": [(2200, 2230)]}
+        spotkania_instancji(kat, run, proc, T, "spohot", "Wojownik", 9600, 84, okna_hot, level=42, exp_h=18400, zab_h=96)
+        spotkania_instancji(kat, run, proc, T, "spolow", "Czarodziej", 9700, 52, {"Statutum": [(900, 960)]}, level=35, exp_h=9800, zab_h=61)
+        spotkania_instancji(kat, run, proc, T, "spozero", "Łucznik", 9800, 38, {"Przechodzień": [(1000, 1005)]}, level=24, exp_h=5200, zab_h=48)
+        spotkania_instancji(kat, run, proc, T, "spobot", "Druid", 9900, 130, {"Mleczko": [(600, 640)]}, level=51, exp_h=22100, zab_h=88,
+                            plik_bota={"Statutum": (2, T - 900), "Mleczko": (1, T - 300)})
+        spotkania_instancji(kat, run, proc, T, "spostoi", "Paladyn", 10000, 20, {}, level=19, exp_h=0, zab_h=0, bot=False)
+        wsp = kat / "instancje" / "_wspolne"
+        dz = time.strftime("%Y%m%d", time.localtime(T))
+        lt = lambda dt: time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(T - dt))
+        wpisy = [
+            {"t": lt(5400), "tryb": "zywo", "id": "spohot", "akcja": "zmien_spot", "wynik": "ok",
+             "powod": "gracz Statutum spotkany 3. raz na trolle_edron: zmiana spotu -> rook_raty_z8 (najbliższy wolny spot)"},
+            {"t": lt(2400), "tryb": "cien", "id": "spolow", "akcja": "wroc", "wynik": "cień",
+             "powod": "gracz Mleczko spotkany 3. raz na edron_trolle: brak wolnego spotu -> powrót do miasta (zostaje w depo)", "szczegol": "cień: zrobiłbym wroc"},
+            {"t": lt(900), "tryb": "zywo", "id": "spobot", "akcja": "czekaj", "wynik": "info",
+             "powod": "gracz Statutum (3. spotkanie) na trolle_patrol: brak sensownego spotu, zostaje (bez alternatywy)"}]
+        zapisz(wsp / "logi" / f"nadzor-{dz}.jsonl", "".join(json.dumps(w, ensure_ascii=False) + "\n" for w in wpisy), False)
+        zapisz(wsp / "nadzor_stan.json", json.dumps({"postacie": {
+            "spohot": {"spot_gracz": {"zmiany": [T - 5400], "unikane": [{"mapa": "trolle_edron", "jaskinia": "Edron, trolle z8", "nick": "Statutum", "do": T + 5400}]}},
+            "spolow": {"spot_gracz": {"zmiany": [T - 2400], "unikane": [{"mapa": "edron_trolle", "jaskinia": "Edron, troll cave", "nick": "Mleczko", "do": T + 8100}]}}}}), False)
+
     for n in range(2, ile):
         id_ = f"p{n}"
         klasa = ("dziala", "stop", "alarm", "brak")[n % 4]
@@ -254,7 +347,7 @@ def buduj(korzen, ile=2, sesja=False):
 
 
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if a != "--sesja"]
+    args = [a for a in sys.argv[1:] if a not in ("--sesja", "--zaloguj", "--spotkania")]
     if len(args) not in (1, 2):
-        sys.exit("użycie: atrapa.py KATALOG_DOCELOWY [LICZBA_INSTANCJI] [--sesja]")
-    buduj(args[0], int(args[1]) if len(args) == 2 else 2, sesja="--sesja" in sys.argv[1:])
+        sys.exit("użycie: atrapa.py KATALOG_DOCELOWY [LICZBA_INSTANCJI] [--sesja] [--zaloguj] [--spotkania]")
+    buduj(args[0], int(args[1]) if len(args) == 2 else 2, sesja="--sesja" in sys.argv[1:], zaloguj="--zaloguj" in sys.argv[1:], spotkania="--spotkania" in sys.argv[1:])

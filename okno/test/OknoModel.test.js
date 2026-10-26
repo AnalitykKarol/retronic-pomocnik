@@ -292,3 +292,101 @@ describe("polecenia na atrapie (stuby tylko logują)", () => {
     assert.equal(M.parseApi(run(M.oznaczCommand(REPO, "test", "000000000000")).stdout).ok, false)
   })
 })
+
+// ---------------------------------------------------------------- „Zaloguj postać” (24.10): stany guzika, wynik skryptu, limit czasu, polecenie
+describe("zaloguj postać: stan guzika (loginState)", () => {
+  const ekran = (over) => Object.assign({ id: "ekran", panel: { pozycja: null }, gracz: null, bot: false, sesja: true, gra: true, klient_pids: [1], przeglad: { stracony: false, w_grze: true } }, over)
+  const nic = { loginId: "", busy: false }
+
+  it("ekran logowania (sesja stoi, pozycja null, bez gracza i bota): aktywny, podpowiedź bez bota", () => {
+    const s = M.loginState(ekran(), nic)
+    assert.equal(s.enabled, true)
+    assert.equal(s.busy, false)
+    assert.equal(s.reason, "")
+    assert.match(s.hint, /BEZ uruchamiania bota/)
+    assert.doesNotMatch(s.hint, /uruchomi sesję/)
+  })
+  it("brak sesji: aktywny, podpowiedź mówi, że sesja wystartuje", () => {
+    const s = M.loginState(ekran({ sesja: false, gra: false, klient_pids: [], przeglad: { w_grze: false } }), nic)
+    assert.equal(s.enabled, true)
+    assert.match(s.hint, /uruchomi sesję gry, potwierdzi IP proxy/)
+  })
+  it("w grze: pozycja z panelu, gracz z telemetrii albo działający bot = szary „już w grze”", () => {
+    for (const over of [{ panel: { pozycja: [1, 2, 8] } }, { gracz: { hp: 1 } }, { bot: true }]) {
+      const s = M.loginState(ekran(over), nic)
+      assert.equal(s.enabled, false)
+      assert.equal(s.reason, "in-game")
+      assert.equal(s.hint, "już w grze")
+    }
+  })
+  it("w_grze z Przeglądu (klient stoi) NIE znaczy „zalogowana”: ekran logowania zostaje aktywny", () => {
+    assert.equal(M.loggedIn(ekran({ przeglad: { w_grze: true } })), false)
+  })
+  it("stracona (profil): szara, nawet na ekranie logowania i nawet gdy w grze", () => {
+    for (const over of [{}, { bot: true }]) {
+      const s = M.loginState(ekran(Object.assign({ przeglad: { stracony: true, w_grze: true } }, over)), nic)
+      assert.equal(s.enabled, false)
+      assert.equal(s.reason, "lost")
+      assert.match(s.hint, /stracona/)
+    }
+  })
+  it("główna instancja (id pusty): szara z powodem, okno jej nie dotyka", () => {
+    const s = M.loginState(ekran({ id: "" }), nic)
+    assert.equal(s.enabled, false)
+    assert.equal(s.reason, "main")
+    assert.match(s.hint, /główna instancja loguje się ręcznie/)
+  })
+  it("jedno logowanie naraz: własne = busy „Loguję…”, cudze = szare z nazwą postaci", () => {
+    const own = M.loginState(ekran(), { loginId: "ekran", busy: true })
+    assert.deepEqual([own.enabled, own.busy, own.label, own.reason], [false, true, "Loguję…", "login"])
+    const other = M.loginState(ekran({ id: "bezsesji" }), { loginId: "ekran", busy: false })
+    assert.deepEqual([other.enabled, other.busy, other.reason], [false, false, "other"])
+    assert.match(other.hint, /trwa logowanie innej postaci \(ekran\): jedno naraz/)
+  })
+  it("inna akcja tej instancji w toku (Start, Zamknij grę): szare; brak odczytu: szare", () => {
+    assert.equal(M.loginState(ekran(), { loginId: "", busy: true }).reason, "busy")
+    assert.equal(M.loginState(null, nic).enabled, false)
+    assert.equal(M.loginState(ekran(), undefined).enabled, true)
+  })
+  it("pierwszeństwo: stracona > własne logowanie > cudze > w grze > zajęta", () => {
+    assert.equal(M.loginState(ekran({ bot: true }), { loginId: "x", busy: true }).reason, "other")
+    assert.equal(M.loginState(ekran({ bot: true }), { loginId: "ekran", busy: true }).reason, "login")
+    assert.equal(M.loginState(ekran({ bot: true }), { loginId: "", busy: true }).reason, "in-game")
+  })
+})
+
+describe("zaloguj postać: wynik skryptu i limit czasu", () => {
+  it("RC=0: ok i zdanie skryptu; bez zdania: domyślne", () => {
+    assert.deepEqual(M.parseLoginResult("Postać zalogowana (albo już była w grze); bot nie został uruchomiony\nRC=0"),
+                     { ok: true, message: "Postać zalogowana (albo już była w grze); bot nie został uruchomiony" })
+    assert.match(M.parseLoginResult("RC=0").message, /bot nie został uruchomiony/)
+  })
+  it("kody błędów: ostatnia linia skryptu po polsku, bez obcinania do 48 znaków", () => {
+    const r = M.parseLoginResult("jakieś wyjście\nIP wyjściowe SPOZA profilu: nie loguję. Zamknij grę (Sesja gry) i sprawdź proxy w profilu\nRC=24")
+    assert.equal(r.ok, false)
+    assert.equal(r.message, "IP wyjściowe SPOZA profilu: nie loguję. Zamknij grę (Sesja gry) i sprawdź proxy w profilu")
+    assert.equal(M.parseLoginResult("Postać dawajkesh jest stracona (profil `stracony`): nie loguję\nRC=21").ok, false)
+  })
+  it("timeout (RC=124) i brak RC mają osobne komunikaty; bardzo długa linia jest przycięta", () => {
+    assert.match(M.parseLoginResult("Przekroczono czas\nRC=124").message, /przerwane po 4 min/)
+    assert.match(M.parseLoginResult("cokolwiek").message, /Brak wyniku/)
+    assert.match(M.parseLoginResult("").message, /Brak wyniku/)
+    const dl = M.parseLoginResult("x".repeat(400) + "\nRC=1").message
+    assert.equal(dl.length, 160)
+    assert.match(M.parseLoginResult("RC=7").message, /kod 7/)
+  })
+  it("limit czasu 240 s tylko dla zaloguj; reszta bez zmian (25 s akcje, 120 s sesja)", () => {
+    assert.equal(M.actionTimeoutMs("zaloguj"), 240000)
+    assert.equal(M.actionTimeoutMs("stop"), 25000)
+    assert.equal(M.actionTimeoutMs("gra-zamknij"), 120000)
+    assert.equal(M.isSessionAction("zaloguj"), false)          // nie przechodzi przez onSessionAction
+  })
+  it("polecenie: zaloguj_postac.sh z ID instancji, bez argumentów; główna (pusty id) bez polecenia", () => {
+    const cmd = Rules.actionCommand("/x/pomocnik", "ekran", "zaloguj")
+    assert.deepEqual(cmd.slice(0, 2), ["bash", "-c"])
+    assert.equal(cmd[cmd.length - 1], "zaloguj_postac.sh")
+    assert.equal(cmd[3], "retronic-zaloguj")
+    assert.equal(cmd[4], "ekran")
+    assert.equal(Rules.actionCommand("/x/pomocnik", "", "zaloguj"), null)
+  })
+})

@@ -577,5 +577,193 @@ with tempfile.TemporaryDirectory() as tmp:
         kod, d = uruchom(tmp, "ratunek", "--instancja", "dwa")
         sprawdz(f"ratunek F2a: zrzut poza katalogiem logów odrzucony ({zly})", "haiku_zrzut" not in d["sygnaly"][0], d["sygnaly"][0].get("haiku_zrzut"))
 
+
+# ================= spotkania (26.10): statystyki spotkań z graczami na spocie, tylko odczyt =================
+def probka(t, pid, sesja, widoczni=(), stan="WALKA"):
+    stw = [{"n": "Troll", "dx": 1, "dy": 0, "odl": 1, "hp": 100, "gracz": False}] + [{"n": n, "dx": 3, "dy": 0, "odl": 3, "hp": 100, "gracz": True} for n in widoczni]
+    return json.dumps({"t": round(t, 1), "typ": "probka", "stan": stan, "poz": [100, 100, 8], "hp": 100, "stwory": stw, "pid": pid, "sesja": sesja, "src": "mozg"})
+
+def telemetria_spotkan(r, id_, S, pid, okna, stary=True):
+    """okna: {nick: [(od, do), ...]} sekundy względem S. Własny nick 'Johny' widoczny cały czas (gracz:true), ma być pominięty."""
+    linie = []
+    if stary:                                               # poprzednia sesja (inny proces): NIE może wpłynąć na liczniki
+        for t in range(-9000, -8000, 2):
+            linie.append(probka(S + t, 55, S - 9000, ("Statutum", "Stary")))
+    for t in range(10, 3000 - 5, 2):
+        wid = ["Johny"] + [n for n, ws in okna.items() if any(a <= t <= b for a, b in ws)]
+        linie.append(probka(S + t, pid, S, wid))
+    (r / "instancje" / id_ / "logi" / "telemetria-20261019.jsonl").write_text("\n".join(linie) + "\n")
+
+def ostatnie_start(r, id_, start):
+    (r / "instancje" / id_ / "ostatnie.json").write_text(json.dumps({"v": 1, "zapisano": TERAZ - 5, "dane_t": TERAZ - 5, "sesja": {"start": start, "koniec": None, "zab": 10, "exp_start": 100}}))
+
+def drzewo_instancji(r):
+    return {str(p.relative_to(r)): sha(p) for p in sorted((r / "instancje").rglob("*")) if p.is_file()}
+
+with tempfile.TemporaryDirectory() as tmp:
+    r = zrob_korzen(tmp, instancje=("dwa", "trzy", "pol", "strac"))
+    S = TERAZ - 3000
+    for i, nick in (("dwa", "Johny"), ("trzy", "Trzeci"), ("pol", "Polka"), ("strac", "Stracony")):
+        (r / "instancje" / i / "profil.json").write_text(json.dumps({"postac": nick, "stracony": i == "strac"}))
+    okna = {"Statutum": [(300, 340), (800, 840), (1400, 1440)], "Ktos": [(2000, 2040)]}
+    telemetria_spotkan(r, "dwa", S, 101, okna)
+    telemetria_spotkan(r, "trzy", S, 999, okna)             # telemetria procesu 999, a działa bot 104: stara sesja
+    telemetria_spotkan(r, "pol", S, 105, okna)              # bot nie działa
+    ostatnie_start(r, "dwa", S)
+    ostatnie_start(r, "trzy", S)
+    proces(tmp, 101, ["python3", "-I", "mozg.py", "skrypt"], {"RETRONIC_ID": "dwa"})
+    proces(tmp, 104, ["python3", "-I", "mozg.py", "skrypt"], {"RETRONIC_ID": "trzy"})
+    przed = drzewo_instancji(r)
+    kod, d0 = uruchom(tmp, "stan")
+    ins0 = {x["id"]: x for x in d0["instancje"]}
+    sprawdz("spotkania: stan przed pierwszym liczeniem = sekcja z powodem, nie zera (dostepne false, 'jeszcze nie policzone')",
+            ins0["dwa"]["spotkania"]["dostepne"] is False and ins0["dwa"]["spotkania"]["powod"] == "jeszcze nie policzone", ins0["dwa"]["spotkania"])
+    sprawdz("spotkania: stan bez działającego bota = 'bot nie działa'; główna = 'instancja główna'",
+            ins0["pol"]["spotkania"]["powod"] == "bot nie działa" and ins0[""]["spotkania"]["powod"] == "instancja główna", (ins0["pol"]["spotkania"], ins0[""]["spotkania"]))
+    kod, d = uruchom(tmp, "spotkania")
+    sprawdz("spotkania: polecenie ok, status_cache 'przeliczony', próg z bota (3)", kod == 0 and d["ok"] and d["status_cache"] == "przeliczony" and d["prog"] == 3, d.get("blad") or d.get("stderr"))
+    wp = {e["id"]: e for e in d["instancje"]}
+    sprawdz("spotkania: instancje bez głównej, każda z wpisem (stracona też, z powodem)", sorted(wp) == ["dwa", "pol", "strac", "trzy"] and wp["strac"]["powod"] == "postać stracona", sorted(wp))
+    e = wp["dwa"]
+    sprawdz("spotkania: dwa = n 3 / próg 3, bywalec Statutum ×3, tylko bieżąca sesja (stara z tym samym nickiem nie liczy się)",
+            e["dostepne"] and e["n"] == 3 and e["prog"] == 3 and e["bywalec"] == {"nick": "Statutum", "n": 3} and e["zrodlo"] == "telemetria", e)
+    sprawdz("spotkania: dwa = 2 graczy (Statutum, Ktos; własny nick pominięty), 4 spotkania razem", e["graczy"] == 2 and e["spotkan"] == 4, e)
+    sprawdz("spotkania: dwa = czas na spocie ok. 2985 s, spotkań/h ok. 4,8", abs(e["czas_na_spocie_s"] - 2985) <= 8 and 4.7 <= e["spotkan_na_h"] <= 4.9, (e["czas_na_spocie_s"], e["spotkan_na_h"]))
+    sprawdz("spotkania: ostatnio widziany gracz = Ktos o S+2040, w odpowiedzi z postacią",
+            d["ostatni_gracz"]["nick"] == "Ktos" and abs(d["ostatni_gracz"]["t"] - (S + 2040)) <= 2 and d["ostatni_gracz"]["postac"] == "Johny" and d["ostatni_gracz"]["instancja"] == "dwa", d["ostatni_gracz"])
+    sprawdz("spotkania: bot z innego procesu niż telemetria (trzy) = niedostępne 'dane z innej sesji bota', bez liczb", wp["trzy"]["dostepne"] is False and wp["trzy"]["powod"] == "dane z innej sesji bota" and "n" not in wp["trzy"], wp["trzy"])
+    sprawdz("spotkania: bot nie działa (pol) = niedostępne, mimo telemetrii na dysku", wp["pol"]["dostepne"] is False and wp["pol"]["powod"] == "bot nie działa", wp["pol"])
+    sprawdz("spotkania: granice (opis ograniczeń) w odpowiedzi", len(d["granice"]) >= 4 and any("czaszek" in g for g in d["granice"]))
+    kod, d1 = uruchom(tmp, "stan")
+    ins1 = {x["id"]: x for x in d1["instancje"]}
+    sp = ins1["dwa"]["spotkania"]
+    sprawdz("spotkania: stan po policzeniu niesie lekką sekcję (n/próg, bywalec, czas, /h, graczy, ostatni, wiek)", sp["dostepne"] and sp["n"] == 3 and sp["prog"] == 3 and sp["bywalec"]["nick"] == "Statutum"
+            and sp["graczy"] == 2 and sp["ostatni"]["nick"] == "Ktos" and sp["wiek_s"] is not None and "powod" in sp, sp)
+    sprawdz("spotkania: karta nie dostaje danych z innej sesji (trzy, pol, główna)", all(ins1[i]["spotkania"]["dostepne"] is False for i in ("trzy", "pol", "")), [ins1[i]["spotkania"] for i in ("trzy", "pol")])
+    sprawdz("spotkania: ten sam zestaw kluczy `spotkania` także bez danych (dostepne, powod, prog)", all({"dostepne", "powod", "prog"} <= set(ins1[i]["spotkania"]) for i in ins1), [sorted(ins1[i]["spotkania"]) for i in ins1][:3])
+    # cache: drugie wywołanie w TTL nie liczy ponownie (zmiana telemetrii niewidoczna), po TTL liczy
+    (r / "instancje/dwa/logi/telemetria-20261019.jsonl").write_text((r / "instancje/dwa/logi/telemetria-20261019.jsonl").read_text() + probka(TERAZ - 4, 101, S, ["Johny", "Nowy"]) + "\n")
+    kod, d2 = uruchom(tmp, "spotkania")
+    sprawdz("spotkania: w TTL wynik z cache ('swiezy'), nowa telemetria jeszcze niewidoczna", d2["status_cache"] == "swiezy" and {e["id"]: e for e in d2["instancje"]}["dwa"]["graczy"] == 2, d2["status_cache"])
+    # zmiana sesji: restart bota (nowy ostatnie.sesja.start) unieważnia dane z cache od razu, bez czekania na liczenie
+    ostatnie_start(r, "dwa", S + 500)
+    kod, d6 = uruchom(tmp, "stan")
+    sprawdz("spotkania: nowy start bota (ostatnie.sesja.start inny) = 'dane z poprzedniej sesji bota', nie liczby starej sesji",
+            {x["id"]: x for x in d6["instancje"]}["dwa"]["spotkania"]["powod"] == "dane z poprzedniej sesji bota", {x["id"]: x for x in d6["instancje"]}["dwa"]["spotkania"])
+    ostatnie_start(r, "dwa", S)
+    kod, d3 = uruchom(tmp, "spotkania", teraz=TERAZ + 61)
+    e3 = {e["id"]: e for e in d3["instancje"]}["dwa"]
+    sprawdz("spotkania: po TTL (61 s) przeliczone od nowa, nowa telemetria widoczna (3 graczy)", d3["status_cache"] == "przeliczony" and e3["dostepne"] and e3["graczy"] == 3, e3)
+    kod, d3b = uruchom(tmp, "spotkania", teraz=TERAZ + 200)
+    sprawdz("spotkania: telemetria starsza niż 180 s = niedostępne 'telemetria nieświeża' (bot nie pisze), nie stare liczby",
+            d3b["status_cache"] == "przeliczony" and {e["id"]: e for e in d3b["instancje"]}["dwa"]["powod"] == "telemetria nieświeża (bot nie pisze)", {e["id"]: e for e in d3b["instancje"]}["dwa"])
+    kod, d4 = uruchom(tmp, "stan", teraz=TERAZ + 200)
+    sprawdz("spotkania: stan po wygaśnięciu telemetrii pokazuje powód zamiast starych liczb", {x["id"]: x for x in d4["instancje"]}["dwa"]["spotkania"]["dostepne"] is False)
+    kod, d5 = uruchom(tmp, "stan", teraz=TERAZ + 400)
+    sprawdz("spotkania: cache starszy niż 180 s = 'dane nieaktualne' (nikt nie odświeża)", {x["id"]: x for x in d5["instancje"]}["dwa"]["spotkania"]["powod"] == "dane nieaktualne", {x["id"]: x for x in d5["instancje"]}["dwa"]["spotkania"])
+    sprawdz("spotkania: polecenia niczego nie zapisały w instancje/* (poza podmienionym w teście ostatnie.json i telemetrią)",
+            {k: v for k, v in drzewo_instancji(r).items() if not k.endswith(("ostatnie.json", "telemetria-20261019.jsonl"))} == {k: v for k, v in przed.items() if not k.endswith(("ostatnie.json", "telemetria-20261019.jsonl"))}, "zmiana plików")
+
+# licznik bota (spotkania_graczy.json) tylko z bieżącej sesji; inne = telemetria
+with tempfile.TemporaryDirectory() as tmp:
+    r = zrob_korzen(tmp, instancje=("dwa",))
+    S = TERAZ - 3000
+    (r / "instancje/dwa/profil.json").write_text(json.dumps({"postac": "Johny"}))
+    telemetria_spotkan(r, "dwa", S, 101, {"Statutum": [(300, 340), (800, 840), (1400, 1440)]}, stary=False)
+    ostatnie_start(r, "dwa", S)
+    proces(tmp, 101, ["python3", "-I", "mozg.py", "skrypt"], {"RETRONIC_ID": "dwa"})
+    def plik_bota(sesja):
+        (r / "instancje/dwa/spotkania_graczy.json").write_text(json.dumps({"v": 1, "zapis_t": TERAZ - 20, "sesja": sesja, "zadania": [], "gracze": {
+            "statutum": {"nick": "Statutum", "spotkan": 2, "pierwsze_t": S + 300, "ostatnio_t": S + 1400, "epizod_od_t": S + 1400, "widok_s": 3.0, "zaliczone": False, "mapa": ""},
+            "ktos": {"nick": "Ktos", "spotkan": 1, "pierwsze_t": S + 2000, "ostatnio_t": S + 2100, "epizod_od_t": S + 2000, "widok_s": 20.0, "zaliczone": True, "mapa": ""},
+            "zly": "nie słownik"}}))
+    def wpis_dwa():
+        for f in Path(tmp, "rt").glob("retronic-okno-spotkania-*"):
+            f.unlink()
+        return {e["id"]: e for e in uruchom(tmp, "spotkania")[1]["instancje"]}["dwa"]
+    plik_bota(f"101-{int(S) - 3}")
+    e = wpis_dwa()
+    sprawdz("spotkania: licznik bota z bieżącej sesji (pid i start zgodne) = źródło 'bot': n 2, bywalec Statutum ×2, 2 graczy, ostatni Ktos",
+            e["zrodlo"] == "bot" and e["n"] == 2 and e["bywalec_prog15"] == {"nick": "Statutum", "n": 2} and e["spotkan_prog15"] == 3 and e["graczy"] == 2
+            and e["spotkan"] == 3 and e["bywalec"] == {"nick": "Statutum", "n": 3} and e["ostatni"]["nick"] == "Ktos", e)    # 26.10: „spotkań”/bywalec zawsze z telemetrii bez progu; licznik bota pod *_prog15
+    plik_bota(f"77-{int(S) - 3}")
+    e = wpis_dwa()
+    sprawdz("spotkania: licznik bota z procesu o innym pidzie = ignorowany, liczy telemetria (n 3)", e["zrodlo"] == "telemetria" and e["n"] == 3, e)
+    plik_bota(f"101-{int(S) - 90000}")
+    sprawdz("spotkania: licznik bota z tym samym pidem, ale sprzed doby (inny start) = ignorowany", wpis_dwa()["zrodlo"] == "telemetria")
+    plik_bota(None)
+    sprawdz("spotkania: licznik bota bez klucza sesja (stary format) = ignorowany", wpis_dwa()["zrodlo"] == "telemetria")
+    (r / "instancje/dwa/spotkania_graczy.json").write_text("{nie json")
+    e = wpis_dwa()
+    sprawdz("spotkania: uszkodzony plik licznika bota nie psuje wpisu (telemetria)", e["dostepne"] and e["zrodlo"] == "telemetria", e)
+
+# uszkodzone dane: telemetria, ostatnie.json, cache, dziennik nadzorcy
+with tempfile.TemporaryDirectory() as tmp:
+    r = zrob_korzen(tmp, instancje=("dwa", "bez"))
+    S = TERAZ - 3000
+    (r / "instancje/dwa/logi/telemetria-20261019.jsonl").write_text("śmieci\n{nie json\n" + probka(TERAZ - 10, 101, S, ["Johny"]) + "\n{\"typ\":\"probka\",\"t\":\"x\"}\n")
+    (r / "instancje/dwa/ostatnie.json").write_text("nie json")
+    proces(tmp, 101, ["python3", "-I", "mozg.py", "skrypt"], {"RETRONIC_ID": "dwa"})
+    proces(tmp, 102, ["python3", "-I", "mozg.py", "skrypt"], {"RETRONIC_ID": "bez"})            # bot działa, brak telemetrii
+    kod, d = uruchom(tmp, "spotkania")
+    wp = {e["id"]: e for e in d["instancje"]}
+    sprawdz("spotkania: uszkodzona telemetria i ostatnie.json = polecenie ok, bez tracebacku", kod == 0 and d["ok"] and "surowe" not in d, d)
+    sprawdz("spotkania: bot działa, brak telemetrii = niedostępne z powodem 'brak telemetrii'", wp["bez"]["dostepne"] is False and wp["bez"]["powod"] == "brak telemetrii", wp["bez"])
+    for f in Path(tmp, "rt").glob("retronic-okno-spotkania-*"):
+        f.write_text("{uszkodzony cache")
+    kod, d = uruchom(tmp, "spotkania")
+    sprawdz("spotkania: uszkodzony cache = liczy od nowa, ok", kod == 0 and d["ok"] and d["status_cache"] == "przeliczony", d)
+    kod, d = uruchom(tmp, "stan")
+    sprawdz("spotkania: stan nigdy nie ma błędu instancji z powodu spotkań", all(x["blad"] is None for x in d["instancje"] if x["id"] in ("dwa", "bez")) and all("spotkania" in x for x in d["instancje"]), [x["blad"] for x in d["instancje"]])
+
+# zmiany spotu z dziennika nadzorcy i unikane spoty
+with tempfile.TemporaryDirectory() as tmp:
+    r = zrob_korzen(tmp, instancje=("dwa", "trzy"))
+    (r / "instancje/dwa/profil.json").write_text(json.dumps({"postac": "Johny"}))
+    (r / "instancje/trzy/profil.json").write_text(json.dumps({"postac": "Trzeci"}))
+    wsp = r / "instancje/_wspolne"
+    (wsp / "logi").mkdir(parents=True, exist_ok=True)
+    def lin(h, m, id_, akcja, wynik, powod, dzien=19, **extra):
+        return json.dumps({"t": czas(h, m, 0, dzien), "tryb": "zywo", "id": id_, "akcja": akcja, "wynik": wynik, "powod": powod, **extra}, ensure_ascii=False)
+    (wsp / "logi" / "nadzor-20261019.jsonl").write_text("\n".join([
+        lin(9, 5, "dwa", "zmien_spot", "ok", "gracz Dildo Vagins spotkany 3. raz na trolle_edron: zmiana spotu -> rook_raty (najbliższy wolny)"),
+        lin(9, 6, "dwa", "czekaj", "info", "offline, brak zmiany w grafiku"),
+        lin(10, 30, "trzy", "wroc", "cień", "gracz Statutum spotkany 4. raz na rook_raty_z8: brak wolnego spotu -> powrót do miasta (zostaje w depo)", szczegol="cień: zrobiłbym wroc"),
+        lin(10, 40, "trzy", "czekaj", "info", "gracz Statutum (3. spotkanie) na rook_raty_z8: brak sensownego spotu, zostaje (bez alternatywy)"),
+        lin(11, 0, "trzy", "czekaj", "info", "gracz Statutum (3. spotkanie) na rook_raty_z8: brak sensownego spotu, zostaje (bez alternatywy)"),
+        lin(11, 10, "dwa", "czekaj", "info", "gracz Ktos (2. spotkanie): zmiana spotu odłożona, limit"),         # inny czekaj: pomijany
+        lin(8, 0, "dwa", "zmien_spot", "ok", "gracz Wczoraj spotkany 3. raz na a: zmiana spotu -> b", dzien=18),   # wpis z innego dnia w pliku dzisiejszym: też dzisiejszy plik, ale ma datę wczorajszą
+        "to nie json"]) + "\n")
+    (wsp / "nadzor_stan.json").write_text(json.dumps({"postacie": {"dwa": {"spot_gracz": {"zmiany": [TERAZ - 2000, TERAZ - 90000],
+        "unikane": [{"mapa": "trolle_edron", "jaskinia": "Edron trolle", "nick": "Dildo Vagins", "do": TERAZ + 5400}, {"mapa": "stara", "jaskinia": "x", "nick": "Y", "do": TERAZ - 10}]}},
+        "trzy": {"spot_gracz": {}}}}))
+    przed = drzewo_instancji(r)
+    kod, d = uruchom(tmp, "spotkania")
+    z = d["zmiany"]
+    sprawdz("zmiany spotu: z dziennika dziś 3 zdarzenia (zmiana, powrót, brak raz mimo powtórki 'czekaj'); inne czekaj, nie-JSON i wpis z wczorajszą datą pominięte",
+            kod == 0 and d["ok"] and sorted(x["typ"] for x in z) == ["brak", "powrot", "zmiana"], z)
+    typy = [(x["typ"], x["id"]) for x in z]
+    sprawdz("zmiany spotu: najnowsze pierwsze (posortowane malejąco po czasie)", [x["t"] for x in z] == sorted((x["t"] for x in z), reverse=True) and len(z) == 3, typy)
+    zm = next(x for x in z if x["typ"] == "zmiana")
+    sprawdz("zmiany spotu: zmiana = godzina, postać, z którego na który, powód 'gracz N. raz', nick gracza, status wykonano",
+            zm["id"] == "dwa" and zm["postac"] == "Johny" and zm["z"] == "trolle_edron" and zm["na"] == "rook_raty" and zm["n"] == 3 and zm["nick"] == "Dildo Vagins"
+            and zm["powod"] == "gracz Dildo Vagins 3. raz" and zm["status"] == "wykonano" and zm["t"] == time.mktime((2026, 10, 19, 9, 5, 0, 0, 0, -1)), zm)
+    pw = next(x for x in z if x["typ"] == "powrot")
+    sprawdz("zmiany spotu: powrót do miasta (brak wolnego spotu) w cieniu = status 'cien', powód z tekstem, bez spotu docelowego",
+            pw["id"] == "trzy" and pw["na"] is None and pw["z"] == "rook_raty_z8" and pw["status"] == "cien" and "powrót do miasta" in pw["powod"], pw)
+    br = next(x for x in z if x["typ"] == "brak")
+    sprawdz("zmiany spotu: powtórzone 'brak sensownego spotu' zwinięte w jeden wpis z licznikiem powt = 2", br["powt"] == 2 and br["status"] == "info", br)
+    sprawdz("unikane spoty: aktywny z nickiem, jaskinią i czasem do końca (5400 s), wygasły pominięty; zmian w dobie dwa = 1",
+            len(d["unikane"]) == 1 and d["unikane"][0]["mapa"] == "trolle_edron" and d["unikane"][0]["zostalo_s"] == 5400 and d["unikane"][0]["postac"] == "Johny"
+            and d["unikane"][0]["nick"] == "Dildo Vagins" and d["zmian_doba"] == {"dwa": 1}, (d["unikane"], d["zmian_doba"]))
+    sprawdz("zmiany spotu: odczyt niczego nie zapisał w instancje/*", drzewo_instancji(r) == przed)
+with tempfile.TemporaryDirectory() as tmp:
+    r = zrob_korzen(tmp, instancje=("dwa",))
+    kod, d = uruchom(tmp, "spotkania")
+    sprawdz("zmiany spotu: brak dziennika i brak nadzor_stan.json = puste listy, ok", kod == 0 and d["ok"] and d["zmiany"] == [] and d["unikane"] == [] and d["ostatni_gracz"] is None, d)
+    (r / "instancje/_wspolne/nadzor_stan.json").write_text("[1,2]")
+    kod, d = uruchom(tmp, "spotkania")
+    sprawdz("unikane spoty: nadzor_stan.json o złym kształcie = puste, ok", kod == 0 and d["ok"] and d["unikane"] == [], d)
+
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import "OknoModel.js" as Model
 import "RetronicModel.js" as Rules
 import "PrzegladModel.js" as Prz
+import "SpotkaniaModel.js" as Spo
 
 // Pasek boczny 260 px (makieta wariant B): karty postaci (lista przewijana, liczona na 10), menu sekcji wybranej postaci
 // i akcje na dole: Stop/Start oraz ⌂ Miasto, ↻ Refill, ↗ Spot. Akcje i reguły szarości są te same co na pasku:
@@ -20,10 +21,13 @@ Rectangle {
   readonly property var refillSpec: Rules.refillButton(st)
   readonly property var spotSpec: Rules.spotButton(st)
   readonly property var info: Rules.cityInfo(st)
+  readonly property var loginSpec: ctl.loginState(ctl.selectedId)       // „Zaloguj”: Model.loginState (szarości i powody), bez bota
+  readonly property var loginNote: ctl.selected ? (ctl.loginNotes[ctl.selected.id] || null) : null    // wynik ostatniego logowania {ok, text}
   readonly property bool overview: ctl.section === "przeglad"          // w Przeglądzie nie ma wybranej postaci: bez menu postaci i akcji
   readonly property string message: ctl.selected ? (ctl.messages[ctl.selected.id] || "") : ""
   readonly property string hoverHint: btnReturn.hovered ? returnSpec.hint : (btnRefill.hovered ? refillSpec.hint
-                                      : (btnSpot.hovered ? spotSpec.hint : (btnMain.hovered ? mainHint : "")))
+                                      : (btnSpot.hovered ? spotSpec.hint : (btnMain.hovered ? mainHint
+                                      : (btnLogin.hovered ? loginSpec.hint : ""))))
   // Powód szarego Stop/Start (pasek go nie pokazuje; tu jest miejsce na linię pod guzikami).
   readonly property string mainHint: {
     if (!st || !st.ok) return "brak odczytu"
@@ -77,7 +81,7 @@ Rectangle {
         objectName: "postacie-liczba"
         anchors.right: parent.right
         anchors.rightMargin: 2
-        text: String(side.ctl.instances.length)
+        text: String(side.ctl.visibleInstances.length)
         color: Theme.dim
         font.family: Theme.font
         font.pixelSize: Theme.tiny
@@ -105,7 +109,7 @@ Rectangle {
         spacing: 14
 
         Repeater {
-          model: side.ctl.instances
+          model: side.ctl.visibleInstances
           delegate: CharCard {
             required property var modelData
             width: cardsCol.width
@@ -119,6 +123,29 @@ Rectangle {
             onPreviewRequested: { side.ctl.select(modelData.id); side.ctl.previewFor(modelData.id) }
           }
         }
+      }
+    }
+
+    // „pokaż stracone” (25.10): stracone postacie są domyślnie poza listą; ten jeden wiersz je pokazuje/ukrywa (widoczny tylko, gdy jakieś są)
+    Text {
+      id: lostToggle
+      objectName: "pokaz-stracone"
+      signal activated()
+      onActivated: side.ctl.setShowLost(!side.ctl.showLost)
+      visible: side.ctl.lostCount > 0
+      Layout.fillWidth: true
+      Layout.topMargin: -6
+      leftPadding: 2
+      text: (side.ctl.showLost ? "ukryj stracone" : "pokaż stracone") + " (" + side.ctl.lostCount + ")"
+      color: toggleArea.containsMouse ? Theme.fg : Theme.dim
+      font.family: Theme.font
+      font.pixelSize: Theme.tiny
+      MouseArea {
+        id: toggleArea
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: lostToggle.activated()
       }
     }
 
@@ -159,12 +186,13 @@ Rectangle {
         current: side.ctl.section === "ustawienia"
         onChosen: side.ctl.setSection("ustawienia")
       }
+      // 26.10: „Spotkania” w miejscu „Ratunku” (RatunekView.qml zostaje w plikach, nieużywany; RATUNEK_HAIKU=0 u wszystkich). Plakietka = ile postaci osiągnęło próg zmiany spotu.
       NavItem {
-        width: parent.width; icon: "✚"; label: "Ratunek"
-        objectName: "nav-ratunek"
-        current: side.ctl.section === "ratunek"
-        count: side.ctl.selected && side.ctl.selected.ratunek_dzis ? side.ctl.selected.ratunek_dzis : 0
-        onChosen: side.ctl.setSection("ratunek")
+        width: parent.width; icon: "◎"; label: "Spotkania"
+        objectName: "nav-spotkania"
+        current: side.ctl.section === "spotkania"
+        count: Spo.summaryOf(side.ctl.visibleInstances).hot
+        onChosen: side.ctl.setSection("spotkania")
       }
     }
 
@@ -187,15 +215,31 @@ Rectangle {
         font.letterSpacing: 1
       }
 
-      Btn {
-        id: btnMain
-        objectName: "akcja-glowna"
+      Row {
         width: parent.width
-        label: side.kind === "stop" ? "■ Stop" : "▶ Start"
-        tone: side.kind === "stop" ? "stop" : "ok"
-        active: Rules.buttonEnabled(side.st)
-        busy: side.ctl.isBusy(side.ctl.selectedId)
-        onActivated: side.ctl.runAction(side.kind)
+        spacing: 6
+
+        Btn {
+          id: btnMain
+          objectName: "akcja-glowna"
+          width: (parent.width - 6) * 0.5
+          label: side.kind === "stop" ? "■ Stop" : "▶ Start"
+          tone: side.kind === "stop" ? "stop" : "ok"
+          active: Rules.buttonEnabled(side.st)
+          busy: side.ctl.isBusy(side.ctl.selectedId)
+          onActivated: side.ctl.runAction(side.kind)
+        }
+        // „Zaloguj postać” (24.10): loguje postać do gry BEZ uruchamiania bota; szary: główna, stracona, już w grze, inne logowanie trwa
+        Btn {
+          id: btnLogin
+          objectName: "akcja-zaloguj"
+          width: (parent.width - 6) * 0.5
+          label: side.loginSpec.label
+          tone: "prim"
+          active: side.loginSpec.enabled
+          busy: side.loginSpec.busy
+          onActivated: side.ctl.runLogin(side.ctl.selectedId)
+        }
       }
 
       Row {
@@ -243,11 +287,12 @@ Rectangle {
         wrapMode: Text.WordWrap
         maximumLineCount: 3
         elide: Text.ElideRight
-        text: side.message !== "" ? side.message : (side.hoverHint !== "" ? side.hoverHint : side.info.text)
-        color: side.message !== "" || (side.hoverHint === "" && side.info.error) ? Theme.bad : Theme.dim
+        text: side.message !== "" ? side.message : (side.hoverHint !== "" ? side.hoverHint : (side.loginNote ? side.loginNote.text : side.info.text))
+        color: side.message !== "" ? Theme.bad : (side.hoverHint === "" && side.loginNote ? (side.loginNote.ok ? Theme.ok : Theme.bad)
+               : (side.hoverHint === "" && side.info.error ? Theme.bad : Theme.dim))
         font.family: Theme.font
         font.pixelSize: Theme.tiny
-        font.bold: side.message !== "" || (side.hoverHint === "" && side.info.error)
+        font.bold: side.message !== "" || (side.hoverHint === "" && (side.loginNote !== null || side.info.error))
         // zawsze rezerwuj miejsce na dwie linie, żeby akcje nie skakały przy zmianie komunikatu
         height: Math.max(implicitHeight, 26)
       }
