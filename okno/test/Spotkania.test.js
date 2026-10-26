@@ -159,6 +159,39 @@ describe("widziani na obecnym spocie (26.10)", () => {
   })
 })
 
+describe("blok SPOTKANIA w tabeli Przegląd (26.10)", () => {
+  it("dwie linie jak na karcie: spotkań · widziani oraz próg n/PRÓG · bywalec (te same dane i podpowiedź)", () => {
+    const i = inst("a", sp({ spotkan: 6, n: 1, bywalec: { nick: "Hansi", n: 1 }, widziani: 3, widziani_od: 1792650000, widziani_lista: [] }))
+    const c = S.przegladCell(i, true)
+    assert.equal(c.ok, true)
+    assert.equal(c.line1, "👥 spotkań 6 · 👁 widziani 3")
+    assert.equal(c.line2, "próg 1/3 · Hansi ×1")
+    assert.equal(c.hot, false)
+    assert.equal(c.tip, S.cardLines(i).tip)
+  })
+  it("próg osiągnięty = hot; bez bywalca linia 2 to sam próg; brak widzianych (stara pamięć podręczna) = „widziani -”", () => {
+    const c = S.przegladCell(inst("a", sp({ n: 3, bywalec: null })), true)
+    assert.equal(c.hot, true)
+    assert.equal(c.line2, "próg 3/3")
+    assert.equal(c.line1, "👥 spotkań 2 · 👁 widziani -")
+  })
+  it("offline / Karol gra / bot stoi: „—” z podpowiedzią „brak sesji bota”, bez liczb", () => {
+    for (const c of [S.przegladCell(inst("a", sp()), false), S.przegladCell(inst("a", brak("bot nie działa")), true), S.przegladCell(inst("a", Object.assign(brak("bot nie działa"), { spotkan: 9 })), true)]) {
+      assert.equal(c.ok, false)
+      assert.equal(c.line1, "—")
+      assert.equal(c.line2, "")
+      assert.equal(c.tip, "brak sesji bota")
+    }
+  })
+  it("inny powód braku danych idzie do podpowiedzi; brak sekcji (stary stan) = „—”", () => {
+    assert.equal(S.przegladCell(inst("a", brak("jeszcze nie policzone")), true).tip, "brak danych o spotkaniach: jeszcze nie policzone")
+    assert.equal(S.przegladCell(inst("a", brak("dane z poprzedniej sesji bota")), true).line1, "—")
+    const c = S.przegladCell({ id: "a" }, true)
+    assert.equal(c.line1, "—")
+    assert.equal(c.tip, "brak danych o spotkaniach")
+  })
+})
+
 describe("tabela per postać", () => {
   const lista = [
     inst("a", sp({ n: 3, bywalec: { nick: "Statutum", n: 3 }, spotkan: 4, spotkan_na_h: 2.9, czas_na_spocie_s: 5000, graczy: 2 })),

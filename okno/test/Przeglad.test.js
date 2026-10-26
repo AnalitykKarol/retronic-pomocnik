@@ -526,7 +526,9 @@ describe("sortowanie (25.10): domyślnie poziom ↓, wybór sortowania", () => {
     assert.deepEqual(ids(P.sortRows(rows)), ["b", "c", "a"])
     assert.deepEqual(ids(P.sortRows(rows, "level")), ["b", "c", "a"])
     assert.deepEqual(ids(P.sortRows(rows, "nie-ma-takiego")), ["b", "c", "a"])
-    assert.deepEqual(P.SORTS.map((s) => s.key), ["level", "nazwa", "exp_h", "stan", "hp", "ostatnio"])
+    assert.deepEqual(P.SORTS.map((s) => s.key), ["level", "nazwa", "exp_h", "stan", "hp", "ostatnio", "spotkan"])
+    assert.equal(P.SORTS.find((s) => s.key === "spotkan").label, "spotkań ↓")
+    assert.equal(P.validSort("spotkan"), "spotkan")
   })
   it("remis poziomu: wyższy % do następnego poziomu, potem nazwa alfabetycznie (bez względu na wielkość liter), potem id", () => {
     const rows = [R("n1", "Zeta", { level: 10, levelPct: 40 }), R("n2", "alfa", { level: 10, levelPct: 40 }), R("n3", "Beta", { level: 10, levelPct: 84 }),
@@ -560,6 +562,20 @@ describe("sortowanie (25.10): domyślnie poziom ↓, wybór sortowania", () => {
     const hp = (f) => ({ live: true, frac: f })
     const rows = [R("a", "A", { hp: hp(0.9), level: 1 }), R("b", "B", { level: 99 }), R("c", "C", { hp: hp(0.25), level: 1 }), R("d", "D", { hp: hp(0.9), level: 7 })]
     assert.deepEqual(ids(P.sortRows(rows, "hp")), ["c", "d", "a", "b"])
+  })
+  it("spotkań ↓ (26.10): najwięcej spotkań pierwsze, brak danych (null: bot stoi, offline) na końcu, 0 to liczba; remis -> poziom", () => {
+    const rows = [R("a", "A", { spotkan: 2, level: 5 }), R("b", "B", { level: 99 }), R("c", "C", { spotkan: 7, level: 1 }), R("d", "D", { spotkan: 2, level: 9 }), R("z", "Z", { spotkan: 0, level: 50 })]
+    assert.deepEqual(ids(P.sortRows(rows, "spotkan")), ["c", "d", "a", "z", "b"])
+  })
+  it("wiersz Przeglądu niesie `spotkan` z sekcji `spotkania` (ta sama co karta); brak danych albo offline = null", () => {
+    const inst = (id, spot, over) => Object.assign({ id, nick: id, przeglad: { stan: "bot_dziala", w_grze: true }, ostatnie: null, spotkania: spot }, over || {})
+    const now = new Date(1792691600 * 1000)
+    assert.equal(P.rowOf(inst("a", { dostepne: true, spotkan: 6 }), now).spotkan, 6)
+    assert.equal(P.rowOf(inst("a", { dostepne: true, spotkan: 0 }), now).spotkan, 0)
+    assert.equal(P.rowOf(inst("a", { dostepne: false, powod: "bot nie działa", spotkan: 9 }), now).spotkan, null)
+    assert.equal(P.rowOf(inst("a", { dostepne: true }), now).spotkan, null)
+    assert.equal(P.rowOf(inst("a", undefined), now).spotkan, null)
+    assert.equal(P.rowOf(inst("a", { dostepne: true, spotkan: 6 }, { przeglad: { stan: "offline", w_grze: false } }), now).spotkan, null)
   })
   it("ostatnio ↓: najświeższa aktywność pierwsza, brak czasu na końcu", () => {
     const rows = [R("a", "A", { lastT: 100 }), R("b", "B"), R("c", "C", { lastT: 900 }), R("d", "D", { lastT: 500 })]

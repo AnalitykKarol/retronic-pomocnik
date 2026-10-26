@@ -236,6 +236,12 @@ function runyText(inst) {
 }
 function runyLow(inst) { var r = inst && inst.runy; return !!(r && isNum(r.blanki) && r.blanki < 5) }
 
+// Liczba spotkań z graczami (okno_api `spotkania`, ta sama sekcja co karta) albo null, gdy brak danych (bot stoi, inna sesja, jeszcze nie policzone)
+function spotkanKey(inst) {
+  var s = inst && inst.spotkania
+  return s && typeof s === "object" && s.dostepne === true && isNum(s.spotkan) ? s.spotkan : null
+}
+
 function expH(inst) { var p = przegladOf(inst); return p && isNum(p.exp_h) ? p.exp_h : null }
 function zabH(inst) { var p = przegladOf(inst); return p && isNum(p.zab_h) ? p.zab_h : null }
 
@@ -369,6 +375,7 @@ function rowOf(inst, now) {
     expH: off ? null : expH(inst),
     runy: off ? "" : runyText(inst),
     runyLow: off ? false : runyLow(inst),
+    spotkan: off ? null : spotkanKey(inst),                  // 26.10: liczba spotkań (bez progu) z sekcji `spotkania`; brak danych = null (klucz sortowania „spotkań ↓”)
     alarm: alarm,
     alarmFlag: !!(p && (p.stan === "alarm" || p.alarm_24h === true)),
     supervision: supervisionOf(inst),
@@ -394,7 +401,8 @@ var SORTS = [
   { key: "exp_h", label: "exp/h ↓" },
   { key: "stan", label: "stan" },
   { key: "hp", label: "HP% ↑" },
-  { key: "ostatnio", label: "ostatnio ↓" }
+  { key: "ostatnio", label: "ostatnio ↓" },
+  { key: "spotkan", label: "spotkań ↓" }
 ]
 
 // klucz sortowania, jeśli znany; inaczej null (do odczytu zapisanego wyboru z pliku)
@@ -437,6 +445,7 @@ function sortPrimary(a, b, key) {
   if (key === "stan") return cmpNum(a.order !== undefined ? a.order : STAN_ORDER[a.stan], b.order !== undefined ? b.order : STAN_ORDER[b.stan], false)
   if (key === "hp") return cmpNum(hpKey(a), hpKey(b), false)
   if (key === "ostatnio") return cmpNum(a.lastT, b.lastT, true)
+  if (key === "spotkan") return cmpNum(a.spotkan, b.spotkan, true)          // 26.10: najwięcej spotkań pierwsze; brak danych na końcu
   // 26.10 (Karol): domyślnie najpierw postacie w grze, dopiero potem wylogowane; w obu grupach poziom malejąco
   if (a.inGame !== b.inGame) return a.inGame ? -1 : 1
   return cmpNum(levelKey(a), levelKey(b), true)

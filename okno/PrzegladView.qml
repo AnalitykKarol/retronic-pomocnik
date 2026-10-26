@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "PrzegladModel.js" as Prz
+import "SpotkaniaModel.js" as Spo
 
 // Przegląd (spec wtyczka-paska/specs/2026-10-22-retronic-przeglad.md, F2; makieta wariant A „tabela”): co na czym stoi, wszystkie postacie naraz.
 // Liczniki u góry, filtry (wszystkie / w grze / z alarmem / stracone), wybór sortowania (domyślnie poziom ↓, 25.10), tabela w grupach „W GRZE” (dane na żywo) i „OFFLINE” (ostatnio znane, wyszarzone).
@@ -25,15 +26,25 @@ Item {
   // kolumny jak w makiecie: POSTAĆ · STAN · SPOT·PIĘTRO · TRYB · LEVEL · ML · HP · MANA · EXP/H · NA SPOCIE/OSTATNI · ZAB/H · ALARM (elastyczna) · NADZÓR
   // (GDZIE, czyli współrzędne, zniknęło z tabeli 23.10: jest w widoku postaci i w podpowiedzi po najechaniu na wiersz; EXP/H stoi tam, gdzie było GDZIE,
   // żeby było widać przy każdej szerokości okna)
-  readonly property var colW: [200, 220, 220, 80, 76, 120, 120, 76, 56]
+  // 26.10 (Karol): dołożony blok SPOTKANIA (dwie linie, po prawej stronie obu linii wiersza); żeby tabela nadal mieściła się bez poziomego przewijania w oknie ok. 1660 px
+  // (obszar treści ok. 1400 px), zwężone: postać, stan, blanki · runy, level, ML, exp/h, zab/h oraz druga linia (spot, tryb, na spocie, nadzór). HP i mana bez zmian.
+  readonly property var colW: [180, 200, 170, 76, 68, 120, 120, 72, 52]
   readonly property int gap: 10
   readonly property int pad: 22
-  readonly property int tableW: Math.max(flick.width, 1300)
-  // druga linia wiersza: spot, tryb, na spocie, alarm (elastyczna), nadzór; zaczyna się pod kolumną „stan”
-  readonly property int alarmW: Math.max(200, tableW - 2 * pad - (colW[0] + gap) - (220 + 220 + 190 + 150) - 4 * gap)
-  readonly property var colWB: [220, 220, 190, alarmW, 150]
+  readonly property int spoW: 190                                  // blok SPOTKANIA: x = tableW - pad - spoW
+  readonly property int tableW: Math.max(flick.width, 2 * pad + 1050 + 9 * gap + spoW + 10)     // 1050 = suma colW; 1392 px minimum
+  // druga linia wiersza: spot, tryb, na spocie, alarm (elastyczna), nadzór; zaczyna się pod kolumną „stan”, kończy przed blokiem SPOTKANIA
+  readonly property int alarmW: Math.max(200, tableW - 2 * pad - (colW[0] + gap) - (170 + 150 + 170 + 130) - 4 * gap - (spoW + gap))
+  readonly property var colWB: [170, 150, 170, alarmW, 130]
+  readonly property var instById: {
+    var m = {}
+    var l = ctl.instances || []
+    for (var i = 0; i < l.length; i++) m[l[i].id] = l[i]
+    return m
+  }
   readonly property var heads: ["postać", "stan", "blanki · runy", "level", "ML", "HP", "mana", "exp/h", "zab/h"]
   readonly property var headsB: ["spot · piętro", "tryb", "na spocie / ostatni", "ostatni alarm", "nadzór"]
+  readonly property var headsSpo: ["spotkań · widziani", "próg bota · bywalec"]
 
   function textColor(tone) { return Theme.tone(tone) }
 
@@ -175,6 +186,27 @@ Item {
           height: 46
           color: Theme.bg
           Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: Theme.line }
+          Column {
+            x: parent.width - view.pad - view.spoW
+            width: view.spoW
+            Repeater {
+              model: view.headsSpo
+              delegate: Item {
+                id: headSpo
+                required property string modelData
+                width: view.spoW
+                height: 23
+                Text {
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: headSpo.modelData.toUpperCase()
+                  color: Theme.dim2
+                  font.family: Theme.font
+                  font.pixelSize: Theme.tiny
+                  font.letterSpacing: 1
+                }
+              }
+            }
+          }
           Row {
             x: view.pad
             y: 0
@@ -308,7 +340,7 @@ Item {
       cursorShape: Qt.PointingHandCursor
       onClicked: tr.tryClick()
       // współrzędne (dawna kolumna GDZIE) w podpowiedzi; offline: ostatnia znana pozycja z `ostatnie`, brak = bez podpowiedzi
-      ToolTip.visible: containsMouse && tr.row.where !== "—"
+      ToolTip.visible: containsMouse && tr.row.where !== "—" && !spoBlock.over
       ToolTip.delay: 600
       ToolTip.text: (tr.off ? "Ostatnio znane miejsce: " : "Gdzie: ") + tr.row.where
     }
@@ -423,6 +455,46 @@ Item {
           color: tr.row.zabH === null ? Theme.dim2 : Theme.fg2; font.family: Theme.font; font.pixelSize: Theme.body
         }
       }
+    }
+
+    // SPOTKANIA (26.10): dwie linie po prawej stronie wiersza, te same dane i podpowiedź co na karcie postaci (SpotkaniaModel.przegladCell);
+    // poza grą / Karol gra / brak sekcji: „—” z podpowiedzią (powód braku danych), bez zgadywania liczb
+    Item {
+      id: spoBlock
+      readonly property var cell: Spo.przegladCell(view.instById[tr.row.id], tr.row.inGame)
+      objectName: "przeglad-spotkania-" + tr.row.id
+      readonly property string line1Text: cell.line1
+      readonly property string line2Text: cell.line2
+      readonly property string tipText: cell.tip
+      readonly property bool hot: cell.hot
+      readonly property bool over: spoHover.hovered
+      x: tr.width - view.pad - view.spoW
+      y: 0
+      width: view.spoW
+      height: tr.height
+      clip: true
+      Text {
+        x: 0; y: 11; width: parent.width; height: 20
+        verticalAlignment: Text.AlignVCenter
+        text: spoBlock.cell.line1
+        color: spoBlock.cell.ok ? Theme.fg2 : Theme.dim2
+        font.family: Theme.font; font.pixelSize: Theme.small
+        elide: Text.ElideRight
+      }
+      Text {
+        visible: spoBlock.cell.line2 !== ""
+        x: 0; y: 44; width: parent.width; height: 20
+        verticalAlignment: Text.AlignVCenter
+        text: spoBlock.cell.line2
+        color: spoBlock.cell.hot ? Theme.warn : Theme.dim
+        font.bold: spoBlock.cell.hot
+        font.family: Theme.font; font.pixelSize: Theme.small
+        elide: Text.ElideRight
+      }
+      HoverHandler { id: spoHover }                         // pasywny: nie zabiera kliknięcia wierszowi
+      ToolTip.visible: spoHover.hovered && spoBlock.cell.tip !== ""
+      ToolTip.delay: 500
+      ToolTip.text: spoBlock.cell.tip
     }
 
     // druga linia: spot, tryb, czas na spocie, alarm, nadzór (pod kolumnami „stan” i dalej)

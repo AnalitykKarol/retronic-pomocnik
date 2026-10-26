@@ -18,6 +18,7 @@ import "PrzegladModel.js" as Prz
 // Stracone (25.10): klik:pokaz-stracone (przełącznik w pasku bocznym, widoczny gdy są stracone) · lista-stan (loguje widoczne id, przełącznik, wybraną, liczniki i chip „stracone”)
 // Sortowanie (25.10): klik:sort-level|sort-nazwa|sort-exp_h|sort-stan|sort-hp|sort-ostatnio (chipy w Przeglądzie) · kolejnosc (loguje wybrany klucz, kolejność wierszy tabeli od góry
 //        z podziałem na grupy [w nawiasach] i kolejność kart w pasku bocznym; plik z zapamiętanym wyborem sprawdza qml-atrapa.sh)
+// Przegląd + spotkania (26.10): przeglad-spotkania:<id,id,...> loguje blok SPOTKANIA wierszy tabeli i szerokość tabeli (czy przewija się poziomo)
 // Spotkania (26.10): sekcja:spotkania · spotkania-stan (loguje linie kart: `karta-spotkania-<id>` i wiersze tabeli) · klik:nav-spotkania
 // „Zaloguj postać” (24.10, loguje do gry BEZ bota): klik:akcja-zaloguj (pasek boczny, wybrana postać) · klik:zaloguj-<id> (przycisk w wierszu Przeglądu, tylko postacie poza grą)
 //        zaloguj-stan:<id|glowna> (loguje stan guzika: wlaczony, powod, busy, podpowiedz, oraz Backend.loginId i wynik ostatniego logowania)
@@ -127,6 +128,16 @@ Item {
       }
       console.log("[scenariusz] SPOTKANIA-DANE zmiany=" + (ctl.spotkaniaData ? ctl.spotkaniaData.zmiany.length : "brak") + " unikane=" + (ctl.spotkaniaData ? ctl.spotkaniaData.unikane.length : "brak")
                   + " blad=" + ctl.spotkaniaError + " nav=" + (find(target, "nav-spotkania") ? "jest" : "brak") + " nav-ratunek=" + (find(target, "nav-ratunek") ? "jest" : "brak"))
+    }
+    else if (cmd === "przeglad-spotkania") {
+      // blok SPOTKANIA w tabeli Przegląd (26.10): `przeglad-spotkania-<id>`; arg = lista id po przecinku; loguje obie linie, podpowiedź i pozycję bloku w wierszu
+      var pids = arg === "" ? [] : arg.split(",")
+      for (var pi = 0; pi < pids.length; pi++) {
+        var pb = find(target, "przeglad-spotkania-" + pids[pi])
+        console.log("[scenariusz] PRZEGLAD-SPOTKANIA id=" + pids[pi] + " " + (pb ? pb.line1Text + " | " + pb.line2Text + " | tip=" + pb.tipText.split("\n")[0] + " | hot=" + pb.hot + " | x=" + Math.round(pb.x) + " w=" + Math.round(pb.width) : "brak"))
+      }
+      var ft = find(target, "przeglad-tabela")
+      console.log("[scenariusz] PRZEGLAD-TABELA contentWidth=" + (ft ? Math.round(ft.contentWidth) + " width=" + Math.round(ft.width) + " przewija_poziomo=" + (ft.contentWidth > ft.width + 1) : "brak"))
     }
     else if (cmd === "kolejnosc") { notBefore = Date.now() + 1100; orderTimer.restart() }       // odczyt po 500 ms: układ po zmianie sortowania zdąży się przeliczyć
     else if (cmd === "zaloguj-stan") {

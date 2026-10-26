@@ -129,6 +129,29 @@ function cardLines(inst) {
   }
 }
 
+// Blok SPOTKANIA w tabeli Przegląd (26.10): dwie linie jak na karcie postaci, te same helpery. Linia 1: `👥 spotkań 6 · 👁 widziani 2`, linia 2: `próg 0/3 · Vados ×6`.
+// Postać poza grą, Karol gra bez bota albo brak sekcji: „—” z podpowiedzią „brak sesji bota” (nie zgadujemy liczb); inny powód braku danych (np. „jeszcze nie policzone”) idzie do podpowiedzi.
+// -> {ok, line1, line2, tip, hot}. `inGame` z wiersza Przeglądu (false = offline).
+function przegladCell(inst, inGame) {
+  var none = function (tip) { return { ok: false, line1: "—", line2: "", tip: tip, hot: false } }
+  if (inGame === false) return none("brak sesji bota")
+  var s = sectionOf(inst)
+  if (!s) return none("brak danych o spotkaniach")
+  if (s.dostepne !== true) {
+    var why = whyText(inst)
+    return none(why === "bot nie działa" ? "brak sesji bota" : "brak danych o spotkaniach: " + why)
+  }
+  var l = cardLines(inst)
+  var sn = seenOf(inst)
+  var reg = regularText(s)
+  return {
+    ok: true,
+    line1: "👥 spotkań " + (isNum(s.spotkan) ? s.spotkan : DASH) + " · 👁 widziani " + sn.text,
+    line2: "próg " + (isNum(s.n) ? s.n : 0) + "/" + progOf(inst) + (reg !== "" ? " · " + reg : ""),
+    tip: l.tip, hot: l.hot
+  }
+}
+
 // ---------------------------------------------------------------- zakładka: tabela per postać
 
 // jak Model.nickOf / Prz.rowOf: nick z procesu bota albo logu klienta, inaczej id instancji
@@ -287,7 +310,7 @@ function limitsOf(data) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     DASH: DASH, WHY_SHORT: WHY_SHORT, whyShort: whyShort, decimal: decimal, span: span, sectionOf: sectionOf, available: available, progOf: progOf, isHot: isHot, whyText: whyText, seenOf: seenOf,
-    cardLines: cardLines, botRegularText: botRegularText, rowOf: rowOf, rowsOf: rowsOf, summaryOf: summaryOf, tempoOf: tempoOf, lastSeen: lastSeen,
+    cardLines: cardLines, botRegularText: botRegularText, przegladCell: przegladCell, rowOf: rowOf, rowsOf: rowsOf, summaryOf: summaryOf, tempoOf: tempoOf, lastSeen: lastSeen,
     changeRows: changeRows, avoidRows: avoidRows, subtitleOf: subtitleOf, limitsOf: limitsOf, leftText: leftText, STATUS: STATUS
   }
 }
