@@ -47,6 +47,7 @@ KANAL = "Trade"
 WLASNY_NICK = "Jointoramix"
 INTERWAL = 5.0            # s, zwykly odpyt
 PONOW = 10.0              # s, po bledzie gniazda
+MAX_BRAK_S = 3600.0        # s: tryb handlu konczy sie po tylu sekundach bez straznika (26.10, auto-start z sesja.sh)
 INTERWAL_PODSUMOWANIA = 300.0
 CISZA_ALERTU = 600.0      # s, max 1 powiadomienie na nadawce
 ALERT_PRZEDMIOTY = {"ultimate healing rune", "heavy magic missile rune", "blank rune"}
@@ -589,6 +590,10 @@ def cykl_handlu(stan, konfig, pliki, sucho, start_ts, dane=None, teraz=None):
     epoka = dane.get("epoka")
     nowe = stan.nowe(dane.get("wiadomosci", []), epoka, przepusc=lambda m: rodzaj(m, wlasny) is not None)
     postac = konfig.get("nick") or "postac"
+    # 26.10: "okienka": false w handel.json = trade_logger tylko ZAPISUJE (priv.jsonl, oferty, alerty), bez notify-send;
+    # okienka daje wtedy powiadom_czat.py (jeden alert na wiadomosc). Brak klucza = jak dotad (okienka wlaczone).
+    if konfig.get("okienka") is False:
+        sucho = True
     privy, oferty, alerty = [], [], []
     for m in nowe:
         swieza = (m.get("ts") or 0) >= start_ts - STARE_S
@@ -669,6 +674,7 @@ def zwolnij_pid():
 def petla(stan, sucho, konfig=None, pliki=None):
     ostatnie_podsumowanie = None
     start_ts = time.time()
+    brak_od = None            # 26.10: poczatek przerwy w lacznosci ze straznikiem (restart klienta); None = laczy
     while not _STOP:
         sen = INTERWAL
         try:
@@ -683,9 +689,19 @@ def petla(stan, sucho, konfig=None, pliki=None):
             if wynik["nowe"]:
                 log(f"nowe wiadomosci: {wynik['nowe']}, oferty: {len(wynik['oferty'])}, "
                     f"alerty: {len(wynik['alerty'])}")
+            if brak_od is not None:
+                log(f"wznowione po {time.monotonic() - brak_od:.0f} s przerwy")
+                brak_od = None
         except (OSError, ValueError, RuntimeError) as e:
             sen = PONOW
             log(f"blad gniazda: {e}; ponawiam za {PONOW:.0f} s")
+            brak_od = time.monotonic() if brak_od is None else brak_od
+            if konfig and time.monotonic() - brak_od > MAX_BRAK_S:     # sesja zamknieta: konczymy, sesja.sh wystartuje nas znowu
+                log(f"brak straznika od {MAX_BRAK_S:.0f} s: koniec (start przy nastepnej sesji)")
+                return
+        except Exception as e:  # noqa: BLE001 - 26.10: jedna dziwna wiadomosc nie moze zabic demona
+            sen = PONOW
+            log(f"nieoczekiwany blad (demon trwa): {type(e).__name__}: {e}; ponawiam za {PONOW:.0f} s")
         if ostatnie_podsumowanie is None or time.monotonic() - ostatnie_podsumowanie >= INTERWAL_PODSUMOWANIA:
             try:
                 if konfig:
