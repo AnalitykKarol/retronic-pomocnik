@@ -33,3 +33,14 @@ dane_tibia/czaszki_niepotwierdzone/
 native/*.so
 .ai/cpu-backup-*/
 .ai/cpu-wdrozenie.json
+
+# pliki robocze i stan sesji agentów (27.10): nie wersjonujemy
+.claude/
+graphify-out/
+refill.log
+cisza.wylaczona-*
+dzwiek_wylaczony
+*.odrzucony-*
+*.nowy-*
+*.polowa-*
+*.tmp_orig
