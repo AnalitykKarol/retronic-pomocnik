@@ -118,6 +118,26 @@ Plan startowy (23.10):
   Nowe pola w `nadzor.py stan` -> `plan`: `zostan_w_depo_po_refillach`, `refille_od_wpisu`, `zostan_uzbrojone`, `wyloguj_w_depo`; `plan_postaci.py pokaz` opisuje to słownie.
   `wyloguj_w_depo` działa też przy starym `zostan_w_depo` (bez licznika). Wpis `po-refillu-trolle` invincible oznaczony ręcznie jako zrobiony (jest już na `trolle_edron`).
   Cofnięcie: przywróć `instancje/_wspolne/plan_postaci.json.bak-20261024-2bp-wyloguj` (albo usuń cztery pola i wpisz `"zostan_w_depo": true`, jeśli ma stać w depo bez wylogowania).
+- **Domyślne „zostań w depo i wyloguj” (25.10, Karol: „ma być jako default, że postacie wracają do miasta do depo i robią loga i czekają na mnie”; WŁĄCZNIK DOMYŚLNIE WYŁĄCZONY, kod nic nie zmienia, dopóki Karol go nie włączy):**
+  Klucz NAJWYŻSZEGO poziomu `instancje/_wspolne/plan_postaci.json` (obok `postacie`): `"domyslne": {"wlaczone": true}` daje KAŻDEJ postaci (także bez wpisu w `postacie`)
+  `zostan_w_depo: true` + `wyloguj_w_depo: true` (+ opcjonalnie `"zostan_w_depo_powod"`, `"zostan_w_depo": false`, `"wyloguj_w_depo": false` jako domyślne całej floty). Pole we wpisie postaci
+  WYGRYWA (także `false`, także `zostan_w_depo_po_refillach`). Włącznik działa tylko przy `wlaczone` równym dokładnie `true`; brak klucza, `false`, zły typ albo kształt = wyłączone
+  (zły kształt dodatkowo daje „błąd planu” w dzienniku/`pokaz`). Kod: `zostan_depo.domyslne()` + `parsuj(pc, dom)`; czytają to wspólnie `nadzor.py`, `refill_auto.py` (bot: brak auto-refillu) i `plan_postaci.py`.
+  **WŁĄCZ (Karol, jedna linia):** w `plan_postaci.json` dopisz na górnym poziomie `"domyslne": {"wlaczone": true},` (np. zaraz po `"_opis": ...,`); kopia przed: `cp plan_postaci.json plan_postaci.json.bak-<data>-domyslne`.
+  Działa od najbliższego ticka nadzorcy i od najbliższego wejścia bota do depo (bez restartu). **WYŁĄCZ / COFNIJ:** usuń tę linię albo `"wlaczone": false` (albo przywróć kopię). Wyjątek dla jednej postaci:
+  `"zostan_w_depo": false` w jej wpisie (nadzorca znów ją wznawia/odświeża jak dziś), albo `"wyloguj_w_depo": false` (zostaje w depo, ale nie wylogowana).
+  Zasady Karola zachowane (kod i testy): wylogowania POJEDYNCZO (jedno zdarzenie logowania na przebieg, odstęp `odstep_min`), `STOP_RECZNY` = nie ruszana, brak wylogowania bez dowodu depo
+  (log „DEPO osiągnięte” nowszy od startu bota albo `w_depo` w panelu; offline: znacznik `zostan_depo_od` + STOP), brak wylogowania w trakcie serwisu/refillu — NOWE `refill_trwa`
+  (procesy `refill.sh`, `refill_auto.py czekaj`, `serwis.sh` tej instancji) obok dotychczasowego `serwis_dziala`; wylogowanie czeka do końca (kod `wyloguj-depo-serwis`), po wylogowaniu sesja zamknięta i brak relogu
+  jak przy `wyloguj_w_depo`. Zagrożenie życia / walka / hold / NADZOR_PAUZA / `nadzor:false` bez zmian (eskalacja albo odroczenie). Cień: tylko wpis „zrobilbym”.
+  **KONFLIKTY Z ISTNIEJĄCYMI PRZEPŁYWAMI (NIE rozstrzygnięte, do decyzji Karola; kod wybiera wariant najbezpieczniejszy = zatrzymanie dopiero po zakończeniu bieżącego refillu/serwisu):**
+  (1) Auto-refill po dojściu do depo (`WROC_REFILL`, `refill_auto.zlec/czekaj`) jest pomijany dla postaci z flagą (także z domyślnych): postać bez ręcznego `./refill.sh` nie kupuje blanków/jedzenia i nie wraca na spot.
+  (2) Runy: powrót po blanki (`plan_blanki` w nadzorcy, `WROC` + refill) kończy się teraz w depo bez refillu (blanki dokupuje Karol). (3) Krok planu `po_refillu` i `przerwa` z `kiedy: po_refillu` czekają na refill,
+  którego już nie będzie; `zostan_w_depo_po_refillach` (invincible, dawajkesh) ma pierwszeństwo jako wpis postaci. (4) Wyjątek „sam cap” (24.10: bank + powrót na spot) NIE jest blokowany
+  (`tylko_cap`): postać po samym braku capa nadal wraca na spot; zniesienie = osobna decyzja. (5) Depo z powodu jedzenia (zapas/głód), `reczny` (guzik WROC) i `pk_powrot` zostają teraz w depo, wylogowane.
+  (6) `WYPRAWA_DEPO_POWROT=1` (bot sam wraca na spot po depo; domyślnie 0 w `wyprawa.py`) nie jest dotknięte: przy włączeniu zadziała wcześniej niż stoper. Zmiany w `wyprawa.py` brak.
+  Dziś bez flag (po włączeniu dotyczy): `borsuk`, `pomszta`, `kutangen` (`nadzor:false`, nietknięta); pozostałe żywe postacie mają już flagi per postać (stan 25.10).
+  Testy: `python3 -I testy/test_domyslnie_depo.py` (30). Kopie przed zmianą: `zostan_depo.py`, `plan_postaci.py`, `nadzor.py`, `refill_auto.py`, `STAN.md`, `NADZORCA.md` jako `*.bak-20261025-domyslnie-depo`.
 - **Powrót po samym braku capa (24.10 ~10:00, Karol dla KAŻDEJ postaci: „zamiana na pc i powrót, aż do pełnego bp run”; wcześniej „wystarczy, że zamieni hajs, nie musi go odkładać”).**
   Wyprawa do depo, której JEDYNYM powodem jest `cap` (`wyprawa_stan.json` `depo_start_powody` == `["cap"]`, log „Wyprawa: start (depo:cap)”), kończy się po STOP w depo
   refillem `REFILL_KROKI=bank,wyjscie` (czekacz `refill_auto.py czekaj` ustawia zmienną; `refill.sh --tlo` i `serwis.py` czytają ją jak dotąd): gold -> platinum (tylko pełne setki,
@@ -151,6 +171,16 @@ Plan startowy (23.10):
 
 Ty: gdy odchyd ma lvl >= 8, bot działa, a w `stan.plan` krok dalej „warunek spełniony”, a w dzienniku brak `wroc`/`plan`, to odchylenie dla Karola
 (kod powinien to zrobić w jednym przebiegu), nie powód do własnej naprawy; wyjątek: `wroc_poziom` (zob. wyżej).
+
+## Zmiana spotu po 3. spotkaniu tego samego gracza (26.10, Karol; spec `dane_tibia/SPEC_spot_gracz_1026.md`)
+
+Bot z pokrętłem `SPOT_ZMIANA_PRZY_GRACZU=1` (domyślnie 0, tylko Karol; działa od restartu bota) liczy spotkania obcych graczy NA SPOCIE (nick widoczny >= 3 s od 27.10 (Karol; wcześniej 15 s), następne spotkanie po >= 5 min bez niego;
+nasze postacie, NPC, wrogowie/PK/GM nie liczą się) i po 3. zapisuje `instancje/<id>/spot_gracz_zadanie.json`, a dopóki jest spokój (HP >= 70 %, zero potworów w <= 4 polach) odświeża w nim `gotowy_t`.
+**Wykonuje to kod nadzorcy** (`decyzja_spot_gracz`, decyzja `zmien_spot` z kodem `spot-gracz`, na żywo przy `NADZOR_NAPRAWY`, w cieniu tylko „zrobiłbym”): ten sam restart co `napraw <id> zmien_spot`,
+ale nowy spot wybiera najpierw z TEJ SAMEJ RODZINY (pole `rodzina` w `spoty_nadzorca.json`, a bez niego to samo miasto + wspólny potwór + środek pętli w <= 60 polach), potem z reszty miasta (z innego piętra jaskini: dojście oceniane z pozycji postaci, `spoty.dojscie_dziala_z`, albo wariant-łącznik `<baza>__z__<źródło>`; postać NIE musi wychodzić na z7, 26.10 ~12:00); bez bieżącego,
+niedawno unikanych (3 h), zakazanych i `auto:false`. Bramki: pokrętło w `na_zywo.json` instancji, `spot_przypiety`, walka, świeże `gotowy_t` (20 s), limity 1 zmiana / 30 min i 4 / dobę. Brak sensownego spotu =
+gdy NIE MA dopuszczalnego spotu, ostatni szczebel to powrót do miasta (26.10 ~10:50, osobny kod `spot-gracz-powrot` = WROC, wykonywany na żywo przy `NADZOR_NAPRAWY` jak `wroc-poziom`; zwykłe `wroc` nadal zabronione; pokrętło `SPOT_GRACZ_POWROT_DO_MIASTA`, domyślnie 1): postać idzie do depo i tam zostaje do decyzji (znacznik `spot_gracz_depo.json`, bez serwisu/refillu/startu na spot; wylogowanie wg planu). Spot przypięty, brak nadzoru, brak danych albo pokrętło 0 = postać zostaje (wpis `spot-gracz-brak`, bez STOP). Powrót wlicza się do limitów 1/30 min i 4/dobę. Licznik spotkań liczy od ostatniego odpalenia bota (26.10, `LICZNIK_OD_STARTU`): restart bota zeruje spotkania, a zlecenie sprzed startu bota wygasa (`spot-gracz-stara-sesja`); unikane spoty (3 h) i limity zostają. Raport spotkań: `python3 -I narzedzia/spotkania_graczy_raport.py` (odczyt telemetrii). Nie wołasz tego z obchodu i niczego tu nie naprawiasz: w dzienniku widać `zmien_spot ... gracz <nick> spotkany N. raz` (zamierzone, nie awaria; nie liczy się do
+drabiny napraw). Cofnięcie: `SPOT_ZMIANA_PRZY_GRACZU=0` w `na_zywo.json` (zlecenia wycofane), kopie `*.bak-20261026-spot-gracz`.
 
 ## Tryb STÓJ (23.10, przełącznik na żądanie Karola)
 

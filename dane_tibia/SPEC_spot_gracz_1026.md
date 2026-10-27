@@ -35,7 +35,7 @@ Test: `RETRONIC_TESTY=1 python3 -I testy/test_spot_gracz.py`. Pokrętło: `SPOT_
 |---|---|---|
 | `SPOTKAN_MAX` | 3 | Karol |
 | `PRZERWA_S` | 300 | Karol („~5 min bez niego w widoku”) |
-| `MIN_WIDOK_S` | 15 | Karol („kilkanaście sekund”) |
+| `MIN_WIDOK_S` | 3 | Karol 27.10: „15 s to nierealny czas, 2-3 s to już dużo; dajmy 3 sekundy” (26.10 było 15, „kilkanaście sekund”) |
 | `LIMIT_ODSTEP_S`, `LIMIT_DOBA` | 30 min, 4 / dobę | Karol |
 | `BEZPIECZNY_ODL`, `BEZPIECZNY_HP` | potwór w <= 4 polach blokuje; HP >= 70 % | Karol |
 | `MAX_KROK_S` | 10 s | moja wartość: dwa obiegi dalej od siebie nie liczą czasu widoku |
@@ -87,14 +87,24 @@ obok `wroc-poziom` i `spot-gracz`; ZWYKŁE `wroc` (inny kod) dalej tylko w cieni
 - Plik licznika uszkodzony -> start od zera; zapis nieudany -> linia w logu, postać zostaje.
 - Limity: bot (zlecenia) i nadzorca (wykonane zmiany) liczą niezależnie: 1 na 30 min, 4 na dobę.
 
+### Próg widoku 15 s -> 3 s (27.10, Karol)
+Decyzja Karola 27.10: „15 sekund to nierealny czas, 2-3 sekundy to już dużo; dajmy 3 sekundy”. Zmieniona tylko stała `MIN_WIDOK_S` (15 -> 3); pozostałe progi bez zmian. Zależności sprawdzone:
+- Widok liczy się z kroków między KOLEJNYMI obiegami z nickiem; krok > `MAX_KROK_S` (10 s) nie liczy się. Dla 3 s potrzeba więc ciągłych obiegów, ale widok w epizodzie jest ŁĄCZNY (jak dotąd): trzy mignięcia po 1 s w < 5 min = 3 s = jedno spotkanie (test A2c2).
+- `PRZERWA_S` (300 s) bez zmian: to ona, nie próg widoku, rozdziela spotkania; gracz kręcący się obok > 5 min bez przerwy to nadal JEDNO spotkanie. `ZAPIS_CO_S` (20 s) dotyczy tylko „ostatnio widziany”; zaliczone spotkanie zapisuje się od razu, więc krótszy próg nic nie gubi.
+- Licznik działa tylko na spocie (`cavebot._sg_aktywny`: bez dojścia, wypadu, STÓJ, ucieczki, PK, WPADNIĘCIA), więc mijanie graczy w mieście, w depo i na dojściu nie nabija spotkań także przy 3 s. Na spocie nabija każde przejście obcego przez okno mapy 15x11 trwające >= 3 s (przechodnie, nie tylko stojący).
+- Skutek na telemetrii (7 botów, raport `--dzien`): 26.10 spotkań wg reguł bota 3 (15 s) -> 16 (3 s), a bez progu 20; 27.10 do 13:25 2 -> 4 (bez progu 4). Z licznikiem od restartu bota (sesje) tylko jeden przypadek dobija do 3: Geblish/Vados 26.10 ok. 09:27; zmiana spotu dalej wymaga 3 spotkań TEGO SAMEGO gracza rozdzielonych >= 5 min, limity 1/30 min i 4/dobę nadzorcy bez zmian.
+- Nazwy pól `spotkan_prog15`, `nicki_prog15`, `bywalec_prog15` w raporcie, API okna i testach zostają (historyczne; czytają je okno i testy); wartość progu to zawsze `SG.MIN_WIDOK_S`. Opisy w oknie (zakładka/karta „Spotkania”) i raporcie podają „3 s”.
+- Proces bota czyta stałą z `spot_gracz.py` przy pierwszym imporcie, więc bot podejmie 3 s dopiero po restarcie procesu (nadzorca importuje moduł przy każdym ticku, ale progu widoku nie używa).
+Cofnięcie: `MIN_WIDOK_S = 15` w `spot_gracz.py` albo kopie `*.bak-20261027-widok3`.
+
 ## Czego NIE robi
 Nie rusza progów ucieczki/PK/HP/ognia, nie klika, nie zatrzymuje bota w walce, nie zmienia spotu przypiętego, nie reaguje na wrogów z listy PK (osobna ścieżka), nie wchodzi na spoty
 `auto:false`/zakazane, nie wysyła niczego poza jednym powiadomieniem przy zmianie. NIESPRAWDZONE NA ŻYWO: pełny restart na nowym spocie z tej ścieżki (to samo wywołanie co `zmien_spot`),
-wiarygodność odczytu graczy z `stwory` w kliencie, dobór progów 15 s / 5 min na prawdziwym ruchu.
+wiarygodność odczytu graczy z `stwory` w kliencie, dobór progów 3 s / 5 min na prawdziwym ruchu.
 
 ## Raport spotkań z telemetrii (26.10 ~12:10, tylko ODCZYT): `narzedzia/spotkania_graczy_raport.py`
 `python3 -I narzedzia/spotkania_graczy_raport.py [--dzien RRRRMMDD | --od-startu] [--instancja ID] [--json] [--min-widok S] [--przerwa S]`. Dla każdej instancji liczy z `logi/telemetria-*.jsonl` (próbki `typ: probka`)
-TYMI SAMYMI regułami co bot (ten sam `spot_gracz.Licznik`, wersja w pamięci `Licznik(None)`): nick `gracz:true` w `stwory`, nie nasze (profil.json + lista), nie własny, HP > 0, nie GM; spotkanie = >= 15 s w epizodzie, przerwa 300 s.
+TYMI SAMYMI regułami co bot (ten sam `spot_gracz.Licznik`, wersja w pamięci `Licznik(None)`): nick `gracz:true` w `stwory`, nie nasze (profil.json + lista), nie własny, HP > 0, nie GM; spotkanie = >= `MIN_WIDOK_S` (od 27.10 3 s; wcześniej 15 s) w epizodzie, przerwa 300 s.
 „Na spocie” = stan inny niż WYPAD/WPADNIECIE/PAUZA_STOJ/STOJ_POWROT/WYLOGUJ_OBCY/brak i próbka poza DOJŚCIEM (z `logi/mozg-stdout-MMDD-GGMM.log`: „Dojście: trasa” bez jeszcze „Dojście zakończone” = dojście; brak „Dojście:” = od razu na spocie).
 Domyślnie od ostatniego startu bota (ostatnia `sesja` telemetrii), `--dzien` = cały dzień. Wyjście: tabela (instancja, postać, czas na spocie, graczy, spotkań, spotkań/h, najczęstsi nicki z licznikami) albo JSON.
 **Dlaczego bez geometrii trasy** (pierwsza wersja filtrowała próbki ≤ 8 pól od punktów pętli z `tryb.log`): (1) patrol (`patrol:troll`, Wydra) nie ma pętli — filtr dawał 0 h; (2) Pomszta 26.10 miała w `tryb.log` i w `Mózg:` trasę

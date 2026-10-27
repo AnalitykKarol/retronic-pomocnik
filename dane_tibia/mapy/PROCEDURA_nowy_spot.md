@@ -61,6 +61,15 @@ Co generator musi zrobić:
 - **Pętla**: składowa od spawnu celu, przystanki ze spawnów listy `CEL`, kolejność NN + 2-opt po A*. Strefa zakazana
   (promień `STREFA` wokół spawnu zakazanego potwora) wchodzi jako ściany do składowej I do A*, a przystanki trzymają się
   `STREFA + 2` od środka. Na końcu asercja: żaden punkt pętli w strefie.
+- **Czysta pętla (Karol, 27.10): zawsze próbuj zrobić CZYSTĄ pętlę**, czyli taką, w której przystanki idą kolejno, a droga
+  w tamtą i z powrotem to różne korytarze. Kolejność z Held-Karp (najkrótszy cykl) nie wystarczy: policz też udział
+  krawędzi przebytych dwa razy (tam i z powrotem) i oglądaj PNG z numerami przystanków. Gdy Karol wskaże kolejność
+  (np. „start → 3 → 1 → 2 → 4 → 6 → 7 → 8 → 5”), zbuduj dokładnie ją (A* między kolejnymi przystankami) i zbadaj, co blokuje
+  brakujące drugie przejście. Zwykle to bufory ognia i dziur (jedno pole bufora w 1-polowym korytarzu zamyka drugą drogę
+  do pokoju). Wypisz dla każdego brakującego odcinka: które pola i który bufor go zamyka, ile pól trasy by zyskano
+  (np. 4→6: 211 → 64 pola) i co by trzeba było poluzować. Poluzowania (bufor ognia lub dziury) to pokrętło ryzyka, więc
+  tylko po wprost zadanym pytaniu i „tak” Karola; do tego czasu podgląd offline. Pętlę z korytarzem tam i z powrotem
+  zostaw tylko wtedy, gdy teren go wymusza (ślepa odnoga, przesmyk bez drugiej drogi), i napisz to w raporcie.
 - **Dojście**: start z depo miasta (Thais (32348,32225,7) = start `depo_troll_cave`; Edron: koniec `edron_depo_trolle`
   (33117,31775,8)), A* do pola PRZED zejściem, pole zejścia, lądowanie, i **dalej po z8 aż do pętli drogą omijającą strefę**
   (A* bota nie zna strefy — samo lądowanie by nie wystarczyło). Meta: `przed_zmiana_pietra` + `schody_w_dol` z opisem
@@ -86,6 +95,28 @@ Edron) potrzebuje wpisu w `wyprawa.PLANY_PK[...]["wyjscia"]` (pole liny, lądowa
 Kopia `mapy.json.bak-<data>-<tag>` i zapis przez json (indent 2, atomowo `.tmp` + `os.replace`). Potem porównanie z kopią:
 zmienione mają być TYLKO Twoje klucze (inne sesje też edytują ten plik). Pola: `opis` (skąd, ile potworów, co omija, typ
 zejścia, wymagania: łopata/lina), `trasa`, `potwory` (nazwy dokładne, casefold; „Spider” ≠ „Poison Spider”), `prog_hp`, `dojscie`.
+
+## 5a. Rodzina spotu i brakujące piętra (26.10)
+
+- Każdy wpis `spoty_nadzorca.json` ma pole `rodzina` (string, np. `edron_trolle`, `edron_gobliny`, `thais_pn_trolle`, `kazordoon_trolle`, `rook_raty`): spoty tej
+  samej jaskini/rejonu na kolejnych piętrach, połączone dziurami/schodami/linami. Czyta je wybór spotu (`spoty.ta_sama_rodzina`, `wybierz(rodzina_z=...)`: zmiana
+  spotu po spotkaniu gracza najpierw w rodzinie). Nowy spot = wpis w tabeli Z `rodzina` (test `testy/test_rodziny.py` pilnuje: rodzina w jednym mieście, jaskinia
+  w jednej rodzinie, skład rodzin = migawka w teście).
+- Brakujące piętra rodziny: inwentarz `narzedzia/spoty_skladowe.py --miasto <M> --pietra 6-12 --max-cios 50` + `narzedzia/przejscia_pieter.py` dla obszaru jaskini;
+  progi robocze (Karol 26.10: „>= ~10 potworów celu, pętla >= ~60 pól”; mniejsze = doczepka): `generuj_rodziny_pietra.py` (PROG_CEL, PROG_PETLA). Generator
+  bierze ISTNIEJĄCĄ trasę dojścia jako bazę i dokłada przejścia pięter omijające ogień (bufor 1) i nauczone dziury; w małych składowych dopisuje przystanki pokrycia
+  (n = 0). Przejście z mapy musi być kolorem 210, nie PRZESZKODĄ (generuj_trasy_edron_wschod.py brał dla z10w pole (33127,31726,z9) = przeszkodę).
+- Dziura z9 -> z10 = flaga 2 + kolor 210 nad polem 210 bez flagi (wzorzec jak dziury z8 -> z9 Edronu przebyte 21.10): powrót = lina z pola lądowania (stoimy obok),
+  trasa `<spot>_do_depo` i wpis `wyjscia` w PLANY_PK: `generuj_powroty_rodziny.py`, test `testy/test_powroty_rodziny.py`. Bez tego wpisu mapa z innego piętra ma
+  w tabeli `auto: false` (WROC/wyprawa = „brak drogi”).
+- Dojście z innego piętra jaskini (Karol 26.10 ~11:30: zmiana spotu w obrębie jaskini nie może wymagać wyjścia na z7): `spoty.wybierz` ocenia dojście spotu Z POZYCJI
+  postaci (`spoty.dojscie_dziala_z`: postać <= 10 pól od pętli = mozg pomija dojście; albo punkt dojścia na jej piętrze w <= 60 polach DROGI (`mozg._start_po_mapie`,
+  stałe pilnuje test) i reszta dojścia bez z7; pole niechodliwe w mapie klienta = nie da się ocenić, zostaje flaga). Gdy dojście bazowego spotu z danego piętra nie działa,
+  istnieje WARIANT-ŁĄCZNIK: mapa `<baza>__z__<źródło>` z dojściem `trasy/<rodzina>_lacznik_<źródło>_<baza>` (stanie przy linie, lina w górę, reszta dojścia bazy; pętla i
+  potwory jak baza), wpis w tabeli z `baza` (efektywne `auto`/powód dziedziczy po bazie, w pliku `auto: false` jako zabezpieczenie starego kodu). Generator:
+  `python3 -I generuj_lacznik_rodziny.py [rodzina] [--zapisz]` (rodzina_dojscie.py: macierz źródło -> cel, planer A* na dziurach/linach/ogniu jak generatory spotów;
+  tylko rodziny z dziurami i linami: edron_trolle, edron_gobliny). Rodziny bez łączników (AbD, Kazordoon, Rook, Thais) mają luki jawnie w `testy/test_rodziny.py` (WYJATKI).
+  Przejścia liną w łącznikach NIEZWERYFIKOWANE na żywo (pola lin jak w PLANY_PK). Nowy spot w rodzinie z łącznikami = uruchom generator i dopisz test.
 
 ## 6. Postać przed startem
 

@@ -23,6 +23,9 @@ Zasady bota (start, naprawy, życie postaci): `CLAUDE.md` repo. Metoda map i jej
    `trasy/ogien_epizody.json`) + 1 pole bufora = ściana dla A* pętli i dojścia (wzór `generuj_trasy_edron_wschod.ogien_pola`).
 4. **Generator**: nowy `generuj_trasy_<spot>.py` na wzór `generuj_trasy_thais_pn.py` (strefa zakazana, wykrywanie zejść,
    dojście z depo AŻ do pętli). Najpierw bez `--zapisz`, potem `--zapisz`.
+   **CZYSTA PĘTLA (Karol 27.10): zawsze próbuj ją zrobić** (przystanki kolejno, droga tam i z powrotem różnymi korytarzami; kolejność
+   Karola buduj dokładnie jak podał). Policz udział krawędzi tam-i-z-powrotem, oglądaj PNG, a brakujące drugie przejście wyjaśnij
+   (zwykle bufor ognia/dziury zamyka korytarz) i zapytaj Karola o poluzowanie; szczegóły w procedurze (sekcja 3).
 5. **Walidacja offline**: `waliduj_trase.py` pętli i dojścia, `tryb.py --mapa … --sucho`, obejrzyj PNG (Read).
    Plus kontrola ognia: żaden NOWY punkt trasy na polu ognia ani obok (bufor 1) — wynik w raporcie.
    Wpis `mapy.json` z kopią `.bak-<data>-<tag>`; porównaj z kopią — zmienione tylko Twoje klucze.

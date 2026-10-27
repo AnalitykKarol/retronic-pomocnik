@@ -117,6 +117,7 @@ Kopie: scratchpad `na_zywo.json.bak-*`, `wyprawa_stan.json.bak*`, `mozg.py.bak-t
   plecaku są blanki, a w bagu jest miejsce); (b) log "brak wolnego widocznego pola" zamiast cichego przerwania;
   (c) przy pełnym bagu (20/20) nie marnować prób.
 - **Test:** `test_wyprawa.py`/`test_loot_*`: blanki w plecaku + wolne pole -> przeniesione; brak pola -> 0 i jedna linia logu.
+- **Status 27.10:** zrobione 27.10 (start bota + wyzwalacz w trakcie pracy, `blanki_start.py`, rola okna z położenia), NIEPOTWIERDZONE NA ŻYWO.
 
 ## N10. Rzeczy poboczne
 
