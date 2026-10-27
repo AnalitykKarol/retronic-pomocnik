@@ -41,7 +41,7 @@ describe("formaty", () => {
 })
 
 describe("linie karty postaci", () => {
-  it("linie jak w makiecie: spotkań (bez progu 15 s) + najczęstszy gracz + próg bota n/próg, czas na spocie + spotkań na godzinę", () => {
+  it("linie jak w makiecie: spotkań (bez progu widoku) + najczęstszy gracz + próg bota n/próg, czas na spocie + spotkań na godzinę", () => {
     const l = S.cardLines(inst("a", sp()))
     assert.equal(l.shown, true)
     assert.equal(l.meet, "👥 spotkań 2 · próg 1/3 · Statutum ×1")
@@ -54,7 +54,7 @@ describe("linie karty postaci", () => {
     assert.equal(l.meet, "👥 spotkań 6 · próg 0/3 · Vados ×5")
     assert.equal(l.hot, false)
     assert.match(l.tip, /^Spotkań: 6 \(gracz w zasięgu wzroku choćby na chwilę/)
-    assert.match(l.tip, /Próg 0\/3: licznik bota, spotkanie liczy się po 15 s w widoku; po 3\. spotkaniu tego samego gracza nadzorca zmienia spot/)
+    assert.match(l.tip, /Próg 0\/3: licznik bota, spotkanie liczy się po 3 s w widoku; po 3\. spotkaniu tego samego gracza nadzorca zmienia spot/)
   })
   it("podpowiedź niesie najczęstszego gracza wg bota (do porównania) i widzianych", () => {
     const l = S.cardLines(inst("a", sp({ spotkan: 6, n: 2, bywalec: { nick: "Vados", n: 5 }, bywalec_prog15: { nick: "Usio", n: 2 }, widziani: 3, widziani_od: 1792650000, widziani_lista: [] })))
@@ -356,7 +356,7 @@ describe("okno_api na atrapie (`atrapa.py --spotkania`): to, co dostaje karta i 
     assert.match(hot.time, /^na spocie 1h 2\dm · 2,9\/h$/)
     assert.equal(S.cardLines(by(lista, "spolow")).meet, "👥 spotkań 1 · próg 1/3 · Statutum ×1")
     assert.equal(S.cardLines(by(lista, "spolow")).hot, false)
-    // Przechodzień widziany 5 s: dla bota (>= 15 s) to 0/3, ale jako krótkie mijanie to 1 spotkanie
+    // Przechodzień widziany 2 s: dla bota (>= 3 s, od 27.10; wcześniej 5 s przy progu 15 s) to 0/3, ale jako krótkie mijanie to 1 spotkanie
     assert.equal(S.cardLines(by(lista, "spozero")).meet, "👥 spotkań 1 · próg 0/3 · Przechodzień ×1")
     // spobot: „spotkań” zawsze z telemetrii (Mleczko 40 s), licznik bota z pliku bieżącej sesji (Statutum ×2) pod nazwami *_prog15
     assert.equal(S.cardLines(by(lista, "spobot")).meet, "👥 spotkań 1 · próg 2/3 · Mleczko ×1")
@@ -386,10 +386,10 @@ describe("okno_api na atrapie (`atrapa.py --spotkania`): to, co dostaje karta i 
     assert.equal(rows.find((x) => x.id === "spobot").regular, "Mleczko ×1")
     assert.equal(rows.find((x) => x.id === "spostoi").onSpot, "-")
     assert.equal(S.lastSeen(lista, new Date()).nick, "Mleczko")
-    // „widziani”: różni obcy w zasięgu wzroku od wejścia na spot (>= 1 próbka, bez progu 15 s)
+    // „widziani”: różni obcy w zasięgu wzroku od wejścia na spot (>= 1 próbka, bez progu widoku)
     assert.equal(rows.find((x) => x.id === "spohot").seen, "2")        // Statutum + Mleczko
     assert.equal(rows.find((x) => x.id === "spolow").seen, "1")
-    assert.equal(rows.find((x) => x.id === "spozero").seen, "1")       // Przechodzień 5 s: widziany, ale 0 spotkań
+    assert.equal(rows.find((x) => x.id === "spozero").seen, "1")       // Przechodzień 2 s: widziany, ale 0 spotkań
     assert.equal(rows.find((x) => x.id === "spozero").meet, "0/3")
     assert.equal(rows.find((x) => x.id === "spostoi").seen, "-")
     const z = S.changeRows(dane, lista)

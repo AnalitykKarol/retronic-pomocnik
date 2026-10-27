@@ -22,7 +22,7 @@ a `test` ma profil ok i brak sesji (start możliwy). Główna: bez profilu, sesj
 Spotkania z graczami (26.10): opcja `--spotkania` dokłada pięć postaci z telemetrią (próbki co 2 s do „teraz”), `ostatnie.json` i działającym botem (pid = pid0+5):
   spohot   Wojownik  84 min na spocie, gracz „Statutum” 3 razy (3/3 = próg, wyróżnienie) i „Mleczko” raz
   spolow   Czarodziej 52 min, „Statutum” 1 raz (1/3)
-  spozero  Łucznik   38 min, gracz widziany 5 s (nie spotkanie): 0/3, bez bywalca
+  spozero  Łucznik   38 min, gracz widziany 2 s (poniżej progu 3 s; od 27.10 wcześniej 5 s przy progu 15 s): 0/3, bez bywalca
   spobot   Druid     2h 10m, licznik z `spotkania_graczy.json` bieżącej sesji bota (źródło „bot”, 2/3)
   spostoi  Paladyn   bot stoi (sesja żyje, bota brak): same „-”
 oraz dziennik nadzorcy z dzisiaj (zmiana spotu wykonana, powrót do miasta w cieniu) i `nadzor_stan.json` z dwoma unikanymi spotami.
@@ -283,7 +283,7 @@ def buduj(korzen, ile=2, sesja=False, zaloguj=False, spotkania=False):
         okna_hot = {"Statutum": [(600, 650), (1500, 1560), (3000, 3070)], "Mleczko": [(2200, 2230)]}
         spotkania_instancji(kat, run, proc, T, "spohot", "Wojownik", 9600, 84, okna_hot, level=42, exp_h=18400, zab_h=96)
         spotkania_instancji(kat, run, proc, T, "spolow", "Czarodziej", 9700, 52, {"Statutum": [(900, 960)]}, level=35, exp_h=9800, zab_h=61)
-        spotkania_instancji(kat, run, proc, T, "spozero", "Łucznik", 9800, 38, {"Przechodzień": [(1000, 1005)]}, level=24, exp_h=5200, zab_h=48)
+        spotkania_instancji(kat, run, proc, T, "spozero", "Łucznik", 9800, 38, {"Przechodzień": [(1000, 1002)]}, level=24, exp_h=5200, zab_h=48)
         spotkania_instancji(kat, run, proc, T, "spobot", "Druid", 9900, 130, {"Mleczko": [(600, 640)]}, level=51, exp_h=22100, zab_h=88,
                             plik_bota={"Statutum": (2, T - 900), "Mleczko": (1, T - 300)})
         spotkania_instancji(kat, run, proc, T, "spostoi", "Paladyn", 10000, 20, {}, level=19, exp_h=0, zab_h=0, bot=False)

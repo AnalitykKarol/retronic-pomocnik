@@ -6,10 +6,10 @@ Używane przez `okno_api.py` (sekcja `spotkania` w `stan`, polecenie `spotkania`
   * czas na spocie, liczba graczy, SPOTKAŃ, spotkań/h, bywalec (najczęstszy nick) i ostatnio widziany gracz: `narzedzia/spotkania_graczy_raport.py` (`raport_instancji`,
     „od ostatniego startu bota”, kryterium „na spocie” z telemetrii i logu sesji). Od 26.10 (Karol) „spotkań”, spotkań/h i bywalec to spotkania BEZ minimalnego czasu widoku
     (1 próbka wystarczy, nowy epizod tego samego nicku po >= 5 min bez niego), ZAWSZE z telemetrii; to tylko wyświetlanie, bot liczy po staremu;
-  * licznik decyzyjny bota n/PRÓG (`n`, `prog`, `spotkan_prog15`, `bywalec_prog15`; nadzorca zmienia spot po PRÓG spotkaniach, każde >= 15 s w widoku): gdy `instancje/<id>/spotkania_graczy.json` pochodzi Z BIEŻĄCEJ sesji bota (klucz `sesja` = „<pid>-<epoch>” procesu, który teraz działa;
+  * licznik decyzyjny bota n/PRÓG (`n`, `prog`, `spotkan_prog15`, `bywalec_prog15`; nadzorca zmienia spot po PRÓG spotkaniach, każde >= SG.MIN_WIDOK_S w widoku, od 27.10 3 s; nazwy *_prog15 historyczne): gdy `instancje/<id>/spotkania_graczy.json` pochodzi Z BIEŻĄCEJ sesji bota (klucz `sesja` = „<pid>-<epoch>” procesu, który teraz działa;
     pokrętło SPOT_ZMIANA_PRZY_GRACZU=1 + LICZNIK_OD_STARTU=1), bierzemy go zamiast telemetrii (to jest dokładnie to, co liczy bot, razem z jego filtrami wrogów/czaszek);
     inaczej reguły bota policzone z telemetrii (`spotkan_prog15`, `nicki_prog15`; `zrodlo` = „telemetria”). `zrodlo` opisuje więc tylko licznik n/PRÓG;
-  * „widziani” (26.10): różni obcy gracze w zasięgu wzroku od WEJŚCIA NA OBECNY SPOT (`ostatnie.json` `na_spocie_od`), >= 1 próbka, bez progu 15 s; zawsze z telemetrii
+  * „widziani” (26.10): różni obcy gracze w zasięgu wzroku od WEJŚCIA NA OBECNY SPOT (`ostatnie.json` `na_spocie_od`), >= 1 próbka, bez progu widoku; zawsze z telemetrii
     (`RAP.licz_widzianych`, te same filtry i kryterium „na spocie”), także gdy `zrodlo` = „bot”. Brak `na_spocie_od` = `widziani` None + `widziani_powod` (okno: „-”);
   * zmiany spotu: dziennik nadzorcy `instancje/_wspolne/logi/nadzor-RRRRMMDD.jsonl` (kody spot-gracz / spot-gracz-powrot / spot-gracz-brak) i lista unikanych spotów
     w `instancje/_wspolne/nadzor_stan.json` (`postacie.<id>.spot_gracz.unikane`, `.zmiany`).
@@ -48,7 +48,7 @@ PROG = SG.SPOTKAN_MAX
 GRANICE = (
     "Czas i spotkania liczone od ostatniego startu bota, tylko gdy postać jest na spocie (nie w dojściu, w mieście ani na wyprawie po serwis).",
     "Spotkanie (kolumna „spotkań”, spotkań/h, bywalec) = obcy gracz w zasięgu wzroku choćby na jedną próbkę; ten sam gracz liczy się znów po 5 minutach bez niego. Z telemetrii, bez listy wrogów PK ani czaszek.",
-    "„Próg bota n/3” to licznik decyzyjny bota: spotkanie liczy się dopiero po 15 s w widoku, po 3. spotkaniu tego samego gracza nadzorca zmienia spot. Dlatego bywa mniejszy niż „spotkań”.",
+    f"„Próg bota n/3” to licznik decyzyjny bota: spotkanie liczy się dopiero po {SG.MIN_WIDOK_S:g} s w widoku, po 3. spotkaniu tego samego gracza nadzorca zmienia spot. Dlatego bywa mniejszy niż „spotkań”.",
     "Widziani: różni obcy gracze w zasięgu wzroku (nawet na jedną próbkę telemetrii) od wejścia na obecny spot, tylko gdy postać jest na spocie; z telemetrii, bez listy wrogów PK.",
     "Licznik „próg bota” ze źródła „bot” to dokładnie licznik bota, ale po zleceniu zmiany spotu jego licznik tego gracza startuje od zera.",
     "Spotkań na godzinę dopiero po 10 minutach na spocie. Dane odświeżają się co ok. minutę.",
@@ -170,7 +170,7 @@ def licz_instancje(korzen, id_, postac, pidy, teraz):
             return niedostepne(id_, postac, "nie da się potwierdzić sesji bota", teraz)
         czas_s = float(r.get("czas_na_spocie_h") or 0.0) * 3600.0
         nicki = [(n, int(c)) for n, c in (r.get("nicki") or [])]                              # spotkania BEZ progu widoku (to pokazuje okno jako „spotkań”)
-        nicki15 = [(n, int(c)) for n, c in (r.get("nicki_prog15") or [])]                      # reguły bota (15 s w widoku): licznik n/PRÓG
+        nicki15 = [(n, int(c)) for n, c in (r.get("nicki_prog15") or [])]                      # reguły bota (SG.MIN_WIDOK_S w widoku, od 27.10 3 s): licznik n/PRÓG
         graczy, spotkan = int(r.get("graczy") or 0), int(r.get("spotkan") or 0)
         spotkan15 = int(r.get("spotkan_prog15") or 0)
         bywalec = {"nick": nicki[0][0], "n": nicki[0][1]} if nicki else None

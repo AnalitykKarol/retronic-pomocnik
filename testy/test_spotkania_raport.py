@@ -4,8 +4,10 @@
 Uruchomienie: RETRONIC_TESTY=1 python3 -I testy/test_spotkania_raport.py
 
 Regresja z ręcznego liczenia Karola dla 25.10 (Hammburger/gerbor Stekt 10, Geblish Flower Power 7 + Hansi 3, Pomszta Apock 4, Wydra = patrol z niezerowym czasem):
-oficjalne reguły bota (15 s w widoku, 300 s przerwy) dają na tych samych danych Stekt 10 (zgodnie), Flower Power 5, Hansi 0, Apock 3; z progiem 5 s (`--min-widok 5`)
-Stekt 10, Flower Power 7, Hansi 4, Apock 3 — ręczne liczenie odpowiada więc mniej więcej progowi ~5 s (nie dokładnie: Hansi 3, Apock 4). Test pilnuje obu zestawów."""
+dawny próg bota (15 s w widoku, 300 s przerwy) dawał na tych samych danych Stekt 10 (zgodnie), Flower Power 5, Hansi 0, Apock 3; z progiem 5 s (`--min-widok 5`)
+Stekt 10, Flower Power 7, Hansi 4, Apock 3 — ręczne liczenie odpowiada więc mniej więcej progowi ~5 s (nie dokładnie: Hansi 3, Apock 4).
+Od 27.10 (Karol: „15 s to nierealny czas, dajmy 3 sekundy”) obowiązuje MIN_WIDOK_S = 3: Stekt 11, Flower Power 7, Hansi 7, Apock 4 (R2c). Test pilnuje wszystkich trzech zestawów
+(15 s i 5 s przez jawne `min_widok`, 3 s domyślnie). Nazwy pól `*_prog15` są historyczne (czytają je okno i testy), wartość progu to SG.MIN_WIDOK_S."""
 import os as _os
 _os.environ["RETRONIC_TESTY"] = "1"
 import contextlib
@@ -44,12 +46,16 @@ def wiersz(id_, dzien="20261025", korzen=FIX, **extra):
 
 
 # ---- regresja na fixture z prawdziwej telemetrii
-nick = lambda w, n: dict(w["nicki_prog15"]).get(n, 0)      # noqa: E731  (reguły bota: >= 15 s w widoku; regresja R1-R3 i S1 testuje ten licznik)
+nick = lambda w, n: dict(w["nicki_prog15"]).get(n, 0)      # noqa: E731  (reguły bota: >= SG.MIN_WIDOK_S w widoku; pole historycznie `*_prog15`; regresja R1-R3 i S1 testuje ten licznik)
 nick0 = lambda w, n: dict(w["nicki"]).get(n, 0)            # noqa: E731  (26.10: spotkania BEZ progu widoku, to pokazuje okno)
-g, ge, po, wy = (wiersz(i) for i in ("gerbor", "gebelish", "pomszta", "wydra"))
-sprawdz("R1 oficjalne reguły (15 s / 300 s): Hammburger/gerbor Stekt 10 (zgodnie z ręcznym liczeniem Karola)", nick(g, "Stekt") == 10, g["nicki"])
-sprawdz("R2 oficjalne reguły: Geblish Flower Power 5, Hansi 0; Pomszta Apock 3", nick(ge, "Flower Power") == 5 and nick(ge, "Hansi") == 0 and nick(po, "Apock") == 3,
+g, ge, po, wy = (wiersz(i, min_widok=15) for i in ("gerbor", "gebelish", "pomszta", "wydra"))
+sprawdz("R1 dawny próg (15 s / 300 s, jawnie): Hammburger/gerbor Stekt 10 (zgodnie z ręcznym liczeniem Karola)", nick(g, "Stekt") == 10, g["nicki"])
+sprawdz("R2 dawny próg (15 s): Geblish Flower Power 5, Hansi 0; Pomszta Apock 3", nick(ge, "Flower Power") == 5 and nick(ge, "Hansi") == 0 and nick(po, "Apock") == 3,
         (ge["nicki"], po["nicki"]))
+g3, ge3, po3 = (wiersz(i) for i in ("gerbor", "gebelish", "pomszta"))
+sprawdz("R2c AKTUALNE reguły (domyślny próg 3 s / 300 s): Stekt 11, Flower Power 7 (zgodnie z Karolem), Hansi 7 (Karol 3), Apock 4 (zgodnie z Karolem)",
+        SG.MIN_WIDOK_S == 3 and nick(g3, "Stekt") == 11 and nick(ge3, "Flower Power") == 7 and nick(ge3, "Hansi") == 7 and nick(po3, "Apock") == 4,
+        (SG.MIN_WIDOK_S, g3["nicki_prog15"], ge3["nicki_prog15"], po3["nicki_prog15"]))
 g5, ge5, po5 = (wiersz(i, min_widok=5) for i in ("gerbor", "gebelish", "pomszta"))
 sprawdz("R3 próg widoku 5 s: Stekt 10, Flower Power 7 (zgodnie z Karolem), Hansi 4 (Karol 3), Apock 3 (Karol 4) — różnica najwyżej 1",
         nick(g5, "Stekt") == 10 and nick(ge5, "Flower Power") == 7 and nick(ge5, "Hansi") == 4 and nick(po5, "Apock") == 3
@@ -131,7 +137,7 @@ sprawdz("D1 dojście bez zakończenia: próbki nie liczą się", wiersz("a", kor
 z_koncem = {nazwa_logu: dojscie_bez_konca[nazwa_logu] + [f"{godz(20)} Dojście zakończone, zaczynam główną trasę."]}
 tmp7, k7 = swiat(seria(0, 60, ["Obcy"]), logi=z_koncem)
 w7 = wiersz("a", korzen=k7)
-sprawdz("D2 po „Dojście zakończone” (od +20 s) próbki liczą się: czas ~40 s, spotkanie 1 (20 s widoku po dojściu >= 15 s)", 35 <= w7["czas_na_spocie_h"] * 3600 <= 41 and w7["spotkan"] == 1, w7)
+sprawdz("D2 po „Dojście zakończone” (od +20 s) próbki liczą się: czas ~40 s, spotkanie 1 (20 s widoku po dojściu >= 3 s)", 35 <= w7["czas_na_spocie_h"] * 3600 <= 41 and w7["spotkan"] == 1, w7)
 bez_doj = {nazwa_logu: [f"{log_start:%H:%M:%S} Mózg: tryb skrypt, postać Bot"]}
 tmp8, k8 = swiat(seria(0, 40, ["Obcy"]), logi=bez_doj)
 sprawdz("D3 sesja bez dojścia (bot od razu na spocie, np. Pomszta): liczy od początku", wiersz("a", korzen=k8)["spotkan"] == 1)
@@ -254,18 +260,18 @@ with contextlib.redirect_stdout(bufor):
     R.main(["--korzen", str(kw1), "--json"])
 sprawdz("W10b --json niesie widziani i widziani_lista", json.loads(bufor.getvalue())[0]["widziani"] == 2)
 sprawdz("W10c tylko odczyt", przed == {str(p): p.stat().st_mtime_ns for p in kw1.rglob("*") if p.is_file()})
-# W11: bot nie zmieniony: Licznik i stałe progowe nietknięte (15 s / 5 min), raport nie zmienia stałych globalnych
-sprawdz("W11 progi bota bez zmian (MIN_WIDOK_S 15, PRZERWA_S 300)", SG.MIN_WIDOK_S == 15 and SG.PRZERWA_S == 300, (SG.MIN_WIDOK_S, SG.PRZERWA_S))
+# W11: progi bota (od 27.10: 3 s / 5 min), raport nie zmienia stałych globalnych
+sprawdz("W11 progi bota (MIN_WIDOK_S 3 od 27.10, PRZERWA_S 300), raport ich nie zmienia", SG.MIN_WIDOK_S == 3 and SG.PRZERWA_S == 300, (SG.MIN_WIDOK_S, SG.PRZERWA_S))
 # W12: licz_widzianych bezpośrednio — pierwszy raz widziany czas i liczba próbek
 lw = R.licz_widzianych(seria(0, 4, ["A"]) + seria(5, 6, ["A", "B"]), [], set(), "Bot", T)
 sprawdz("W12 licz_widzianych: A 7 próbek, B 2", [(e["nick"], e["probek"]) for e in lw["lista"]] == [("A", 7), ("B", 2)] and lw["widziani"] == 2 and lw["probek_na_spocie"] == 7, lw)
 
 # ---- 26.10 (Karol): „spotkań” BEZ minimalnego czasu widoku (tylko wyświetlanie; licznik bota bez zmian)
-# B1: nick widoczny 3 s trzy razy w odstępach > 300 s = 3 spotkania (wg bota 0)
+# B1: nick widoczny 3 próbki (2 s widoku, poniżej progu 3 s) trzy razy w odstępach > 300 s = 3 spotkania bez progu (wg bota 0)
 mij3 = seria(0, 2, ["Mijajacy"]) + seria(400, 402, ["Mijajacy"]) + seria(800, 802, ["Mijajacy"])
 tmpb1, kb1 = swiat(mij3)
 wb1 = wiersz("a", korzen=kb1)
-sprawdz("B1 trzy mijania po 3 s w odstępach > 5 min = 3 spotkania bez progu, 0 wg reguł bota (15 s)", nick0(wb1, "Mijajacy") == 3 and wb1["spotkan"] == 3
+sprawdz("B1 trzy mijania po 2 s widoku (3 próbki) w odstępach > 5 min = 3 spotkania bez progu, 0 wg reguł bota (próg 3 s)", nick0(wb1, "Mijajacy") == 3 and wb1["spotkan"] == 3
         and wb1["spotkan_prog15"] == 0 and wb1["nicki_prog15"] == [], wb1)
 # B2: dwa mijania w odstępie < 300 s = jedno spotkanie
 tmpb2, kb2 = swiat(seria(0, 2, ["Mijajacy"]) + seria(200, 202, ["Mijajacy"]))
@@ -289,17 +295,28 @@ sprawdz("B6 mijanie w dojściu na spot nie liczy się", wiersz("a", korzen=kb6)[
 tmpb7, kb7 = swiat(seria(0, 2, ["Stary"], sesja=1.0) + seria(2000, 2002, ["Nowy"], sesja=2.0))
 sprawdz("B7 domyślnie tylko ostatnia sesja (Nowy 1, Stary 0), --dzien obie", nick0(R.raport_instancji(kb7, "a"), "Nowy") == 1 and nick0(R.raport_instancji(kb7, "a"), "Stary") == 0
         and R.raport_instancji(kb7, "a", "20261025")["spotkan"] == 2)
-# B8: licznik bota nietknięty: Licznik na tych samych próbkach daje 0 (próg 15 s), a raport ma oba liczniki
+# B8: licznik bota: Licznik na tych samych próbkach (2 s widoku) daje 0 (próg 3 s), a raport ma oba liczniki
 l = SG.Licznik(None, 0.0)
 zd = []
 for r in mij3:
     zd += l.obserwuj(r["t"], ["Mijajacy"], True)
-sprawdz("B8 spot_gracz.Licznik na krótkich mijaniach nadal 0 spotkań (bot bez zmian); progi 15/300", zd == [] and SG.MIN_WIDOK_S == 15 and SG.PRZERWA_S == 300)
-# B9: tabela CLI ma kolumnę „≥15 s”
+sprawdz("B8 spot_gracz.Licznik na mijaniach po 2 s widoku (< 3 s) = 0 spotkań; progi 3/300", zd == [] and SG.MIN_WIDOK_S == 3 and SG.PRZERWA_S == 300)
+# B8b: te same mijania po 3 s widoku (4 próbki) bot liczy: 3 spotkania, raport z progiem 3 s zgodny z Licznikiem
+mij3b = seria(0, 3, ["Mijajacy"]) + seria(400, 403, ["Mijajacy"]) + seria(800, 803, ["Mijajacy"])
+l = SG.Licznik(None, 0.0)
+zd = []
+for r in mij3b:
+    zd += l.obserwuj(r["t"], ["Mijajacy"], True)
+tmpb8, kb8 = swiat(mij3b)
+wb8 = wiersz("a", korzen=kb8)
+sprawdz("B8b mijania po 3 s widoku (4 próbki co 1 s) w odstępach > 5 min = 3 spotkania wg Licznika i wg raportu (kandydat do zmiany spotu)", zd == ["Mijajacy"] * 3 and nick(wb8, "Mijajacy") == 3 and wb8["spotkan_prog15"] == 3 and l.kandydat(T + 900) is not None, (zd, wb8))
+wb8b = wiersz("a", korzen=kb8, min_widok=15)
+sprawdz("B8c ten sam ruch przy dawnym progu 15 s (--min-widok 15) = 0", wb8b["spotkan_prog15"] == 0 and wb8b["nicki_prog15"] == [] and wb8b["spotkan"] == 3, wb8b)
+# B9: tabela CLI ma kolumnę „≥3 s” (z SG.MIN_WIDOK_S)
 bufor = io.StringIO()
 with contextlib.redirect_stdout(bufor):
     R.main(["--korzen", str(kb1)])
-sprawdz("B9 tabela: kolumna „≥15 s” (reguły bota) obok „spotkań”; najczęstsi z licznika bez progu", "≥15 s" in bufor.getvalue() and "Mijajacy 3" in bufor.getvalue(), bufor.getvalue())
+sprawdz("B9 tabela: kolumna „≥3 s” (reguły bota) obok „spotkań”; najczęstsi z licznika bez progu", "≥3 s" in bufor.getvalue() and "≥15 s" not in bufor.getvalue() and "Mijajacy 3" in bufor.getvalue(), bufor.getvalue())
 # B10: --min-widok zmienia tylko licznik bota, nie „spotkań” bez progu
 sprawdz("B10 --min-widok 1 daje spotkan_prog15 3, a spotkan bez progu bez zmian (3)", (lambda w: (w["spotkan"], w["spotkan_prog15"]))(wiersz("a", korzen=kb1, min_widok=1)) == (3, 3))
 

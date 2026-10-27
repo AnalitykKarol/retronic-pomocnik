@@ -6,7 +6,7 @@
 // Rozszerzenie 26.10 (Karol): `widziani` (liczba RÓŻNYCH obcych graczy w zasięgu wzroku, >= 1 próbka, od wejścia na obecny spot), `widziani_od` (epoch), `widziani_lista`
 // [{nick, probek, pierwszy_t, ostatnio_t}] (najczęściej widziani pierwsi), `widziani_powod` (gdy `widziani` null), `widziani_uwaga`. Stare pola bez zmian; brak pola = „-”.
 // Zmiana 26.10 (Karol): `spotkan`, `spotkan_na_h` i `bywalec` to spotkania BEZ minimalnego czasu widoku (1 próbka telemetrii, nowy epizod po 5 min bez gracza). Licznik decyzyjny bota
-// (każde spotkanie >= 15 s w widoku; po `prog` takich nadzorca zmienia spot) to `n`/`prog` oraz `spotkan_prog15` i `bywalec_prog15`; w oknie podpisany „próg”, nigdy „spotkań”.
+// (każde spotkanie >= 3 s w widoku, od 27.10; wcześniej 15 s; po `prog` takich nadzorca zmienia spot) to `n`/`prog` oraz `spotkan_prog15` i `bywalec_prog15`; w oknie podpisany „próg”, nigdy „spotkań”.
 // Brak danych (bot stoi, inna sesja, jeszcze nie policzone) = „-”, nigdy zera, które udawałyby pomiar.
 // `now` we wszystkich funkcjach = Date (odświeżenie stanu), żeby wynik był deterministyczny w testach.
 
@@ -44,7 +44,7 @@ function isHot(inst) { var s = sectionOf(inst); return !!(s && s.dostepne === tr
 function regularText(s) {
   return s && s.bywalec && s.bywalec.nick ? s.bywalec.nick + " ×" + s.bywalec.n : ""
 }
-// Najczęstszy gracz wg licznika bota (>= 15 s w widoku), tylko do porównania
+// Najczęstszy gracz wg licznika bota (>= 3 s w widoku), tylko do porównania
 function botRegularText(s) {
   return s && s.bywalec_prog15 && s.bywalec_prog15.nick ? s.bywalec_prog15.nick + " ×" + s.bywalec_prog15.n : ""
 }
@@ -118,7 +118,7 @@ function cardLines(inst) {
   var reg = regularText(s)
   var bot = botRegularText(s)
   var tip = "Spotkań: " + (isNum(s.spotkan) ? s.spotkan : DASH) + " (gracz w zasięgu wzroku choćby na chwilę; ten sam gracz liczy się znów po 5 minutach bez niego)" +
-            "\nPróg " + n + "/" + prog + ": licznik bota, spotkanie liczy się po 15 s w widoku; po " + prog + ". spotkaniu tego samego gracza nadzorca zmienia spot" +
+            "\nPróg " + n + "/" + prog + ": licznik bota, spotkanie liczy się po 3 s w widoku; po " + prog + ". spotkaniu tego samego gracza nadzorca zmienia spot" +
             (bot !== "" ? " (najczęściej: " + bot + ")" : "") +
             "\n" + (sn.ok ? sn.tip : "widziani: " + sn.why)
   return {
@@ -296,14 +296,14 @@ function avoidRows(data, instances) {
 // Podtytuł zakładki: próg z API (SPOTKAN_MAX bota), nie na sztywno
 function subtitleOf(data) {
   var prog = data && isNum(data.prog) ? data.prog : FALLBACK_PROG
-  return "gracze na spocie od ostatniego startu bota (spotkanie = choćby na chwilę) · po " + prog + ". spotkaniu tego samego gracza (>= 15 s w widoku) nadzorca zmienia spot"
+  return "gracze na spocie od ostatniego startu bota (spotkanie = choćby na chwilę) · po " + prog + ". spotkaniu tego samego gracza (>= 3 s w widoku) nadzorca zmienia spot"
 }
 
 // Stopka z ograniczeniami (z API; gdy brak odpowiedzi, stały zapis)
 function limitsOf(data) {
   return data && isList(data.granice) && data.granice.length ? Array.prototype.slice.call(data.granice) : [
     "Spotkania liczone od ostatniego startu bota, tylko na spocie; spotkanie = gracz w zasięgu wzroku choćby na chwilę.",
-    "„Próg bota” to licznik decyzyjny bota (>= 15 s w widoku), dlatego bywa mniejszy niż „spotkań”."
+    "„Próg bota” to licznik decyzyjny bota (>= 3 s w widoku), dlatego bywa mniejszy niż „spotkań”."
   ]
 }
 

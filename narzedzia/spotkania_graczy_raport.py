@@ -8,8 +8,9 @@
 DWA liczniki spotkań (zmiana Karola 26.10, tylko wyświetlanie; bot i `spot_gracz.Licznik` bez zmian):
   * `spotkan` / `nicki` / `spotkan_na_h` = spotkanie BEZ minimalnego czasu widoku: obcy nick (`gracz:true` w `stwory`) w >= 1 próbce „na spocie” otwiera epizod; następny epizod tego
     samego nicku po >= PRZERWA_S (300 s) bez niego. Krótkie mijanie (3-8 s) to spotkanie. To pokazuje okno jako „spotkań”.
-  * `spotkan_prog15` / `nicki_prog15` = reguły bota (spot_gracz.Licznik; `SPOT_ZMIANA_PRZY_GRACZU`): nick widoczny łącznie >= MIN_WIDOK_S (15 s) w jednym epizodzie, następne po
+  * `spotkan_prog15` / `nicki_prog15` = reguły bota (spot_gracz.Licznik; `SPOT_ZMIANA_PRZY_GRACZU`): nick widoczny łącznie >= MIN_WIDOK_S (od 27.10: 3 s, Karol; do 27.10 15 s) w jednym epizodzie, następne po
     >= PRZERWA_S (300 s). To licznik decyzyjny (n/PRÓG), zostaje do porównania. `--min-widok` zmienia tylko ten drugi.
+    UWAGA: nazwa `*_prog15` jest historyczna (pierwotny próg 15 s) i zostaje, bo czytają ją okno (spotkania_okno.py) i testy; wartość progu to zawsze SG.MIN_WIDOK_S.
 Oba liczą tylko, gdy postać jest „na spocie”, w zakresie raportu (domyślnie ostatnia sesja bota), z tymi samymi filtrami.
 Nie liczą się: nasze postacie (instancje/*/profil.json `postac` + lista znanych), własny nick, HP <= 0, GM, wpisy z czaszką/PK (jeśli telemetria je niesie).
 Nie filtruję NPC (na spocie ich nie ma) ani wrogów z wrogowie.json (telemetria nie niesie listy wrogów; bot ich pomija, więc raport może ich liczyć więcej).
@@ -25,13 +26,13 @@ pętli): trasa z logu nie opisuje miejsca expienia, a patrol (`patrol:troll`) ni
 i okresy po spadku na inne piętro, o ile bot nie zgłosił WPADNIECIE.
 
 „Widziani” (26.10, Karol: NOWY licznik obok „spotkań”): liczba RÓŻNYCH obcych graczy, którzy byli w zasięgu wzroku przynajmniej w JEDNEJ próbce telemetrii (bez progu
-15 s i bez przerwy 5 min), liczona OD WEJŚCIA NA OBECNY SPOT, czyli od `instancje/<id>/ostatnie.json` `na_spocie_od` (zapisuje je ostatnie.py: czas pierwszej próbki po zmianie
+widoku i bez przerwy 5 min), liczona OD WEJŚCIA NA OBECNY SPOT, czyli od `instancje/<id>/ostatnie.json` `na_spocie_od` (zapisuje je ostatnie.py: czas pierwszej próbki po zmianie
 `mapa`; restart bota na tej samej mapie w < 180 s bez przerwy w grze go nie zeruje, dłuższa przerwa albo koniec sesji tak). Te same filtry co „graczy”/„spotkań”
 (`_widoczni_obcy`: bez własnego nicku, naszych postaci, GM, czaszek/pk, hp <= 0) i to samo kryterium „na spocie” (`_na_spocie`: STANY_POZA_SPOTEM + okna dojścia), ale okres
 obejmuje WSZYSTKIE sesje bota od `na_spocie_od` (nie tylko ostatnią), więc może być większy niż „graczy”. Brak/nieprawidłowe `na_spocie_od` = `widziani: None` + `widziani_powod`.
 Pola: `widziani`, `widziani_od`, `widziani_lista` [{nick, probek, pierwszy_t, ostatnio_t}] (najczęściej widziani pierwsi), `widziani_uwaga`. Z `--dzien` nie liczone (None).
 
-Wyjście: tabela (instancja, postać, czas na spocie, graczy, widziani, spotkań, spotkań/h, spotk. >= 15 s, najczęstsi) albo `--json`."""
+Wyjście: tabela (instancja, postać, czas na spocie, graczy, widziani, spotkań, spotkań/h, spotk. >= MIN_WIDOK_S s, najczęstsi) albo `--json`."""
 import argparse
 import json
 import re
@@ -220,10 +221,16 @@ def licz_widzianych(probki_lista, okna, nasze, wlasny, od_t):
 def na_spocie_od(kat_instancji):
     """`na_spocie_od` z ostatnie.json instancji (epoch) albo None (brak pliku/pola/zła wartość)."""
     try:
-        v = json.loads((Path(kat_instancji) / "ostatnie.json").read_text(encoding="utf-8")).get("na_spocie_od")
+        j = json.loads((Path(kat_instancji) / "ostatnie.json").read_text(encoding="utf-8"))
+        v = j.get("na_spocie_od")
+        ses = (j.get("sesja") or {}).get("start")
     except (OSError, ValueError, AttributeError):
         return None
-    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0 else None
+    if not (isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0):
+        return None
+    if isinstance(ses, (int, float)) and not isinstance(ses, bool) and v < ses:
+        return float(ses)                           # 27.10: spot nie zaczął się przed wejściem do gry (stare `na_spocie_od` z wczoraj)
+    return float(v)
 
 
 def pliki_telemetrii(kat_logi, dzien=None, od_t=None):
@@ -303,7 +310,7 @@ def instancje(korzen, tylko=None):
 
 
 def tabela(wiersze):
-    nagl = ("instancja", "postać", "okres", "na spocie", "graczy", "widziani", "spotkań", "spotk./h", "≥15 s", "najczęstsi")
+    nagl = ("instancja", "postać", "okres", "na spocie", "graczy", "widziani", "spotkań", "spotk./h", f"≥{SG.MIN_WIDOK_S:g} s", "najczęstsi")
     out = [nagl]
     for w in wiersze:
         if w.get("blad"):
