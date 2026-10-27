@@ -67,10 +67,36 @@ def seans(l, nick, od, do, krok=1.0, aktywny=True, t0=T0):
 # ============================================================ (A) licznik
 l, _ = licznik()
 z = seans(l, "Statutum", 0, 20)
-sprawdz("A1 gracz w widoku 20 s = jedno spotkanie (próg 15 s)", z == ["Statutum"] and l.gracze["statutum"]["spotkan"] == 1, (z, l.gracze))
+sprawdz("A1 gracz w widoku 20 s = jedno spotkanie (próg 3 s)", z == ["Statutum"] and l.gracze["statutum"]["spotkan"] == 1, (z, l.gracze))
+sprawdz("A0 próg widoku to 3 s (Karol 27.10: 15 s nierealne), przerwa 300 s", SG.MIN_WIDOK_S == 3 and SG.PRZERWA_S == 300, (SG.MIN_WIDOK_S, SG.PRZERWA_S))
 l, _ = licznik()
-z = seans(l, "Statutum", 0, 10)
-sprawdz("A2 mignięcie 10 s (< 15 s) nie jest spotkaniem", z == [] and l.gracze["statutum"]["spotkan"] == 0)
+z = seans(l, "Statutum", 0, 3)
+sprawdz("A1b widok równo 3 s (obiegi co 1 s: 0,1,2,3) = spotkanie (granica włączona)", z == ["Statutum"] and l.gracze["statutum"]["spotkan"] == 1, (z, l.gracze))
+l, _ = licznik()
+z = seans(l, "Statutum", 0, 2)
+sprawdz("A2 mignięcie 2 s (< 3 s) nie jest spotkaniem", z == [] and l.gracze["statutum"]["spotkan"] == 0)
+l, _ = licznik()
+z = seans(l, "Statutum", 0, 2, krok=0.5) + seans(l, "Statutum", 2.5, 2.9, krok=0.1)
+sprawdz("A2b mignięcie 2,9 s (obiegi co 0,5 i 0,1 s) nie jest spotkaniem", z == [] and l.gracze["statutum"]["spotkan"] == 0 and l.gracze["statutum"]["widok_s"] < SG.MIN_WIDOK_S, l.gracze)
+l, _ = licznik()
+z = seans(l, "Statutum", 0, 1) + seans(l, "Statutum", 15, 16)
+sprawdz("A2c luka > MAX_KROK_S (10 s) nie liczy się do widoku: 2 x 1 s w odstępie 14 s = widok 2 s (nie 16), 0 spotkań", z == [] and l.gracze["statutum"]["spotkan"] == 0
+        and l.gracze["statutum"]["widok_s"] == 2.0, l.gracze)
+z = seans(l, "Statutum", 30, 31)
+sprawdz("A2c2 widok w epizodzie jest ŁĄCZNY (jak dotąd): trzecie 1-sekundowe mignięcie w < 5 min dobija do 3 s = 1 spotkanie", z == ["Statutum"] and l.gracze["statutum"]["spotkan"] == 1
+        and l.gracze["statutum"]["widok_s"] == 3.0, (z, l.gracze))
+l, _ = licznik()
+z = []
+for blok in range(3):
+    z += seans(l, "Statutum", blok * 400, blok * 400 + 4)            # przechodzień: 4 s w widoku, potem > 5 min bez niego
+    seans(l, None, blok * 400 + 5, blok * 400 + 399)
+sprawdz("A2d trzy 4-sekundowe mijania w odstępach > 5 min = 3 spotkania i kandydat (próg 3 s); te same po 2 s = 0",
+        z == ["Statutum"] * 3 and l.kandydat(T0 + 1200) and l.kandydat(T0 + 1200)[2] == 3, (z, l.gracze))
+l, _ = licznik()
+for blok in range(3):
+    seans(l, "Statutum", blok * 400, blok * 400 + 2)
+    seans(l, None, blok * 400 + 3, blok * 400 + 399)
+sprawdz("A2e trzy 2-sekundowe mijania w odstępach > 5 min = 0 spotkań, brak kandydata", l.gracze["statutum"]["spotkan"] == 0 and l.kandydat(T0 + 1200) is None, l.gracze)
 l, _ = licznik()
 z = seans(l, "Statutum", 0, 600)
 sprawdz("A3 jeden gracz kręcący się obok 10 minut = JEDNO spotkanie (nie 3)", z == ["Statutum"] and l.gracze["statutum"]["spotkan"] == 1 and l.kandydat(T0 + 600) is None,

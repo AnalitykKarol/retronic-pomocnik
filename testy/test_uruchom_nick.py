@@ -35,7 +35,7 @@ def strazaq(sciezka, nick, z):
 def przebieg(mapa, z=7, id_="tst", postac_env=None, profil_postac=NICK, strazak_nick=NICK, tryb=""):
     with tempfile.TemporaryDirectory(prefix="uruchom_nick_") as td:
         T = Path(td) / "pom"; T.mkdir(); rt = Path(td) / "rt"; rt.mkdir(); bin_ = Path(td) / "bin"; bin_.mkdir()
-        for f in ("instancja.py", "profil.py", "tryb.py", "pokretla.py", "mapy.json", "tryby.json"):
+        for f in ("instancja.py", "profil.py", "tryb.py", "pokretla.py", "mapy.json", "tryby.json", "w_scope.sh"):
             shutil.copy(R / f, T / f)
         shutil.copy(SRC, T / "uruchom.sh"); os.chmod(T / "uruchom.sh", 0o755)
         (T / "mozg.py").write_text("import sys,os\nopen(os.environ['ATRAPA_ARGS'],'w').write(' '.join(sys.argv[1:]))\n")
@@ -53,6 +53,7 @@ def przebieg(mapa, z=7, id_="tst", postac_env=None, profil_postac=NICK, strazak_
         (st / "STOP").write_text("")
         zamknij = strazaq(gniazdo, strazak_nick, z)
         env = {k: v for k, v in os.environ.items() if not k.startswith(("RETRONIC_", "MAPA", "TRYB", "MOZG_"))}
+        env["RETRONIC_TESTY"] = "1"  # w_scope.sh: atrapa bota nie trafia do prawdziwych jednostek systemd
         env.update(XDG_RUNTIME_DIR=str(rt), PATH=f"{bin_}:{os.environ['PATH']}", ATRAPA_ARGS=str(Path(td) / "args"),
                    ATRAPA_NOTIFY=str(Path(td) / "notify"), MAPA=mapa, TRYB=tryb, RETRONIC_CZEKAJ_POSTAC_S="2")   # 23.10: uruchom.sh czeka na strażnika (domyślnie 60 s)
         if id_:

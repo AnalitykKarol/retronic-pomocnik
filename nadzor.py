@@ -53,6 +53,7 @@ DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(DIR))
 import grafik as G  # noqa: E402
 import spoty as SP  # noqa: E402
+import spot_gracz as SGR  # noqa: E402
 import plan_postaci as PP  # noqa: E402
 import przerwa as PR  # noqa: E402
 import relog_wylogowanych as RW  # noqa: E402
@@ -337,6 +338,13 @@ class Zrodla:
     def procesy_serwisu(self, id_):
         import instancja  # noqa: PLC0415
         return instancja.procesy(r"(^|[ /])serwis\.py ", id_=id_)
+
+    def procesy_refillu(self, id_):
+        """25.10: refill tej instancji w toku (refill.sh albo czekacz auto-refillu): w jego trakcie postać w depo nie jest wylogowywana."""
+        import instancja  # noqa: PLC0415
+        return (instancja.procesy(r"(^|[ /])refill_auto\.py czekaj", id_=id_)
+                + instancja.procesy(r"^(\S*/)?bash (\S*/)?refill\.sh *$", id_=id_, comm=None)         # wzorce jak refill_auto.WZOR_REFILL / refill.sh pidy_serwis_sh
+                + instancja.procesy(r"^(\S*/)?bash (\S*/)?serwis\.sh( .*)?$", id_=id_, comm=None))
 
     def procesy_bota(self, id_):
         import instancja  # noqa: PLC0415
@@ -681,6 +689,12 @@ class Nadzorca:
                 o["serwis_dziala"] = bool(o["panel"].get("serwis_dziala")) or bool(self.zrodla.procesy_serwisu(id_))
             except Exception:       # noqa: BLE001
                 o["serwis_dziala"] = bool(o["panel"].get("serwis_dziala"))
+        o["refill_trwa"] = False       # 25.10: refill.sh / czekacz auto-refillu tej instancji (tylko postać bez bota; brak metody w atrapie = False)
+        if o["online"] and not o["bot"] and self.zostan_depo_pc(id_):
+            try:
+                o["refill_trwa"] = bool(self.zrodla.procesy_refillu(id_))
+            except Exception:       # noqa: BLE001
+                o["refill_trwa"] = False
         o["ip_zgodne"] = None
         if o["online"]:
             try:
@@ -897,13 +911,142 @@ class Nadzorca:
         return D(id_, "zamknij_sesje", f"wylogowana (ekran: {o['ekran']}), bota brak, poza zmianą: zamykam sesję klienta (jedna naraz)", "zamknij-sesje",
                  klasa="zdarzenie")
 
+    # --- zmiana spotu po 3. spotkaniu tego samego gracza (26.10, Karol; spot_gracz.py, dane_tibia/SPEC_spot_gracz_1026.md) ---
+    def pokretlo_spot_gracz(self, id_):
+        """SPOT_ZMIANA_PRZY_GRACZU == 1 w instancje/<id>/na_zywo.json (plik pokręteł bota). Brak pliku/klucza/zły typ = wyłączone."""
+        try:
+            v = json.loads((self.kat(id_) / "na_zywo.json").read_text(encoding="utf-8")).get("SPOT_ZMIANA_PRZY_GRACZU", 0)
+        except (OSError, ValueError, AttributeError):
+            return False
+        return v == 1 and not isinstance(v, bool)
+
+    def pokretlo_licznik_od_startu(self, id_):
+        """LICZNIK_OD_STARTU w instancje/<id>/na_zywo.json: brak klucza = domyślnie 1 (licznik spotkań żyje w jednej sesji bota); 0 = stare zachowanie."""
+        try:
+            v = json.loads((self.kat(id_) / "na_zywo.json").read_text(encoding="utf-8")).get("LICZNIK_OD_STARTU", 1)
+        except (OSError, ValueError, AttributeError):
+            return True
+        return not (v == 0 and not isinstance(v, bool))
+
+    def pokretlo_spot_powrot(self, id_):
+        """SPOT_GRACZ_POWROT_DO_MIASTA w instancje/<id>/na_zywo.json: brak klucza = domyślnie 1 (powrót do miasta, gdy nie ma wolnego spotu); 0 = postać zostaje."""
+        try:
+            v = json.loads((self.kat(id_) / "na_zywo.json").read_text(encoding="utf-8")).get("SPOT_GRACZ_POWROT_DO_MIASTA", 1)
+        except (OSError, ValueError, AttributeError):
+            return True
+        return not (v == 0 and not isinstance(v, bool))
+
+    def _spot_gracz_marker_sprzataj(self, id_):
+        """Bot działa i wystartował PO zapisie znacznika powrotu (Karol albo plan podjął decyzję): znacznik już nie trzyma postaci w depo."""
+        p = self.kat(id_) / ZD.PLIK_SPOT_GRACZ_DEPO
+        if p.exists() and not ZD.spot_gracz_depo(self.kat(id_), self.zegar().timestamp(), self.start_bota_ep(id_)):
+            ZD.usun_spot_gracz_depo(self.kat(id_))
+
+    def spot_gracz_stan(self, id_):
+        return self.post(id_).setdefault("spot_gracz", {})
+
+    def wybierz_spot_gracz(self, id_, o, teraz, biezaca):
+        """Nowy spot dla postaci, której gracz przeszkadza: spoty.wybierz z kolejnością Karola 26.10 (najpierw ta sama rodzina, potem reszta miasta),
+        bez bieżącego, niedawno unikanych i spotów zakazanych (SPOTY_ZAKAZANE + `auto:false` w tabeli), bez jaskiń zajętych przez inne nasze boty.
+        -> wynik spoty.wybierz (mapa None = brak) albo None, gdy tabeli spotów brak."""
+        sg = self.spot_gracz_stan(id_)
+        unikane = [u["mapa"] for u in SGR.unikane_aktywne(sg.get("unikane"), ts_ep(teraz))]
+        wyklucz = {biezaca, *unikane, *SGR.SPOTY_ZAKAZANE} - {None}
+        return self.wybierz_spot(id_, o.get("panel"), o.get("gracz"), teraz, biezaca, f"spot_gracz-{teraz:%H%M}", wyklucz_mapy=tuple(sorted(wyklucz)),
+                                 rodzina_z=biezaca)
+
+    def decyzja_spot_gracz(self, id_, o, a, st, teraz):
+        """Zlecenie bota (`spot_gracz_zadanie.json`, bot z SPOT_ZMIANA_PRZY_GRACZU=1) -> decyzja `zmien_spot` (kod spot-gracz) albo `czekaj` z powodem
+        albo None (brak zlecenia). Bramki: pokrętło w na_zywo.json instancji, spot przypięty, limity 1/30 min i 4/dobę (liczone z WYKONANYCH zmian),
+        bot nie w walce, potwierdzenie spokoju od bota nie starsze niż GOTOWY_SWIEZY_S. Brak sensownego spotu = zlecenie kasowane, postać zostaje."""
+        self._spot_gracz_marker_sprzataj(id_)
+        zad, powod = SGR.wczytaj_zadanie(self.kat(id_), ts_ep(teraz))
+        if zad is None:
+            if powod != "brak zlecenia":
+                SGR.usun_zadanie(self.kat(id_))          # przeterminowane / nieczytelne: sprzątamy (plik zlecenia jest jednorazowy)
+            return None
+        nick, ile = str(zad["nick"]).strip(), zad.get("spotkan", "?")
+        if self.pokretlo_licznik_od_startu(id_) and SGR.zadanie_sprzed_startu(zad, self.start_bota_ep(id_)):
+            SGR.usun_zadanie(self.kat(id_))            # 26.10 (Karol): licznik liczy od ostatniego odpalenia bota; zlecenie sprzed tego startu opiera się na wyzerowanym liczniku
+            return D(id_, "czekaj", f"gracz {nick} ({ile}. spotkanie): zlecenie z poprzedniej sesji bota (bot wystartował po jego zapisie), wygasło", "spot-gracz-stara-sesja")
+        if not self.pokretlo_spot_gracz(id_):
+            SGR.usun_zadanie(self.kat(id_))
+            return D(id_, "czekaj", f"gracz {nick}: SPOT_ZMIANA_PRZY_GRACZU wyłączone w na_zywo.json, zlecenie bota wycofane", "spot-gracz-wylaczone")
+        sg = self.spot_gracz_stan(id_)
+        ok, lim = SGR.limit_ok(sg.get("zmiany"), ts_ep(teraz))
+        if not ok:
+            SGR.usun_zadanie(self.kat(id_))
+            return D(id_, "czekaj", f"gracz {nick} ({ile}. spotkanie): zmiana spotu odłożona, {lim}; zostaje", "spot-gracz-limit")
+        pin = self.spot_przypiety(id_)
+        if pin:
+            SGR.usun_zadanie(self.kat(id_))
+            return D(id_, "czekaj", f"gracz {nick} ({ile}. spotkanie): spot przypięty ({pin}), zostaje", "spot-gracz-przypiety")
+        if o["log"] and a.get("walka"):
+            return D(id_, "czekaj", f"gracz {nick} ({ile}. spotkanie): bot w walce, zmiana spotu czeka na spokój", "spot-gracz-walka")
+        if not SGR.gotowe(zad, ts_ep(teraz)):
+            return D(id_, "czekaj", f"gracz {nick} ({ile}. spotkanie): czekam na potwierdzenie spokoju od bota (HP >= {SGR.BEZPIECZNY_HP:.0f} %, zero potworów w "
+                                    f"<= {SGR.BEZPIECZNY_ODL} polach, gotowy_t nie starszy niż {SGR.GOTOWY_SWIEZY_S} s)", "spot-gracz-czeka")
+        prob = sg.get("proby") or {}
+        if prob.get("t") == zad["t"] and prob.get("n", 0) >= 3:
+            SGR.usun_zadanie(self.kat(id_))
+            return D(id_, "czekaj", f"gracz {nick}: zmiana spotu nieudana {prob['n']} razy, zlecenie wycofane", "spot-gracz-nieudana")
+        mapa, tryb, _skad = mapa_tryb_biezace(self.korzen, id_, teraz)
+        if not mapa:
+            return D(id_, "czekaj", f"gracz {nick}: bieżącej mapy nie ustalam (tryb.log), zostaje", "spot-gracz-brak-mapy")
+        brak_spotu = False          # True = ustalone, że NIE MA dopuszczalnego spotu (nie: brak danych); wtedy ostatni szczebel to powrót do miasta
+        if self.profil(id_).get("spoty_zapasowe"):
+            s = self.spot_zapasowy(id_, mapa, self._zajete_mapy(id_))
+            nowa, nowy_tryb, jak = (s[0], s[1] or tryb, "spot zapasowy z profil.json") if s else (None, None, "brak spotu zapasowego w profil.json")
+            brak_spotu = not s
+        else:
+            w = self.wybierz_spot_gracz(id_, o, teraz, mapa)
+            if w and w.get("mapa"):
+                nowa, nowy_tryb, jak = w["mapa"], tryb, w["powod"]
+            else:
+                nowa, nowy_tryb, jak = None, None, (w or {}).get("powod", "brak tabeli spotów")
+                brak_spotu = bool(w) and w.get("brak") == "spot" and str(jak).startswith("brak spotu")
+        if not nowa or nowa == mapa:
+            if brak_spotu and self.pokretlo_spot_powrot(id_):
+                # 26.10 (Karol): ostatnia faza drabiny = powrót do miasta (to samo WROC co wroc.sh, bot idzie do depo w spokojnej chwili, postać zostaje w depo)
+                return D(id_, "wroc", f"gracz {nick} spotkany {ile}. raz na {mapa}: brak wolnego spotu -> powrót do miasta ({jak})"[:500], "spot-gracz-powrot",
+                         klasa="naprawa", problem="spot_gracz_wroc", stara=mapa, nick=nick, spotkan=ile, req_t=zad["t"])
+            SGR.usun_zadanie(self.kat(id_))
+            return D(id_, "czekaj", f"gracz {nick} ({ile}. spotkanie) na {mapa}: brak sensownego spotu, zostaje ({jak})"[:400], "spot-gracz-brak")
+        return D(id_, "zmien_spot", f"gracz {nick} spotkany {ile}. raz na {mapa}: zmiana spotu -> {nowa} ({jak})"[:500], "spot-gracz", klasa="naprawa",
+                 problem="spot_gracz", mapa=nowa, tryb=nowy_tryb, stara=mapa, nick=nick, spotkan=ile, req_t=zad["t"])
+
+    def _spot_gracz_po(self, teraz, id_, d, st, ok, txt, W):
+        """Po próbie zmiany spotu: sukces = wpis w liście wykonanych zmian (limity), unikany spot, skasowane zlecenie, powiadomienie (jedna krótka
+        linia: nick, licznik, stary -> nowy); porażka = licznik prób (3 = wycofanie), bez prób przy odroczeniu z powodu walki."""
+        arg, sg = d["arg"], self.spot_gracz_stan(id_)
+        if ok and arg.get("problem") == "spot_gracz_wroc":
+            tab = self.tabela_spotow()
+            jask = tab.jaskinia_mapy(arg["stara"]) if tab is not None and not tab.blad else arg["stara"]
+            sg["zmiany"] = [t for t in (sg.get("zmiany") or []) if ts_ep(teraz) - t < SGR.LIMIT_DOBA_S] + [ts_ep(teraz)]
+            sg["unikane"] = SGR.unikane_dodaj(sg.get("unikane"), arg["stara"], jask, arg["nick"], ts_ep(teraz))
+            sg.pop("proby", None)
+            SGR.usun_zadanie(self.kat(id_))
+            ZD.zapisz_spot_gracz_depo(self.kat(id_), ts_ep(teraz), f"powrót do miasta: gracz {arg['nick']} ({arg['spotkan']}. spotkanie) na {arg['stara']}, brak wolnego spotu")
+            W.powiadom_info(id_, f"{id_}: brak wolnego spotu"[:80], f"{arg['nick']} spotkany {arg['spotkan']}. raz na {arg['stara']}: brak wolnego spotu -> powrót do miasta"[:300])
+        elif ok:
+            tab = self.tabela_spotow()
+            jask = tab.jaskinia_mapy(arg["stara"]) if tab is not None and not tab.blad else arg["stara"]
+            sg["zmiany"] = [t for t in (sg.get("zmiany") or []) if ts_ep(teraz) - t < SGR.LIMIT_DOBA_S] + [ts_ep(teraz)]
+            sg["unikane"] = SGR.unikane_dodaj(sg.get("unikane"), arg["stara"], jask, arg["nick"], ts_ep(teraz))
+            sg.pop("proby", None)
+            SGR.usun_zadanie(self.kat(id_))
+            W.powiadom_info(id_, f"{id_}: zmiana spotu"[:80], f"{arg['nick']} spotkany {arg['spotkan']}. raz: {arg['stara']} -> {arg['mapa']}"[:300])
+        elif not str(txt).startswith("bot w walce"):
+            pr = sg.get("proby") or {}
+            sg["proby"] = {"t": arg["req_t"], "n": (pr.get("n", 0) + 1) if pr.get("t") == arg["req_t"] else 1}
+
     def _wykonawca_dla(self, d):
         # 23.10: na żywo przy NADZOR_NAPRAWY także kroki planu postaci (kod plan-*), z tymi samymi bramkami co wroc-poziom
         # 23.10: także relog po wylogowaniu bota (kod relog-wylog): kolejka relogów na żywo przy NADZOR_NAPRAWY, bramki jak wyżej
         # 23.10 (strategia Karola): tak samo restart po zmianie kodu, zamknięcie sesji i powiadomienie „czar bez efektu”; decyzje restart-kod
         # i zamknij-sesje powstają WYŁĄCZNIE przy włączonym pokrętle (pliki NADZOR_RESTART_PO_KODZIE / NADZOR_ZAMYKAJ_SESJE: domyślnie ich nie ma)
         if self.zywo or not ((d["akcja"] == "wroc" and d["kod"] == "wroc-poziom" or str(d["kod"]).startswith("plan-")
-                              or d["kod"] in ("relog-wylog", "restart-kod", "zamknij-sesje", "czar-bez-efektu")) and self.poziom_zywo()):
+                              or d["kod"] in ("relog-wylog", "restart-kod", "zamknij-sesje", "czar-bez-efektu", "spot-gracz", "spot-gracz-powrot")) and self.poziom_zywo()):
             return self.wykonawca
         if self._wykonawca_poziom is None:
             self._wykonawca_poziom = WykonawcaZywy(self.korzen)
@@ -994,7 +1137,8 @@ class Nadzorca:
         if plan.nieczytelny:
             return None
         pc = plan.postacie.get(id_)
-        return pc.zostan if pc is not None and pc.zostan.flaga else None
+        z = pc.zostan if pc is not None else plan.zostan_domyslny      # 25.10 (Karol): postać bez wpisu w planie dostaje tylko pola `domyslne` (gdy włączone)
+        return z if z.flaga else None
 
     def start_bota_ep(self, id_):
         """Epoch (koniec minuty) startu najnowszego bota instancji z nazwy logu `mozg-stdout-MMDD-GGMM.log` (uruchom.sh) albo None. Nazwa, bo
@@ -1022,6 +1166,9 @@ class Nadzorca:
         """Powód (tekst) albo None. Flaga `zostan_w_depo` w planie postaci (Karol 23.10: invincible, dawajkesh, wydra): po dojściu do depo postać zostaje
         w depo. Plan nieczytelny = flagi nieznane, nadzorca działa jak przed flagą (ostrzeżenie `plan-blad` jest w dzienniku).
         24.10: z `zostan_w_depo_po_refillach` flaga działa dopiero po N refillach i po starcie bota po N-tym (albo gdy znacznik `zostan_depo_od` już stoi)."""
+        sg = ZD.spot_gracz_depo(self.kat(id_), self.zegar().timestamp(), self.start_bota_ep(id_) if (self.kat(id_) / ZD.PLIK_SPOT_GRACZ_DEPO).exists() else None)
+        if sg:
+            return sg           # 26.10: powrót do miasta po spotkaniach graczy (brak wolnego spotu): postać stoi w depo do decyzji, bez refillu i startu na spot
         z = self.zostan_depo_pc(id_)
         if z is None:
             return None
@@ -1396,7 +1543,7 @@ class Nadzorca:
         h = [x.get("mapa") for x in self.post(id_).get("spoty_hist", []) if x.get("mapa")][-3:]
         return h + ([biezaca] if biezaca else [])
 
-    def wybierz_spot(self, id_, panel, gracz, teraz, biezaca, przyczyna, dodatkowo_zajete=(), zajete=None, z_depo=False):
+    def wybierz_spot(self, id_, panel, gracz, teraz, biezaca, przyczyna, dodatkowo_zajete=(), zajete=None, z_depo=False, wyklucz_mapy=(), rodzina_z=None):
         """spoty.wybierz z faktami tej postaci. -> wynik wybierz() albo None, gdy tabeli brak. Ziarno: dzień + przyczyna (początek zmiany / zmien_spot).
         zajete (zbiór map) zastępuje bieżące mapy innych botów (podgląd w cieniu); z_depo=True liczy start z z7 (postać zaczynałaby od depo)."""
         tab = self.tabela_spotow()
@@ -1406,7 +1553,8 @@ class Nadzorca:
         fakty = self.fakty_postaci(id_, panel, gracz)
         if z_depo and fakty["poz"]:
             fakty["poz"] = (fakty["poz"][0], fakty["poz"][1], SP.LEKKIE_Z)
-        return SP.wybierz(fakty, zaj, self.historia_spotow(id_, biezaca), tab, ziarno=f"{teraz:%Y-%m-%d}|{przyczyna}")
+        return SP.wybierz(fakty, zaj, self.historia_spotow(id_, biezaca), tab, ziarno=f"{teraz:%Y-%m-%d}|{przyczyna}",
+                          wyklucz_mapy=wyklucz_mapy, rodzina_z=rodzina_z)
 
     def zapamietaj_spot(self, id_, st, mapa, teraz, historia=True):
         tab = self.tabela_spotow()
@@ -1610,6 +1758,13 @@ class Nadzorca:
                 return [D(id_, "czekaj", f"{powod}, ale bot w walce: odkładam", "okna-odroczenie")]
             return [D(id_, "okna", powod, "okna", klasa="naprawa", problem="okna")]
         # 23.10 (strategia Karola): „czar bez efektu 3×” (powiadomienie) i restart po zmianie kodu (pokrętło, domyślnie wyłączone)
+        try:
+            sgd = self.decyzja_spot_gracz(id_, o, a, st, teraz)     # 26.10: zmiana spotu po 3. spotkaniu tego samego gracza (zlecenie bota)
+        except Exception as e:      # noqa: BLE001
+            sgd = None              # nowa ścieżka nigdy nie psuje przebiegu nadzorcy dla pozostałych decyzji
+            self.wpisz(teraz, D(id_, "ostrzezenie", f"spot-gracz: błąd {e!r}", "spot-gracz-blad"), "ostrzezenie")
+        if sgd:
+            return [sgd]
         dodatkowe = [d for d in (self.decyzja_czar(id_, a, st, teraz), self.decyzja_restart_kod(id_, o, a, st, teraz)) if d]
         if dodatkowe:
             return dodatkowe
@@ -1842,8 +1997,8 @@ class Nadzorca:
         """24.10 (Karol: „zakończyć i wylogować się w depo”): uzbrojona postać z `wyloguj_w_depo` stoi w depo ze STOP (bez bota): wylogowanie jak na koniec
         zmiany (spokój, nie w serwisie, 3 porażki = eskalacja, jedna postać naraz i odstęp logowań w pętli zdarzeń), kod `plan-wyloguj-depo` = także na
         żywo przy NADZOR_NAPRAWY. Offline znacznik `zostan_depo_od` + STOP trzymają ją w depo (zostaje-offline), bez relogu."""
-        if o["serwis_dziala"]:
-            return D(id_, "czekaj", f"stoi w depo ze STOP (zostan_w_depo: {zostaje}): czekam na koniec serwisu przed wylogowaniem", "wyloguj-depo-serwis")
+        if o["serwis_dziala"] or o.get("refill_trwa"):
+            return D(id_, "czekaj", f"stoi w depo ze STOP (zostan_w_depo: {zostaje}): czekam na koniec serwisu / refillu przed wylogowaniem", "wyloguj-depo-serwis")
         if st.get("wylog_bl", 0) >= 3:
             return D(id_, "eskaluj", f"stan nieustalony: wylogowanie w depo nieudane {st['wylog_bl']} razy (ostatni kod {st.get('wylog_kod')})",
                      "wylog-nieudane", klasa="eskalacja", kod_eskalacji="nieustalony")
@@ -2316,7 +2471,11 @@ class Nadzorca:
                 ok, txt = self._wykonaj_plan(teraz, id_, d, st, W)
             elif akcja in ("restart", "wznow", "zmien_spot"):
                 po_kodzie = arg.get("problem") == "kod"
-                ok, txt = self._restart(teraz, id_, akcja, st, W=W, zalicz=not po_kodzie)
+                gracz_sp = akcja == "zmien_spot" and arg.get("problem") == "spot_gracz"
+                ok, txt = self._restart(teraz, id_, akcja, st, W=W, zalicz=not (po_kodzie or gracz_sp),
+                                        cel=(arg.get("mapa"), arg.get("tryb")) if gracz_sp else None)
+                if gracz_sp:
+                    self._spot_gracz_po(teraz, id_, d, st, ok, txt, W)
                 if po_kodzie:
                     pr = st.get("restart_kod") or {}
                     st["restart_kod"] = {"mtime": arg.get("mtime"), "proby": (pr.get("proby", 0) + 1) if pr.get("mtime") == arg.get("mtime") else 1}
@@ -2345,7 +2504,9 @@ class Nadzorca:
                 self._zapisz_wroc_poziom(st, d, teraz, ok, "zywo")
                 if d.get("arg", {}).get("problem") == "przerwa":
                     st["przerwa_wroc"] = {"ts": ts_ep(teraz), "n": (st.get("przerwa_wroc") or {}).get("n", 0) + 1}
-                if d.get("arg", {}).get("problem") not in ("koniec", "poziom", "przerwa"):
+                if d.get("arg", {}).get("problem") == "spot_gracz_wroc":
+                    self._spot_gracz_po(teraz, id_, d, st, ok, txt, W)        # 26.10: powrót po spotkaniach graczy (limity, unikany spot, znacznik „zostaje w depo”)
+                if d.get("arg", {}).get("problem") not in ("koniec", "poziom", "przerwa", "spot_gracz_wroc"):
                     st.setdefault("naprawy", []).append([ts_ep(teraz), "wroc"])
                 if ok and d.get("arg", {}).get("problem") == "poziom":
                     nok, ntxt = self._powiadom_wyrosl(id_, d, W)
@@ -2408,7 +2569,7 @@ class Nadzorca:
         self.raport.append(rek)
         return ok, txt
 
-    def _restart(self, teraz, id_, akcja, st, W=None, zalicz=True):
+    def _restart(self, teraz, id_, akcja, st, W=None, zalicz=True, cel=None):
         """restart / wznow / zmien_spot: bot na BIEŻĄCEJ mapie i trybie (tryb.log), zmien_spot na zapasowym. Restart tylko poza walką.
         `zalicz=False` (restart po zmianie kodu): nie wpisuje próby do `naprawy` (drabina: 3 restarty = eskalacja, a to nie awaria)."""
         W = W or self.wykonawca
@@ -2422,7 +2583,9 @@ class Nadzorca:
             pin = self.spot_przypiety(id_)
             if pin:
                 return False, f"spot przypięty ({pin}): zmiana spotu tylko z wpisem Karola w plan_postaci.json"
-            if self.profil(id_).get("spoty_zapasowe") or self.tabela_spotow() is None or self.tabela_spotow().blad:
+            if cel and cel[0]:                          # 26.10 spot_gracz: nowy spot wybrany przez decyzję w tym samym przebiegu
+                mapa, tryb, nowy_spot, skad = cel[0], cel[1] or tryb, cel[0], "spot_gracz (gracz przeszkadza)"
+            elif self.profil(id_).get("spoty_zapasowe") or self.tabela_spotow() is None or self.tabela_spotow().blad:
                 s = self.spot_zapasowy(id_, mapa, self._zajete_mapy(id_))
                 if not s:
                     return False, "brak spotu zapasowego w profil.json (spoty_zapasowe)"

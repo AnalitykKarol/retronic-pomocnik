@@ -554,7 +554,7 @@ sprawdz("2d zjedzono u NPC do 'full' (SYT_MAX=4) i dokupiono jedzenie", s.zjedzo
 DBGLOG = w.logi[-25:]
 sprawdz("2e cap nigdy poniżej rezerwy po zakupach (>= 8 oz) i nie ujemny", s.cap >= 8 - 1e-6, s.cap)
 sprawdz("2f złoto nie ujemne, wydane tylko na zakupy", s.ile_zlota() >= 0 and s.ile_zlota() < 500, s.ile_zlota())
-sprawdz("2g piętra: z8 -> z9 -> z8 -> z7 (miasto) -> z7... -> powrót z7 -> z8", s.pietra[0] == 8 and 7 in s.pietra and s.pietra[-1] == 8, s.pietra)
+sprawdz("2g piętra: start w jaskini (z8 lub z9: trasa v2 zaczyna na z9) -> ... -> z7 (miasto) -> powrót z7 -> z8", s.pietra[0] in (8, 9) and 7 in s.pietra and s.pietra[-1] == 8, s.pietra)
 sprawdz("2h koniec: wypad_wroc_na_trase wywołane, flaga wypadu zdjęta, stan zapisany jako nieaktywny",
         cb.wroty and not cb.wypad_aktywny and json.loads(w.plik_stanu.read_text()).get("aktywna") is False
         and json.loads(w.plik_stanu.read_text()).get("nast_wall", 0) > s.wall, cb.wroty)
@@ -2006,6 +2006,7 @@ def start_j(w, cb):
 
 
 MOB = {"x": START[0] + 2, "y": START[1], "z": START[2], "hp": 100, "nazwa": "Troll"}
+GRACZ = {"x": START[0] + 5, "y": START[1], "z": START[2], "hp": 100, "nazwa": "Obcy", "gracz": True}
 _pw.powiadom = lambda *a, **kw: None
 try:
     s, cb, w, o = swiat_j(0.0, ham=6, pelny=False)
@@ -2068,8 +2069,153 @@ try:
     s, cb, w, k = swiat_cap(0.0)
     pre(s, cb, w, 4)
     sprawdz("22m ops bez wyrzuc_jedzenie (stary Ops): dawna wyprawa po cap", w.powod == "wyprawa:depo:cap", w.powod)
+    # 25.10 (zgon Odchyda): w jaskini cap sprawdza się też w walce (okazja_w_walce); tam jedzenie/wyrzucanie jest pomijane,
+    # więc wyprawa do depo ruszała przez trolle mimo jedzenia w plecaku. W walce z jedzeniem: czekamy na spokój.
+    def w_walce_ticki(s, cb, w, n=6):
+        wyn = []
+        for _ in range(n):
+            s.t += 20
+            s.wall += 20
+            cb.ruch_poz, cb.ostatnie_stwory, cb.cel = tuple(s.poz), list(s.stwory), s.cel
+            wyn.append(w.okazja_w_walce(s.t))
+        return wyn
+    s, cb, w, o = swiat_j(0.0, ham=3, pelny=True, WYPRAWA_DEPO_W_WALCE=1)
+    s.stwory = [dict(MOB)]
+    cb.wypad_aktywny = False
+    wyn = w_walce_ticki(s, cb, w)
+    sprawdz("22o cap 0 + jedzenie w plecaku + trwająca walka: wyrzuca 1 sztukę NA MIEJSCU (cap > progu), wyprawa do depo NIE rusza, "
+            "okazja_w_walce nie zwraca True (cel walki zostaje), po wzroście capa dalej nic nie wyrzuca",
+            not any(wyn) and o.wyrzuty == 1 and s.cap >= 10 and s.plecak[3582] == 2 and not start_j(w, cb) and not w.powod,
+            (wyn, o.wyrzuty, s.cap, w.powod, w.logi[-3:]))
+    sprawdz("22o1 w walce: najpierw jedzenie (Use do 'full'), w logu wpis jem i wyrzucam, bez wpisu o czekaniu na spokój",
+            o.uzyc >= 1 and any("najpierw jem i wyrzucam" in l for l in w.logi) and not any("czekam" in l for l in w.logi),
+            (o.uzyc, w.logi[-4:]))
+    s.stwory = []
+    pre(s, cb, w, 4)
+    sprawdz("22o2 po walce (spokój): jedzenie/wyrzucanie działa, bez wyprawy", o.wyrzuty >= 1 and not start_j(w, cb), (o.uzyc, o.wyrzuty, w.powod))
+    s, cb, w, o = swiat_j(0.0, ham=0, pelny=True, WYPRAWA_DEPO_W_WALCE=1)
+    s.stwory = [dict(MOB)]
+    wyn = w_walce_ticki(s, cb, w)
+    sprawdz("22p cap 0, brak jedzenia, walka: dawna wyprawa po cap (w walce) zostaje", any(wyn) or start_j(w, cb), (wyn, w.powod))
+    # 25.10 15:42 (Wydra, cap 0.0, trolle bez przerwy, 2 meat w plecaku): spokój nie nadchodził i nie działo się nic; potem wyprawa do depo
+    # mimo mięsa (Karol: "wróciła się do depo zamiast wyrzucić mięso"). Teraz jedz+wyrzuć idzie w walce od razu (22o). Czekanie (z limitem
+    # CAP_WALKA_CZEKAJ_S, domyślnie 0 = bez limitu) zostaje tylko, gdy w walce coś BLOKUJE: obcy gracz w pobliżu (jak przy starcie wyprawy).
+    def wpisy(w, fragment):
+        return [l for l in w.logi if fragment in l]
+    s, cb, w, o = swiat_j(0.0, ham=2, pelny=True, WYPRAWA_DEPO_W_WALCE=1, CAP_WALKA_CZEKAJ_S=180)
+    s.stwory = [dict(MOB), dict(GRACZ)]
+    cb.wypad_aktywny = False
+    wyn = w_walce_ticki(s, cb, w, 6)                     # 120 s < 180 s
+    sprawdz("22q gracz w pobliżu, czekanie < limitu (120 s z 180): False, bez wyprawy, w logu JEDEN wpis o czekaniu z capem, progiem i limitem",
+            not any(wyn) and not start_j(w, cb) and len(wpisy(w, "czekam do 180 s, potem wyprawa")) == 1
+            and not wpisy(w, "ruszam do depo mimo"), (wyn, w.logi[-4:]))
+    wyn = w_walce_ticki(s, cb, w, 12)                    # razem 360 s > 180 s
+    sprawdz("22r po limicie: wyprawa do depo rusza w walce mimo jedzenia (powód cap); w logu po JEDNYM wpisie (czekanie i wyjście z limitu)",
+            any(wyn) and w.powod == "wyprawa:depo:cap" and len(wpisy(w, "zablokowane")) == 1
+            and len(wpisy(w, "ruszam do depo mimo")) == 1, (wyn, w.powod, w.logi[-4:]))
+    sprawdz("22r2 po starcie wyprawy licznik czekania skasowany", w._cap_walka_od is None, w._cap_walka_od)
+    s, cb, w, o = swiat_j(0.0, ham=2, pelny=True, WYPRAWA_DEPO_W_WALCE=1, CAP_WALKA_CZEKAJ_S=180)
+    s.stwory = [dict(MOB), dict(GRACZ)]
+    cb.wypad_aktywny = False
+    w_walce_ticki(s, cb, w, 6)
+    s.cap = 50.0                                         # cap wzrósł ponad próg: powód znika, licznik od zera
+    w_walce_ticki(s, cb, w, 1)
+    odl = w._cap_walka_od
+    s.cap = 0.0
+    wyn = w_walce_ticki(s, cb, w, 6)                     # kolejne 120 s: razem > 180 s, ale licznik liczony od nowa
+    sprawdz("22s reset licznika po wzroście capa: wcześniejsze 120 s się nie sumują, wyprawa nie rusza; drugi epizod = drugi wpis o czekaniu",
+            odl is None and not any(wyn) and not start_j(w, cb) and len(wpisy(w, "zablokowane")) == 2, (odl, wyn, w.logi[-4:]))
+    s, cb, w, o = swiat_j(0.0, ham=2, pelny=True, WYPRAWA_DEPO_W_WALCE=1, CAP_WALKA_CZEKAJ_S=180)
+    s.stwory = [dict(MOB), dict(GRACZ)]
+    cb.wypad_aktywny = False
+    w_walce_ticki(s, cb, w, 6)
+    s.t += 400                                          # ocena przerwana na długo (np. blokada startu): nowy epizod
+    s.wall += 400
+    wyn = w_walce_ticki(s, cb, w, 3)
+    sprawdz("22t przerwa w ocenie > CAP_WALKA_LUKA_S: licznik liczony od nowa, wyprawa nie rusza od razu",
+            not any(wyn) and not start_j(w, cb) and len(wpisy(w, "zablokowane")) == 2, (wyn, w.logi[-4:]))
+    s, cb, w, o = swiat_j(0.0, ham=2, pelny=True, WYPRAWA_DEPO_W_WALCE=1, CAP_WALKA_CZEKAJ_S=0)
+    s.stwory = [dict(MOB), dict(GRACZ)]
+    cb.wypad_aktywny = False
+    wyn = w_walce_ticki(s, cb, w, 60)                    # 1200 s
+    sprawdz("22u CAP_WALKA_CZEKAJ_S=0: czeka bez limitu jak 25.10 rano (1200 s w walce, bez wyprawy), jeden wpis o czekaniu bez limitu",
+            not any(wyn) and not start_j(w, cb) and len(wpisy(w, "bez limitu")) == 1, (wyn, w.logi[-3:]))
+    s, cb, w, o = swiat_j(0.0, ham=0, pelny=True, WYPRAWA_DEPO_W_WALCE=1, CAP_WALKA_CZEKAJ_S=180)
+    s.stwory = [dict(MOB)]
+    wyn = w_walce_ticki(s, cb, w, 3)
+    sprawdz("22v brak jedzenia: wyprawa od razu (bez czekania na limit), bez wpisu o czekaniu",
+            (any(wyn) or start_j(w, cb)) and not wpisy(w, "zablokowane"), (wyn, w.logi[-3:]))
+    s, cb, w, o = swiat_j(0.0, ham=2, pelny=True, WYPRAWA_DEPO_W_WALCE=1, CAP_WALKA_CZEKAJ_S=180)
+    s.stwory = [dict(MOB), dict(GRACZ)]
+    cb.wypad_aktywny = False
+    w_walce_ticki(s, cb, w, 6)
+    s.stwory = []
+    pre(s, cb, w, 4)
+    sprawdz("22w spokój w trakcie czekania: jedz/wyrzuć działa, licznik skasowany, bez wyprawy",
+            o.wyrzuty >= 1 and w._cap_walka_od is None and not start_j(w, cb), (o.wyrzuty, w._cap_walka_od, w.powod))
+    # 25.10 (Wydra): jedz+wyrzuć w trwającej walce, bramki bezpieczeństwa i ostateczność (wyprawa)
+    def swiat_w(ham=3, **kw):
+        s_, cb_, w_, o_ = swiat_j(0.0, ham=ham, pelny=True, WYPRAWA_DEPO_W_WALCE=1, **kw)
+        s_.stwory = [dict(MOB)]
+        cb_.wypad_aktywny = False
+        return s_, cb_, w_, o_
+    s, cb, w, o = swiat_w()
+    cb.ucieczka = True
+    wyn = w_walce_ticki(s, cb, w, 4)
+    sprawdz("22y walka + ucieczka: nie je, nie wyrzuca, nie rusza na wyprawę", not any(wyn) and o.uzyc == 0 and o.wyrzuty == 0 and not start_j(w, cb),
+            (wyn, o.uzyc, o.wyrzuty, w.powod))
+    s, cb, w, o = swiat_w()
+    cb.ostrozny = True
+    wyn = w_walce_ticki(s, cb, w, 4)
+    sprawdz("22y2 walka + ostrożność: nie je, nie wyrzuca, bez wyprawy", not any(wyn) and o.uzyc == 0 and o.wyrzuty == 0 and not start_j(w, cb), (wyn, o.uzyc, o.wyrzuty))
+    s, cb, w, o = swiat_w()
+    cb.zd_oczekuje = (0, 0)
+    wyn = w_walce_ticki(s, cb, w, 4)
+    sprawdz("22y3 walka + czar w toku: nie je, nie wyrzuca, bez wyprawy", not any(wyn) and o.uzyc == 0 and o.wyrzuty == 0 and not start_j(w, cb), (wyn, o.uzyc, o.wyrzuty))
+    s, cb, w, o = swiat_w()
+    cb.wypad_czat = type("Czat", (), {"zablokowany": True})()
+    wyn = w_walce_ticki(s, cb, w, 4)
+    sprawdz("22y4 walka + alarm GM: nie je, nie wyrzuca, bez wyprawy", not any(wyn) and o.uzyc == 0 and o.wyrzuty == 0 and not start_j(w, cb), (wyn, o.uzyc, o.wyrzuty))
+    s, cb, w, o = swiat_w()
+    s.hp = 50
+    wyn = w_walce_ticki(s, cb, w, 4)
+    sprawdz("22y5 walka + niskie HP: nie je, nie wyrzuca, bez wyprawy", not any(wyn) and o.uzyc == 0 and o.wyrzuty == 0 and not start_j(w, cb), (wyn, o.uzyc, o.wyrzuty, s.hp))
+    s, cb, w, o = swiat_w(WYPRAWA_CAP_MIN=50)
+    o.hak_po_wyrzucie = lambda n: setattr(s, "hp", s.hp - 40) if n == 1 else None
+    wyn = w_walce_ticki(s, cb, w, 4)
+    sprawdz("22y6 w walce HP spada o 40 po 1. sztuce: pętla przerwana, 1 wyrzut, bez wyprawy, wpis o przerwaniu",
+            o.wyrzuty == 1 and not any(wyn) and not start_j(w, cb) and any("przerwane" in l and "hp" in l for l in w.logi), (o.wyrzuty, wyn, w.logi[-3:]))
+    s, cb, w, o = swiat_w()
+    s.stwory = [dict(MOB), dict(GRACZ)]
+    wyn = w_walce_ticki(s, cb, w, 4)
+    sprawdz("22y7 walka + obcy gracz w pobliżu: nie je, nie wyrzuca, bez wyprawy (domyślnie bez limitu czekania)",
+            not any(wyn) and o.uzyc == 0 and o.wyrzuty == 0 and not start_j(w, cb) and len(wpisy(w, "zablokowane")) == 1, (wyn, o.uzyc, o.wyrzuty, w.logi[-3:]))
+    s, cb, w, o = swiat_w()
+    o.wyrzuc_wynik = (0, 3, "brak okna ilości po przeciągnięciu stosu")
+    wyn = w_walce_ticki(s, cb, w, 4)
+    pierwsza = not any(wyn) and not start_j(w, cb)
+    wyn = w_walce_ticki(s, cb, w, 6)
+    sprawdz("22y8 wyrzucanie w walce nie działa: 1. porażka czeka, 2. porażka = ostateczność, wyprawa do depo (cap)",
+            pierwsza and any(wyn) and w.powod == "wyprawa:depo:cap", (pierwsza, wyn, w.powod, w.logi[-3:]))
+    s, cb, w, o = swiat_w(ham=0)
+    wyn = w_walce_ticki(s, cb, w, 3)
+    sprawdz("22y9 walka, jedzenia brak: wyprawa do depo jak dotąd, bez prób jedzenia i wyrzucania",
+            (any(wyn) or start_j(w, cb)) and o.uzyc == 0 and o.wyrzuty == 0 and w.powod == "wyprawa:depo:cap", (wyn, o.uzyc, o.wyrzuty, w.powod))
+    s, cb, w, o = swiat_w(ham=2, WYPRAWA_CAP_MIN=100)
+    wyn = w_walce_ticki(s, cb, w, 8)
+    sprawdz("22y10 w walce wyrzucono całe jedzenie (2), cap nadal < progu: dopiero teraz wyprawa do depo",
+            o.wyrzuty == 2 and s.plecak.get(3582, 0) == 0 and w.powod == "wyprawa:depo:cap", (o.wyrzuty, s.plecak, w.powod))
+    s, cb, w, o = swiat_w(CAP_JEDZ_I_WYRZUC=0)
+    wyn = w_walce_ticki(s, cb, w, 3)
+    sprawdz("22y11 CAP_JEDZ_I_WYRZUC=0 w walce: dawne zachowanie (wyprawa po cap, zero Use i wyrzutów)",
+            o.uzyc == 0 and o.wyrzuty == 0 and w.powod == "wyprawa:depo:cap", (o.uzyc, o.wyrzuty, w.powod))
 finally:
     _pw.powiadom = _stare
+sprawdz("22x pokrętło CAP_WALKA_CZEKAJ_S: DOMYSLNE=0, ZAKRESY, STALE_Z_WYPRAWY, waliduj",
+        W.DOMYSLNE.get("CAP_WALKA_CZEKAJ_S") == 0 and "CAP_WALKA_CZEKAJ_S" in pokretla.ZAKRESY
+        and "CAP_WALKA_CZEKAJ_S" in pokretla.STALE_Z_WYPRAWY
+        and pokretla.waliduj({"CAP_WALKA_CZEKAJ_S": 0})[0] == {"CAP_WALKA_CZEKAJ_S": 0}
+        and pokretla.waliduj({"CAP_WALKA_CZEKAJ_S": 60})[0] == {"CAP_WALKA_CZEKAJ_S": 60})
 sprawdz("22n pokrętła: DOMYSLNE, ZAKRESY, STALE_Z_WYPRAWY, domyślnie jedz+wyrzuć=1, zostaw=0",
         all(k in W.DOMYSLNE and k in pokretla.ZAKRESY and k in pokretla.STALE_Z_WYPRAWY
             for k in ("CAP_JEDZ_I_WYRZUC", "CAP_JEDZ_ZOSTAW", "CAP_JEDZ_ODSTEP_S"))

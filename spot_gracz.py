@@ -35,7 +35,7 @@ PLIK_ZADANIA = "spot_gracz_zadanie.json"      # instancje/<id>/: zlecenie zmiany
 # ---- progi (wartości Karola: SPOTKAN_MAX=3; reszta to wartości robocze do oceny, opis w specyfikacji) ----
 SPOTKAN_MAX = 3            # Karol 26.10: po 3. spotkaniu tego samego gracza postać zmienia spot
 PRZERWA_S = 300            # >= tyle sekund bez nicku w widoku kończy epizod; następne zobaczenie to NOWE spotkanie (~5 min wg Karola)
-MIN_WIDOK_S = 15           # nick musi być widoczny łącznie tyle sekund w epizodzie, żeby epizod był spotkaniem (mignięcie nie liczy)
+MIN_WIDOK_S = 3            # Karol 27.10 („15 s to nierealny czas, 2-3 s to już dużo”; wcześniej 15): nick musi być widoczny łącznie tyle sekund w epizodzie, żeby epizod był spotkaniem (krótsze mignięcie nie liczy)
 MAX_KROK_S = 10            # dwa kolejne obiegi z nickiem dalej niż tyle sekund od siebie: czas pomiędzy nie liczy się do widoku (luka w pracy bota)
 STARZENIE_H = 12           # wpis gracza starszy niż tyle godzin od ostatniego zobaczenia znika z pliku (licznik nie rośnie w nieskończoność)
 ZAPIS_CO_S = 20            # wpis „ostatnio widziany” trafia na dysk najwyżej co tyle sekund (zmiana licznika spotkań: od razu)

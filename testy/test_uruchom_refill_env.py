@@ -32,7 +32,7 @@ def przebieg(dodatkowe):
     """-> (kod, słownik zmiennych widzianych przez atrapę mozg.py albo None, gdy bot nie wystartował)."""
     with tempfile.TemporaryDirectory(prefix="uruchom_env_") as td:
         T = Path(td) / "pom"; T.mkdir(); rt = Path(td) / "rt"; rt.mkdir(); bin_ = Path(td) / "bin"; bin_.mkdir()
-        for f in ("instancja.py", "profil.py", "tryb.py", "pokretla.py", "mapy.json", "tryby.json"):
+        for f in ("instancja.py", "profil.py", "tryb.py", "pokretla.py", "mapy.json", "tryby.json", "w_scope.sh"):
             shutil.copy(R / f, T / f)
         shutil.copy(SRC, T / "uruchom.sh"); os.chmod(T / "uruchom.sh", 0o755)
         (T / "mozg.py").write_text("import os, json\nopen(os.environ['ATRAPA_ENV'], 'w').write(json.dumps({k: v for k, v in os.environ.items() "
@@ -44,6 +44,7 @@ def przebieg(dodatkowe):
         (st / "STOP").write_text("")
         zamknij = straznik(rt / f"retronic-{ID}.sock", NICK, 7)
         env = {k: v for k, v in os.environ.items() if not k.startswith(("RETRONIC_", "MAPA", "TRYB", "MOZG_", "REFILL_", "OBCA_"))}
+        env["RETRONIC_TESTY"] = "1"  # w_scope.sh: atrapa bota nie trafia do prawdziwych jednostek systemd
         env.update(XDG_RUNTIME_DIR=str(rt), PATH=f"{bin_}:{os.environ['PATH']}", ATRAPA_ENV=str(Path(td) / "env.json"),
                    MAPA="rook_raty_z8", RETRONIC_ID=ID, RETRONIC_CZEKAJ_POSTAC_S="2")
         env.update(dodatkowe)

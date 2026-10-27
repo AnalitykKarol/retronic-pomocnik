@@ -405,7 +405,7 @@ def strazak(sciezka, nick, z):
 def uruchom_sh(env_dod, z=3):
     with tempfile.TemporaryDirectory(prefix="stoj_uruchom_") as td:
         T = Path(td) / "pom"; T.mkdir(); rt = Path(td) / "rt"; rt.mkdir(); bin_ = Path(td) / "bin"; bin_.mkdir()
-        for f in ("instancja.py", "profil.py", "tryb.py", "pokretla.py", "mapy.json", "tryby.json"):
+        for f in ("instancja.py", "profil.py", "tryb.py", "pokretla.py", "mapy.json", "tryby.json", "w_scope.sh"):
             shutil.copy(Path(_R) / f, T / f)
         shutil.copy(Path(_R) / "uruchom.sh", T / "uruchom.sh"); _os.chmod(T / "uruchom.sh", 0o755)
         (T / "mozg.py").write_text("import sys,os\nopen(os.environ['ATRAPA_ARGS'],'w').write(' '.join(sys.argv[1:]))\n")
@@ -417,7 +417,7 @@ def uruchom_sh(env_dod, z=3):
         zamknij = strazak(rt / "retronic-tst.sock", NICK, z)
         env = {k: v for k, v in _os.environ.items() if not k.startswith(("RETRONIC_", "MAPA", "TRYB", "MOZG_", "STOJ_"))}
         env.update(XDG_RUNTIME_DIR=str(rt), PATH=f"{bin_}:{_os.environ['PATH']}", ATRAPA_ARGS=str(Path(td) / "args"),
-                   RETRONIC_CZEKAJ_POSTAC_S="2", RETRONIC_ID="tst", **env_dod)
+                   RETRONIC_CZEKAJ_POSTAC_S="2", RETRONIC_ID="tst", RETRONIC_TESTY="1", **env_dod)   # TESTY: w_scope.sh bez prawdziwych jednostek
         try:
             r = subprocess.run(["bash", str(T / "uruchom.sh")], env=env, capture_output=True, text=True, timeout=60, cwd=str(T))
             import time; time.sleep(0.5)

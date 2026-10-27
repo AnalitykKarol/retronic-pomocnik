@@ -13,15 +13,26 @@ Licznik refilli: instancje/<id>/refille.json {"t": [epoch, ...]} — dopisuje `r
 ale TYLKO gdy powodem wyprawy do depo były blanki (`depo_start_powody` zawiera "blanki", także cap+blanki); powrót po samym cap, po jedzeniu, po WROC (reczny)
 i po PK nie liczy się (24.10, przegląd 2bp). Ręczny `./refill.sh` (guzik) NIE jest liczony.
 24.10 (Karol ~10:00: „powrót przy braku capa: zamiana na pc i powrót, aż do pełnego bp run”): wyprawa z powodem WYŁĄCZNIE `cap` (`tylko_cap`) nie zatrzymuje
-w depo (także przy `zostan_w_depo` i uzbrojonym `..._po_refillach`), nie uzbraja flagi i kończy się refillem `bank,wyjscie` (refill_auto.czekaj)."""
+w depo (także przy `zostan_w_depo` i uzbrojonym `..._po_refillach`), nie uzbraja flagi i kończy się refillem `bank,wyjscie` (refill_auto.czekaj).
+
+25.10 (Karol: „ma być jako default, że postacie wracają do miasta do depo i robią loga i czekają na mnie”): klucz NAJWYŻSZEGO poziomu planu
+  "domyslne": {"wlaczone": true, "zostan_w_depo": true, "wyloguj_w_depo": true, "zostan_w_depo_powod": "..."}
+daje WSZYSTKIM postaciom (także bez wpisu w „postacie”) te pola, gdy wpis postaci ich sam nie ustawia; pole we wpisie postaci (także `false`,
+także `zostan_w_depo_po_refillach`) wygrywa z domyślnym. WŁĄCZNIK: `wlaczone` musi być dokładnie `true`; brak klucza „domyslne”, `wlaczone` false/brak albo błędny
+kształt = domyślne WYŁĄCZONE (zachowanie jak przed 25.10). Po włączeniu `zostan_w_depo` i `wyloguj_w_depo` są domyślnie true."""
 import json
 import os
 import time
 from datetime import datetime
 from pathlib import Path
 
+KLUCZ_DOMYSLNE = "domyslne"
+POLA_DOMYSLNE = ("zostan_w_depo", "zostan_w_depo_powod", "wyloguj_w_depo")
+POWOD_DOMYSLNY = "domyślnie (plan_postaci.json „domyslne”): wrócona do depo postać zostaje, wylogowana, czeka na Karola"
 PLIK_REFILLE = "refille.json"
 PLIK_WYPRAWY = "wyprawa_stan.json"
+PLIK_SPOT_GRACZ_DEPO = "spot_gracz_depo.json"   # 26.10: instancje/<id>/, nadzorca zapisuje przy powrocie do miasta z powodu graczy (spot_gracz.py)
+SPOT_GRACZ_DEPO_WAZNE_S = 12 * 3600.0           # znacznik starszy niż 12 h nie trzyma postaci w depo
 SWIEZOSC_WYPRAWY_S = 3600.0         # stan wyprawy starszy niż 1 h nie mówi nic o BIEŻĄCYM depo (np. Stanowisko woła refill bez wyprawy)
 MAKS_WPISOW = 20
 FMT = "%Y-%m-%d %H:%M:%S"
@@ -38,16 +49,44 @@ class Zostan:
         self.powod = ""
         self.wyloguj = False
         self.blad = None
+        self.z_domyslnych = False       # flaga pochodzi z `domyslne` planu, nie z wpisu postaci
 
 
-def parsuj(pc):
+def domyslne(plan_dict):
+    """Domyślne pola „zostań w depo” z SUROWEGO planu (dict z pliku) -> (dom, blad). `dom` = {"zostan_w_depo", "wyloguj_w_depo", "zostan_w_depo_powod"}
+    tylko gdy `domyslne.wlaczone` jest dokładnie True; inaczej None (wyłączone). `blad` = tekst, gdy klucz jest, ale ma zły kształt (domyślne wtedy wyłączone)."""
+    d = plan_dict.get(KLUCZ_DOMYSLNE) if isinstance(plan_dict, dict) else None
+    if d is None:
+        return None, None
+    if not isinstance(d, dict):
+        return None, f"„{KLUCZ_DOMYSLNE}” musi być obiektem, jest {type(d).__name__} (domyślne wyłączone)"
+    w = d.get("wlaczone", False)
+    if not isinstance(w, bool):
+        return None, f"{KLUCZ_DOMYSLNE}.wlaczone musi być true/false, jest {w!r} (domyślne wyłączone)"
+    for k in ("zostan_w_depo", "wyloguj_w_depo"):
+        if k in d and not isinstance(d[k], bool):
+            return None, f"{KLUCZ_DOMYSLNE}.{k} musi być true/false, jest {d[k]!r} (domyślne wyłączone)"
+    if not w:
+        return None, None
+    return {"zostan_w_depo": bool(d.get("zostan_w_depo", True)), "wyloguj_w_depo": bool(d.get("wyloguj_w_depo", True)),
+            "zostan_w_depo_powod": str(d.get("zostan_w_depo_powod") or POWOD_DOMYSLNY)}, None
+
+
+def parsuj(pc, dom=None):
+    """Odczyt flagi z wpisu postaci `pc`; `dom` (z `domyslne()`) uzupełnia pola, których wpis nie ma. `pc` None = postać bez wpisu (tylko domyślne)."""
     z = Zostan()
+    if pc is None and dom:
+        pc = {}
     if not isinstance(pc, dict):
         return z
+    wlasne = {k for k in POLA_DOMYSLNE if k in pc}
+    if dom:
+        pc = {**dom, **pc}
     z.powod = str(pc.get("zostan_w_depo_powod") or "")
     z.wyloguj = bool(pc.get("wyloguj_w_depo"))
     if "zostan_w_depo_po_refillach" not in pc:
         z.flaga = bool(pc.get("zostan_w_depo"))
+        z.z_domyslnych = bool(dom and z.flaga and "zostan_w_depo" not in wlasne)
         return z
     n = pc.get("zostan_w_depo_po_refillach")
     if isinstance(n, bool) or not isinstance(n, int) or n < 1:
@@ -135,3 +174,41 @@ def uzbrojona(z, stan_dir, start_bota=None, wymagaj_startu=False):
     if wymagaj_startu:
         return start_bota is not None and start_bota > r[z.po_refillach - 1]
     return True
+
+
+# ---------- 26.10: powrót do miasta po spotkaniach graczy (spot_gracz.py): postać ZOSTAJE w depo do decyzji ----------
+def spot_gracz_depo(stan_dir, teraz=None, start_bota=None):
+    """Powód (tekst) albo None: nadzorca zlecił powrót do miasta, bo na spocie nie było już wolnego spotu przy graczach (znacznik `spot_gracz_depo.json`).
+    Postać po powrocie stoi w depo (jak przy `zostan_w_depo`: bez auto-refillu i bez startu na spot), dopóki Karol/plan nie podejmie decyzji. Znacznik wygasa
+    po SPOT_GRACZ_DEPO_WAZNE_S i traci ważność, gdy bot wystartował PO jego zapisie (`start_bota` = epoch startu bieżącego bota, jeśli znany)."""
+    teraz = time.time() if teraz is None else teraz
+    try:
+        d = json.loads((Path(stan_dir) / PLIK_SPOT_GRACZ_DEPO).read_text(encoding="utf-8"))
+        t = float(d["t"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if not 0 <= teraz - t < SPOT_GRACZ_DEPO_WAZNE_S:
+        return None
+    if start_bota is not None and start_bota > t:
+        return None
+    return str(d.get("powod") or "powrót do miasta po spotkaniach graczy (brak wolnego spotu)")
+
+
+def zapisz_spot_gracz_depo(stan_dir, t, powod):
+    p = Path(stan_dir) / PLIK_SPOT_GRACZ_DEPO
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_name(PLIK_SPOT_GRACZ_DEPO + ".tmp")
+        tmp.write_text(json.dumps({"t": float(t), "powod": powod}, ensure_ascii=False))
+        os.replace(tmp, p)
+        return True
+    except OSError:
+        return False
+
+
+def usun_spot_gracz_depo(stan_dir):
+    try:
+        (Path(stan_dir) / PLIK_SPOT_GRACZ_DEPO).unlink()
+        return True
+    except OSError:
+        return False

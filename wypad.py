@@ -312,6 +312,32 @@ def _schody_przed_ladowaniem(mapa, a, b):
     return None
 
 
+def _schody_poziome(mapa, a, b):
+    """25.10: schody W GÓRĘ z lądowaniem obok nich (nie nad nimi): pole schodów `s` na piętrze `a` sąsiaduje prostopadle z polem stania `a`,
+    ma flagę 2 (bez 4) na obu piętrach, a lądowanie nagrania `b` (piętro wyżej) to jego sąsiad W/E/N (S to dawna "lina" (b.x, b.y-1)) i jest chodliwe. Gobliny Ab'Dendriel:
+    schody (32622,31790,z7) wychodzą na zachód, lądowanie (32621,31790,z6); domyślna "lina" (b.x, b.y-1) wypadała na ścianie.
+    Tylko, gdy pole domyślne (b.x, b.y-1) jest wg mapy nieprzechodnie (flaga 4) i pole stania `a` nie jest samo polem przejścia (flaga 2),
+    więc dotychczasowe schody (lądowanie (x, y-1) względem schodów, nad nimi) i liny działają po staremu. Dokładnie jedno pasujące pole,
+    inaczej None (nie zgadujemy). Pole stania musi sąsiadować ze schodami; nagranie rzadkie (2 pola) nie jest tu obsługiwane."""
+    if mapa is None:
+        return None
+    z = a[2]
+    if not _flaga(mapa, (b[0], b[1] - 1, z)) & 4 or _flaga(mapa, a) & 2:
+        return None                  # pole domyślne nie jest ścianą albo sami stoimy na polu przejścia (nie zmieniamy dotychczasowych planów)
+    gora = _flaga(mapa, (b[0], b[1], b[2]))
+    if not gora & 1 or gora & 4:
+        return None
+    wyn = []
+    for dx, dy in ((1, 0), (-1, 0), (0, 1)):        # lądowanie na W / E / N od schodów; S = klasyczne pole (b.x, b.y-1), nie ściana
+        s = (b[0] + dx, b[1] + dy, z)
+        if s == tuple(a) or cheb(a, s) != 1 or not (s[0] == a[0] or s[1] == a[1]):
+            continue
+        f, g = _flaga(mapa, s), _flaga(mapa, (s[0], s[1], b[2]))
+        if f & 1 and f & 2 and not f & 4 and g & 1 and g & 2 and not g & 4:
+            wyn.append(s)
+    return wyn[0] if len(wyn) == 1 else None
+
+
 def zbuduj_etapy(punkty, mapa=None, drzwi=()):
     """Lista punktów (x,y,z) -> etapy: {"typ":"IDZ","punkty":[...]} (jedno piętro) przedzielone przejściami
     {"typ":"LINA","stoi","cel","ladunek"} (w górę), {"typ":"DZIURA","stoi","dziura","ladunek","pewna"} albo
@@ -340,6 +366,7 @@ def zbuduj_etapy(punkty, mapa=None, drzwi=()):
             if b[2] < a[2]:
                 e = {"typ": "LINA", "stoi": a, "cel": (b[0], b[1] - 1, a[2]), "ladunek": b}
                 s = (b[0], b[1], a[2])
+                s3 = _schody_poziome(mapa, a, b)
                 fl = 0
                 # tylko pole prostopadłe obok (strzałki nie chodzą po skosie); flaga 2 nie odróżnia schodów w górę od dziury w dół,
                 # ale lądowanie nagrania leży piętro wyżej, więc krok na nie to wejście w górę
@@ -356,6 +383,10 @@ def zbuduj_etapy(punkty, mapa=None, drzwi=()):
                     # nagranie bez zmiany (x, y): bywa drabina pod nogami (kutangen (32029,32195,z9): działało tylko Use na własnym polu,
                     # 3 z 3 razy próba 5/7, 40-80 s); Use własnego pola idzie jako druga próba
                     e["wlasne"] = True
+                elif s3 is not None:
+                    # 25.10: schody poziome (lądowanie obok schodów, nie nad nimi; gobliny Ab'Dendriel (32622,31790,z7) -> (32621,31790,z6)).
+                    # Pole domyślne (b.x, b.y-1) jest tu ścianą, więc dawniej plan nie był do wykonania. Krok na schody = przejście.
+                    e["cel"], e["schody"] = s3, True
                 elif mapa is not None and cheb(a, e["cel"]) == 2:
                     # 21.10 (K2): nagranie rzadkie (co 2 pola), pole stania 2 pola od liny: dopisujemy pole obok liny (Edron z8 -> z7)
                     obok = [q for q in _pola_miedzy(mapa, a, e["cel"]) if not _flaga(mapa, q) & 2]

@@ -78,6 +78,7 @@ ZAKRESY = {
     "MARSZ_KLIK": (0, 1),               # 20.10: 1 = marsz klikiem w patrolu/dojściu (klik w najdalsze pole drogi ze zwykłych pól, do MARSZ_KLIK_MAKS_POL; obserwacja ruchu, Escape przy walce); 0 = dotychczasowe chodzenie
     "KROK_ZLY": (0, 1),                 # 22.10: 1 = pole, w które krok strzałką nie udał się 2x z rzędu, dostaje zakaz (A*, krok_do, patrol zmienia miejsce); 0 = dotychczasowe bicie w ścianę
     "KROK_BEZ_SCIAN": (0, 1),           # 20.10: 1 = krok_do po nieudanym pierwszym kierunku ponawia go raz i pomija zapasowe kierunki w pola, które mapa uznaje za ścianę; 0 = dotychczasowe
+    "MARSZ_ZA_OGNIEM_ORBITA": (0, 1),   # 27.10: 1 = w orbicie/kieszeni (skos zawiódł) klik myszką w pole ZA znanym prawdziwym ogniem (hp:true), pilnowany co obieg; 0 = jak dotąd (domyślnie 0, włącza Karol per instancja)
     "MARSZ_KLIK_MAKS_POL": (2, 7),      # pola: ile pól naprzód klikamy naraz w marszu klikiem
     "STWORY_WIDMA": (0, 1),             # 19.10: 1 = wpisy-widma (obcy gracz na polu bota, kilku graczy na jednym polu) nie liczą się do zajętości pól i oceny graczy; PK/GM widzą wszystko; 0 = stare zachowanie
     "POSCIG_BEZ_ZMIANY_PIETRA": (0, 1), # 1 = pościg nigdy nie wchodzi na schody/dziury (poza wypadem do miasta)
@@ -381,6 +382,13 @@ ZAKRESY = {
     "OBSERWATOR_PK_KONTEKST": (0, 1),   # 16.10 (P10): 1 = obserwator dostaje karencję PK i wie, że PAUZA_PK z karencją jest zamierzona (domyślnie 0)
     "SMIERC_STOP": (0, 1),              # 16.10 (R5/P5): 1 = po zgonie stan MARTWY: jeden STOP + powiadomienie, zero kliknięć i modelu (domyślnie 0)
     "PK_SZYBKIE": (0, 1),               # 16.10 (P6/R2): 1 = reakcja na PK bez czekania na alarm dźwiękowy i model (domyślnie 0)
+    "PK_KONTRATAK": (0, 1),             # 25.10: 1 = w ucieczce PK po uderzeniu przez gracza bot klika w napastnika (cel ataku), ucieczka ma pierwszeństwo; DZIAŁA OD RESTARTU BOTA, włącza tylko Karol (domyślnie 0)
+    "PK_BEZ_PAUZY_HP": (0, 1),          # 25.10: 1 = w ucieczce PK bramka HP_PRZED_PIETREM nie każe czekać w miejscu przed przejściem pięter (domyślnie 1)
+    "PK_RESET_PO_ZGONIE": (0, 1),       # 26.10: 1 = po zgonie postaci zerujemy karencję PK, stan ucieczki i wyprawę PK (lista wrogów zostaje); DZIAŁA OD RESTARTU BOTA; 0 = jak dotąd (domyślnie 1, decyzja Karola)
+    "WZNOW_START": (0, 1),              # 26.10 (Karol, test na Odchydzie): 1 = restart bota wznawia przerwaną wyprawę (depo/WROC) od bieżącej pozycji (domyślnie); 0 = nie wznawia, zapis przerwanej wyprawy zamykany, start zwykłą logiką; DZIAŁA OD RESTARTU BOTA
+    "SPOT_ZMIANA_PRZY_GRACZU": (0, 1),  # 26.10 (Karol): 1 = po 3. spotkaniu tego samego obcego gracza NA SPOCIE (spot_gracz.py: nick w widoku >= 3 s w epizodzie (od 27.10, Karol; wcześniej 15 s), kolejne spotkanie po >= 5 min bez niego) bot zapisuje zlecenie zmiany spotu, a nadzorca (jeśli pilnuje postaci) przenosi ją na inny wolny spot tego samego miasta i poziomu; tylko bez potworów w <= 4 polach i przy HP >= 70 %, max 1 zmiana na 30 min i 4 na dobę; DZIAŁA OD RESTARTU BOTA; 0 = jak dotąd bit w bit (domyślnie 0, włącza Karol)
+    "SPOT_GRACZ_POWROT_DO_MIASTA": (0, 1),  # 26.10 (Karol): tylko przy SPOT_ZMIANA_PRZY_GRACZU=1; 1 = brak dopuszczalnego spotu po spotkaniach graczy -> nadzorca zleca powrót do miasta (WROC) i postać zostaje w depo; 0 = zostaje na spocie (domyślnie 1; czyta nadzorca z na_zywo.json)
+    "LICZNIK_OD_STARTU": (0, 1),        # 26.10 (Karol ~12:05): 1 = licznik spotkań graczy liczy OD OSTATNIEGO ODPALENIA BOTA (restart procesu zeruje spotkania, zlecenie z innej sesji wygasa); 0 = stare zachowanie (trwały 12 h); tylko przy SPOT_ZMIANA_PRZY_GRACZU=1; DZIAŁA OD RESTARTU BOTA
     "CZASZKA_POTWIERDZ": (0, 1),        # 23.10: 1 = groźna czaszka dopiero po potwierdzeniu drugim odczytem (świeży zrzut, wycinek wokół postaci); atak gracza ucieka od razu (domyślnie 0)
     "STANOWISKO": (0, 1),               # 22.10: 1 = zachowanie "stanowisko" (stanowisko.py): stój na polu mapy, runy, serwis, PZ przy ataku (ustawia tryb stoj; wymaga wpisu stanowisko w mapie)
     "STANOWISKO_HP_PZ": (30, 95),       # % HP poniżej tego (bez potwora obok) = marsz do PZ
@@ -391,12 +399,33 @@ ZAKRESY = {
     "STANOWISKO_AKTYWNOSC_MAX_S": (0, 1200),  # >0 = bez akcji tyle sekund (z losowym zapasem) = krok w bok i z powrotem; 0 = wyłączone
     "STANOWISKO_ROTACJA_MIN": (0, 720),       # >0 = co tyle minut inne pole z `pola` mapy (gdy są >= 2)
     "STANOWISKO_ZMIANA_MAX_MIN": (0, 720),    # min stania na zmianę (Karol 22.10: 3 h); po tym czasie postać czeka w PZ na wylogowanie z grafiku; 0 = bez limitu
+    "STOJ_GRACZ_WYLOGUJ_ODL": (0, 14),   # tryb STÓJ (24.10): 0 = wył.; N > 0 = obcy gracz (nie NPC, nie nasza postać) w <= N polach (Czebyszew, to samo piętro) przez 2 odczyty (ok. 1 s) = koniec run, wylogowanie Ctrl+L (w walce ponawia do 300 s), STOP + STOP_RECZNY, bez relogu; włącza tylko Karol (okno_api.py ustaw --instancja <id> STOJ_GRACZ_WYLOGUJ_ODL=3)
+    # 25.10 TRYB OBRONNY (cavebot.py + tryb_obronny.py; DZIAŁA OD RESTARTU BOTA; włącza tylko Karol: okno_api.py ustaw --instancja <id> TRYB_OBRONNY=1)
+    "TRYB_OBRONNY": (0, 1),             # 0 = wył. (zero zmian); 1 = zamiast ucieczki z progu HP bijemy wroga w zwarciu (też spoza --potwory i gracza z czaszką), leczymy w walce (runa z plecaka, robienie runy, exura), ucieczka tylko jako ostateczność
+    "OBRONA_WROG_ODL": (1, 4),          # pola: wróg tak blisko włącza tryb obronny przy niskim HP (dalej = zwykła ucieczka)
+    "OBRONA_PK_ODL": (0, 4),            # pola: gracz z czaszką tak blisko i bijący nas = walka zamiast ucieczki PK do depo; 0 = graczy nie bijemy
+    "OBRONA_BIJ_HP": (30, 100),         # % HP: stwór spoza --potwory obok nas jest bity, gdy HP <= tyle albo bije nas
+    "OBRONA_BIJ_S": (2.0, 20.0),        # s: tyle trwa wpis „bij tego" od ostatniego potwierdzenia
+    "OBRONA_LECZ_HP": (20, 90),         # % HP: poniżej (przy wrogu w zwarciu) leczymy runą z plecaka albo robimy ją w walce
+    "OBRONA_OSTATECZNOSC_HP": (0, 50),  # % HP: poniżej tego i bez many na exurę, bez runy leczenia i bez blanka z manią na jej zrobienie = ucieczka
+    "OBRONA_LECZ_ODSTEP_S": (1.0, 6.0), # s: min. odstęp między użyciami runy leczenia na siebie
+    "OBRONA_ROB_RUNE_MIN_HP": (0, 60),  # % HP: poniżej tego nie robimy runy w walce (4-5 s z tarczą zdjętą): exura / ucieczka
+    "OBRONA_ROB_PONOW_S": (5.0, 120.0), # s: pauza po nieudanym robieniu runy w walce
+    "OBRONA_BLANK_PONOW_S": (10.0, 600.0),  # s: po „brak blank" w walce nie sprawdzamy plecaka tak długo (UH nie jest wyłączany na UH_PRZERWA_BRAK_BLANK_S)
+    "OBRONA_BLOK_S": (1.0, 10.0),       # s: ucieczka stoi w miejscu, a obok jest wróg = kroki zablokowane, bijemy blokującego
+    "OBRONA_BLOK_WALKA_S": (3.0, 30.0), # s: tyle trwa bicie blokującego w trakcie wstrzymanej ucieczki
+    "OBRONA_RUNA_ID2": (0, 9999),       # id drugiej runy ataku (np. SD) w trybie obronnym, gdy brak RUNA_ID (HMM); 0 = brak
+    "UH_LECZ_KOSZT": (0, 400),          # koszt many czaru robiącego runę LECZENIA (z UH_LECZ_KLAWISZ); 0 = brak osobnego pola (wtedy UH_CZAR, o ile to czar leczący)
+    "UH_LECZ_RUNA_ID": (1, 9999),       # id runy leczenia w plecaku (3160 = Ultimate Healing)
+    "UH_REZERWA_LECZ": (0, 300),        # mana zostawiana na leczenie: runa w spokoju startuje przy mana >= UH_KOSZT + min(tyle, max_mana * UH_REZERWA_LECZ_UL); 0 = jak dawniej
+    "UH_REZERWA_LECZ_UL": (0.1, 1.0),   # ułamek max_mana: górne ograniczenie rezerwy na leczenie
     "D3_ASTAR_MAX": (0, 12),            # najwyżej tyle wywołań A* na zawieszkę przy liczeniu opcji D3 (domyślnie 6)
     # 24.10, serwis.py czyta je sam z na_zywo.json (serwis.POKRETLA_SERWISU; cavebot ich nie ma): cap przy zakupach i wyprawie po cap
     # 24.10, wyprawa.py (stałe z DOMYSLNE, rejestr STALE_Z_WYPRAWY): cap 0 -> najpierw zjedz, potem wyrzucaj jedzenie po 1 szt., dopiero bez jedzenia wyprawa
     "CAP_JEDZ_I_WYRZUC": (0, 1),        # 1 = cap poniżej WYPRAWA_CAP_MIN: jedz i wyrzucaj jedzenie na łowisku zamiast wyprawy po cap; 0 = dawne zachowanie
     "CAP_JEDZ_ZOSTAW": (0, 20),         # ile sztuk jedzenia zostawić przy wyrzucaniu (domyślnie 0; DO POTWIERDZENIA KAROLA)
     "CAP_JEDZ_ODSTEP_S": (0, 600),      # s odstępu ochronnego między podejściami jedz/wyrzuć (bez limitu na minutę; domyślnie 8)
+    "CAP_WALKA_CZEKAJ_S": (0, 3600),    # 25.10: jedz+wyrzuć idzie w walce od razu; to s czekania, gdy w walce jest ZABLOKOWANE (gracz/HP/czar/GM), po nim wyprawa do depo mimo jedzenia; 0 = bez limitu (domyślnie 0)
     "SERWIS_CAP_NA_LOOT": (0, 200),     # oz capa wolne po zakupie ham (rezerwa na łup) i cel kroku `cap`; domyślnie 50, 0 = dawne zachowanie
     "SERWIS_HAM_MIN": (0, 5),           # tyle ham najmniej kupić, gdy postać nie ma jedzenia (i cap pozwala); domyślnie 2, 0 = dawne zachowanie
     "SERWIS_CAP_DEPO_LOOT": (0, 1),     # 1 = krok `cap` odkłada do depo ciężki łup-sprzęt (domyślnie 0; DO POTWIERDZENIA KAROLA)
@@ -409,6 +438,8 @@ TEKSTY = {
     "UH_KLAWISZ": tuple(f"F{i}" for i in range(1, 13)),     # hotkey czaru runowego w kliencie
     "ZATRUCIE_CZAR_KLAWISZ": ("",) + tuple(f"F{i}" for i in range(1, 13)),   # 23.10: hotkey exana pox ("" = brak)
     "UH_CZAR": ("adori gran", "adura gran", "adura vita", "adura"),   # słowa czaru (log); koszt osobno
+    "UH_LECZ_KLAWISZ": ("",) + tuple(f"F{i}" for i in range(1, 13)),   # 25.10: hotkey czaru robiącego runę LECZENIA w trybie obronnym ("" = brak osobnego pola)
+    "UH_LECZ_CZAR": ("", "adura vita", "adura gran", "adura"),   # 25.10: słowa czaru robiącego runę LECZENIA (log); koszt w UH_LECZ_KOSZT
 }
 # Pokrętła tekstowe WOLNE (24.10, tylko ręcznie w na_zywo.json): nazwa -> maks. długość; znaki: litery, cyfry, spacja, przecinek, myślnik, apostrof
 TEKSTY_WOLNE = {
@@ -428,7 +459,7 @@ KIERUNEK = {
     "POSCIG_OKNO": "nie_nizej", "POSCIG_OKNO_DOBRY": "nie_nizej",
     "POSCIG_VKROK_SCIANA": "nie_nizej", "POSCIG_OSTATNI_DOCISKAJ": "nie_nizej",
     "POSCIG_SKOS_AWARYJNY": "nie_nizej", "JEDZENIE_ZAPAS_W_WALCE": "nie_nizej",
-    "MARSZ_KLIK": "nie_wyzej", "MARSZ_KLIK_MAKS_POL": "nie_wyzej", "KROK_BEZ_SCIAN": "nie_wyzej", "KROK_ZLY": "nie_nizej",   # analityk nie może włączyć marszu klikiem ani go wydłużyć (tylko Karol w na_zywo.json)
+    "MARSZ_KLIK": "nie_wyzej", "MARSZ_ZA_OGNIEM_ORBITA": "nie_wyzej", "MARSZ_KLIK_MAKS_POL": "nie_wyzej", "KROK_BEZ_SCIAN": "nie_wyzej", "KROK_ZLY": "nie_nizej",   # analityk nie może włączyć marszu klikiem ani go wydłużyć (tylko Karol w na_zywo.json)
     "STWORY_WIDMA": "nie_nizej",        # analityk nie wyłącza filtra widm (wyłącza go tylko Karol w na_zywo.json)
     "POSCIG_PAMIEC": "nie_nizej", "POSCIG_PAMIEC_S": "nie_nizej", "POSCIG_PAMIEC_POL": "nie_nizej",
     "POSCIG_PAMIEC_MAKS_ODL": "nie_nizej",
@@ -500,7 +531,7 @@ KIERUNEK = {
     "UH_W_WALCE": "nie_wyzej", "UH_W_WALCE_MANA_MARGINES": "nie_wyzej", "UH_W_WALCE_MIN_HP": "nie_nizej",
     "UH_W_WALCE_DYSTANS": "nie_nizej", "UH_W_WALCE_SPADEK_HP": "nie_wyzej",
     # pola ognia: analityk nie może wyłączyć omijania (tylko Karol w na_zywo.json)
-    "OGIEN_UNIKAJ": "nie_nizej", "OGIEN_STALY": "nie_nizej", "OGIEN_MASKA_TYLKO_SCIANY": "nie_nizej", "OGIEN_WYJDZ_POTWIERDZ": "nie_nizej", "OGIEN_MASKA_DANE": "nie_nizej", "OGIEN_POMIJAJ_PRZY_STWORZE": "nie_nizej", "OGIEN_PODPALENIE_ZNANE": "nie_nizej", "OGIEN_EPIZODY_SCAL": "nie_nizej", "POSCIG_SKOSY_ZAPAS": "nie_nizej", "PATROL_DRZWI": "nie_nizej", "D3_REAKCJA": "nie_wyzej", "RATUNEK_HAIKU": "nie_wyzej", "RATUNEK_HAIKU_PYTAJ": "nie_wyzej", "D3_ALARM_S": "nie_wyzej", "DRZWI_PONOW": "nie_wyzej", "DRZWI_TRASA": "nie_nizej", "DRZWI_SPOKOJ": "nie_nizej", "DRZWI_NAJPIERW_KROK": "nie_nizej", "SMIERC_STOP": "nie_wyzej", "PK_SZYBKIE": "nie_wyzej", "OBSERWATOR_PK_KONTEKST": "nie_wyzej", "RUCH_OKNO": "nie_nizej", "RUCH_PROBKA_WCZESNA": "nie_nizej", "OGIEN_ODSWIEZ_WALKA_S": "nie_wyzej",
+    "OGIEN_UNIKAJ": "nie_nizej", "OGIEN_STALY": "nie_nizej", "OGIEN_MASKA_TYLKO_SCIANY": "nie_nizej", "OGIEN_WYJDZ_POTWIERDZ": "nie_nizej", "OGIEN_MASKA_DANE": "nie_nizej", "OGIEN_POMIJAJ_PRZY_STWORZE": "nie_nizej", "OGIEN_PODPALENIE_ZNANE": "nie_nizej", "OGIEN_EPIZODY_SCAL": "nie_nizej", "POSCIG_SKOSY_ZAPAS": "nie_nizej", "PATROL_DRZWI": "nie_nizej", "D3_REAKCJA": "nie_wyzej", "RATUNEK_HAIKU": "nie_wyzej", "RATUNEK_HAIKU_PYTAJ": "nie_wyzej", "D3_ALARM_S": "nie_wyzej", "DRZWI_PONOW": "nie_wyzej", "DRZWI_TRASA": "nie_nizej", "DRZWI_SPOKOJ": "nie_nizej", "DRZWI_NAJPIERW_KROK": "nie_nizej", "SMIERC_STOP": "nie_wyzej", "PK_SZYBKIE": "nie_wyzej", "PK_KONTRATAK": "nie_wyzej", "PK_BEZ_PAUZY_HP": "nie_nizej", "PK_RESET_PO_ZGONIE": "nie_nizej", "WZNOW_START": "nie_nizej", "SPOT_ZMIANA_PRZY_GRACZU": "nie_wyzej", "SPOT_GRACZ_POWROT_DO_MIASTA": "nie_wyzej", "LICZNIK_OD_STARTU": "nie_nizej", "OBSERWATOR_PK_KONTEKST": "nie_wyzej", "RUCH_OKNO": "nie_nizej", "RUCH_PROBKA_WCZESNA": "nie_nizej", "OGIEN_ODSWIEZ_WALKA_S": "nie_wyzej",
     # ignorowanie/strażnicy/blokujący: analityk nie może wyłączyć strażników ani włączyć bicia blokującego (tylko Karol)
     # dojście z depo: analityk nie może włączyć wypraw po blanki w depo ani wyłączyć karencji/walki przy przejściu (tylko Karol)
     "WYPRAWA_DEPO_BLANKI": "nie_wyzej", "WYPRAWA_PO_DEPO_S": "nie_nizej", "WYPRAWA_PO_DOJSCIU_S": "nie_nizej", "BLANKI_AUTO_BAG": "nie_wyzej", "BLANKI_AUTO_BAG_MIN": "nie_nizej",
@@ -520,12 +551,14 @@ KIERUNEK = {
     "STRAZNIK_PETLA_POWTORZ": "nie_wyzej", "STRAZNIK_PETLA_CYKL_S": "nie_wyzej", "STRAZNIK_PETLA_WALKA": "nie_nizej",
     # stanowisko: analityk nie może go włączyć, obniżyć progu HP/karencji, skrócić obrony ani poluzować blokady graczy/NPC; tylko Karol w na_zywo.json
     "STANOWISKO": "nie_wyzej", "STANOWISKO_HP_PZ": "nie_nizej", "STANOWISKO_PZ_KARENCJA_MIN": "nie_nizej",
-    "STANOWISKO_GRACZ_ODL": "nie_wyzej", "STANOWISKO_NPC_IGNORUJ": "nie_wyzej", "STANOWISKO_ZMIANA_MAX_MIN": "nie_wyzej",
+    "STANOWISKO_GRACZ_ODL": "nie_wyzej", "STANOWISKO_NPC_IGNORUJ": "nie_wyzej", "STANOWISKO_ZMIANA_MAX_MIN": "nie_wyzej", "STOJ_GRACZ_WYLOGUJ_ODL": "nie_wyzej",
+    # tryb obronny (25.10): analityk nie może go włączyć ani poszerzyć; rezerwę many może tylko podnieść (tylko Karol w na_zywo.json)
+    "TRYB_OBRONNY": "nie_wyzej", "OBRONA_PK_ODL": "nie_wyzej", "OBRONA_WROG_ODL": "nie_wyzej", "UH_REZERWA_LECZ": "nie_nizej",
 }
 COFNIECIE_S = 300
 # Pokrętła, których stała domyślna żyje w wyprawa.py (DOMYSLNE), a nie w cavebot.py: bez stałej w module `zastosuj` pomijałoby je
 # ("brak stałej w cavebot.py"). 24.10: DEPO_EDRON_OBSZAR; po dopisaniu tej stałej do cavebot.py wpis tutaj przestaje działać (hasattr) i można go usunąć.
-STALE_Z_WYPRAWY = {"DEPO_EDRON_OBSZAR": 1, "CAP_JEDZ_I_WYRZUC": 1, "CAP_JEDZ_ZOSTAW": 0, "CAP_JEDZ_ODSTEP_S": 8}
+STALE_Z_WYPRAWY = {"DEPO_EDRON_OBSZAR": 1, "CAP_JEDZ_I_WYRZUC": 1, "CAP_JEDZ_ZOSTAW": 0, "CAP_JEDZ_ODSTEP_S": 8, "CAP_WALKA_CZEKAJ_S": 0}
 
 
 def _powiadom(*a, **k):

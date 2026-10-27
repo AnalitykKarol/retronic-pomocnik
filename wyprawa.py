@@ -93,12 +93,26 @@ PLANY_PK = (
                  # z z8, stoimy obok (pole liny wolne); bez tego powrót = "brak drogi" i utknięcie (Kolanosh 20:14).
                  # Trasy: generuj_powroty_edron_z9.py
                  ((33119, 31740, 9), (33119, 31741, 8), "trolle_edron_z9w_do_depo.json", ((33119, 31739, 9),)),
-                 ((33081, 31742, 9), (33081, 31743, 8), "trolle_edron_z9z_do_depo.json", ((33081, 31741, 9),)))},
+                 ((33081, 31742, 9), (33081, 31743, 8), "trolle_edron_z9z_do_depo.json", ((33081, 31741, 9),)),
+                 # 26.10 (rodziny spotów, generuj_powroty_rodziny.py): z10 wschód pod z9w - lina z10 -> z9 z pola (33128,31729,z10) (dziura (33128,31729,z9)),
+                 # stoimy obok, lądowanie (33128,31730,z9), marsz po z9w do stania (33119,31739,z9), lina z9 -> z8 jak wyjście z9w. NIEZWERYFIKOWANE na żywo (lina z10).
+                 ((33128, 31729, 10), (33128, 31730, 9), "trolle_edron_z10w_pelna_do_depo.json", ((33128, 31728, 10), (33129, 31729, 10), (33127, 31729, 10))))},
     # 17.10: jaskinia goblinów Edron z8 (trasy wygenerowane z mapy klienta; lina na (33107,31847,z8), stanie (33107,31846,z8), lądowanie (33107,31848,z7): sprawdzone w grze 17.10 23:15)
     # 19.10: pętla goblinów jest cała na z9 (bez przejścia pięter), więc "wyjscia" = [pole liny na z9, lądowanie na z8]:
     # lina w górę pod dziurą z8 (33092,31837) (mapa: "pewne"); z8 dalej A* do nagranej trasy "do" (start (33106,31849,z8))
     {"nazwa": "gobliny_edron", "do": "gobliny_edron_do_depo.json", "z": "gobliny_edron_z_depo.json", "npc": None, "prefix": False,
-     "wyjscia": (((33092, 31837, 9), (33092, 31838, 8), "gobliny_edron_do_depo.json"),)},
+     "wyjscia": (((33092, 31837, 9), (33092, 31838, 8), "gobliny_edron_do_depo.json"),
+                 # 26.10 (rodziny spotów, generuj_powroty_rodziny.py): trzy kieszenie goblinów na z10 pod jaskinią z9: lina z10 -> z9 z pola lądowania pod dziurą,
+                 # marsz po z9 do stania (33092,31836,z9), lina z9 -> z8 jak wyżej, dalej gobliny_edron_do_depo. NIEZWERYFIKOWANE na żywo (lina z10).
+                 ((33063, 31822, 10), (33063, 31823, 9), "gobliny_edron_z10_zachod_do_depo.json", ((33063, 31821, 10), (33064, 31821, 10), (33062, 31821, 10))),
+                 ((33102, 31822, 10), (33102, 31823, 9), "gobliny_edron_z10_wschod_do_depo.json", ((33103, 31822, 10), (33101, 31822, 10), (33101, 31821, 10))),
+                 ((33069, 31848, 10), (33069, 31849, 9), "gobliny_edron_z10_poludnie_do_depo.json", ((33069, 31847, 10), (33068, 31847, 10), (33069, 31849, 10))))},
+    # 25.10: Port Hope, depo (32632,32743,z7) (Karol), trasy z mapy A* (generuj_powrot_port_hope.py), NIEPRZETESTOWANE na żywo.
+    # ph_raty_z8 (Geblish): dojście zeszło dziurą z7 (32662,32741); powrót = LINA z8 na polu (32662,32741), stoimy (32662,32740), lądowanie (32662,32742,z7).
+    {"nazwa": "ph_raty_z8", "do": "ph_raty_z8_do_depo.json", "z": "ph_raty_z8_dojscie.json", "npc": None, "prefix": False,
+     "wyjscia": (((32662, 32741, 8), (32662, 32742, 7), "ph_raty_z8_do_depo.json", ((32662, 32740, 8),)),)},
+    # swamp trolle Port Hope: tylko powierzchnia z7 (bez pięter jaskini), od wejścia (32678,32612) do depo
+    {"nazwa": "port_hope_swamp", "do": "port_hope_swamp_do_depo.json", "z": "port_hope_swamp_do_depo.json", "npc": None, "prefix": False},
     # 22.10: Thais północ, jaskinia trolli z8 (thais_pn_z8) — powrót do depo odwróconym dojściem (generuj_powrot_thais_pn.py):
     # z8 -> pole stania (32347,32124,z8) obok pola liny/drabiny (32347,32123,z8), przejście w górę, lądowanie (32347,32124,z7), z7 do depo.
     # WYŁĄCZONY od 21.10 (zgon kutangena w dziurze (32356,32122,z8)); przejście w górę NIEPRZETESTOWANE na żywo: włączyć dopiero po teście
@@ -146,6 +160,29 @@ PLANY_PK = (
      # kafelku drzwi, krok). 2970 = a copper key (Elathriel, 5000 gp). NIEPOTWIERDZONE: czy klucz z plecaka Marinarry pasuje do OBU drzwi (numer klucza nie jest w danych).
      # Jedno zrodlo prawdy: generuj_powrot_abdendriel.KLUCZE_DRZWI (test_powrot_abdendriel sprawdza zgodnosc).
      "klucze": (((32658, 31645, 9), 2970), ((32655, 31655, 9), 2970))},
+    # 25.10 (generuj_powrot_abdendriel.py zbuduj_z12, Marinarra/Marianni stoi na z12 w jaskini trolli, plan abdendriel_trolle_z10 nie mial punktow "do" na z11/z12):
+    # "do" = korytarz z12 x=32668 -> LINA z12 -> z11 (pole liny (32668,31624,z12), lad. (32668,31625,z11)) -> krok na zachod -> LINA z11 -> z10 (pole liny (32668,31625,z11),
+    # lad. (32668,31626,z10) POLUDNIE od dziury z10) -> obejscie dziury A* -> (32668,31623,z10) i dalej BAJT W BAJT trasa abdendriel_trolle_do_depo (lina z10, jaskinia z9,
+    # dwoje drzwi na klucz, schody z9 -> z8, depo). Wybor planu: wybierz_baze bierze plan z najblizszym punktem "do" NA TYM PIETRZE (z12/z11: tylko ten plan ma tam punkty;
+    # z9/z10: remis -> wygrywa wczesniejszy wpis abdendriel_trolle_z10, kolejnosc w krotce ma znaczenie), z dalszych pol piętra dojscie robi droga_do_depo (zalew A* do punktow "do").
+    # SUBSTITUTE DECISION (be-dev, do przegladu): "z" = to samo nagranie depo -> trolle co w planie z10 (po karencji PK i tak konczy sie w jaskini z9, nie na z12);
+    # cel depo = ta sama ZASTEPCZA pozycja (32679,31687,z8). NIEPOTWIERDZONE NA ZYWO: lina z12 -> z11 (dziura z11 -> z12 nigdy nie przeszla w gre), lina z11 -> z10.
+    {"nazwa": "abdendriel_trolle_z12", "do": "abdendriel_trolle_z12_do_depo.json", "z": "abdendriel_depo_trolle_nagranie.json",
+     "npc": None, "prefix": False, "drzwi": True,
+     "klucze": (((32658, 31645, 9), 2970), ((32655, 31655, 9), 2970))},
+    # 25.10 gobliny pod Ab z6: powrot = dojscie odwrocone (schody z6 -> z7 -> z8, bez drzwi); depo ZASTEPCZE jak w planach trolli.
+    {"nazwa": "abdendriel_gobliny_z6", "do": "abdendriel_gobliny_do_depo.json", "z": "abdendriel_gobliny_dojscie.json", "npc": None, "prefix": False},
+    # 27.10 (generuj_trasy_abdendriel_zachod.py, Karol: „dopisz dojście z miasta i powrót do miasta”) daleka jaskinia na zachód od Ab'Dendriel: z8 wilki/węże i z9 trolle.
+    # "do" = z8: stanie (32490,31696,z8) obok pola liny (32490,31697,z8) -> LINA -> z7 (32490,31698), z7 A* do schodów w dół (32654,31674,z7), z8 korytarz x=32655, nagranie
+    # odwrócone do depo; z9: LINA z9 (32480,31721) (stanie (32480,31720,z9)) -> z8 (32480,31722), A* po z8 do (32490,31696,z8), dalej jak z8. "z" = dojście z depo (nagranie z8, schody w górę,
+    # z7 A*, zasypana dziura z7 (32490,31697) -> z8, dla z9 jeszcze dziura z8 (32480,31721)). Bez drzwi (nagranie z8 nie ma drzwi). Bez "wyjscia": plik "do" zawiera całą drogę
+    # z przejściami pięter. Depo ZASTĘPCZE (32679,31687,z8) jak w planach trolli. NIEZWERYFIKOWANE NA ŻYWO: obie liny, schody w dół z7, depo; ŁOPATA na (32490,31697,z7).
+    # "zasieg": 320 (jak 400 u Kazordoonu, patrz zasieg_planu): pętle leżą 150..283 pól od depo (pętla z9 x od 32396, depo x 32679), a domyślne 200 dawało "depo: brak drogi"
+    # i start planu od początku pliku "do" (z9) dla pozycji na z8 daleko na zachodzie.
+    {"nazwa": "abdendriel_zachod_z8", "do": "abdendriel_zachod_z8_do_depo.json", "z": "abdendriel_zachod_z8_dojscie.json", "npc": None, "prefix": False,
+     "zasieg": 320},
+    {"nazwa": "abdendriel_zachod_z9", "do": "abdendriel_zachod_z9_do_depo.json", "z": "abdendriel_zachod_z9_dojscie.json", "npc": None, "prefix": False,
+     "zasieg": 320},
 )
 BAZY_PK = BAZY + tuple(p["nazwa"] for p in PLANY_PK)     # plany dostępne dla ucieczki PK (troll: istniejące depo Thais)
 PK_PLAN_ZASIEG = 80                    # pola: ucieczka PK startuje z dalszej okolicy trasy niż zwykły wypad (zasięg 40)
@@ -200,10 +237,12 @@ DOMYSLNE = {                                             # gdy konf (cavebot) ni
     "WYPRAWA_MIN_HP": 70, "WYPRAWA_CO_MIN": 20, "WYPRAWA_MAX_CZAS_S": 1800, "WYPRAWA_MAX_KROKOW": 6000,
     "WYPRAWA_STOP_PRZY_UTKNIECIU": 1, "WYPRAWA_ROTACJA_NAPRAW": 3, "WYPRAWA_CZEKAJ_NA_GLOD": 0, "WYPRAWA_JEDZENIE": 1, "GLOD_ZAPAS_WAZNY_S": 120, "WYPRAWA_WZNOW_WALIDUJ": 1, "WYPRAWA_DEPO_W_WALCE": 1, "WYPRAWA_DEPO_ZLOZ": 0, "WYPRAWA_DOJSCIE_PATROLEM": 1, "WYPRAWA_TYLKO_DEPO": 0, "WYPRAWA_DEPO_POWROT": 0, "DEPO_EDRON_OBSZAR": 1, "WYPRAWA_DEPO_POSTOJ_S": 0, "WYPRAWA_DEPO_BLANKI": 1, "WYPRAWA_PO_DEPO_S": 900, "WYPRAWA_PO_DOJSCIU_S": 300, "BLANKI_AUTO_BAG": 1, "BLANKI_AUTO_BAG_MIN": 10, "JEDZENIE_ZAPAS_MIN": 5, "WYPAD_ILE_TORCHY": 5,
     "CAP_JEDZ_I_WYRZUC": 1, "CAP_JEDZ_ZOSTAW": 0, "CAP_JEDZ_ODSTEP_S": 8,
+    "CAP_WALKA_CZEKAJ_S": 0,
 }
 
 POTWIERDZ = 2                  # kolejne odczyty z warunkiem = start
 CAP_JEDZ_MAKS_SZTUK = 40       # 24.10: tyle sztuk jedzenia najwyżej wyrzuci jedno podejście (bezpiecznik pętli)
+CAP_WALKA_LUKA_S = 90.0        # 25.10: przerwa w ocenie powodu cap dłuższa niż to = licznik czekania w walce liczony od nowa
 CAP_JEDZ_PELNY_S = 60.0        # 24.10: po "You are full" przez tyle s nie próbujemy jeść ponownie (nie mielimy Use na pełnej postaci)
 CAP_POPRAWA_OZ = 1.0           # 23.10 WYPRAWA_CAP_MIN: o tyle oz musi wzrosnąć cap od poprzedniego depo "z powodu cap", by wyprawa ruszyła znowu
 WROC_BLOKADA_MAX_S = 180.0     # s: ręczne "Wróć do miasta" (plik WROC) czeka na spokojną chwilę najwyżej tyle, potem rezygnuje z komunikatem
@@ -395,7 +434,10 @@ def punkty_bazy(katalog=TRASY, plany=wypad.PLANY + PLANY_PK, nazwy=BAZY):
 # leży przy niej; bez ograniczenia postać z pętli z7 dostawała plan z8 (bliższy punkt "do" = lądowanie liny) i szła obok dziury
 # (32663,31962,z7). Z8/z9 wybierane więc tylko z pięter jaskini; z7/z6 obsługuje plan trolle_kazordoon_z7 (to samo "do" na drodze).
 # SUBSTITUTE DECISION (be-dev, do przeglądu leada): zmiana wyboru bazy dla postaci na z7/z6 po wyjściu liną z jaskini z8.
-PLAN_PIETRA_WYBOR = {"thais_pn_z9": (9, 10), "trolle_kazordoon_z8": (8, 9, 10), "trolle_kazordoon_z9": (8, 9, 10, 11)}
+PLAN_PIETRA_WYBOR = {"thais_pn_z9": (9, 10), "trolle_kazordoon_z8": (8, 9, 10), "trolle_kazordoon_z9": (8, 9, 10, 11),
+                     # 27.10 (abdendriel_zachod_z9): "do" z9 ma 74 punkty z8 (A* od lądowania liny do liny z8), bliżej wielu pól pętli z8 niż jedyny punkt z8 planu
+                     # abdendriel_zachod_z8; bez ograniczenia postać z pętli z8 dostawała plan z9 (554 z 683 punktów), a jego "z" (powrót po karencji PK) kończy się na z9.
+                     "abdendriel_zachod_z9": (9,)}
 
 
 def wybierz_baze(baza, poz, zasieg=wypad.PLAN_ZASIEG):
@@ -879,6 +921,8 @@ class Wyprawa(Wypad):
         return self._k(nazwa, DOMYSLNE.get(nazwa))
 
     _cap_jedz_nast = float("-inf")     # 24.10: najwcześniejsza chwila kolejnego podejścia "zjedz i wyrzuć" (krótki odstęp ochronny)
+    _cap_walka_od = None               # 25.10: od kiedy czekamy w walce na spokój z samym powodem cap (None = nie czekamy)
+    _cap_walka_ost = None              # 25.10: chwila ostatniej oceny tego czekania (wykrywa przerwę > CAP_WALKA_LUKA_S)
     _cap_jedz_pelny = float("-inf")    # chwila ostatniego "You are full" / jedzenie nie ubyło
     _cap_jedz_bledy = 0                # kolejne nieudane wyrzucenia (2 = wracamy do dawnej wyprawy po cap)
 
@@ -1327,12 +1371,54 @@ class Wyprawa(Wypad):
         if self._powod_cap(powody):
             powody.append("cap")
         self.potw_w = self.potw_w + 1 if powody else 0
+        if powody != ["cap"]:
+            self._cap_walka_reset()                          # inny powód albo cap w normie: czekanie w walce od nowa
         if self.potw_w < POTWIERDZ:
             return False
+        if powody == ["cap"] and self._tryb_depo() and w_walce and int(self._kw("CAP_JEDZ_I_WYRZUC") or 0):
+            ma_w_walce = self._jedzenie_ile(plecak)
+            if ma_w_walce is None or ma_w_walce > 0:
+                # 25.10 (zgon Odchyda, potem Wydra 15:42-16:00): w jaskini trolle są bez przerwy, więc spokój nie nadchodzi, a wyprawa
+                # do depo przez trolle mimo jedzenia w plecaku jest tym, czego Karol nie chce ("wróciła się do depo zamiast wyrzucić
+                # mięso"). Jedz+wyrzuć idzie więc OD RAZU w walce (niżej, `_cap_jedz_i_wyrzuc(..., w_walce=True)`); wyprawa zostaje
+                # ostatecznością (jedzenia brak albo wyrzucanie zawiodło 2 razy). Tu tylko bramka bezpieczeństwa przed pierwszą próbą:
+                # gracz w pobliżu / spadek HP / alarm = czekamy (jak dotąd), z limitem CAP_WALKA_CZEKAJ_S (domyślnie 0 = bez limitu).
+                blok_w = self._cap_spokoj(poz, proc, w_walce=True)
+                if blok_w is not None:
+                    limit = float(self._kw("CAP_WALKA_CZEKAJ_S") or 0)
+                    if self._cap_walka_od is not None and teraz - (self._cap_walka_ost or teraz) > CAP_WALKA_LUKA_S:
+                        self._cap_walka_reset()              # ocena przerwana na długo: to nowy epizod, nie ciągłe czekanie
+                    if self._cap_walka_od is None:
+                        self._cap_walka_od = teraz
+                        cap_w = self._cap()
+                        self.ostrzezenia.add("cap_walka")
+                        self.log(f"Wyprawa: cap {'?' if cap_w is None else format(cap_w, '.1f')} oz < "
+                                 f"{float(self._kw('WYPRAWA_CAP_MIN') or 0):.0f} w walce, jedzenie w plecaku, ale jedzenie/wyrzucanie zablokowane "
+                                 f"({blok_w}): czekam " + (f"do {limit:.0f} s, potem wyprawa" if limit > 0 else "bez limitu (CAP_WALKA_CZEKAJ_S=0)"))
+                    self._cap_walka_ost = teraz
+                    if limit <= 0 or teraz - self._cap_walka_od < limit:
+                        self.potw_w = 0
+                        return False
+                    if "cap_walka_limit" not in self.ostrzezenia:
+                        self.ostrzezenia.add("cap_walka_limit")
+                        cap_l = self._cap()
+                        self.log(f"Wyprawa: cap {'?' if cap_l is None else format(cap_l, '.1f')} oz nadal za mały po {teraz - self._cap_walka_od:.0f} s "
+                                 f"(limit {limit:.0f} s, blokada: {blok_w}): ruszam do depo mimo jedzenia w plecaku")
+                else:
+                    self._cap_walka_reset()
+                    try:
+                        if self._cap_jedz_i_wyrzuc(teraz, plecak, poz, proc, w_walce=True):
+                            self.potw_w = 0
+                            return False                     # w walce nic nie wystartowało (cel walki zostaje; True kasuje cb.cel)
+                    except bot.Zatrzymano:
+                        raise
+                    except Exception as ex:
+                        self._blad("cap_jedz", opis=repr(ex))
         if powody == ["cap"] and self._tryb_depo() and not w_walce:
             try:
                 if self._cap_jedz_i_wyrzuc(teraz, plecak, poz, proc):
                     self.potw_w = 0
+                    self._cap_walka_reset()
                     return True
             except bot.Zatrzymano:
                 raise
@@ -1344,7 +1430,10 @@ class Wyprawa(Wypad):
             cap = self._cap()
             dane = {"powody": powody, "zapas": zapas, "blanki": blanki, "zloto": zloto, "cap": cap, "hp": round(proc),
                     "pochodnie": None, "depo": True}
-            return self._start_wyprawa("depo:" + "+".join(powody), dane, teraz)
+            ruszyla = self._start_wyprawa("depo:" + "+".join(powody), dane, teraz)
+            if ruszyla:
+                self._cap_walka_reset()
+            return ruszyla
         if zloto is not None and zloto < int(self._kw("WYPRAWA_ZLOTO_MIN")):
             self._odloz(teraz, f"za mało złota ({zloto})", 1800.0)
             return False
@@ -1356,6 +1445,12 @@ class Wyprawa(Wypad):
         dane = {"powody": powody, "zapas": zapas, "blanki": blanki, "zloto": zloto, "cap": cap, "hp": round(proc),
                 "pochodnie": self._ile(plecak, "torch")}
         return self._start_wyprawa("+".join(powody), dane, teraz)
+
+    def _cap_walka_reset(self):
+        """25.10: koniec czekania w walce na spokój z powodu cap (cap w normie, inny powód, start wyprawy, jedz/wyrzuć w spokoju)."""
+        self._cap_walka_od = self._cap_walka_ost = None
+        self.ostrzezenia.discard("cap_walka")
+        self.ostrzezenia.discard("cap_walka_limit")
 
     def _powod_cap(self, powody):
         """23.10 WYPRAWA_CAP_MIN (oz, 0 = wyłączone): wolny cap poniżej progu w TRYBIE DEPO = powód "cap" (invincible miał cap 0.0:
@@ -1391,20 +1486,31 @@ class Wyprawa(Wypad):
             self.log(f"Wyprawa: cap wzrósł ({float(st.get('depo_cap') or 0.0):.1f} -> {cap:.1f} oz), kasuję pamięć ostatniego depo po cap")
         return True
 
-    def _cap_spokoj(self, poz, proc0):
+    def _cap_spokoj(self, poz, proc0, w_walce=False):
         """Powód przerwania jedzenia/wyrzucania (None = spokój): świeża lista stworów (w pętli synchronicznej `ostatnie_stwory` jest
-        nieaktualne) przez te same bezpieczniki co start wyprawy (walka, potwór w MOBY_ODL, loot, czar, gracz) oraz spadek HP."""
+        nieaktualne) przez te same bezpieczniki co start wyprawy (walka, potwór w MOBY_ODL, loot, czar, gracz) oraz spadek HP.
+        `w_walce` (25.10, Wydra): jedzenie/wyrzucanie w trwającej walce z trollami. Walka i potwory nie blokują (inaczej nigdy nie
+        ruszy), blokują: ucieczka/ostrożność, czar w toku, alarm GM (`_blokada_startu(w_walce=True)`), obcy GRACZ w 14 polach,
+        HP poniżej WYPRAWA_MIN_HP / progu ucieczki + 10 albo spadek o > 10 pkt od startu."""
         cb = self.cb
         lista = cb.stwory()
-        blok = self._blokada_startu(cb.zegar(), poz, lista)
+        blok = self._blokada_startu(cb.zegar(), poz, lista, w_walce)
         if blok is not None:
             return blok
+        if w_walce and getattr(cb, "stanowisko", None) is None:
+            ja = getattr(getattr(cb, "postac", None), "nazwa", None)
+            for s in lista or []:
+                if s.get("gracz") and s.get("nazwa") != ja and s.get("z") == poz[2] and s.get("hp", 100) > 0 \
+                        and cheb((s["x"], s["y"]), poz) <= 14:
+                    return "gracz"
         proc = cb.gracz().get("proc", 100.0)
         if proc < float(self._kw("WYPRAWA_MIN_HP")) or proc < proc0 - 10:
             return f"hp {proc:.0f}%"
+        if w_walce and proc <= getattr(cb, "prog_aktualny", 40) + 10:
+            return f"hp {proc:.0f}% blisko progu ucieczki"
         return None
 
-    def _cap_jedz_i_wyrzuc(self, teraz, plecak, poz, proc0):
+    def _cap_jedz_i_wyrzuc(self, teraz, plecak, poz, proc0, w_walce=False):
         """24.10 (Karol: "brakuje capa, bo postać kupiła za dużo hama"): zamiast wyprawy do depo po cap najpierw jedzenie.
         (1) zjada ile się da (Use w kółko do "You are full" albo do braku ubytku; po "full" przez CAP_JEDZ_PELNY_S nie próbuje),
         (2) cap >= WYPRAWA_CAP_MIN = koniec, gra dalej; (3) inaczej wyrzuca PO JEDNEJ SZTUCE jedzenie na ziemię pod postacią i po
@@ -1412,7 +1518,8 @@ class Wyprawa(Wypad):
         (domyślnie 0). Walka/potwór/gracz/spadek HP przerywa w każdej chwili. Cykl może się powtarzać bez limitu na minutę
         (cap znów 0 = znów zjedz / wyrzuć 1 sztukę); między podejściami tylko CAP_JEDZ_ODSTEP_S.
         -> True = obsłużone albo odłożone, BEZ wyprawy; None = nie dotyczy / jedzenia nie ma, a cap nadal za mały / wyrzucanie
-        nie działa (2 porażki z rzędu) = idzie dawna wyprawa po cap. CAP_JEDZ_I_WYRZUC=0 = None od razu (dawne zachowanie)."""
+        nie działa (2 porażki z rzędu) = idzie dawna wyprawa po cap. CAP_JEDZ_I_WYRZUC=0 = None od razu (dawne zachowanie).
+        `w_walce` (25.10): to samo w trwającej walce (okazja_w_walce); przerwania wg `_cap_spokoj(w_walce=True)`."""
         if not int(self._kw("CAP_JEDZ_I_WYRZUC") or 0):
             return None
         wyrzuc = getattr(self.ops, "wyrzuc_jedzenie", None)
@@ -1432,7 +1539,7 @@ class Wyprawa(Wypad):
         zjedzone, wyrzucone, powod_konca = 0, 0, None
         if cb.zegar() - self._cap_jedz_pelny >= CAP_JEDZ_PELNY_S and ma != 0:
             for _ in range(int(self._kw("WYPRAWA_JEDZ_MAKS"))):
-                if self._cap_spokoj(poz, proc0) is not None:
+                if self._cap_spokoj(poz, proc0, w_walce) is not None:
                     powod_konca = "przerwa_jedzenie"
                     break
                 zj = self.ops.zjedz()
@@ -1454,7 +1561,7 @@ class Wyprawa(Wypad):
             if wyrzucone >= CAP_JEDZ_MAKS_SZTUK:
                 powod_konca = "limit"
                 break
-            blok = self._cap_spokoj(poz, proc0)
+            blok = self._cap_spokoj(poz, proc0, w_walce)
             if blok is not None:
                 powod_konca = f"przerwa ({blok})"
                 break
@@ -2111,6 +2218,28 @@ class Wyprawa(Wypad):
         else:
             self.zablokowany, self.blokada_do = stare      # nieudany start PK nie zmienia stanu zwykłych wypraw
         return bool(ok)
+
+    def odrzuc_pk_po_zgonie(self, powod):
+        """26.10 (PK_RESET_PO_ZGONIE): po zgonie postaci wyprawa PK (ucieczka do depo / powrót na spot: potrzeby.pk) jest nieaktualna:
+        porzucamy trwającą (cicho, jak start_pk) i zamykamy zapis stanu (`wynik: pk_zgon`), żeby restart jej nie wznawiał
+        (wznow_start). Zwykłe wyprawy (blanki/cap/refill/serwis/WROC) nietknięte. -> True, gdy coś odrzucono."""
+        st = self._stan_czytaj()
+        zapis_pk = bool((st.get("potrzeby") or {}).get("pk")) and bool(st.get("aktywna") or st.get("przerwana"))
+        trwa_pk = self.w is not None and bool((self.w.get("potrzeby") or {}).get("pk"))
+        if trwa_pk:
+            self.w = None
+            self._plan_wyprawy = None
+            self.stan, self.faza, self.etapy, self.sklep, self.wynik = "SPOKOJ", None, None, None, None
+            self.cb.wypad_aktywny = False
+            try:
+                self.cb._wypad_reset_klik()
+            except Exception:
+                pass
+        if trwa_pk or zapis_pk:
+            self._stan_koniec(wynik="pk_zgon", opis=f"wyprawa PK odrzucona po zgonie: {str(powod)[:120]}")
+            self.log("Wyprawa: wyprawa PK odrzucona po zgonie postaci (nie wznawiam).")
+            return True
+        return False
 
     def _zakoncz_pk(self, wynik, opis):
         """Koniec wyprawy PK (dotarcie albo awaria): bez pliku STOP i bez blokady wypraw; decyzję co dalej

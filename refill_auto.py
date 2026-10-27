@@ -40,7 +40,7 @@ import przerwa as PR  # noqa: E402
 
 TRASY = KATALOG / "trasy"
 PLIK = "wroc_refill.json"
-MIASTA_SERWISU = ("edron", "thais", "abdendriel")        # miasta, które serwis.py umie obsłużyć (jego argparse: choices); Thais od 22.10 (drzwi sklepów), Ab'Dendriel od 24.10 (drzwi na klucz)
+MIASTA_SERWISU = ("edron", "thais", "abdendriel", "port_hope")        # miasta, które serwis.py umie obsłużyć (jego argparse: choices); Thais od 22.10 (drzwi sklepów), Ab'Dendriel od 24.10 (drzwi na klucz), Port Hope od 25.10 (na razie tylko depo)
 WZOR_BOT = r"(mozg|cavebot)\.py"
 WZOR_SERWIS = r"(^|[ /])serwis\.py "
 WZOR_REFILL = r"^(\S*/)?bash (\S*/)?refill\.sh *$"
@@ -86,14 +86,19 @@ def zostaje_w_depo(stan_dir):
     """Powód (tekst) albo None: flaga `zostan_w_depo` tej instancji w instancje/_wspolne/plan_postaci.json (23.10, Karol: invincible, dawajkesh, wydra,
     gebelish). Postać z flagą po dojściu do depo zostaje w depo: ŻADNEGO auto-refillu, także gdy tryb (`runy`, `uh`) przy starcie bota przywrócił
     WROC_REFILL=1 (tryby.json nadpisuje na_zywo.json przy każdym starcie). Ręczny `refill.sh` jest poza tym strażnikiem. Plik nieczytelny = None.
-    24.10: wariant `zostan_w_depo_po_refillach: N` (zostan_depo.py) działa dopiero po N refillach od `zostan_w_depo_od` (licznik refille.json)."""
+    24.10: wariant `zostan_w_depo_po_refillach: N` (zostan_depo.py) działa dopiero po N refillach od `zostan_w_depo_od` (licznik refille.json).
+    25.10: klucz `domyslne` planu (zostan_depo.domyslne) = ta sama flaga dla postaci bez własnego wpisu; wyłączony domyślnie."""
     stan_dir = Path(stan_dir)
+    sg = ZD.spot_gracz_depo(stan_dir)      # 26.10: powrót do miasta po spotkaniach graczy (nadzorca zapisał znacznik): bez auto-refillu i bez startu na spot
+    if sg:
+        return sg
     try:
         d = json.loads((stan_dir.parent / "_wspolne" / "plan_postaci.json").read_text(encoding="utf-8"))
         pc = (d.get("postacie") or {}).get(stan_dir.name) or {}
+        dom = ZD.domyslne(d)[0]        # 25.10 (Karol): `domyslne` planu daje flagę też postaciom bez własnej (gdy domyslne.wlaczone == true)
     except (OSError, ValueError, AttributeError):
         return None
-    z = ZD.parsuj(pc)
+    z = ZD.parsuj(pc, dom)
     if not ZD.uzbrojona(z, stan_dir):
         return None
     if ZD.tylko_cap(stan_dir):         # 24.10 (Karol): depo wyłącznie po cap = bank + powrót, flaga nie zatrzymuje (ani nie liczy się do 2 bp)

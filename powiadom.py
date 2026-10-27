@@ -30,8 +30,9 @@ def _notify_send(arg):
 
 
 class Powiadamiacz:
-    def __init__(self, uruchom=_notify_send, zegar=time.time, cisza=CISZA, watek=True, limit_h=None):
+    def __init__(self, uruchom=_notify_send, zegar=time.time, cisza=CISZA, watek=True, limit_h=None, czas_ms=None):
         self.uruchom, self.zegar, self.cisza, self.watek = uruchom, zegar, Path(cisza), watek
+        self.czas_ms = czas_ms          # 26.10: czas dymku w ms (powłoka Omarchy honoruje do 30 s); None = jak dotąd (8 s, critical 20 s)
         self.limit_h = LIMIT_H if limit_h is None else limit_h      # 26.10: osobny czytnik (powiadom_obcy.py) ma własny, wyższy limit
         self.po_kluczach = {}          # klucz -> czas ostatniego powiadomienia
         self.godzina = deque()         # czasy powiadomień nie-critical
@@ -66,7 +67,8 @@ class Powiadamiacz:
                 self.po_kluczach[klucz] = t
                 if len(self.po_kluczach) > 500:
                     self.po_kluczach = {k: v for k, v in self.po_kluczach.items() if t - v < KLUCZ_S}
-            arg = ["-a", "Retronic", "-u", pilnosc, "-t", "20000" if pilnosc == "critical" else "8000",
+            czas = str(self.czas_ms) if self.czas_ms else ("20000" if pilnosc == "critical" else "8000")
+            arg = ["-a", "Retronic", "-u", pilnosc, "-t", czas,
                    str(tytul)[:TYTUL_MAX], re.sub(r"\s+", " ", str(tresc))[:TRESC_MAX]]
             if self.watek:
                 threading.Thread(target=self._wyslij, args=(arg,), daemon=True).start()

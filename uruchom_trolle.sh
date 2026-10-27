@@ -49,5 +49,5 @@ if [ -n "$MAPA$TRYB" ]; then
 fi
 # P4 (13.10): telemetria pisze tylko z tą zmienną (testy i skrypty pomocnicze jej nie mają)
 export RETRONIC_TELEMETRIA=1
-setsid nohup python3 -I -u mozg.py --tryb "${MOZG_TRYB:-skrypt}" --model haiku --trasa "${TRASA:-troll_cave}" "${DOJSCIE[@]}" --potwory "${MAPA_POTWORY:-Troll}" --prog-hp "${MAPA_PROG_HP:-60}" >> "$LOG" 2>&1 < /dev/null &
+setsid nohup "$DIR/w_scope.sh" bot python3 -I -u mozg.py --tryb "${MOZG_TRYB:-skrypt}" --model haiku --trasa "${TRASA:-troll_cave}" "${DOJSCIE[@]}" --potwory "${MAPA_POTWORY:-Troll}" --prog-hp "${MAPA_PROG_HP:-60}" >> "$LOG" 2>&1 < /dev/null &
 notify-send "$TYTUL" "Start (mozg ${MOZG_TRYB:-skrypt}, ${TRASA:-troll_cave}${DOJSCIE:+ + dojście z depo})"

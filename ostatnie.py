@@ -326,8 +326,11 @@ class Pisarz:
             if st["mapa"] != self.mapa or self.na_spocie_od is None:
                 self.mapa = st["mapa"]
                 prev, _ = czytaj(self.katalog)
-                # restart bota na tym samym spocie bez przerwy w grze nie zeruje „na spocie od”
+                # restart bota na tym samym spocie bez przerwy w grze nie zeruje „na spocie od”; nowe wejście do gry (zdarzenie `w_grze`
+                # odświeża `w_grze_t` i `sesja.start`, ale zostawia stare `na_spocie_od`) go zeruje: 27.10 Wydra pokazywała „od 14:01” z wczoraj
+                ses_start = (prev.get("sesja") or {}).get("start") if prev else None
                 if prev and prev.get("mapa") == st["mapa"] and _liczba(prev.get("na_spocie_od")) \
+                        and (not _liczba(ses_start) or prev["na_spocie_od"] >= ses_start) \
                         and _liczba(prev.get("w_grze_t")) and t - prev["w_grze_t"] < 180 and not prev.get("koniec_sesji"):
                     self.na_spocie_od = prev["na_spocie_od"]
                 else:

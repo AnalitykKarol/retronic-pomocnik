@@ -44,7 +44,7 @@ case "${1:-}" in
     mkdir -p "$INST_STAN"
     # stan przerwanego serwisu starszy niż REFILL_WZNOW_MIN (domyślnie 15) min nie wznawia: inaczej po cichu pominąłby zakupy
     [ -n "$(find "$INST_STAN/serwis_stan.json" -mmin +"${REFILL_WZNOW_MIN:-15}" 2>/dev/null)" ] && rm -f "$INST_STAN/serwis_stan.json"
-    REFILL_LOG_PRACY="$LOG" setsid -f bash "$DIR/refill.sh" > "$LOG" 2>&1 < /dev/null     # własna sesja i grupa: przeżywa wtyczkę i powłokę, grupa = pid pracy
+    REFILL_LOG_PRACY="$LOG" setsid -f "$DIR/w_scope.sh" refill bash "$DIR/refill.sh" > "$LOG" 2>&1 < /dev/null     # własna sesja i grupa: przeżywa wtyczkę i powłokę, grupa = pid pracy
     echo "refill ruszył, log: $LOG"
     exit 0 ;;
   --przerwij)

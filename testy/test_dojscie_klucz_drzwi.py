@@ -1,4 +1,4 @@
-"""24.10 (Karol: „niech się nauczy otwierać drzwi”, Marinarra, start 15:44): dojście abdendriel_z9_do_z10 z korytarza z9 (32654,31656) nie przechodziło
+"""24.10 (Karol: „niech się nauczy otwierać drzwi”, Marinarra, start 15:44): dojście (wtedy abdendriel_z9_do_z10, od 24.10 19:xx abdendriel_depo_do_z10) z korytarza z9 (32654,31656) nie przechodziło
 przez DWOJE drzwi zamkniętych na klucz (32655,31655,z9) i (32658,31645,z9) (w mapie ściany): A* bez drogi, krok w ścianę, KROK_ZLY, porażka S1.
 Poprawka: cavebot._drzwi_lista dopisuje (tylko w dojściu) drzwi z wyprawa.PLANY_PK["klucze"] (jedno źródło kluczy = generuj_powrot_abdendriel.KLUCZE_DRZWI),
 A* prowadzi przez nie, a _drzwi_hak przy drzwiach z kluczem robi to samo co wypad._drzwi: krok, KLUCZ (Ctrl+klik na kluczu, klik na drzwiach), krok.
@@ -19,6 +19,7 @@ ok.clear()
 import json as _json
 import generuj_powrot_abdendriel as G
 import wyprawa
+import mozg
 import wypad
 
 if not _mapa.PLIK_MAPY.is_file():
@@ -77,11 +78,12 @@ class OpsK(Ops):
             OTWARTE.add(cel)
 
 
-def dojscie_k(start, nazwa="abdendriel_z9_do_z10", klucz_w_plecaku=True, maks=2500, limit_s=240.0, zdarzenie=None):
+def dojscie_k(start, nazwa="abdendriel_depo_do_z10", klucz_w_plecaku=True, maks=2500, limit_s=240.0, zdarzenie=None):
     LOG.clear()
     OTWARTE.clear()
     s = SwiatK(start, klucz_w_plecaku=klucz_w_plecaku)
     punkty = [tuple(p) for p in _json.loads((KAT / "trasy" / f"{nazwa}.json").read_text())]
+    punkty = mozg.dojscie_od_pozycji(punkty, tuple(start))      # jak mozg.przejdz_dojscie: trasa od najbliższego punktu (24.10: dojście zaczyna się teraz w depo z8)
     loot = types.SimpleNamespace(zbierz=lambda z, g: "ok")
     b = cavebot.CavebotDojscie(PK(s), punkty, okrazenia=1, zapytaj=s.zapytaj, atak=lambda m, g: None, alarm=lambda w: None, spij=s.spij,
                                zegar=s.zegar, loot=loot, mapa=M, klik=s.klik, tolerancja=2)

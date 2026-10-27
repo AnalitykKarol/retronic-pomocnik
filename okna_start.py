@@ -30,6 +30,7 @@ WYWOŁANIA:
   RETRONIC_ID=<id> python3 -I okna_start.py sprawdz          odczyt i ocena, zero klików, zero powiadomień (JSON)
   RETRONIC_ID=<id> python3 -I okna_start.py napraw           jak przy starcie: naprawia, gdy pokrętło włączone, inaczej powiadamia
   RETRONIC_ID=<id> python3 -I okna_start.py napraw --tak     JEDNO wywołanie testowe z klikaniem mimo wyłączonego pokrętła
+  RETRONIC_ID=<id> python3 -I okna_start.py role             27.10: tylko pamięć klienta (bez zrzutu i klików): okna z rodzicem i rolą (położenie vs dawne reguły)
 Kody wyjścia: 0 ok/naprawione/poza grą, 1 wymaga człowieka, 3 odroczone (walka, STOP_RECZNY, wyłączone), 4 brak odczytu.
 Hooki: `mozg.main` (po `bot.Postac()`, przed wznowieniem wyprawy i dojściem) oraz `nadzor.py napraw <id> okna`
 (biała lista; nadzorca zleca je, gdy log bota powtarza brak_plecaka/brak_okna). Rollback: kopie `*.bak-20261022-okna-start`."""
@@ -84,6 +85,21 @@ def rola(kontener):
 def role_z_pamieci(kontenery):
     return [{"rola": rola(k), "nazwa": (k.get("nazwa") or "").casefold(), "numer": k.get("numer"),
              "przedmiotow": len(k.get("przedmioty", []))} for k in kontenery or []]
+
+
+def diagnoza_rol(kontenery):
+    """27.10: tabela do weryfikacji klasyfikacji (tylko odczyt pamięci): numer, nazwa, ID, zagnieżdżenie, rodzic, rola wg położenia okna
+    i rola wg dawnych reguł (nazwa/ID/zawartość, bez pola rodzic). `rola_wg`: "polozenie" (rodzic rozstrzyga), "depo", "zawartosc" (fallback)."""
+    import loot  # noqa: PLC0415
+    wynik = []
+    for k in kontenery or []:
+        stara = rola({x: v for x, v in k.items() if x != "rodzic"})
+        nowa = rola(k)
+        wg = "depo" if nowa == "depo" else ("polozenie" if loot.rola_strukturalna(k) is not None else "zawartosc")
+        wynik.append({"numer": k.get("numer"), "nazwa": k.get("nazwa"), "id": k.get("id"), "zagniezdzony": k.get("zagniezdzony"),
+                      "rodzic": k.get("rodzic"), "przedmiotow": len(k.get("przedmioty", [])), "pojemnosc": k.get("pojemnosc"),
+                      "rola": nowa, "rola_wg": wg, "rola_dawna": stara})
+    return wynik
 
 
 def role_z_tytulow(tytuly):
@@ -403,9 +419,22 @@ def przy_starcie(log=print):
 def main(argv=None):
     import argparse  # noqa: PLC0415
     ap = argparse.ArgumentParser(prog="okna_start.py")
-    ap.add_argument("tryb", choices=("sprawdz", "napraw"))
+    ap.add_argument("tryb", choices=("sprawdz", "napraw", "role"), help="role: tylko pamięć klienta (bez zrzutu i klików), tabela okien z rodzicem i rolą")
     ap.add_argument("--tak", action="store_true", help="napraw: kliknij mimo wyłączonego pokrętła (jedno wywołanie testowe)")
     a = ap.parse_args(argv)
+    if a.tryb == "role":
+        import loot  # noqa: PLC0415
+        kontenery, powod = loot.kontenery_z_pamieci()
+        if kontenery is None:
+            print(f"okna_start role: brak odczytu pamięci ({powod})")
+            return 4
+        tabela = diagnoza_rol(kontenery)
+        print(f"== {instancja.ID or '(domyślna)'}: okien {len(tabela)}, plecaków {sum(1 for t in tabela if t['rola'] == 'plecak')}, "
+              f"runy {sum(1 for t in tabela if t['rola'] == 'runy')} (dawne reguły: plecaków {sum(1 for t in tabela if t['rola_dawna'] == 'plecak')}, "
+              f"runy {sum(1 for t in tabela if t['rola_dawna'] == 'runy')})")
+        for t in tabela:
+            print("  " + json.dumps(t, ensure_ascii=False))
+        return 0
     if not WLACZONE:
         print("okna_start: wyłączone (RETRONIC_OKNA_START=0)")
         return 3

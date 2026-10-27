@@ -14,7 +14,7 @@ case "${1:-status}" in
   start)
     dziala && { echo "już działa (pid $(cat "$PID"))"; exit 0; }
     mkdir -p "$INST_LOGI"; cd "$DIR" || exit 1
-    setsid nohup python3 -I -u obserwator_reczny.py >> "$LOG" 2>&1 < /dev/null &
+    setsid nohup "$DIR/w_scope.sh" obserwator python3 -I -u obserwator_reczny.py >> "$LOG" 2>&1 < /dev/null &
     echo $! > "$PID"; sleep 0.5
     dziala && echo "start, pid $(cat "$PID")" || { echo "nie wystartował, zobacz $LOG" >&2; exit 1; } ;;
   stop)

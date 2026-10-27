@@ -199,7 +199,8 @@ TRYBY_GORA_NIEZNANE = ("R", "lina", "krok", "R", "lina")
 ZASYPANE = {(32493, 32259, 7),     # dziury zasypane (piętro z, na którym stoimy), jedyne, gdzie łopata ma sens
             (32347, 32123, 7),     # 21.10 Thais północ (thais_pn_z8_dojscie): postać stoi na polu, use bez skutku
             (32663, 31962, 7),     # 24.10 pod Kazordoonem (trolle_kazordoon_z8/z9_dojscie): odchyd stał na polu, nie spadł, 0 prób; łopata potwierdzona 10:48
-            (32695, 31621, 7)}     # 24.10 Ab'Dendriel (abdendriel_trolle_*_dojscie): zasypana wg generatora (kolor 24), NIEPOTWIERDZONE na żywo
+            (32695, 31621, 7),     # 24.10 Ab'Dendriel (abdendriel_trolle_*_dojscie): zasypana wg generatora (kolor 24), NIEPOTWIERDZONE na żywo
+            (32490, 31697, 7)}     # 27.10 Ab'Dendriel zachód (abdendriel_zachod_z8/z9_dojscie): zasypana wg generatora (kolor 24; wskazał Karol (32491,31694)), NIEPOTWIERDZONE na żywo
 
 
 class Pietra:

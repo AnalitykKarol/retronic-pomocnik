@@ -301,6 +301,10 @@ n_wl = sum(pw2.powiadom(f"t{i}", "", "low", klucz=f"obcy:tst:{i}") for i in rang
 sprawdz("10a domyślny Powiadamiacz nadal 20/h; z limit_h=60 przechodzi 30 dymków", (n_dom, n_wl) == (20, 30), (n_dom, n_wl))
 sprawdz("10b klucz instancja+nick: drugi dymek tego samego nicku w 60 s odrzucony, po 60 s przechodzi", not pw2.powiadom("x", "", "low", klucz="obcy:tst:5")
         and (t_.__setitem__(0, 1061.0) or pw2.powiadom("x", "", "low", klucz="obcy:tst:5")))
+wys.clear(); t_[0] = 5000.0
+nowy_pw(czas_ms=po.DYMEK_MS).powiadom("czas", "", "low", klucz="obcy:tst:czas")
+nowy_pw().powiadom("czas2", "", "low", klucz="obcy:tst:czas2")
+sprawdz("10d czas dymku: czytnik daje 30000 ms, domyślny Powiadamiacz nadal 8000 ms (critical 20000)", [a[a.index("-t") + 1] for a in wys] == ["30000", "8000"] and po.DYMEK_MS == 30000, wys)
 sprawdz("10c dymek low z -a Retronic", any(a[:5] == ["-a", "Retronic", "-u", "low", "-t"] for a in wys), wys[:1])
 
 # ---- 11. pętla czytnika na żywo (wątek, atrapa notify, prawdziwy zegar)
@@ -340,8 +344,12 @@ sesja = KAT0 / "sesja.sh"
 tekst = sesja.read_text()
 sprawdz("12a sesja.sh: składnia", subprocess.run(["bash", "-n", str(sesja)]).returncode == 0)
 sprawdz("12b sesja.sh woła powiadom_obcy.py --uruchom (raz) obok czytnika czatu", tekst.count('powiadom_obcy.py" --uruchom') == 1 and 'powiadom_czat.py" --uruchom' in tekst)
-wlaczone = [p.parent.name for p in (KAT0 / "instancje").glob("*/profil.json") if po.profil_wlaczony(p.parent)]
-sprawdz("12c domyślnie wyłączone: żaden profil.json instancji nie ma powiadom_obcy=true", wlaczone == [], wlaczone)
+# 26.10: instancje/*/profil.json są lokalne (Karol włączył flagę dla trzech postaci), więc „domyślnie wyłączone” sprawdzamy na świeżym profilu i na szablonach repo
+pusty12 = tmp / "profil_bez_flagi"
+pusty12.mkdir(exist_ok=True)
+(pusty12 / "profil.json").write_text('{"postac": "Nowa"}')
+szablony12 = [p for p in (KAT0 / "szablony").glob("**/profil.json") if po.FLAGA in p.read_text()]
+sprawdz("12c domyślnie wyłączone: profil bez flagi = wyłączony, szablony repo nie mają powiadom_obcy", not po.profil_wlaczony(pusty12) and szablony12 == [], szablony12)
 
 print("\nWYNIK:", sum(ok), "/", len(ok))
 sys.exit(0 if all(ok) else 1)

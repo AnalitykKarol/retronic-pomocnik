@@ -134,7 +134,7 @@ tick(b, s, K1, 40.0, {(0, 0)}, hp=(87.0, 83.0))       # 51 s po wejściu na H: n
 sprawdz("1g nadal w oknie po 51 s: bez oznaczenia", b.ogien_epizody["32497,32301,8"]["hp"] is False)
 
 # 1h. nauka NOWYCH pól zostaje: po wygaśnięciu okna spadek HP tuż po wejściu na nieznane pole ognia oznacza je
-tick(b, s, K1, 30.0, set())                            # >60 s od wejścia na H, poza ogniem
+tick(b, s, K1, cavebot.OGIEN_PODPALENIE_S, set())      # po całym oknie palenia (27.10: 120 s, było 60) od wejścia na H, poza ogniem
 INNE = (32498, 32301, Z)
 tick(b, s, INNE, 1.0, {(0, 0)}, hp=(100.0, 90.0))      # nowe pole z ogniem pod stopami + spadek HP tuż po wejściu
 sprawdz("1h nauka zostaje: po oknie nowe pole z ogniem i spadkiem HP dostaje hp", b.ogien_epizody.get("32498,32301,8", {}).get("hp") is True,

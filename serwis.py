@@ -1537,7 +1537,7 @@ def _ratunek_porazka(postac, krok, powod, e, bot):
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("miasto", nargs="?", default=None, choices=miasta() + ["auto"],
-                   help="edron, thais albo auto = miasto z pozycji postaci; bez argumentu też z pozycji (poza miastami edron)")
+                   help="edron, thais, abdendriel, port_hope albo auto = miasto z pozycji postaci; bez argumentu też z pozycji (poza miastami edron)")
     p.add_argument("--kroki", help="lista kroków po przecinku (domyślnie z pliku danych)")
     p.add_argument("--na-sucho", action="store_true", help="tylko plan dróg, bez inputu do gry")
     p.add_argument("--od", help="x,y,z: plan na sucho z tego pola zamiast z bieżącej pozycji")

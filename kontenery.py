@@ -12,6 +12,9 @@ Układ w pamięci (OTClient 32-bit, MSVC):
   Container  +0x00 vtable, +0x04 licznik referencji, +0x0C numer (= klucz mapy),
       +0x10 pojemność, +0x14 Item* przedmiotu kontenera (np. bag, zwłoki),
       +0x18 nazwa (std::string: 16 B SSO, +0x10 rozmiar, +0x14 pojemność bufora),
+      +0x30 u8 hasParent (27.10: 1 = okno otwarte Z WNĘTRZA innego kontenera, 0 = kontener "na zewnątrz": plecak z ekwipunku,
+      zwłoki, skrzynia; zmierzone na odchyd, kolanoth, gebelish, gerbor, wydra: zawsze 1 dla bagu na runy w plecaku, 0 dla plecaka
+      łupu), +0x31 u8 (0), +0x32 u8 (1)
       +0x3C std::deque<ItemPtr> {proxy, mapa, rozmiar mapy, przesunięcie, liczba}
       (4 wskaźniki na blok, element k = przesunięcie + slot, blok = mapa[(k // 4) % rozmiar mapy])
   Item  +0x00 vtable, +0x0C pozycja x (u32, 0xFFFF = w kontenerze), +0x10 y (u32, 0x40 | numer
@@ -44,6 +47,8 @@ PRZEDMIOT_ID = 0x2C
 PRZEDMIOT_ILOSC = 0x30
 ROZMIAR_PRZEDMIOTU = 0x34
 JEDEN = 0x3F800000           # float 1.0
+KONTENER_W_KONTENERZE = 0x30 # u8: hasParent (patrz opis układu wyżej)
+SLOT_EKWIPUNKU_PLECAK = 3    # slot Tibii z plecakiem (patrz sekcja ekwipunku niżej)
 
 W_BLOKU = 4                  # deque MSVC: 16 B na blok, wskaźnik 4 B
 MAKS_KONTENEROW = 64
@@ -198,7 +203,9 @@ def _kontener(p, adres, numer, obraz):
             if ident in NAZWY:
                 wpis["nazwa"] = NAZWY[ident]
             przedmioty.append(wpis)
+    w_kontenerze = b[KONTENER_W_KONTENERZE]
     return {"numer": numer, "nazwa": nazwa, "id": id_kontenera,
+            "zagniezdzony": bool(w_kontenerze) if w_kontenerze in (0, 1) else None,
             "pojemnosc": pojemnosc, "przedmioty": przedmioty}
 
 
@@ -261,7 +268,73 @@ def _stan(p):
     return st
 
 
+def ustal_rodzicow(kontenery, plecak_ekw_id=None):
+    """Dopisuje kontenerom pole "rodzic" (27.10; opcjonalne, reszta kodu je ignoruje). Pamięć klienta NIE trzyma pozycji przedmiotu
+    otwartego kontenera (Item kontenera ma pozycję 0xFFFF/0xFFFF/255), więc rodzica wyznaczamy z flagi "zagniezdzony" (hasParent),
+    z ID plecaka w slocie 3 ekwipunku (`plecak_ekw_id`, z zapamiętanej tablicy ekwipunku; None = nie wiadomo) i z zawartości:
+      kontener "na zewnątrz" o ID plecaka z ekwipunku (jedyny taki)   -> {"typ": "ekwipunek", "slot": 3}
+      inny "na zewnątrz" (zwłoki, skrzynia depo, plecak z ziemi)       -> {"typ": "inne"}; gdy ID plecaka nie znamy albo jest kilka
+                                                                          pasujących: {"typ": "korzen"} (nie rozstrzygnięto)
+      kontener otwarty z wnętrza innego (zagniezdzony)                -> {"typ": "kontener", "numer": M, "w_ekwipunku": slot albo None};
+                                                                          M = jedyny otwarty kontener z przedmiotem o ID tego kontenera,
+                                                                          inaczej None (zwłoki z bagiem w środku obok plecaka itp.)
+      flaga nieczytelna                                               -> None
+    Czysta funkcja (testy). Zwraca tę samą listę."""
+    zewn = [k for k in kontenery if k.get("zagniezdzony") is False]
+    pasujace = [k for k in zewn if plecak_ekw_id is not None and k.get("id") == plecak_ekw_id]
+    for k in kontenery:
+        z = k.get("zagniezdzony")
+        if z is False:
+            if plecak_ekw_id is None:
+                k["rodzic"] = {"typ": "korzen"}
+            elif len(pasujace) == 1 and k is pasujace[0]:
+                k["rodzic"] = {"typ": "ekwipunek", "slot": SLOT_EKWIPUNKU_PLECAK}
+            elif len(pasujace) > 1 and k.get("id") == plecak_ekw_id:
+                k["rodzic"] = {"typ": "korzen"}
+            else:
+                k["rodzic"] = {"typ": "inne"}
+        elif z is None:
+            k["rodzic"] = None
+    for k in kontenery:
+        if k.get("zagniezdzony") is not True:
+            continue
+        kandydaci = [q for q in kontenery if q is not k and q.get("zagniezdzony") is not None
+                     and any(i.get("id") == k.get("id") for i in q.get("przedmioty", []))]
+        rodzic = {"typ": "kontener", "numer": None, "w_ekwipunku": None}
+        if len(kandydaci) == 1:
+            q = kandydaci[0]
+            rodzic["numer"] = q.get("numer")
+            qr = q.get("rodzic")
+            if isinstance(qr, dict) and qr.get("typ") == "ekwipunek":
+                rodzic["w_ekwipunku"] = qr.get("slot")
+        k["rodzic"] = rodzic
+    return kontenery
+
+
+def _plecak_z_ekwipunku(p):
+    """ID przedmiotu w slocie 3 ekwipunku z JUŻ zapamiętanej tablicy (bez skanowania pamięci), albo None."""
+    st = _stan(p)
+    baza = st.get("ekw")
+    if baza is None or st.get("obraz") is None:
+        return None
+    t = _tablica_ekw(p, baza, st["obraz"])
+    if not t or SLOT_EKWIPUNKU_PLECAK not in t:
+        return None
+    return t[SLOT_EKWIPUNKU_PLECAK][0]
+
+
 def kontenery(p):
+    """Otwarte kontenery z polem "rodzic" (patrz ustal_rodzicow). Błąd w ustalaniu rodzica nie psuje odczytu."""
+    wynik = _kontenery_surowe(p)
+    try:
+        if wynik:
+            ustal_rodzicow(wynik, _plecak_z_ekwipunku(p))
+    except Exception:
+        pass
+    return wynik
+
+
+def _kontenery_surowe(p):
     st = _stan(p)
     if st["obraz"] is None:
         st["obraz"], st["dane"] = _obraz_exe(p)

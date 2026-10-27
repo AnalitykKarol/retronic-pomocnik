@@ -80,7 +80,7 @@ sprawdz("2f zbuduj_etapy: ladowanie niepewne (nie ten kandydat pietra.py) nie do
 # 3. plan w PLANY_PK, punkty_bazy, wybor planu
 sprawdz("3a wpis PLANY_PK abdendriel_trolle_z10 istnieje, do/z = pliki, bez npc i prefiksu, drzwi=True", PLAN == G.plan_pk(), PLAN)
 sprawdz("3a2 tylko ten plan ma etapy DRZWI (opt-in): _plan_z_drzwiami", W.Wyprawa._plan_z_drzwiami("abdendriel_trolle_z10")
-        and not any(W.Wyprawa._plan_z_drzwiami(p["nazwa"]) for p in W.PLANY_PK if p["nazwa"] != "abdendriel_trolle_z10"))
+        and not any(W.Wyprawa._plan_z_drzwiami(p["nazwa"]) for p in W.PLANY_PK if p["nazwa"] not in ("abdendriel_trolle_z10", "abdendriel_trolle_z12")))   # 25.10: plan z12 tez z drzwiami
 sprawdz("3a3 24.10 drzwi na klucz: PLANY_PK[klucze] == generator (oba drzwi, klucz 2970), a .meta ma klucz przy obu wpisach drzwi",
         PLAN and tuple(PLAN.get("klucze") or ()) == G.KLUCZE_DRZWI and sorted(d for d, _ in G.KLUCZE_DRZWI) == sorted(G.DRZWI9)
         and [m.get("klucz") for m in META if m["typ"] == "drzwi"] == [2970, 2970], (PLAN and PLAN.get("klucze"), [m for m in META if m["typ"] == "drzwi"]))
@@ -92,9 +92,9 @@ PETLA10, _ = trasa_io.wczytaj("abdendriel_trolle_z10_petla")
 PETLA9, _ = trasa_io.wczytaj("abdendriel_trolle_z9_petla")
 poz_m = (32661, 31608, 10)
 wsz = [tuple(p) for p in PETLA10[::10]] + [tuple(p) for p in PETLA9[::10]] + [poz_m]
-sprawdz("3c panel.plan_depo = abdendriel_trolle_z10 z petli z10, z9 i z pozycji Marinarry", all(panel.plan_depo(p) == "abdendriel_trolle_z10" for p in wsz),
-        [p for p in wsz if panel.plan_depo(p) != "abdendriel_trolle_z10"][:3])
-inne = [(n, tuple(d[0][i])) for n, d in baza.items() if n != "abdendriel_trolle_z10" for i in range(0, len(d[0]), 15)]
+sprawdz("3c panel.plan_depo = abdendriel_trolle_z10 z petli z10, z9 i z pozycji Marinarry", all(panel.plan_depo(p) in ("abdendriel_trolle_z10", "abdendriel_trolle_z12") for p in wsz),
+        [p for p in wsz if panel.plan_depo(p) not in ("abdendriel_trolle_z10", "abdendriel_trolle_z12")][:3])
+inne = [(n, tuple(d[0][i])) for n, d in baza.items() if n not in ("abdendriel_trolle_z10", "abdendriel_trolle_z12") for i in range(0, len(d[0]), 15)]   # 25.10: plan z12 ma ten sam koniec "do" (remis -> plan z10)
 zmien = [(n, p) for n, p in inne if W.wybierz_baze(baza, p, W.PK_PLAN_ZASIEG) == "abdendriel_trolle_z10"]
 sprawdz("3d punkty 'do' innych planow (Edron, Kazordoon, Thais, Rook...) nie wybieraja planu Ab'Dendriel", not zmien, zmien[:3])
 
@@ -170,7 +170,7 @@ for i in list(range(0, len(PETLA10), 25)) + [len(PETLA10) - 1]:
     et = w.w["legs"][0] if w.w else []
     ts = [e["typ"] for e in et]
     zle = []
-    if not (wynik is True and w.w["baza"] == "abdendriel_trolle_z10"):
+    if not (wynik is True and w.w["baza"] in ("abdendriel_trolle_z10", "abdendriel_trolle_z12")):      # 25.10: z pol z10 przy obejsciu dziury bywa blizej plan z12 (ta sama droga)
         zle.append(f"baza {w.w and w.w['baza']} / {logi[-2:]}")
     if ts != PELNE:
         zle.append(f"etapy {ts}")
@@ -207,10 +207,11 @@ wynik, w, logi = plan_z(poz_m, PETLA10)
 sprawdz("4c pozycja Marinarry (32661,31608,z10): plan startuje, droga do pola stania bez wchodzenia na pole liny",
         wynik is True and w.w["baza"] == "abdendriel_trolle_z10" and G.LINA10 not in {tuple(p) for e in w.w["legs"][0] if e["typ"] == "IDZ" for p in e["punkty"]},
         (wynik, logi[-2:]))
-# z11/z12: plan wskazany przez panel (cheb do depo), ale start konczy sie bezpiecznym bledem bez ruchu (nic sie nie dzieje); stan sprzed zmiany: "brak planu"
+# z11/z12: 25.10 plan abdendriel_trolle_z12 (lina z12/z11 -> z10, testy/test_powrot_abdendriel_z12.py); wczesniej (24.10) start konczyl sie bezpiecznym bledem bez ruchu
 PETLA11, _ = trasa_io.wczytaj("abdendriel_trolle_z11_petla")
 wynik, w, logi = plan_z(tuple(PETLA11[0]), PETLA11)
-sprawdz("4d z11 nie wybiera zlego planu po cichu: start_wyprawa nie zwraca True albo plan nie schodzi z innego pietra", wynik is not True or (w.w and not w.w["legs"][0]), (wynik, logi[-1:]))
+sprawdz("4d z11 (25.10): start_wyprawa wybiera plan abdendriel_trolle_z12 z liniami w gore (pierwszy etap po IDZ to LINA), nie ma planu z10 bez drogi",
+        wynik is True and w.w and w.w["baza"] == "abdendriel_trolle_z12" and [e["typ"] for e in w.w["legs"][0]][:2] == ["IDZ", "LINA"], (wynik, logi[-1:]))
 
 print(f"\n{sum(ok)}/{len(ok)} OK")
 sys.exit(0 if all(ok) else 1)

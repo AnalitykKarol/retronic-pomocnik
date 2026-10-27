@@ -15,6 +15,9 @@ Akcje:    wroc (do miasta i stoi; tylko z warunkiem poziomu) | tryb <lista> (res
 `zostan_w_depo_po_refillach: N` (24.10, Karol: „2 bp UH-ów, potem depo i wylogowanie”): ta sama flaga, ale uzbrojona dopiero po N refillach liczonych od
 `zostan_w_depo_od` (licznik instancje/<id>/refille.json dopisuje refill_auto); wcześniej postać żyje jak bez flagi (refill, powrót na spot). `wyloguj_w_depo`:
 przy uzbrojonej fladze nadzorca wylogowuje postać stojącą w depo ze STOP (kod plan-wyloguj-depo) i nie loguje jej ponownie. Reguła: zostan_depo.py.
+`domyslne` (25.10, Karol: „ma być jako default, że postacie wracają do depo, robią loga i czekają na mnie”): klucz NAJWYŻSZEGO poziomu planu, obok „postacie”:
+{"domyslne": {"wlaczone": true, "zostan_w_depo": true, "wyloguj_w_depo": true}} = te pola dla WSZYSTKICH postaci (też bez wpisu), o ile wpis postaci ich sam nie ustawia
+(pole we wpisie, także false, wygrywa). Bez klucza albo bez `wlaczone: true` = domyślne wyłączone. Reguła: zostan_depo.py (`domyslne`, `parsuj`).
 `przerwa` (24.10, Karol: „nadzorca ma sam robić przerwy postaci i ewentualnie zmieniać spot”): {"min": 60, "rozrzut_min": 10, "kiedy": "po_refillu" | "teraz",
 "zmien_spot": "nie" | "jesli_gracz", "gracz": "Nick", "powod": "..."}; jednorazowa (stan: wylogowano_t, do_t, gracz_wykryty, zrobione_t pisze nadzorca). Reguła i opis
 pól: przerwa.py, spec dane_tibia/SPEC_przerwa_postaci_1024.md; ustawia ją `plan_postaci.py przerwa <id> <min> [--teraz]`.
@@ -140,6 +143,8 @@ class Plan:
     def __init__(self):
         self.postacie = {}
         self.bledy = []
+        self.domyslne = None        # 25.10: klucz „domyslne” planu (zostan_depo.domyslne) albo None = wyłączone
+        self.zostan_domyslny = ZD.Zostan()      # flaga „zostań w depo” postaci BEZ wpisu w „postacie” (tylko domyślne; wyłączone = flaga False)
         self.nieczytelny = False    # cały plik nieczytelny: spot_przypiety nieznany, więc nadzorca nie zmienia żadnych spotów
 
 
@@ -174,6 +179,10 @@ def wczytaj(korzen):
         plan.bledy.append(blad)
         plan.nieczytelny = True
         return plan
+    plan.domyslne, blad_dom = ZD.domyslne(d)          # 25.10 (Karol): domyślnie każda postać w depo zostaje i jest wylogowana (włącznik: domyslne.wlaczone)
+    if blad_dom:
+        plan.bledy.append(blad_dom)
+    plan.zostan_domyslny = ZD.parsuj(None, plan.domyslne)
     for id_, pc in d["postacie"].items():
         if str(id_).startswith("_"):
             continue
@@ -183,7 +192,7 @@ def wczytaj(korzen):
         wynik = PlanPostaci()
         wynik.spot_przypiety = bool(pc.get("spot_przypiety"))
         wynik.spot_przypiety_powod = str(pc.get("spot_przypiety_powod") or "")
-        z = ZD.parsuj(pc)
+        z = ZD.parsuj(pc, plan.domyslne)
         if z.blad:
             plan.bledy.append(f"postać {id_}: {z.blad}")
         wynik.zostan = z
@@ -493,7 +502,7 @@ def wybierz_cel(korzen, id_, cel, zajete, poziom=None, tabela=None, ekwipunek=No
     alts = []
     for nazwa in sorted(tab.spoty):
         s = tab.spoty[nazwa]
-        if nazwa == cel or s.miasto != spot.miasto or tuple(s.poziom) != tuple(spot.poziom) or not s.auto or s.jaskinia in zaj_j:
+        if nazwa == cel or s.baza or s.miasto != spot.miasto or tuple(s.poziom) != tuple(spot.poziom) or not s.auto or s.jaskinia in zaj_j:   # 26.10: wariant-łącznik (s.baza) to nie zamiennik
             continue
         if s.wymaga:
             if eq is None:
@@ -663,15 +672,17 @@ def opis_planu(korzen, id_, poziom=None, teraz=None, plan=None):
     plan = plan or wczytaj(korzen)
     pc = plan.postacie.get(id_)
     if pc is None:
+        zd = plan.zostan_domyslny       # 25.10: postać bez wpisu dostaje tylko pola domyślne (gdy włączone)
         return {"kroki": [], "nastepny": None, "spot_przypiety": False, "spot_przypiety_powod": "",
-                "zostan_w_depo": False, "zostan_w_depo_powod": "", "zostan_w_depo_po_refillach": 0, "zostan_w_depo_od": "", "wyloguj_w_depo": False, "przerwa": ""}
+                "zostan_w_depo": zd.flaga, "zostan_w_depo_powod": zd.powod, "zostan_w_depo_po_refillach": 0, "zostan_w_depo_od": "",
+                "wyloguj_w_depo": zd.wyloguj, "przerwa": "", "zostan_domyslne": zd.z_domyslnych}
     kroki = [{"id": k.id, "warunek": opis_warunku(k.warunek), "akcja": opis_akcji(k.akcja), "powod": k.powod,
               "stan": stan_kroku(k, poziom, teraz), "zrobione_t": k.zrobione_t} for k in pc.kroki]
     nast = next((x for x, k in zip(kroki, pc.kroki) if not k.zrobione_t), None)
     return {"kroki": kroki, "nastepny": nast, "spot_przypiety": pc.spot_przypiety, "spot_przypiety_powod": pc.spot_przypiety_powod,
             "zostan_w_depo": pc.zostan_w_depo, "zostan_w_depo_powod": pc.zostan_w_depo_powod,
             "zostan_w_depo_po_refillach": pc.zostan_w_depo_po_refillach, "zostan_w_depo_od": pc.zostan_w_depo_od, "wyloguj_w_depo": pc.wyloguj_w_depo,
-            "przerwa": PR.opis(pc.przerwa) if pc.przerwa else ""}
+            "przerwa": PR.opis(pc.przerwa) if pc.przerwa else "", "zostan_domyslne": pc.zostan.z_domyslnych}
 
 
 # ---------- CLI ----------
@@ -749,11 +760,14 @@ def main(argv=None):
         plan = wczytaj(korzen)
         for b in plan.bledy:
             print("BŁĄD PLANU:", b)
+        if plan.domyslne is not None:       # 25.10: domyślne WŁĄCZONE (wyłączone = bez linii, wyjście jak przed 25.10)
+            print("domyślne: WŁĄCZONE (każda postać bez własnej flagi: zostaje w depo"
+                  + (", wylogowana" if plan.domyslne["wyloguj_w_depo"] else "") + (")" if plan.domyslne["zostan_w_depo"] else "; zostan_w_depo=false)"))
         for id_ in ([a.id] if a.id else sorted(plan.postacie)):
             o = opis_planu(korzen, id_, _poziom_znany(korzen, id_, teraz), teraz, plan)
             print(f"{id_}:" + (" [spot przypięty" + (f": {o['spot_przypiety_powod']}" if o["spot_przypiety_powod"] else "") + "]" if o["spot_przypiety"] else "")
                   + (" [zostaje w depo" + (f" po {o['zostan_w_depo_po_refillach']}. refillu od {o['zostan_w_depo_od'] or 'początku'}" if o["zostan_w_depo_po_refillach"] else "")
-                     + (" + wylogowanie" if o["wyloguj_w_depo"] else "") + (f": {o['zostan_w_depo_powod']}" if o["zostan_w_depo_powod"] else "") + "]" if o["zostan_w_depo"] else "")
+                     + (" + wylogowanie" if o["wyloguj_w_depo"] else "") + (f": {o['zostan_w_depo_powod']}" if o["zostan_w_depo_powod"] else "") + (" (domyślnie)" if o.get("zostan_domyslne") else "") + "]" if o["zostan_w_depo"] else "")
                   + (f" [{o['przerwa']}]" if o["przerwa"] else ""))
             for k in o["kroki"]:
                 print(f"  {k['id']}: {k['warunek']} -> {k['akcja']}  [{k['stan']}]")

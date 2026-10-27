@@ -82,9 +82,13 @@ def uruchom(argv, limit):
 
 
 def odlacz(argv, log, env=None):
-    """Długo żyjący proces (sesja.sh, podglad.sh) w osobnej sesji; wyjście do logu, nie do okna."""
-    return subprocess.Popen([str(a) for a in argv], stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
-                            env=env or srodowisko(), cwd=str(okno_api.katalog()), start_new_session=True)
+    """Długo żyjący proces (sesja.sh, Remmina) w osobnej sesji; wyjście do logu, nie do okna.
+    26.10: we własnej jednostce systemd (w_scope.sh; rodzaj: podglad dla Remminy, sesja dla reszty), nie w cgroupie okna: restart okna (retronic-okno.service)
+    zabijał wszystkie sesje gry. Wrapper robi exec: ten sam PID i cmdline, zamknięcie dalej szuka procesów po /proc."""
+    env = env or srodowisko()
+    rodzaj = "podglad" if os.path.basename(str(argv[0])) == "remmina" else "sesja"
+    return subprocess.Popen(instancja.w_scope(rodzaj, argv, env), stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                            env=env, cwd=str(okno_api.katalog()), start_new_session=True)
 
 
 def log_akcji():

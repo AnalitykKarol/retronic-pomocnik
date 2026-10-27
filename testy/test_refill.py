@@ -95,7 +95,7 @@ sprawdz("2p zakończony przebieg: ukończone puste", S(dziala=False)["serwis_uko
 
 # ---------------------------------------------------------------- 3. refill.sh w atrapie
 SAND = tmp / "pomocnik"; SAND.mkdir()
-for f in ("refill.sh", "instancja.py"):
+for f in ("refill.sh", "instancja.py", "w_scope.sh"):
     shutil.copy(KAT / f, SAND / f)
 BIN = tmp / "bin"; BIN.mkdir()
 (BIN / "notify-send").write_text("#!/bin/bash\necho \"$@\" >> \"%s/powiadomienia.txt\"\n" % tmp)

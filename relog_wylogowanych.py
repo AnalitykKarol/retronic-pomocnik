@@ -29,6 +29,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(DIR))
+import instancja  # noqa: E402
 import wylogowanie  # noqa: E402
 RELOG_CZEKAJ_MIN = 10                 # tyle po wylogowaniu (po resecie: po godzinie resetu) czeka postać
 RESET_SERWERA = (10, 0)               # godzina resetu serwera (zmierzone 23.10)
@@ -359,7 +360,9 @@ def uruchom_kolejke_w_tle(korzen=None):
     if kolejka_dziala(korzen):
         return False, "kolejka relogów już trwa"
     try:
-        subprocess.Popen([sys.executable, "-I", str(DIR / "relog_wylogowanych.py"), "kolejka"], cwd=str(DIR), stdin=subprocess.DEVNULL,
+        # 26.10: własna jednostka systemd (w_scope.sh), żeby kolejka nie umierała z cgroupem, z którego wystartowała
+        subprocess.Popen(instancja.w_scope("kolejka", [sys.executable, "-I", str(DIR / "relog_wylogowanych.py"), "kolejka"]),
+                         cwd=str(DIR), stdin=subprocess.DEVNULL,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     except OSError as e:
         return False, str(e)

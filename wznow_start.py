@@ -11,7 +11,10 @@ Zasada: ZANIM mozg.main puści dojście, pyta tego modułu, czy jest przerwana w
 (<= WZNOW_ODL pól). Wznowienie się nie udało (poza planem, powód nieaktualny, zbyt wiele prób) = wszystko jak
 dotąd: dojście od najbliższego punktu (`mozg.dojscie_od_pozycji`), a na spocie bez dojścia (`mozg.DOJSCIE_POMIN_ODL`).
 
-Czysta logika, bez ruchu w grze. Pokrętła: `RETRONIC_WZNOW_START=0` w środowisku wyłącza całość (stare zachowanie)."""
+Czysta logika, bez ruchu w grze. Wyłączniki (każdy z dwóch wystarcza, stare zachowanie): `RETRONIC_WZNOW_START=0` w środowisku
+startu oraz pokrętło `WZNOW_START` (0/1, domyślnie 1) w na_zywo.json instancji (26.10, Karol, test na Odchydzie: „niech zawsze
+zaczyna od tego miejsca”). Pokrętło 0 = nie wznawiamy, a stary zapis przerwanej wyprawy jest ZAMYKANY (wynik
+`anulowana_pokretlo`), żeby nie wrócił przy kolejnym starcie; bot idzie zwykłą logiką startu (dojście/od bieżącej pozycji)."""
 import os
 import time
 from pathlib import Path
@@ -21,6 +24,21 @@ WZNOW_START_MAX_S = 4 * 3600          # s od ostatniego zapisu stanu wyprawy: st
 WZNOW_START_RECZNY_BLAD_S = 1800      # s: ręczne „Wróć do miasta”, które skończyło się błędem, wznawiamy tylko krótko po nim
 WZNOW_START_PROB = 3                  # tyle wznowień po starcie w oknie WZNOW_START_OKNO_S; potem dojście jak dotąd
 WZNOW_START_OKNO_S = 2 * 3600         # (pętla restart -> to samo zacięcie -> STOP -> nadzorca restart nie może trwać w nieskończoność)
+
+
+POKRETLO = "WZNOW_START"
+
+
+def pokretlo(plik=None):
+    """Pokrętło WZNOW_START z na_zywo.json instancji (czytane przy starcie, bo hook w mozg.main działa PRZED budową cavebota
+    i jego hot-reloadem). 1 = wznawiaj (domyślnie), 0 = nie. Brak pliku/klucza, zły typ lub wartość poza ZAKRESY = 1
+    (tak samo `pokretla.waliduj` odrzuca takie wartości i zostaje domyślna)."""
+    import pokretla  # noqa: PLC0415
+    dane = _json(pokretla.PLIK if plik is None else plik)
+    if POKRETLO not in dane:
+        return 1
+    ok, _bledy = pokretla.waliduj({POKRETLO: dane[POKRETLO]})
+    return 1 if POKRETLO not in ok else (0 if ok[POKRETLO] == 0 else 1)
 
 
 def _json(plik):
@@ -103,15 +121,41 @@ def powod_aktualny(wyprawa, st):
     return False, f"blanki {ile} >= próg {prog}: powód wyprawy już nie zachodzi"
 
 
-def sprobuj(wyprawa, log=print, teraz_wall=None):
+def sprobuj(wyprawa, log=print, teraz_wall=None, plik_pokretel=None):
     """Próbuje wznowić przerwaną wyprawę od BIEŻĄCEJ pozycji (Wyprawa._wznow). True = wyprawa działa (stan WYPAD,
     pierwszy obieg ją poprowadzi), mozg.main pomija wtedy dojście i test „na spocie”. False = nic się nie zmienia
     (stan wyprawy cofnięty tak, by nie skracać karencji nieudanej wyprawy), main idzie starą ścieżką."""
     if not WLACZONE or wyprawa is None or not hasattr(wyprawa, "_wznow") or not hasattr(wyprawa, "plik_stanu"):
         return False
     teraz_w = float(wyprawa.czas() if teraz_wall is None else teraz_wall)
+    # 26.10 (PK_RESET_PO_ZGONIE): zgon sprzed startu = wyprawa PK (ucieczka do depo / powrót na spot) jest nieaktualna: cavebot
+    # rozpoznaje zgon z danych na dysku (pk_zgon.py), zeruje karencję i zamyka zapis wyprawy PK; zwykłych wypraw to nie dotyczy.
+    zgon = (False, "")
+    fn = getattr(getattr(wyprawa, "cb", None), "_pk_zgon_start", None)
+    if callable(fn):
+        try:
+            zgon = fn()
+        except Exception as e:             # noqa: BLE001
+            import bot  # noqa: PLC0415
+            if isinstance(e, bot.Zatrzymano):
+                raise
+            log(f"Start: rozpoznanie zgonu nie powiodło się ({e!r}), bez resetu PK.")
     st = wyprawa._stan_czytaj()
+    if zgon[0] and (st.get("potrzeby") or {}).get("pk") and (st.get("aktywna") or st.get("wynik") == "blad"):
+        log(f"Start: wyprawa PK z zapisu odrzucona po zgonie postaci ({zgon[1]}): nie wznawiam, dojście od bieżącej pozycji.")
+        return False
     rodzaj, opis = kandydat(st, teraz_w)
+    if pokretlo(plik_pokretel) == 0:
+        # 26.10 WZNOW_START=0: bez wznowienia; zapis przerwanej wyprawy zamykamy (nie wróci przy kolejnym starcie).
+        # Karencji (nast_wall) i reszty zapisu nie ruszamy; zamykamy tylko wyprawę w toku/przerwaną/kandydata.
+        if rodzaj is not None or st.get("aktywna") or st.get("przerwana"):
+            wyprawa._stan_zapisz(aktywna=False, przerwana=False, faza=None, wynik="anulowana_pokretlo", zapis_wall=teraz_w,
+                                 opis="pokrętło WZNOW_START=0: start od bieżącej pozycji, zapis przerwanej wyprawy zamknięty")
+            log(f"Start: pokrętło WZNOW_START=0: NIE wznawiam przerwanej wyprawy ({opis}), zapis zamknięty; "
+                "zwykła logika startu (dojście/od bieżącej pozycji).")
+        else:
+            log(f"Start: pokrętło WZNOW_START=0, wyprawy do wznowienia i tak brak ({opis}).")
+        return False
     if rodzaj is None:
         log(f"Start: wyprawy do wznowienia brak ({opis}).")
         return False

@@ -10,6 +10,9 @@ Co robi cavebot, gdy flaga istnieje (cavebot.py: `Cavebot._stoj_*`):
     wraca (jak `stanowisko.py`: „nie da się go przesunąć"). Pole leży w pliku flagi (JSON), więc przeżywa restart bota;
   * nadzor.py nie liczy stania za zawieszenie (`zaciecie`), a strażniki/zwiecha/ratunek są wyłączone.
 Wyłączenie: bot wraca do zwykłej pracy od najbliższego punktu trasy.
+Opcjonalnie (24.10, pokrętło `STOJ_GRACZ_WYLOGUJ_ODL` w na_zywo.json, domyślnie 0 = wył.): obcy gracz (nie NPC, nie nasza postać)
+bliżej niż N pól przez 2 odczyty = koniec run, wylogowanie Ctrl+L, STOP + STOP_RECZNY i koniec bota (stoj_obcy.py). Nie jest
+ustawiane ani cofane przez `on`/`off`: włącza je Karol osobno (`python3 -I okno_api.py ustaw --instancja <id> STOJ_GRACZ_WYLOGUJ_ODL=3`).
 
 Start „tu i teraz" (23.10, Karol: „żeby w tym trybie od razu stał w miejscu, w którym go włączam, żeby nie potrzebował mapy i żeby
 odpisywał, jadł automatycznie"). `./stoj.sh <id> on` działa w trzech przypadkach:

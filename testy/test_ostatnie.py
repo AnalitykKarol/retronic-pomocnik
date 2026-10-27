@@ -238,6 +238,30 @@ def test_zmiana_mapy_resetuje_na_spocie_od():
     assert d["mapa"] == "b" and d["na_spocie_od"] == 1070.0, d
 
 
+def test_nowe_wejscie_do_gry_nie_przejmuje_wczorajszego_na_spocie_od():
+    """27.10: `w_grze` odświeża `w_grze_t` i `sesja.start`, ale zostawiało stare `na_spocie_od`; nowy bot na tej samej mapie je przejmował."""
+    s = stan_dir(tmpdir())
+    (s.parent.parent / "ostatni_start.x.env").write_text("MAPA=a\nTRYB=x\n")
+    p = pisarz(s, Zegar())
+    p.tik(1000.0, G, (1, 2, 3), "WYPAD", "A", sesja())
+    assert wczytaj(s)["na_spocie_od"] == 1000.0
+    ostatnie.zdarzenie_logowania(s.parent / "logi", "zaloguj", "w_grze", {"zalogowany": "A", "oczekiwany": "A"}, t=90000.0)   # następny dzień
+    p2 = pisarz(s, Zegar())                                               # nowy proces bota, ta sama mapa, w_grze_t świeże (< 180 s)
+    p2.tik(90030.0, G, (1, 2, 3), "WYPAD", "A", sesja())
+    assert wczytaj(s)["na_spocie_od"] == 90030.0, wczytaj(s)
+
+
+def test_restart_bota_w_tej_samej_sesji_zachowuje_na_spocie_od():
+    s = stan_dir(tmpdir())
+    (s.parent.parent / "ostatni_start.x.env").write_text("MAPA=a\nTRYB=x\n")
+    ostatnie.zdarzenie_logowania(s.parent / "logi", "zaloguj", "w_grze", {"zalogowany": "A", "oczekiwany": "A"}, t=900.0)
+    p = pisarz(s, Zegar())
+    p.tik(1000.0, G, (1, 2, 3), "WYPAD", "A", sesja())
+    p2 = pisarz(s, Zegar())                                               # restart samego bota: sesja gry ta sama
+    p2.tik(1060.0, G, (1, 2, 3), "WYPAD", "A", sesja())
+    assert wczytaj(s)["na_spocie_od"] == 1000.0, wczytaj(s)
+
+
 def test_alarm_zapisuje_natychmiast_i_trwale():
     s = stan_dir(tmpdir())
     z = Zegar(5000.0)

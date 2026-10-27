@@ -235,7 +235,7 @@ sprawdz("5g domyślna kolejność w danych to pełna lista z bankiem na początk
 
 # --- 6. wybór miasta w serwis.py: Edron domyślnie bez zmian --------------------------------------------------------------
 
-sprawdz("6a plany serwisu: abdendriel (24.10), edron i thais", S.miasta() == ["abdendriel", "edron", "thais"], S.miasta())
+sprawdz("6a plany serwisu: abdendriel (24.10), edron, port_hope (25.10) i thais", S.miasta() == ["abdendriel", "edron", "port_hope", "thais"], S.miasta())
 sprawdz("6b bez argumentu i bez pozycji = edron (zachowanie sprzed K3)", S.wybierz_miasto(None) == "edron" and S.wybierz_miasto("edron") == "edron")
 sprawdz("6c thais jawnie", S.wybierz_miasto("thais") == "thais")
 e = zglasza(lambda: S.wybierz_miasto("rook"))
@@ -272,8 +272,8 @@ sprawdz("8c panel: jaskinia trolli z8 i Rook poza miastem", panel.miasto_pozycji
         and panel.miasto_pozycji((32061, 32180, 7), panel.dane_serwisu())[0] is None)
 sprawdz("8d panel: sklep Xodeta (32400,32220,7) to Thais, ale nie przy depo", panel.miasto_pozycji((32400, 32220, 7), panel.dane_serwisu()) == ("thais", False))
 import refill_auto
-sprawdz("8e refill_auto zna Thais (MIASTA_SERWISU = edron, thais, abdendriel): przybycie wyprawy = (thais, przy depo)",
-        refill_auto.MIASTA_SERWISU == ("edron", "thais", "abdendriel") and refill_auto.miasto_serwisu(PRZYB) == ("thais", True))
+sprawdz("8e refill_auto zna Thais (MIASTA_SERWISU = edron, thais, abdendriel, port_hope): przybycie wyprawy = (thais, przy depo)",
+        refill_auto.MIASTA_SERWISU == ("edron", "thais", "abdendriel", "port_hope") and refill_auto.miasto_serwisu(PRZYB) == ("thais", True))
 tmp = tempfile.mkdtemp(prefix="k3_thais_")
 wywolania = []
 st1 = refill_auto.zlec(PRZYB, tmp, start=lambda: wywolania.append(1), procesy=lambda *a, **k: [])

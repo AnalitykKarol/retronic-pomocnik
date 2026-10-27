@@ -90,6 +90,16 @@ def srodowisko(id_=None, bazowe=None):
     return env
 
 
+def w_scope(rodzaj, argv, env=None):
+    """26.10: polecenie `argv` (długo żyjący proces gry/bota) owinięte w w_scope.sh: własna jednostka systemd zamiast cgroupa wywołującego
+    (okno, nadzór, powłoka). Wrapper robi exec, więc PID, cmdline i środowisko procesu są te same. Bez owijania (argv bez zmian):
+    RETRONIC_BEZ_SCOPE=1 i RETRONIC_TESTY=1 (w `env`, domyślnie os.environ). Opis i cofnięcie: w_scope.sh."""
+    e = os.environ if env is None else env
+    if e.get("RETRONIC_BEZ_SCOPE") == "1" or e.get("RETRONIC_TESTY") == "1":
+        return [str(a) for a in argv]
+    return [str(KATALOG / "w_scope.sh"), rodzaj] + [str(a) for a in argv]
+
+
 # --- identyfikacja procesów po RETRONIC_ID w /proc/<pid>/environ ----------------------------------
 
 def id_z_environ(surowe):

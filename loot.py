@@ -477,12 +477,43 @@ def kontenery_z_pamieci():
     return kontenery, None
 
 
+SLOT_EKWIPUNKU_PLECAK = 3        # slot ekwipunku Tibii z plecakiem (kontenery.py)
+
+
+def rola_strukturalna(kontener):
+    """27.10 (Karol: „jeden jest na zewnątrz, jeden wewnątrz, przecież ma dostęp do tych informacji”): rola z POŁOŻENIA okna, a nie z zawartości.
+    "plecak": kontener leży w slocie plecaka ekwipunku (`rodzic` = ekwipunek, slot 3: „na zewnątrz”);
+    "runy": kontener otwarty z wnętrza tego plecaka (`rodzic` = kontener z `w_ekwipunku` = 3: „wewnątrz”), chyba że nie ma w nim runów
+    za to są przedmioty obce (zwykły bag z lootem, nie wiemy, czy to pojemnik na runy);
+    None: brak pola `rodzic` (stary rdzeń/atrapa), rodzic nieznany albo układ nie jest jednoznaczny (kilka plecaków w ekwipunku, zwłoki,
+    depo, runy poza plecakiem) - wtedy działają dawne reguły z nazwy/ID/zawartości (czy_plecak, czy_runy niżej)."""
+    r = kontener.get("rodzic")
+    if not isinstance(r, dict):
+        return None
+    if r.get("typ") == "ekwipunek" and r.get("slot") == SLOT_EKWIPUNKU_PLECAK:
+        return "plecak"
+    if r.get("typ") == "kontener" and r.get("w_ekwipunku") == SLOT_EKWIPUNKU_PLECAK:
+        ids = {q.get("id") for q in kontener.get("przedmioty", [])}
+        obce = ids - (ID_RUN_W_POJEMNIKU | ID_TARCZ_W_POJEMNIKU | ID_MONET_W_POJEMNIKU)
+        if obce and not (ids & ID_RUN_W_POJEMNIKU):
+            return None
+        return "runy"
+    return None
+
+
 def czy_plecak(kontener):
+    s = rola_strukturalna(kontener)
+    if s is not None:
+        return s == "plecak"
     return kontener.get("id") in ID_PLECAKOW or (kontener.get("nazwa") or "").casefold() in PLECAKI
 
 
 def czy_runy(kontener):
-    """Pojemnik na runy (ID_POJEMNIKOW_RUN albo nazwa zaczynająca się od NAZWY_POJEMNIKOW_RUN)."""
+    """Pojemnik na runy: najpierw położenie okna (rola_strukturalna), potem ID_POJEMNIKOW_RUN / nazwa zaczynająca się od
+    NAZWY_POJEMNIKOW_RUN / zawartość (dawne reguły, gdy położenia nie da się ustalić)."""
+    s = rola_strukturalna(kontener)
+    if s is not None:
+        return s == "runy"
     if (kontener.get("id") in ID_POJEMNIKOW_RUN
             or (kontener.get("nazwa") or "").casefold().startswith(NAZWY_POJEMNIKOW_RUN)):
         return True
@@ -1038,17 +1069,47 @@ def blanki_i_miejsce(ids=tuple(sorted(ID_RUN_W_POJEMNIKU))):
     return ile, wolne
 
 
-def przenies_do_runow(ids=tuple(sorted(ID_RUN_W_POJEMNIKU)), maks=30, log=print):
+def powod_braku_przenoszenia_runow(ids, kontenery=None):
+    """Z pamięci klienta (bez zrzutu i myszy): powód, dla którego przenoszenie run do pojemnika nie ma sensu, albo None (próbuj albo nie wiadomo).
+    Rozstrzyga tylko, gdy role są jednoznaczne: pojemnik na runy bez ani jednego wolnego pola (pojemność minus zajęte sloty) albo
+    plecak (bez pojemnika na runy) bez żadnej runy/blanku z `ids`. Brak odczytu pamięci albo niejednoznaczne role = None (decyduje dalej plan z ekranu)."""
+    if kontenery is None:
+        kontenery, _ = kontenery_z_pamieci()
+    if not kontenery:
+        return None
+    runy = [k for k in kontenery if czy_runy(k)]
+    plecaki = [k for k in kontenery if czy_plecak(k) and not czy_runy(k)]
+    if len(runy) == 1:
+        k = runy[0]
+        poj = int(k.get("pojemnosc", 0) or 0)
+        zajete = {q.get("slot") for q in k.get("przedmioty", [])}
+        if not [i for i in range(poj) if i not in zajete]:
+            return f"brak wolnego pola w pojemniku na runy ({len(k.get('przedmioty', []))}/{poj}), zostawiam"
+    if len(plecaki) == 1 and runy:
+        if not any(q.get("id") in ids for q in plecaki[0].get("przedmioty", [])):
+            return "w plecaku łupu nie ma blanków ani run do przeniesienia"
+    return None
+
+
+def przenies_do_runow(ids=tuple(sorted(ID_RUN_W_POJEMNIKU)), maks=30, log=print, plan_fn=None):
     """Przenosi runy (domyślnie blanki i gotowe runy: ID_RUN_W_POJEMNIKU) z głównego plecaka do pojemnika na runy
     (drugi bag, tylko z runami): drag z slotu na pierwszy wolny widoczny slot. Zwraca liczbę przeniesionych sztuk.
-    Bez otwartego pojemnika na runy (albo bez wolnego widocznego slotu) nic nie robi."""
+    Bez otwartego pojemnika na runy (albo bez wolnego widocznego slotu) nic nie robi.
+    `plan_fn(obraz, lista)` (27.10, blanki_start.py): podmiana odczytu planu, domyślnie `plan`; służy do rozstrzygnięcia układu
+    „dwa okna uznane za runy” (plecak łupu w większości z blanków)."""
     ruszono = 0
+    # 27.10 (Karol: „dane o ilości wolnych pól ma bezpośrednio”): decyzja „czy w ogóle ma sens” z PAMIĘCI klienta, zanim zrobimy zrzut
+    # albo ruszymy myszą; ekran zostaje do współrzędnych slotów i do sprawdzenia, które sloty są widoczne w oknie
+    powod = powod_braku_przenoszenia_runow(ids)
+    if powod:
+        log(f"przenoszenie run: {powod}")
+        return 0
     straz = _straznik(log)
     with ekran.Mysz() as mysz:
         for _ in range(maks):
             bot.sprawdz_stop()
             obraz = _zrzut(mysz)
-            p = plan(obraz, [])
+            p = (plan_fn or plan)(obraz, [])
             plecak, runy = p.get("plecak"), p.get("runy")
             if plecak is None or plecak.kontener is None or runy is None or runy.kontener is None:
                 log("przenoszenie run: nie widzę plecaka albo pojemnika na runy (otwarte oba okna)")

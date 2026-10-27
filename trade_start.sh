@@ -55,7 +55,7 @@ python3 -I "$DIR/trade_sklep.py" wlacz || exit 1
 [ "$USUN_STOP" = 1 ] && rm -f "$INST_STOP" "$INST_STOP_RECZNY"
 mkdir -p "$INST_LOGI"
 LOG="$INST_LOGI/mozg-stdout-trade-$(date +%m%d-%H%M).log"
-RETRONIC_TELEMETRIA=1 setsid nohup python3 -I -u mozg.py --tryb skrypt --model haiku --trasa stoj_trade --potwory "Troll,Bear,Swamp Troll,Frost Troll,Rat" --prog-hp 30 --bez-ruchu > "$LOG" 2>&1 < /dev/null &
+RETRONIC_TELEMETRIA=1 setsid nohup "$DIR/w_scope.sh" bot python3 -I -u mozg.py --tryb skrypt --model haiku --trasa stoj_trade --potwory "Troll,Bear,Swamp Troll,Frost Troll,Rat" --prog-hp 30 --bez-ruchu > "$LOG" 2>&1 < /dev/null &
 sleep 3
 p=$(python3 -I "$DIR/instancja.py" pidy 'mozg\.py .*--bez-ruchu' | tr '\n' ' ')
 if [ -z "$p" ]; then

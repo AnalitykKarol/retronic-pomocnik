@@ -300,7 +300,7 @@ sprawdz("3j panel.py --json zawiera pola wroc_refill i wroc_refill_komunikat obo
 
 # ---------------------------------------------------------------- 4. skrypty w atrapie katalogu: czekacz → refill.sh --tlo, --przerwij, wroc.sh --anuluj
 SAND = tmp / "pomocnik"; SAND.mkdir()
-for f in ("refill.sh", "wroc.sh", "instancja.py", "refill_auto.py", "zostan_depo.py", "przerwa.py"):
+for f in ("refill.sh", "wroc.sh", "instancja.py", "refill_auto.py", "zostan_depo.py", "przerwa.py", "w_scope.sh"):
     shutil.copy(KAT / f, SAND / f)
 BIN = tmp / "bin"; BIN.mkdir()
 (BIN / "notify-send").write_text("#!/bin/bash\necho \"$@\" >> \"%s/powiadomienia.txt\"\n" % tmp); (BIN / "notify-send").chmod(0o755)

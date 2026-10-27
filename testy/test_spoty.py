@@ -270,6 +270,71 @@ def test_pomocnicze_ekwipunek_i_lopata():
     assert not SP.wymaga_lopaty([(10, 10, 8), (11, 10, 7)], {(11, 11, 7)}), "tylko przejście w dół"
 
 
+# ---------------------------------------------------------------- 26.10 ~12:00: dojście z dowolnego piętra jaskini (warianty-łączniki, ocena z pozycji)
+def _petla(n):
+    return SP.punkty_trasy(KORZEN, TAB.spoty[n].trasa)
+
+
+def _kody(r):
+    return {m: k for m, k, _ in r["odrzucone"]}
+
+
+def test_wariant_zamiast_bazy_gdy_dojscie_bazy_nie_dziala_z_tego_piatra():
+    poz = _petla("trolle_edron_z9z")[0]                    # (33081, 31742, 9): zachodnia jaskinia z9, pętla trolle_edron_z9z
+    r = SP.wybierz(edron(20, poz=poz), (), [], TAB, ziarno="t", wyklucz_mapy=("trolle_edron_z9z",), rodzina_z="trolle_edron_z9z")
+    k = _kody(r)
+    assert r["rodzina"] is True and r["mapa"] in r["kandydaci"], r
+    assert set(r["kandydaci"]) == {"trolle_edron__z__trolle_edron_z9z", "trolle_edron_patrol__z__trolle_edron_z9z", "trolle_edron_z9w__z__trolle_edron_z9z"}, r["kandydaci"]
+    assert TAB.spoty[r["mapa"]].baza and TAB.spoty[r["mapa"]].auto, "wybrany jest wariant-łącznik z auto jak baza"
+    # bazy z dojściem tylko z z7 odrzucone, bo z tego miejsca ich dojście nie działa (punkt dojścia > 60 pól drogi albo przez z7)
+    assert k["trolle_edron"] == k["trolle_edron_z9w"] == "pietro", k
+    assert k["trolle_edron_z9z__z__trolle_edron_z9w"] == "pietro" or k["trolle_edron_z9z__z__trolle_edron_z9w"] == "wykluczony", k
+
+
+def test_baza_zamiast_wariantu_gdy_dojscie_bazy_dziala():
+    poz = _petla("trolle_edron")[0]                        # z8 w jaskini trolli: dojście z8 -> z9 działa bez łączników
+    r = SP.wybierz(edron(20, poz=poz), (), [], TAB, ziarno="t", wyklucz_mapy=("trolle_edron",), rodzina_z="trolle_edron")
+    assert r["rodzina"] is True and not any(TAB.spoty[m].baza for m in r["kandydaci"]), r["kandydaci"]
+    assert {"trolle_edron_z9w", "trolle_edron_z9z"} <= set(r["kandydaci"]), r["kandydaci"]
+    k = _kody(r)
+    warianty_dzialajacych = [m for m, sp in TAB.spoty.items() if sp.baza in ("trolle_edron_z9w", "trolle_edron_z9z") and m not in ("trolle_edron",)]
+    assert warianty_dzialajacych and all(k[m] in ("wariant", "wykluczony") for m in warianty_dzialajacych), {m: k[m] for m in warianty_dzialajacych}
+
+
+def test_z7_bez_zmian_warianty_niepotrzebne():
+    r = SP.wybierz(edron(20), (), [], TAB, ziarno="t")
+    assert r["mapa"] and not TAB.spoty[r["mapa"]].baza and not any(TAB.spoty[m].baza for m in r["kandydaci"]), r
+    assert all(k == "wariant" for m, k in _kody(r).items() if TAB.spoty[m].baza and TAB.spoty[TAB.spoty[m].baza].auto), _kody(r)
+
+
+def test_jeden_wariant_na_baze_i_wykluczona_baza_wyklucza_warianty():
+    poz = _petla("trolle_edron_z10w")[0]
+    r = SP.wybierz(edron(20, poz=poz), (), [], TAB, ziarno="t", wyklucz_mapy=("trolle_edron_z10w",), rodzina_z="trolle_edron_z10w")
+    baze = [TAB.spoty[m].baza for m in r["kandydaci"] if TAB.spoty[m].baza]
+    assert len(baze) == len(set(baze)) and baze, r["kandydaci"]
+    r2 = SP.wybierz(edron(20, poz=poz), (), [], TAB, ziarno="t", wyklucz_mapy=("trolle_edron_z10w", "trolle_edron"), rodzina_z="trolle_edron_z10w")
+    assert not any((TAB.spoty[m].baza or m) == "trolle_edron" for m in r2["kandydaci"]), r2["kandydaci"]
+    assert _kody(r2)["trolle_edron__z__trolle_edron_z10w"] == "wykluczony", _kody(r2)
+
+
+def test_ocena_dojscia_pozycja_i_granice():
+    base = TAB.spoty["trolle_edron_z9w"]
+    ok, _ = SP.dojscie_dziala_z(base, _petla("trolle_edron_z9w")[0])
+    assert ok is True, "przy własnej pętli (<= DOJSCIE_POMIN_ODL) mozg pomija dojście: działa"
+    ok, powod = SP.dojscie_dziala_z(base, _petla("trolle_edron_z9z")[0])
+    assert ok is False and "z9" in powod, (ok, powod)
+    ok, powod = SP.dojscie_dziala_z(TAB.spoty["trolle_edron"], (33100, 31760, 9))
+    assert ok is None and "przechodnim" in powod, "pole niechodliwe w mapie klienta: nie da się ocenić, zostaje flaga"
+    bez = SP.Spot("x")
+    assert SP.dojscie_dziala_z(bez, (1, 2, 9))[0] is None
+
+
+def test_wariant_nie_jest_zamiennikiem_w_plan_postaci():
+    import plan_postaci as PP
+    mapa, _ = PP.wybierz_cel(KORZEN, "x", "trolle_edron_z9z", ("trolle_edron_z9z",), poziom=20, tabela=TAB, ekwipunek={"lina": True, "lopata": True})
+    assert mapa is None or not TAB.spoty[mapa].baza, mapa
+
+
 def test_cli_bez_zapisu_i_bez_bytecode():
     przed = {p.name for p in KORZEN.glob("__pycache__/*")} if (KORZEN / "__pycache__").is_dir() else set()
     r = subprocess.run([sys.executable, "-I", str(KORZEN / "spoty.py"), "sprawdz"], capture_output=True, text=True, timeout=60)

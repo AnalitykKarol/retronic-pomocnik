@@ -56,7 +56,8 @@ import spotkania_graczy_raport as R  # noqa: E402
 
 ODSWIEZ_S = float(os.environ.get("RETRONIC_POWIADOM_OBCY_ODSWIEZ_S", "1.0"))
 LIMIT_H = 60                                          # dymków/h w tym procesie (powiadom.LIMIT_H = 20 zgubiłby je przy ruchliwym spocie)
-ROZGRZEWKA_S = SG.PRZERWA_S + 120                     # tyle telemetrii wstecz przechodzi przez detektor bez dymków (start czytnika)
+DYMEK_MS = 30000                                      # 26.10 (Karol: dymek znikał przed kliknięciem): 30 s = maksimum, które honoruje powłoka Omarchy (low: min 5 s, max 30 s)
+ROZGRZEWKA_S = SG.PRZERWA_S + 120                    # tyle telemetrii wstecz przechodzi przez detektor bez dymków (start czytnika)
 ROZGRZEWKA_BAJTY = 4_000_000                          # i tyle bajtów z końca pliku (próbka ~0,5-1 KB, 1 próbka/s)
 STARE_S = 120                                         # próbka starsza niż tyle (względem zegara) nie daje dymka
 OKNA_TTL_S = 3.0                                      # jak długo trzymamy wynik okna_dojscia (czytanie logów bota tylko, gdy jest kandydat)
@@ -361,7 +362,7 @@ def petla(s, ja, zegar=time.time, spij=time.sleep, powiadamiacz=None, auto=False
     logi = Path(s.logi)
     logi.mkdir(parents=True, exist_ok=True)
     pw = powiadamiacz or powiadom.Powiadamiacz(
-        uruchom=_notify_z_env(), zegar=zegar, limit_h=LIMIT_H)
+        uruchom=_notify_z_env(), zegar=zegar, limit_h=LIMIT_H, czas_ms=DYMEK_MS)
 
     def log(t):
         with open(logi / f"powiadom-obcy-{time.strftime('%Y%m%d', time.localtime(zegar()))}.log", "a") as f:

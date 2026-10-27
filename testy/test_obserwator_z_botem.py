@@ -70,7 +70,7 @@ sprawdz("zły argument: zwraca 0, nie woła obserwatora", r.returncode == 0 and 
 # uruchom.sh / zatrzymaj.sh: wołają wrapper, po starcie bota / po zatrzymaniu
 u = (R / "uruchom.sh").read_text().splitlines()
 iu = [i for i, l in enumerate(u) if "obserwator_z_botem.sh" in l and not l.lstrip().startswith("#")]
-ib = [i for i, l in enumerate(u) if "setsid nohup python3" in l]
+ib = [i for i, l in enumerate(u) if "setsid nohup" in l and "mozg.py" in l]
 sprawdz("uruchom.sh: 'obserwator_z_botem.sh start' po wystartowaniu bota", len(iu) == 1 and ib and iu[0] > ib[0] and u[iu[0]].strip().endswith("start"), (iu, ib))
 z = (R / "zatrzymaj.sh").read_text()
 sprawdz("zatrzymaj.sh: NIE zatrzymuje obserwatora (po STOP nagrywa przejęcia Karola)",

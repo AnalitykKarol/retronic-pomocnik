@@ -50,7 +50,7 @@ MP = _mapa.mapa()
 DEPO = tuple(GP.DEPO_STOI)
 DRZWI_A, DRZWI_B = (32658, 31645, 9), (32655, 31655, 9)
 KLUCZ = 2970
-WYJSCIE = (32675, 31633, 9)
+WYJSCIE = (32658, 31644, 9)
 
 # --- 1. generator ---------------------------------------------------------------------------------------------------------
 
@@ -81,8 +81,12 @@ sprawdz("2d depo.stoi = GP.DEPO_STOI (jedno źródło, ZASTĘPCZE), pierwsze w d
         tuple(P["depo"]["stoi"]) == DEPO == tuple(DANE["depo_stoiska"][0]) and all(G.chodliwe(MP, tuple(s)) for s in DANE["depo_stoiska"])
         and all(DANE["depo_sala"][0] <= s[0] <= DANE["depo_sala"][2] and DANE["depo_sala"][1] <= s[1] <= DANE["depo_sala"][3] and s[2] == DANE["depo_sala"][4]
                 for s in DANE["depo_stoiska"]))
-sprawdz("2e wyjście = pierwszy punkt dojścia abdendriel_z9_do_z10, ZA obojgiem drzwi (z9)",
-        tuple(DANE["wyjscie"]) == WYJSCIE == tuple(json.loads((KAT / "trasy" / "abdendriel_z9_do_z10.json").read_text())[0]))
+_doj = [tuple(q) for q in json.loads((KAT / "trasy" / "abdendriel_depo_do_z10.json").read_text())]
+_dm = json.loads((KAT / "trasy" / "abdendriel_depo_do_z10.meta").read_text())["specjalne"]
+_idx_drzwi = [e["idx"] for e in _dm if e["typ"] == "drzwi"]
+sprawdz("2e wyjście serwisu LEŻY NA dojściu abdendriel_depo_do_z10 (jedna droga), ZA obojgiem drzwi (z9), i = GP.WYJSCIE_SERWISU",
+        tuple(DANE["wyjscie"]) == WYJSCIE == tuple(GP.WYJSCIE_SERWISU) and WYJSCIE in _doj and len(_idx_drzwi) == 2
+        and _doj.index(WYJSCIE) > max(_idx_drzwi), f"idx wyjścia={_doj.index(WYJSCIE) if WYJSCIE in _doj else None} drzwi={_idx_drzwi}")
 zrodlo = {tuple(d): int(k) for p in wyprawa.PLANY_PK for d, k in (p.get("klucze") or ())}
 sprawdz("2f drzwi_klucz: jedno źródło kluczy (GP.KLUCZE_DRZWI = wyprawa.PLANY_PK['klucze']), dwoje drzwi, klucz 2970",
         S.klucze_drzwi(DANE) == zrodlo == {DRZWI_A: KLUCZ, DRZWI_B: KLUCZ} == {tuple(d): int(k) for d, k in GP.KLUCZE_DRZWI}, S.klucze_drzwi(DANE))

@@ -4227,6 +4227,16 @@ def main(argv):
         raise
     except Exception as e:      # noqa: BLE001
         log(f"Okna po starcie: kontrola pominięta ({e!r})")
+    # 27.10 (Karol: „dopiszmy to, żebym nie musiał tego robić”, spec N9a): blanki z głównego plecaka do pojemnika na runy raz na start
+    # procesu (blanki_start.py; woła loot.przenies_do_runow). Tylko UH_AKTYWNY=1, oba okna w pamięci, wolne pole, spokój w widoku.
+    # RETRONIC_BLANKI_START=0 / plik BLANKI_START_OFF wyłącza. Nigdy nie przerywa startu.
+    try:
+        import blanki_start  # noqa: PLC0415
+        blanki_start.przy_starcie(postac, log, bez_ruchu=a.bez_ruchu)
+    except bot.Zatrzymano:
+        raise
+    except Exception as e:      # noqa: BLE001
+        log(f"Blanki na starcie: pominięto ({e!r})")
     # 22.10 (Karol: „po restarcie kontynuuj od momentu, w którym jesteś”): przerwana wyprawa (depo/refill/WROC), której powód
     # nadal zachodzi, jest wznawiana od BIEŻĄCEJ pozycji (wznow_start.sprobuj -> Wyprawa._wznow); bez dojścia na spot.
     # Nie da się = nic się nie zmienia (niżej: na spocie bez dojścia, w połowie dojścia od najbliższego punktu, w mieście dojście).
