@@ -224,7 +224,7 @@ WAGI_DOMYSLNE = _wagi_domyslne()
 ID_BLANK = {3147}
 SKRZYNIA_DEPO = (32343, 32225, 7)    # skrzynia w boksie depo (13.10): korytarz x=32343, y=32226..32227, skrzynia na jego końcu
 POLE_ZLOZ_DEPO = (32343, 32226, 7)   # pole przy skrzyni (Use na północ)
-ID_DEPO_ZLOZ = {3160}                                    # UH (adura vita): to, co bot odkłada do depo w wyprawie
+ID_DEPO_ZLOZ = {3160, 3191}                              # UH (adura vita) i GFB (27.10, UH_RUNA_WYBOR=gfb): to, co bot odkłada do depo w wyprawie
 WARTOSC_ID_ZLOTA = {3031: 1, 3035: 100, 3043: 10000}    # gold / platinum / crystal coin
 GOLD_WAGA = 0.1                                          # oz za monetę (poprawka delty cap po zakupie)
 SLOWA_DOMYSLNE = {"blank": "blank rune"}                 # klucz -> słowo w "buy N ..." (nadpisuje config "slowa")

@@ -20,7 +20,8 @@ SLOT_AMUNICJI = 10          # slot ekwipunku Tibii, w którym lądują monety po
 SLOT_PLECAKA = 3            # slot ekwipunku Tibii z plecakiem postaci (kontenery.py: 3 = plecak)
 ID_BAGOW = {2868, 2869, 2854}               # purple / blue / zwykły plecak jako przedmiot w plecaku
 ID_UH = 3160
-ID_RUNY_BAGU = {ID_BLANK, ID_UH, 3198}      # blank / UH / HMM: to, co leży w worku na runy
+ID_GFB = 3191                               # Great Fireball (27.10, SPEC_gfb_1027.md): runa robiona przy UH_RUNA_WYBOR=gfb
+ID_RUNY_BAGU = {ID_BLANK, ID_UH, ID_GFB, 3198}      # blank / UH / GFB / HMM: to, co leży w worku na runy
 NAZWY_GLOWNE = ("backpack", "bag")          # tytuł okna głównego plecaka
 NAZWY_DEPO = ("locker", "depot chest")
 MIN_HP_PROC = 60                            # start serwisu tylko przy HP >= 60%
@@ -527,6 +528,15 @@ class AkcjeZywe:
             return 0
         return bagi[0].get("pojemnosc", 0) - len(bagi[0].get("przedmioty", []))
 
+    def ilosc_jedzenia(self):
+        """27.10 (SPEC_gfb_1027.md, B): sztuki DOWOLNEGO jedzenia (loot.JEDZENIE_ID: ham, banan, ser...) w otwartych kontenerach poza depo."""
+        import loot
+        return self.ilosc(set(loot.JEDZENIE_ID.values()))
+
+    def brakuje_jedzenia(self, docelowo):
+        """Ile sztuk dowolnego jedzenia brakuje do celu (jak brakuje("ham"), ale banan liczy się jak ham)."""
+        return max(0, docelowo - self.ilosc_jedzenia())
+
     def brakuje(self, co, docelowo):
         """Ile sztuk brakuje do celu (dla backpacka 0 albo 1)."""
         if co == "backpack":
@@ -852,7 +862,7 @@ class AkcjeZywe:
         if len(bagi) > 1:
             raise SerwisBlad("depo", f"w plecaku {len(bagi)} bagi, nie wiem, który jest bagiem na runy")
         for k in kon:
-            if _czy_bag(k, kon) and _suma(k, {ID_BLANK}) > 0 and _suma(k, {ID_UH}) == 0:
+            if _czy_bag(k, kon) and _suma(k, {ID_BLANK}) > 0 and _suma(k, {ID_UH, ID_GFB}) == 0:
                 raise SerwisBlad("depo", f"otwarty bag {k.get('nazwa')!r} ma blanki i nie ma UH: to nowy bag, nie odkładam")
         return bagi
 
@@ -880,10 +890,12 @@ class AkcjeZywe:
         self.log(f"depo: złożone (platinum w plecaku {plat})")
         return True
 
-    def stan_cap(self):
-        """(wolny cap w oz, ham w plecaku, [przedmioty głównego plecaka {slot, id, ilosc}]) do planu odłożenia nadmiaru (24.10)."""
+    def stan_cap(self, jedzenie_dowolne=False):
+        """(wolny cap w oz, ham w plecaku, [przedmioty głównego plecaka {slot, id, ilosc}]) do planu odłożenia nadmiaru (24.10).
+        jedzenie_dowolne (27.10, SERWIS_JEDZENIE_DOWOLNE): drugi element to sztuki DOWOLNEGO jedzenia, nie tylko ham."""
         glowny = self._glowny() or {}
-        return self.cap(), self.ilosc({ID_HAM}), [dict(q) for q in glowny.get("przedmioty", [])]
+        jedzenie = self.ilosc_jedzenia() if jedzenie_dowolne else self.ilosc({ID_HAM})
+        return self.cap(), jedzenie, [dict(q) for q in glowny.get("przedmioty", [])]
 
     def depo_nadmiar(self, loot=(), odejdz=None):
         """24.10 (powrót po cap): otwiera depo, odkłada po jednej sztuce każdy ID z `loot` (ciężki sprzęt z głównego plecaka; jeden

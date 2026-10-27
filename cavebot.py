@@ -388,6 +388,12 @@ UH_W_WALCE_MANA_MARGINES = 5       # pokrętło: w walce start, gdy mana >= max_
 UH_W_WALCE_DYSTANS = 0             # pokrętło 0-3: w trybie walki stwór w tej odległości (Chebyshev) blokuje start i przerywa runę; 0 = moby ignorowane (tylko gracz, HP, ucieczka), 1 = przylegający
 UH_W_WALCE_SPADEK_HP = 25          # pokrętło: w trakcie runy w walce przerwij, gdy HP spadło o tyle pp od startu runy (kilka trolli naraz)
 UH_W_WALCE_MIN_HP = 90             # pokrętło: % HP wymagane do startu runy w walce (w trakcie: ta wartość minus 10)
+# 27.10 (SPEC_gfb_1027.md): wybór robionej runy w KAŻDYM trybie; "domyslna" = dzisiejsze UH_CZAR/UH_KLAWISZ/UH_KOSZT trybu (zero zmian), "gfb" = Great Fireball
+UH_RUNA_WYBOR = "domyslna"         # pokrętło tekstowe (tylko Karol): domyslna | gfb
+UH_GFB_CZAR = "adori gran flam"    # słowa czaru GFB: tylko log/telemetria (rzut idzie hotkeyem UH_GFB_KLAWISZ)
+UH_GFB_KLAWISZ = ""                # pokrętło tekstowe: hotkey "adori gran flam" w kliencie; "" = przy wyborze gfb UH nie robi run (nigdy nie rzuca innym klawiszem)
+UH_GFB_KOSZT = 120                 # pokrętło: koszt many GFB (serwer74 i serwer76: 120)
+UH_GFB_PRZERWA_S = 0               # pokrętło: s pauzy UH po nieudanym rzucie GFB (podejrzenie braku soul; bot soul nie odczytuje); 0 = tylko dotychczasowy limit porażek
 # --- ogłoszenia sprzedaży UH na kanale Trade (mozg.py: TradeOgloszenia; szablon trade_ogloszenie.txt) ---
 MODEL_TRASA_MIASTA = 0            # pokrętło 0/1: 1 = model może zmien_trase na trasę *miasta* (domyślnie 0: powrót do miasta decyduje tylko wyprawa.py)
 MODEL_TRASA_ZAMROZENIE_S = 180       # pokrętło: s; model nie zmienia trasy, gdy pozycja postaci stoi w miejscu tak długo (zamrożony odczyt/utknięcie to nie zła trasa; mozg.py)
@@ -937,6 +943,14 @@ CZAT_SPOT_ODPOWIEDZI = 1           # ile razy odpisujemy (model) na jego odpowie
 
 
 UH_STAN_PLIK = instancja.S.uh_stan   # trwały stan UH (tarcza_id): przeżywa restart bota
+
+
+def _uh_runa():
+    """(słowa czaru, hotkey, koszt many) robionej runy wg UH_RUNA_WYBOR (SPEC_gfb_1027.md). "domyslna" zwraca dokładnie UH_CZAR,
+    UH_KLAWISZ i UH_KOSZT (jak przed 27.10); "gfb" czar GFB z UH_GFB_KLAWISZ i UH_GFB_KOSZT. Nie zmienia żadnej stałej UH_*."""
+    if UH_RUNA_WYBOR == "gfb":
+        return UH_GFB_CZAR, UH_GFB_KLAWISZ, UH_GFB_KOSZT
+    return UH_CZAR, UH_KLAWISZ, UH_KOSZT
 
 
 class _UhStan(dict):
@@ -2222,7 +2236,7 @@ class Cavebot:
         mana, mx = g.get("mana"), g.get("max_mana")
         if mana is None or not mx:
             return False
-        if mana < max(int(UH_KOSZT), int(mx) - int(UH_W_WALCE_MANA_MARGINES)):
+        if mana < max(int(_uh_runa()[2]), int(mx) - int(UH_W_WALCE_MANA_MARGINES)):
             return False
         proc = g.get("proc")
         if proc is None and g.get("hp") is not None and g.get("max_hp"):
@@ -2358,6 +2372,13 @@ class Cavebot:
             self.uh_hold_od = None
             return False
         restore = bool(self.uh_restore)
+        czar_u, klawisz_u, koszt_u = _uh_runa()       # 27.10: wybór robionej runy (domyślnie UH_CZAR/UH_KLAWISZ/UH_KOSZT)
+        if not restore and UH_RUNA_WYBOR == "gfb" and not klawisz_u:
+            if not getattr(self, "uh_gfb_brak_klawisza_log", False):
+                self.uh_gfb_brak_klawisza_log = True
+                log("[UH] wybrana runa GFB (UH_RUNA_WYBOR=gfb), ale UH_GFB_KLAWISZ jest pusty: nie robię run "
+                    "(ustaw hotkey 'adori gran flam' w kliencie i UH_GFB_KLAWISZ).")
+            return False
         if UH_BEZ_DOJSCIA and self.dojscie_aktywne and not restore:
             self.uh_hold_od = None         # dojście na spot: runy dopiero na łowisku (a tarcza zdjęta wraca zawsze)
             return False
@@ -2391,18 +2412,18 @@ class Cavebot:
                     self.pauza(0.1, 0.3)
                     return True
         mx = g.get("max_mana")
-        mana_min = max(int(UH_KOSZT), min(int(UH_MANA_MIN), int(mx))) if mx else int(UH_MANA_MIN)
+        mana_min = max(int(koszt_u), min(int(UH_MANA_MIN), int(mx))) if mx else int(UH_MANA_MIN)
         walka = (not restore) and self._uh_walka_ok(g)     # ten sam warunek co w _uh_blokada (g bez zmian)
         widoczne = [s for s in lista if s.get("z") == poz[2] and self._uh_widoczny(s, poz, walka)]
         if walka:
-            mana_min = max(int(UH_KOSZT), int(mx) - int(UH_W_WALCE_MANA_MARGINES))
+            mana_min = max(int(koszt_u), int(mx) - int(UH_W_WALCE_MANA_MARGINES))
         # 17.10 pet: bez żywego peta UH nie zjada many na kolejne przywołanie (PET_MANA_MIN); z petem UH działa jak dotąd
         if PET_WLACZONY and not restore and (self.pet is None or self.pet.pet_id is None):
-            mana_min = max(int(mana_min), int(PET_MANA_MIN) + int(UH_KOSZT))
+            mana_min = max(int(mana_min), int(PET_MANA_MIN) + int(koszt_u))
         if UH_REZERWA_LECZ > 0 and not restore and not walka:
             # 25.10: runa w spokoju dopiero przy mana >= koszt + rezerwa na leczenie (min(UH_REZERWA_LECZ, max_mana * UL)), nie więcej niż max_mana
             rez = min(float(UH_REZERWA_LECZ), float(mx) * float(UH_REZERWA_LECZ_UL)) if mx else float(UH_REZERWA_LECZ)
-            wymagana = int(UH_KOSZT) + int(rez)
+            wymagana = int(koszt_u) + int(rez)
             mana_min = max(int(mana_min), min(wymagana, int(mx)) if mx else wymagana)
         if restore:
             ok, powod = uh.mozna_robic(g, widoczne, aktywny=1, min_hp=UH_MIN_HP - 10, mana_min=0,
@@ -2424,11 +2445,11 @@ class Cavebot:
             return False
         self.uh_hold_od = None
         env = self._uh_srodowisko()
-        uh.ustaw(UH_CZAR, klawisz=UH_KLAWISZ, koszt=UH_KOSZT)
+        uh.ustaw(czar_u, klawisz=klawisz_u, koszt=koszt_u)
         self.uh_ostatni = teraz
         self.uh_przerwal_cavebot = None
         self.aktywnosc_ts = teraz
-        self.ustaw_stan("UH", f"{'przywracam tarczę' if restore else 'robię runę ' + UH_CZAR} (mana {mana})")
+        self.ustaw_stan("UH", f"{'przywracam tarczę' if restore else 'robię runę ' + czar_u} (mana {mana})")
         log(f"[UH] start ({'restore' if restore else 'run'}, mana {mana}, HP {g.get('proc', 0):.0f}%)")
         self.uh_tryb_walki = walka
         self.uh_hp_start = g.get("proc") if walka else None
@@ -2492,6 +2513,11 @@ class Cavebot:
                 self.uh_wylaczony_do = t + UH_PRZERWA_PO_PORAZKACH_S
                 self.uh_wyl_porazki_do = self.uh_wylaczony_do      # 27.10: rozpoznanie pauzy po porażkach (blanki_start zdejmuje tylko ją)
                 log(f"[UH] {UH_PORAZKI} porażki z rzędu: wyłączam UH na {UH_PRZERWA_PO_PORAZKACH_S / 60:.0f} min.")
+            if UH_RUNA_WYBOR == "gfb" and UH_GFB_PRZERWA_S > 0 and str(pw).startswith("nieudany_cast"):
+                # 27.10: GFB bez efektu (dwa rzuty, slot bez zmiany): najczęściej brak soul, którego bot nie odczytuje; dłuższa pauza zamiast co minutę
+                self.uh_wylaczony_do = max(self.uh_wylaczony_do, t + float(UH_GFB_PRZERWA_S))
+                log(f"[UH] GFB bez efektu (podejrzenie braku soul): pauza UH {UH_GFB_PRZERWA_S / 60:.0f} min (UH_GFB_PRZERWA_S).")
+                self._ml_tele("uh_gfb_pauza", na_s=float(UH_GFB_PRZERWA_S), powod=str(pw))
         self.pauza(0.1, 0.3)
         return True
 

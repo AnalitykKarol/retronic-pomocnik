@@ -417,6 +417,9 @@ ZAKRESY = {
     "OBRONA_RUNA_ID2": (0, 9999),       # id drugiej runy ataku (np. SD) w trybie obronnym, gdy brak RUNA_ID (HMM); 0 = brak
     "UH_LECZ_KOSZT": (0, 400),          # koszt many czaru robiącego runę LECZENIA (z UH_LECZ_KLAWISZ); 0 = brak osobnego pola (wtedy UH_CZAR, o ile to czar leczący)
     "UH_LECZ_RUNA_ID": (1, 9999),       # id runy leczenia w plecaku (3160 = Ultimate Healing)
+    "UH_GFB_KOSZT": (1, 500),           # 27.10: koszt many czaru GFB (adori gran flam) przy UH_RUNA_WYBOR=gfb; serwer74 i serwer76: 120
+    "UH_GFB_PRZERWA_S": (0, 7200),      # 27.10: s pauzy UH po nieudanym rzucie GFB (podejrzenie braku soul; bot soul nie odczytuje); 0 = tylko dotychczasowy limit porażek
+    "SERWIS_JEDZENIE_DOWOLNE": (0, 1),  # 27.10: 1 = krok cap i koszt serwisu liczą jako jedzenie dowolne jedzenie z plecaka (banan), nie tylko ham; domyślnie 0, tryb stoj ustawia 1
     "UH_REZERWA_LECZ": (0, 300),        # mana zostawiana na leczenie: runa w spokoju startuje przy mana >= UH_KOSZT + min(tyle, max_mana * UH_REZERWA_LECZ_UL); 0 = jak dawniej
     "UH_REZERWA_LECZ_UL": (0.1, 1.0),   # ułamek max_mana: górne ograniczenie rezerwy na leczenie
     "D3_ASTAR_MAX": (0, 12),            # najwyżej tyle wywołań A* na zawieszkę przy liczeniu opcji D3 (domyślnie 6)
@@ -438,6 +441,8 @@ TEKSTY = {
     "UH_KLAWISZ": tuple(f"F{i}" for i in range(1, 13)),     # hotkey czaru runowego w kliencie
     "ZATRUCIE_CZAR_KLAWISZ": ("",) + tuple(f"F{i}" for i in range(1, 13)),   # 23.10: hotkey exana pox ("" = brak)
     "UH_CZAR": ("adori gran", "adura gran", "adura vita", "adura"),   # słowa czaru (log); koszt osobno
+    "UH_RUNA_WYBOR": ("domyslna", "gfb"),   # 27.10: robiona runa w każdym trybie: domyslna = jak w trybie (UH_CZAR/UH_KLAWISZ/UH_KOSZT), gfb = Great Fireball (UH_GFB_KLAWISZ, UH_GFB_KOSZT)
+    "UH_GFB_KLAWISZ": ("",) + tuple(f"F{i}" for i in range(1, 13)),   # 27.10: hotkey czaru adori gran flam w kliencie ("" = GFB nie startuje)
     "UH_LECZ_KLAWISZ": ("",) + tuple(f"F{i}" for i in range(1, 13)),   # 25.10: hotkey czaru robiącego runę LECZENIA w trybie obronnym ("" = brak osobnego pola)
     "UH_LECZ_CZAR": ("", "adura vita", "adura gran", "adura"),   # 25.10: słowa czaru robiącego runę LECZENIA (log); koszt w UH_LECZ_KOSZT
 }
@@ -553,6 +558,7 @@ KIERUNEK = {
     "STANOWISKO": "nie_wyzej", "STANOWISKO_HP_PZ": "nie_nizej", "STANOWISKO_PZ_KARENCJA_MIN": "nie_nizej",
     "STANOWISKO_GRACZ_ODL": "nie_wyzej", "STANOWISKO_NPC_IGNORUJ": "nie_wyzej", "STANOWISKO_ZMIANA_MAX_MIN": "nie_wyzej", "STOJ_GRACZ_WYLOGUJ_ODL": "nie_wyzej",
     # tryb obronny (25.10): analityk nie może go włączyć ani poszerzyć; rezerwę many może tylko podnieść (tylko Karol w na_zywo.json)
+    "UH_GFB_KOSZT": "nie_nizej", "UH_GFB_PRZERWA_S": "nie_nizej", "SERWIS_JEDZENIE_DOWOLNE": "nie_wyzej",   # 27.10: GFB i jedzenie dowolne (SPEC_gfb_1027); wybór runy i klawisz GFB to teksty (tylko Karol)
     "TRYB_OBRONNY": "nie_wyzej", "OBRONA_PK_ODL": "nie_wyzej", "OBRONA_WROG_ODL": "nie_wyzej", "UH_REZERWA_LECZ": "nie_nizej",
 }
 COFNIECIE_S = 300

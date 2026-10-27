@@ -369,13 +369,15 @@ POKRETLA_SERWISU = {
     "SERWIS_CAP_NA_LOOT": 50,     # oz capa, które zostaje wolne po zakupie ham (rezerwa na łup) i do którego krok `cap` odkłada nadmiar
     "SERWIS_HAM_MIN": 2,          # tyle ham najmniej kupujemy, gdy postać nie ma jedzenia (jeśli cap pozwala), nawet gdy rezerwa każe 0
     "SERWIS_CAP_DEPO_LOOT": 0,    # 1 = krok `cap` odkłada do depo ciężki łup-sprzęt (DO POTWIERDZENIA KAROLA, domyślnie wyłączone)
+    "SERWIS_JEDZENIE_DOWOLNE": 0, # 27.10: 1 = minimum jedzenia (krok `cap`, koszt) liczy dowolne jedzenie w plecaku (banan), nie tylko ham; tryb `stoj` ustawia 1
 }
-_CELE_STARE = {"cap_na_loot": 0, "ham_min": 0, "cap_depo_loot": 0}      # domyślne w Serwis(): atrapy i testy = jak dotąd
-_KLUCZE_CELE = {"SERWIS_CAP_NA_LOOT": "cap_na_loot", "SERWIS_HAM_MIN": "ham_min", "SERWIS_CAP_DEPO_LOOT": "cap_depo_loot"}
+_CELE_STARE = {"cap_na_loot": 0, "ham_min": 0, "cap_depo_loot": 0, "jedzenie_dowolne": 0}      # domyślne w Serwis(): atrapy i testy = jak dotąd
+_KLUCZE_CELE = {"SERWIS_CAP_NA_LOOT": "cap_na_loot", "SERWIS_HAM_MIN": "ham_min", "SERWIS_CAP_DEPO_LOOT": "cap_depo_loot",
+                "SERWIS_JEDZENIE_DOWOLNE": "jedzenie_dowolne"}
 
 
 def pokretla_serwisu(plik=None):
-    """{cap_na_loot, ham_min, cap_depo_loot} z na_zywo.json (domyślne POKRETLA_SERWISU; brak pliku albo śmieć w polu =
+    """{cap_na_loot, ham_min, cap_depo_loot[, jedzenie_dowolne: tylko gdy włączone]} z na_zywo.json (domyślne POKRETLA_SERWISU; brak pliku albo śmieć w polu =
     domyślna wartość tego pola, nigdy wyjątek). Wartość ujemna = 0."""
     nz = {}
     try:
@@ -393,7 +395,10 @@ def pokretla_serwisu(plik=None):
             v = v if v == v else POKRETLA_SERWISU[k]
         except (TypeError, ValueError):
             v = POKRETLA_SERWISU[k]
-        wynik[nazwa] = max(0, int(v))
+        v = max(0, int(v))
+        if nazwa == "jedzenie_dowolne" and not v:
+            continue          # 27.10: klucz dopisywany tylko po włączeniu (wynik dla wartości domyślnych taki sam jak przed SERWIS_JEDZENIE_DOWOLNE)
+        wynik[nazwa] = v
     return wynik
 
 
@@ -620,7 +625,9 @@ class Serwis:
         if "jedzenie" in kroki:
             k += 10 * self.akcje.brakuje("ham", self.cele["ham"])
         elif "cap" in kroki and self.cele["ham_min"] > 0:
-            k += 10 * self.akcje.brakuje("ham", min(self.cele["ham_min"], self.cele["ham"]))        # krok `cap` może dokupić minimum jedzenia
+            brak_j = getattr(self.akcje, "brakuje_jedzenia", None) if self.cele.get("jedzenie_dowolne") else None
+            cel_min = min(self.cele["ham_min"], self.cele["ham"])
+            k += 10 * (brak_j(cel_min) if brak_j else self.akcje.brakuje("ham", cel_min))        # krok `cap` może dokupić minimum jedzenia
         if "backpack" in kroki:
             k += 20 * (1 if depo_przed else self.akcje.brakuje("backpack", 1))
         if "blanki" in kroki:
@@ -797,7 +804,8 @@ class Serwis:
                 self._przy_depo(lambda st: self.akcje.depo_nadmiar(loot, odejdz=lambda: self._odejdz_od_depo(st)))
         if c["ham_min"] <= 0 or "jedzenie" not in self.d["przystanki"]:
             return
-        cap, ham, _ = stan()
+        # 27.10: z SERWIS_JEDZENIE_DOWOLNE "ham" to sztuki dowolnego jedzenia (postać z bananami nie dostaje minimum ham)
+        cap, ham, _ = stan(jedzenie_dowolne=True) if c.get("jedzenie_dowolne") else stan()
         cel = self.akcje.cel_ham(min(c["ham_min"], c["ham"]), 0)
         if ham >= c["ham_min"] or cel <= ham:
             self.log(f"serwis[cap]: ham {ham} (minimum {c['ham_min']}, wolne {cap:.1f} oz): nie kupuję")
