@@ -1,0 +1,72 @@
+{
+ "start": [
+  33128,
+  31729,
+  10
+ ],
+ "dlugosc_petli": 79,
+ "przystanki": [
+  {
+   "kolejnosc": 0,
+   "x": 33128,
+   "y": 31729,
+   "z": 10
+  },
+  {
+   "kolejnosc": 1,
+   "x": 33129,
+   "y": 31727,
+   "z": 10,
+   "potworow": 4,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 2,
+   "x": 33132,
+   "y": 31721,
+   "z": 10,
+   "potworow": 6,
+   "spawnow": 2
+  },
+  {
+   "kolejnosc": 3,
+   "x": 33126,
+   "y": 31721,
+   "z": 10,
+   "potworow": 0,
+   "spawnow": 0
+  },
+  {
+   "kolejnosc": 4,
+   "x": 33129,
+   "y": 31715,
+   "z": 10,
+   "potworow": 0,
+   "spawnow": 0
+  },
+  {
+   "kolejnosc": 5,
+   "x": 33135,
+   "y": 31711,
+   "z": 10,
+   "potworow": 0,
+   "spawnow": 0
+  },
+  {
+   "kolejnosc": 6,
+   "x": 33137,
+   "y": 31721,
+   "z": 10,
+   "potworow": 3,
+   "spawnow": 2
+  },
+  {
+   "kolejnosc": 7,
+   "x": 33139,
+   "y": 31731,
+   "z": 10,
+   "potworow": 0,
+   "spawnow": 0
+  }
+ ]
+}

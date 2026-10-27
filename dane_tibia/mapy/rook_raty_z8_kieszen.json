@@ -1,0 +1,66 @@
+{
+ "start": [
+  32035,
+  32170,
+  8
+ ],
+ "dlugosc_petli": 77,
+ "zrodlo": "telemetria + log Pomszta 25.10 22:02-22:49",
+ "dojscie": null,
+ "przystanki": [
+  {
+   "kolejnosc": 0,
+   "x": 32035,
+   "y": 32170,
+   "z": 8
+  },
+  {
+   "kolejnosc": 1,
+   "x": 32034,
+   "y": 32165,
+   "z": 8,
+   "zabic": 3,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 2,
+   "x": 32028,
+   "y": 32162,
+   "z": 8,
+   "zabic": 11,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 3,
+   "x": 32022,
+   "y": 32165,
+   "z": 8,
+   "zabic": 7,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 4,
+   "x": 32011,
+   "y": 32164,
+   "z": 8,
+   "zabic": 2,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 5,
+   "x": 32027,
+   "y": 32171,
+   "z": 8,
+   "zabic": 9,
+   "spawnow": 1
+  },
+  {
+   "kolejnosc": 6,
+   "x": 32031,
+   "y": 32171,
+   "z": 8,
+   "zabic": 11,
+   "spawnow": 1
+  }
+ ]
+}

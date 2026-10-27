@@ -1,0 +1,29 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "początek nagrania"
+  },
+  {
+   "idx": 66,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 7, potem piętro 8"
+  },
+  {
+   "idx": 67,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 7 -> 8 (w dół), z (32678,32610)"
+  },
+  {
+   "idx": 109,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 7"
+  },
+  {
+   "idx": 110,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 8 -> 7 (w górę), z (32677,32609)"
+  }
+ ]
+}

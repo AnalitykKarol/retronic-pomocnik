@@ -6,7 +6,7 @@
   "blanki_shiriel": "npc_pelne.json (32670,31657,6); pole stania (32669,31659,6) odczyt z gry 24.10 15:28:05",
   "depo": "ZASTĘPCZE: generuj_powrot_abdendriel.DEPO_STOI = [32679, 31687, 8]; sala z8 x 32679..32682, y 31683..31689 z nazwy nagrania depo_trolle i mapy klienta",
   "laczniki": "abdendriel_bashira_shiriel.json (z8->z7->z6, zmierzone 24.10) i abdendriel_depo_trolle_nagranie.json (z8->z9 przy (32655,31670,8))",
-  "wyjscie": "pierwszy punkt trasy/abdendriel_z9_do_z10.json = (32675,31633,z9), za obojgiem drzwi",
+  "wyjscie": "generuj_powrot_abdendriel.WYJSCIE_SERWISU = (32658,31644,z9), punkt trasy/abdendriel_depo_do_z10.json za obojgiem drzwi (jedna droga z dojściem)",
   "drzwi_klucz": "generuj_powrot_abdendriel.KLUCZE_DRZWI = wyprawa.PLANY_PK['klucze'] (jedno źródło)"
  },
  "niezmierzone_na_zywo": [

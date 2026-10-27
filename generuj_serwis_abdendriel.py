@@ -15,8 +15,9 @@ Układ jak `serwis_thais.json` (czyta go serwis.py i panel.py) plus:
 Kolejność: bank (Briasol), depo, backpack (Bashira), blanki (Shiriel), wyjście. BEZ kroku jedzenie (Karol 24.10: Marinarra nie chce jedzenia,
 wydropi je z trolli), więc go tu nie ma (serwis robi `pomin_brakujace`).
 
-Wyjście serwisu = pierwszy punkt dojścia abdendriel_z9_do_z10 (32675,31633,z9), czyli ZA obojgiem drzwi: serwis przechodzi je kluczem w drodze
-powrotnej, a uruchom.sh liczy dojście od tego pola (dojście zna też te drzwi: cavebot, 24.10).
+Wyjście serwisu = generuj_powrot_abdendriel.WYJSCIE_SERWISU = (32658,31644,z9), pierwsze pole jaskini ZA obojgiem drzwi i PUNKT NA TRASIE dojścia
+abdendriel_depo_do_z10 (jedna droga: serwis przechodzi oboje drzwi kluczem tą samą drogą, którą dojście idzie z depo na pętlę z10; uruchom.sh liczy dojście
+od tego pola, a cavebot zna te drzwi, 24.10). Dawne wyjście (32675,31633,z9) leżało poza tą drogą (13 pól dalej w jaskini).
 
 NIEZMIERZONE NA ŻYWO (wszystko w `.meta`, `niezmierzone_na_zywo`): że klucz 2970 pasuje do obojga drzwi; dialog wymiany u Briasola; dialog zakupu
 u Bashiry i Shiriel; położenie depo (DEPO_STOI to ZASTĘPCZA decyzja be-dev z generuj_powrot_abdendriel.py) i strona skrzyni; schody W GÓRĘ z6->z7->z8
@@ -34,7 +35,7 @@ TRASY = KATALOG / "trasy"
 NPC_PLIK = KATALOG / "dane_tibia" / "serwer74" / "npc_pelne.json"
 BASHIRA_SHIRIEL = TRASY / "abdendriel_bashira_shiriel.json"
 DEPO_TROLLE = TRASY / "abdendriel_depo_trolle_nagranie.json"
-WYJSCIE_DOJSCIA = TRASY / "abdendriel_z9_do_z10.json"
+WYJSCIE_DOJSCIA = TRASY / "abdendriel_depo_do_z10.json"   # trasa, na której leży wyjście (sprawdza test)
 
 MIASTO = "abdendriel"
 # Pola stania zmierzone na żywo 24.10 (dane_tibia/SKLEPY_abdendriel.md): bank 15:24:05 (Marianni, Karol stał przy NPC), Bashira 15:25:22, Shiriel 15:28:05.
@@ -80,7 +81,9 @@ def zbuduj(mapa=None, npc=None):
     import generuj_powrot_abdendriel as GP
 
     depo = _t(GP.DEPO_STOI)
-    wyjscie = _t(json.loads(WYJSCIE_DOJSCIA.read_text())[0])
+    wyjscie = _t(GP.WYJSCIE_SERWISU)
+    if WYJSCIE_DOJSCIA.exists() and list(wyjscie) not in [list(q) for q in json.loads(WYJSCIE_DOJSCIA.read_text())]:
+        raise SystemExit(f"wyjście serwisu {wyjscie} nie leży na trasie {WYJSCIE_DOJSCIA.name}: uruchom najpierw generuj_powrot_abdendriel.py --zapisz")
     przystanki = {
         "bank": None,
         "depo": {"rodzaj": "depo", "npc": None, "stoi": list(depo),
@@ -166,7 +169,7 @@ def meta(dane):
             "blanki_shiriel": "npc_pelne.json (32670,31657,6); pole stania (32669,31659,6) odczyt z gry 24.10 15:28:05",
             "depo": f"ZASTĘPCZE: generuj_powrot_abdendriel.DEPO_STOI = {list(GP.DEPO_STOI)}; sala z8 x 32679..32682, y 31683..31689 z nazwy nagrania depo_trolle i mapy klienta",
             "laczniki": "abdendriel_bashira_shiriel.json (z8->z7->z6, zmierzone 24.10) i abdendriel_depo_trolle_nagranie.json (z8->z9 przy (32655,31670,8))",
-            "wyjscie": "pierwszy punkt trasy/abdendriel_z9_do_z10.json = (32675,31633,z9), za obojgiem drzwi",
+            "wyjscie": "generuj_powrot_abdendriel.WYJSCIE_SERWISU = (32658,31644,z9), punkt trasy/abdendriel_depo_do_z10.json za obojgiem drzwi (jedna droga z dojściem)",
             "drzwi_klucz": "generuj_powrot_abdendriel.KLUCZE_DRZWI = wyprawa.PLANY_PK['klucze'] (jedno źródło)",
         },
         "niezmierzone_na_zywo": [

@@ -1,0 +1,204 @@
+{
+ "_opis": "Serwis Port Hope (25.10): generuj_serwis_port_hope.py. TERAZ tylko krok depo (+ wyjście); bank, backpack, blanki i ham czekają na pomiary (plan_do_pomiaru, poza kolejnością). Kolejność edytowalna; stoi = pole przybycia DEPO, stanowiska przy skrzyniach w depo_stoiska; obszar_miasta = co panel i auto-refill uznają za miasto.",
+ "miasto": "port_hope",
+ "przystanki": {
+  "depo": {
+   "rodzaj": "depo",
+   "npc": null,
+   "stoi": [
+    32632,
+    32743,
+    7
+   ],
+   "status": "pole depo podał Karol 25.10 (generuj_powrot_port_hope.DEPO); NIEPOMIERZONE na żywo: położenie skrzyń (wzór z mapy) i strona skrzyni przy stanowiskach",
+   "zrodlo": "generuj_powrot_port_hope.DEPO = koniec tras ph_raty_z8_do_depo i port_hope_swamp_do_depo"
+  }
+ },
+ "wyjscie": [
+  32632,
+  32743,
+  7
+ ],
+ "laczniki": [],
+ "depo_stoiska": [
+  [
+   32633,
+   32743,
+   7
+  ],
+  [
+   32632,
+   32742,
+   7
+  ],
+  [
+   32631,
+   32742,
+   7
+  ],
+  [
+   32630,
+   32743,
+   7
+  ],
+  [
+   32630,
+   32741,
+   7
+  ],
+  [
+   32633,
+   32741,
+   7
+  ],
+  [
+   32630,
+   32745,
+   7
+  ],
+  [
+   32633,
+   32745,
+   7
+  ],
+  [
+   32632,
+   32746,
+   7
+  ],
+  [
+   32631,
+   32746,
+   7
+  ],
+  [
+   32630,
+   32739,
+   7
+  ],
+  [
+   32633,
+   32739,
+   7
+  ],
+  [
+   32630,
+   32747,
+   7
+  ],
+  [
+   32633,
+   32747,
+   7
+  ],
+  [
+   32632,
+   32738,
+   7
+  ],
+  [
+   32631,
+   32738,
+   7
+  ],
+  [
+   32630,
+   32737,
+   7
+  ],
+  [
+   32633,
+   32737,
+   7
+  ]
+ ],
+ "depo_sala": [
+  32629,
+  32737,
+  32634,
+  32748,
+  7
+ ],
+ "obszar_miasta": [
+  32615,
+  32733,
+  32645,
+  32752,
+  5,
+  7
+ ],
+ "kolejnosc": [
+  "depo",
+  "wyjscie"
+ ],
+ "plan_do_pomiaru": {
+  "_opis": "OPIS, nie dane wykonywane: kroki bank/backpack/blanki/ham Port Hope NIE są w `przystanki` ani w `kolejnosc`, serwis ich nie robi (refill pomija je przez --pomin-brakujace). Pozycje NPC z dane_tibia/SKLEPY_port_hope.md (dane serwera), niepotwierdzone na żywo.",
+  "status": "DO POMIARU",
+  "npc": {
+   "bank": {
+    "npc": "Ferks",
+    "npc_poz": [
+     32634,
+     32739,
+     6
+    ],
+    "rola": "bank, wymiana gold -> platinum",
+    "cena": null
+   },
+   "backpack": {
+    "npc": "Perod",
+    "npc_poz": [
+     32634,
+     32740,
+     5
+    ],
+    "rola": "backpack (id 3940)",
+    "cena": 20
+   },
+   "blanki": {
+    "npc": "Tandros",
+    "npc_poz": [
+     32622,
+     32740,
+     5
+    ],
+    "rola": "blank rune (id 2260), sklep run (runes.lua)",
+    "cena": 10
+   },
+   "ham": {
+    "npc": "Clyde",
+    "npc_poz": [
+     32574,
+     32753,
+     7
+    ],
+    "rola": "ham (id 2671), karczma",
+    "cena": 8
+   }
+  },
+  "schody_z7_z6": [
+   32629,
+   32749
+  ],
+  "kolejnosc_docelowa": [
+   "depo (z7)",
+   "schody z7 -> z6 (32629,32749)",
+   "Ferks, bank (z6)",
+   "schody z6 -> z5 (ok. 32626,32743, NIEZMIERZONE)",
+   "Tandros, blanki (z5)",
+   "Perod, backpack (z5)",
+   "powrót w dół do depo (z7)",
+   "Clyde, ham (z7, karczma na zachodzie)"
+  ]
+ },
+ "do_pomiaru": {
+  "reszta_refilu": [
+   "pola stania przy Ferksie (z6), Perodzie i Tandrosie (z5), Clyde (z7): odczyt pozycji gracza przy NPC, jak w Ab'Dendriel",
+   "schody z6 -> z5: dokładne kafle (ok. 32626,32743,z6; kafle (32626,32742) i (32630,32742) na z5 są „w dół”)",
+   "dialog zakupu backpack u Peroda i blank rune u Tandrosa (ilość), dialog zakupu hama u Clyde",
+   "dialog wymiany gold -> platinum u Ferksa",
+   "wnęka Peroda niedostępna z sali na mapie: stać ok. (32633,32741,z5)",
+   "które kafle sali depo naprawdę są skrzyniami i z której strony serwis_akcje._otworz_depo je otwiera"
+  ]
+ }
+}

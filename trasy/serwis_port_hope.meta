@@ -1,0 +1,18 @@
+{
+ "specjalne": [],
+ "zrodla": {
+  "depo": "generuj_powrot_port_hope.DEPO = (32632,32743,z7), podał Karol 25.10",
+  "depo_stoiska": "mapa klienta (mapa.py): kafle skrzyń = nieprzechodnie o kolorze minimapy 129 w sali [32629, 32737, 32634, 32748, 7]: [[32630, 32738, 7], [32630, 32742, 7], [32630, 32746, 7], [32633, 32738, 7], [32633, 32742, 7], [32633, 32746, 7]]; stanowiska = chodliwe pola z takim kaflem na N/E/S/W",
+  "wyjscie": "= depo: dojście na spot liczy uruchom.sh od pozycji postaci (jak Thais)",
+  "plan_do_pomiaru": "dane_tibia/SKLEPY_port_hope.md (world-spawn.xml, npc/*.xml, scripts/runes.lua serwera jamera 7.6)"
+ },
+ "niezmierzone_na_zywo": [
+  "położenie skrzyń depo i strona skrzyni przy stanowiskach (wzór z mapy, serwis_akcje._otworz_depo próbuje N, E, S, W)",
+  "czy pole DEPO (przybycie z tras powrotu) leży na tyle blisko skrzyń, że serwis dochodzi do stanowiska bez problemu",
+  "wszystko z plan_do_pomiaru: pola stania, schody z6->z5, dialogi Ferks / Perod / Tandros / Clyde",
+  "cała droga serwisu po mieście botem (A* sprawdzony tylko offline na mapie)"
+ ],
+ "kroki": {
+  "depo": false
+ }
+}

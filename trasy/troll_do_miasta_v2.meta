@@ -1,0 +1,49 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "początek trasy"
+  },
+  {
+   "idx": 3,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 8"
+  },
+  {
+   "idx": 4,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 9 -> 8, z (32476,32272)"
+  },
+  {
+   "idx": 7,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 9"
+  },
+  {
+   "idx": 8,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 8 -> 9, z (32478,32270)"
+  },
+  {
+   "idx": 13,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 8"
+  },
+  {
+   "idx": 14,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 9 -> 8, z (32484,32265)"
+  },
+  {
+   "idx": 21,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 7"
+  },
+  {
+   "idx": 22,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 8 -> 7, z (32493,32260)"
+  }
+ ]
+}

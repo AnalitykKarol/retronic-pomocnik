@@ -1,0 +1,14 @@
+{
+ "specjalne": [
+  {
+   "idx": 220,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "przejście z9 (33102, 31822) (kolor 210, flaga 2, z mapy 26.10; rodzina pięter) do składowej z10 (225 pól); typ NIEZWERYFIKOWANY na żywo, droga omija znany ogień (bufor 1)"
+  },
+  {
+   "idx": 221,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z10 (33102, 31822); po zejściu wejdź w pętlę gobliny_edron_z10_wschod_petla"
+  }
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "stanie (32662, 32740) z8 obok pola liny (32662, 32741) (pod dziurą z7); lina z8 -> z7, niezweryfikowane na żywo"
+  },
+  {
+   "idx": 1,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z7 (32662, 32742) = (x, y+1) pola liny"
+  },
+  {
+   "idx": 54,
+   "typ": "koniec",
+   "komentarz": "depo Port Hope (32632,32743,z7) podane przez Karola"
+  }
+ ]
+}

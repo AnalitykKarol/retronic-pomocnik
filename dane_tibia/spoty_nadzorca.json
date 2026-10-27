@@ -54,6 +54,16 @@
     31850,
     31999
    ]
+  },
+  "abdendriel": {
+   "x": [
+    32530,
+    32860
+   ],
+   "y": [
+    31500,
+    31849
+   ]
   }
  },
  "spoty": {
@@ -67,7 +77,8 @@
    "poziom_zrodlo": "karol",
    "waga": 0.5,
    "auto": true,
-   "powod": "Troll, Bear, Swamp Troll, Frost Troll: mieszane moby, stąd 10+"
+   "powod": "Troll, Bear, Swamp Troll, Frost Troll: mieszane moby, stąd 10+",
+   "rodzina": "edron_trolle"
   },
   "trolle_edron_patrol": {
    "miasto": "edron",
@@ -79,7 +90,8 @@
    "poziom_zrodlo": "karol",
    "waga": 0.5,
    "auto": true,
-   "powod": "ta sama jaskinia co trolle_edron (wariant patrolowy)"
+   "powod": "ta sama jaskinia co trolle_edron (wariant patrolowy)",
+   "rodzina": "edron_trolle"
   },
   "trolle_edron_z9w": {
    "miasto": "edron",
@@ -91,7 +103,8 @@
    "poziom_zrodlo": "karol",
    "waga": 1.0,
    "auto": true,
-   "powod": "Kolanosh lvl 8 przeszedł 21.10 17:24; dojście liną (lina wyliczana z tras)"
+   "powod": "Kolanosh lvl 8 przeszedł 21.10 17:24; dojście liną (lina wyliczana z tras)",
+   "rodzina": "edron_trolle"
   },
   "trolle_edron_z9z": {
    "miasto": "edron",
@@ -103,7 +116,8 @@
    "poziom_zrodlo": "karol",
    "waga": 1.0,
    "auto": true,
-   "powod": "Troll + Bear (30 potworów, z9 zachód); osobna składowa od trolle_edron (z8) i z9w, wejście przez z8 trolle_edron; dojście liną (lina wyliczana z tras); niesprawdzone na żywo"
+   "powod": "Troll + Bear (30 potworów, z9 zachód); osobna składowa od trolle_edron (z8) i z9w, wejście przez z8 trolle_edron; dojście liną (lina wyliczana z tras); niesprawdzone na żywo",
+   "rodzina": "edron_trolle"
   },
   "gobliny_edron": {
    "miasto": "edron",
@@ -115,7 +129,8 @@
    "poziom_zrodlo": "domyslne",
    "waga": 1.0,
    "auto": false,
-   "powod": "Karol 21.10 ~18:10: gobliny za trudne dla wszystkich postaci (za mało defa)"
+   "powod": "Karol 21.10 ~18:10: gobliny za trudne dla wszystkich postaci (za mało defa)",
+   "rodzina": "edron_gobliny"
   },
   "gobliny_edron_z9": {
    "miasto": "edron",
@@ -127,7 +142,8 @@
    "poziom_zrodlo": "domyslne",
    "waga": 1.0,
    "auto": false,
-   "powod": "Karol 21.10 ~18:10: gobliny za trudne dla wszystkich postaci (za mało defa)"
+   "powod": "Karol 21.10 ~18:10: gobliny za trudne dla wszystkich postaci (za mało defa)",
+   "rodzina": "edron_gobliny"
   },
   "stoj_trade": {
    "miasto": "edron",
@@ -139,7 +155,8 @@
    "poziom_zrodlo": "domyslne",
    "waga": 1.0,
    "auto": false,
-   "powod": "nie poluje: stoi i sprzedaje na Trade"
+   "powod": "nie poluje: stoi i sprzedaje na Trade",
+   "rodzina": "edron_trade"
   },
   "raty": {
    "miasto": "thais",
@@ -150,7 +167,8 @@
    ],
    "poziom_zrodlo": "domyslne",
    "waga": 1.0,
-   "auto": true
+   "auto": true,
+   "rodzina": "thais_raty"
   },
   "trolle": {
    "miasto": "thais",
@@ -162,7 +180,8 @@
    "poziom_zrodlo": "karol",
    "waga": 0.25,
    "auto": true,
-   "powod": "Troll; jedna jaskinia z wariantami (wagi sumują się do 1); łopata wyliczana z pietra.ZASYPANE"
+   "powod": "Troll; jedna jaskinia z wariantami (wagi sumują się do 1); łopata wyliczana z pietra.ZASYPANE",
+   "rodzina": "thais_trolle_wschod"
   },
   "trolle_pelny": {
    "miasto": "thais",
@@ -174,7 +193,8 @@
    "poziom_zrodlo": "karol",
    "waga": 0.25,
    "auto": true,
-   "powod": "Troll; jedna jaskinia z wariantami (wagi sumują się do 1); łopata wyliczana z pietra.ZASYPANE"
+   "powod": "Troll; jedna jaskinia z wariantami (wagi sumują się do 1); łopata wyliczana z pietra.ZASYPANE",
+   "rodzina": "thais_trolle_wschod"
   },
   "trolle_nowe": {
    "miasto": "thais",
@@ -186,7 +206,8 @@
    "poziom_zrodlo": "karol",
    "waga": 0.25,
    "auto": true,
-   "powod": "Troll + Orc; jedna jaskinia z wariantami (wagi sumują się do 1); łopata wyliczana z pietra.ZASYPANE"
+   "powod": "Troll + Orc; jedna jaskinia z wariantami (wagi sumują się do 1); łopata wyliczana z pietra.ZASYPANE",
+   "rodzina": "thais_trolle_wschod"
   },
   "trolle_patrol": {
    "miasto": "thais",
@@ -198,7 +219,8 @@
    "poziom_zrodlo": "karol",
    "waga": 0.25,
    "auto": true,
-   "powod": "patrol, Troll + Orc; jedna jaskinia z wariantami (wagi sumują się do 1); łopata wyliczana z pietra.ZASYPANE"
+   "powod": "patrol, Troll + Orc; jedna jaskinia z wariantami (wagi sumują się do 1); łopata wyliczana z pietra.ZASYPANE",
+   "rodzina": "thais_trolle_wschod"
   },
   "stoj_runy_thais": {
    "miasto": "thais",
@@ -209,7 +231,8 @@
    "poziom_zrodlo": "karol",
    "waga": 1.0,
    "auto": false,
-   "powod": "nie poluje: stoi i robi runy (SPEC_stoj_runy_1022); Karol uruchamia ręcznie (uh,stoj; runy,stoj poniżej lvl 11), nadzorca nie wybiera"
+   "powod": "nie poluje: stoi i robi runy (SPEC_stoj_runy_1022); Karol uruchamia ręcznie (uh,stoj; runy,stoj poniżej lvl 11), nadzorca nie wybiera",
+   "rodzina": "thais_stoj_runy"
   },
   "wilki": {
    "miasto": "thais",
@@ -221,7 +244,8 @@
    "poziom_zrodlo": "domyslne",
    "waga": 1.0,
    "auto": false,
-   "powod": "bez dojścia z depo (pętla na powierzchni, niesprawdzone): włączyć po teście z depo"
+   "powod": "bez dojścia z depo (pętla na powierzchni, niesprawdzone): włączyć po teście z depo",
+   "rodzina": "thais_wilki"
   },
   "thais_pn_z8": {
    "miasto": "thais",
@@ -233,7 +257,8 @@
    "poziom_zrodlo": "domyslne",
    "waga": 1.0,
    "auto": true,
-   "powod": "Troll + Rat, Spider, Bug; dojście przez zasypaną dziurę, łopata wyliczana"
+   "powod": "Troll + Rat, Spider, Bug; dojście przez zasypaną dziurę, łopata wyliczana",
+   "rodzina": "thais_pn_trolle"
   },
   "thais_pn_z9": {
    "miasto": "thais",
@@ -245,7 +270,8 @@
    "poziom_zrodlo": "domyslne",
    "waga": 1.0,
    "auto": false,
-   "powod": "23.10: dojście z depo jest (thais_pn_z9_dojscie, przez korytarz 3 Poison Spiderów, łopata + lina), ale NIE przeszło jeszcze na żywo, a powrót liną niezweryfikowany: ręcznie, bez auto, do pierwszego udanego przejścia"
+   "powod": "23.10: dojście z depo jest (thais_pn_z9_dojscie, przez korytarz 3 Poison Spiderów, łopata + lina), ale NIE przeszło jeszcze na żywo, a powrót liną niezweryfikowany: ręcznie, bez auto, do pierwszego udanego przejścia",
+   "rodzina": "thais_pn_trolle"
   },
   "rook": {
    "miasto": "rook",
@@ -257,7 +283,8 @@
    "poziom_zrodlo": "karol",
    "waga": 1.0,
    "auto": false,
-   "powod": "bez dojścia: postać musi stać w kanałach; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)"
+   "powod": "bez dojścia: postać musi stać w kanałach; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)",
+   "rodzina": "rook_kanaly"
   },
   "rook_raty_z8": {
    "miasto": "rook",
@@ -269,7 +296,8 @@
    "poziom_zrodlo": "karol",
    "waga": 1.0,
    "auto": true,
-   "powod": "wejście z mapy, przejście niezweryfikowane botem (20.10); Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)"
+   "powod": "wejście z mapy, przejście niezweryfikowane botem (20.10); Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)",
+   "rodzina": "rook_raty"
   },
   "rook_raty_z8_do_smierci": {
    "miasto": "rook",
@@ -281,7 +309,8 @@
    "poziom_zrodlo": "karol",
    "waga": 1.0,
    "auto": false,
-   "powod": "BEZ UCIECZKI: decyzja Karola 20.10 tylko dla Bobera lvl 1, nie do automatu; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)"
+   "powod": "BEZ UCIECZKI: decyzja Karola 20.10 tylko dla Bobera lvl 1, nie do automatu; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)",
+   "rodzina": "rook_raty"
   },
   "rook_kanaly_z11": {
    "miasto": "rook",
@@ -293,7 +322,8 @@
    "poziom_zrodlo": "karol",
    "waga": 1.0,
    "auto": true,
-   "powod": "przejścia z7-z11 sprawdzone w grze; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)"
+   "powod": "przejścia z7-z11 sprawdzone w grze; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)",
+   "rodzina": "rook_kanaly"
   },
   "rook_raty_z9": {
    "miasto": "rook",
@@ -305,7 +335,8 @@
    "poziom_zrodlo": "karol",
    "waga": 1.0,
    "auto": true,
-   "powod": "jedna jaskinia z z10; droga wskazana przez Karola, bot jeszcze jej nie przeszedł; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)"
+   "powod": "jedna jaskinia z z10; droga wskazana przez Karola, bot jeszcze jej nie przeszedł; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)",
+   "rodzina": "rook_raty"
   },
   "rook_raty_z9_do_smierci": {
    "miasto": "rook",
@@ -317,7 +348,8 @@
    "poziom_zrodlo": "karol",
    "waga": 1.0,
    "auto": false,
-   "powod": "BEZ UCIECZKI: decyzja Karola 20.10 tylko dla Bobera lvl 1, nie do automatu; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)"
+   "powod": "BEZ UCIECZKI: decyzja Karola 20.10 tylko dla Bobera lvl 1, nie do automatu; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)",
+   "rodzina": "rook_raty"
   },
   "rook_raty_z10": {
    "miasto": "rook",
@@ -329,7 +361,8 @@
    "poziom_zrodlo": "karol",
    "waga": 1.0,
    "auto": true,
-   "powod": "drugie piętro tego samego spota co rook_raty_z9 (opis w mapy.json); Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)"
+   "powod": "drugie piętro tego samego spota co rook_raty_z9 (opis w mapy.json); Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)",
+   "rodzina": "rook_raty"
   },
   "rook_bugi_z8": {
    "miasto": "rook",
@@ -341,7 +374,8 @@
    "poziom_zrodlo": "karol",
    "waga": 1.0,
    "auto": false,
-   "powod": "bez dojścia: wejście ręczne schodami z7; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)"
+   "powod": "bez dojścia: wejście ręczne schodami z7; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)",
+   "rodzina": "rook_bugi"
   },
   "rook_bugi_z10": {
    "miasto": "rook",
@@ -353,7 +387,8 @@
    "poziom_zrodlo": "karol",
    "waga": 1.0,
    "auto": true,
-   "powod": "przejścia z mapy, niezweryfikowane botem; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)"
+   "powod": "przejścia z mapy, niezweryfikowane botem; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)",
+   "rodzina": "rook_bugi"
   },
   "rook_cave_raty_z9_glab": {
    "miasto": "rook",
@@ -365,7 +400,8 @@
    "poziom_zrodlo": "karol",
    "waga": 1.0,
    "auto": false,
-   "powod": "bez ucieczki (prog_hp -100) i bez wyjścia z obszaru; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)"
+   "powod": "bez ucieczki (prog_hp -100) i bez wyjścia z obszaru; Karol 23.10: limit Rooka lvl 8 (od 8 do miasta)",
+   "rodzina": "rook_raty"
   },
   "ph_raty_z8": {
    "miasto": "port_hope",
@@ -377,7 +413,8 @@
    "poziom_zrodlo": "domyslne",
    "waga": 1.0,
    "auto": true,
-   "powod": "niszowy (pod runy); Wasp i Snake trują; wejście z mapy, niezweryfikowane; Port Hope nie ma planu serwisu"
+   "powod": "niszowy (pod runy); Wasp i Snake trują; wejście z mapy, niezweryfikowane; Port Hope nie ma planu serwisu",
+   "rodzina": "port_hope_raty"
   },
   "trolle_kazordoon_z8": {
    "miasto": "thais",
@@ -389,7 +426,8 @@
    "poziom_zrodlo": "domyslne",
    "waga": 1.0,
    "auto": false,
-   "powod": "Troll z8 pod Kazordoonem, baza = Thais (22.10, korekta Karola): dojście z depo Thais drogą przez most Thais i powierzchnię z7, bez miasta Kazordoon i bez grobli z dwarfami; powrót liną do depo Thais (serwis Thais). Spot ręcznie (auto:false) do czasu: potwierdzenia lądowania rampy mostu i typów przejść w grze, poziomu od Karola; wymaga liny (powrót) i światła, możliwa łopata (dziura z7 mogła zostać zasypana); niesprawdzone na żywo"
+   "powod": "Troll z8 pod Kazordoonem, baza = Thais (22.10, korekta Karola): dojście z depo Thais drogą przez most Thais i powierzchnię z7, bez miasta Kazordoon i bez grobli z dwarfami; powrót liną do depo Thais (serwis Thais). Spot ręcznie (auto:false) do czasu: potwierdzenia lądowania rampy mostu i typów przejść w grze, poziomu od Karola; wymaga liny (powrót) i światła, możliwa łopata (dziura z7 mogła zostać zasypana); niesprawdzone na żywo",
+   "rodzina": "kazordoon_trolle"
   },
   "trolle_kazordoon_z9": {
    "miasto": "thais",
@@ -401,7 +439,8 @@
    "poziom_zrodlo": "domyslne",
    "waga": 1.0,
    "auto": false,
-   "powod": "Troll z9 pod Kazordoonem, baza = Thais (22.10, korekta Karola): dojście z depo Thais drogą przez most Thais i powierzchnię z7, bez miasta Kazordoon i bez grobli z dwarfami; powrót liną do depo Thais (serwis Thais). Spot ręcznie (auto:false) do czasu: potwierdzenia lądowania rampy mostu i typów przejść w grze, poziomu od Karola; wymaga liny (powrót) i światła, możliwa łopata (dziura z7 mogła zostać zasypana); niesprawdzone na żywo"
+   "powod": "Troll z9 pod Kazordoonem, baza = Thais (22.10, korekta Karola): dojście z depo Thais drogą przez most Thais i powierzchnię z7, bez miasta Kazordoon i bez grobli z dwarfami; powrót liną do depo Thais (serwis Thais). Spot ręcznie (auto:false) do czasu: potwierdzenia lądowania rampy mostu i typów przejść w grze, poziomu od Karola; wymaga liny (powrót) i światła, możliwa łopata (dziura z7 mogła zostać zasypana); niesprawdzone na żywo",
+   "rodzina": "kazordoon_trolle"
   },
   "trolle_kazordoon_z7": {
    "miasto": "thais",
@@ -413,7 +452,680 @@
    "poziom_zrodlo": "domyslne",
    "waga": 1.0,
    "auto": false,
-   "powod": "24.10 (Karol): powierzchnia z7 przy drodze Thais -> Kazordoon (24 potwory: troll, snake; osy w okolicy), gdy jaskinia z8 zajęta przez innego gracza. Bez liny i łopaty (tylko dwie rampy mostu Thais). Ręcznie (auto:false) do czasu potwierdzenia lądowania ramp mostu i poziomu od Karola; niesprawdzone na żywo"
+   "powod": "24.10 (Karol): powierzchnia z7 przy drodze Thais -> Kazordoon (24 potwory: troll, snake; osy w okolicy), gdy jaskinia z8 zajęta przez innego gracza. Bez liny i łopaty (tylko dwie rampy mostu Thais). Ręcznie (auto:false) do czasu potwierdzenia lądowania ramp mostu i poziomu od Karola; niesprawdzone na żywo",
+   "rodzina": "kazordoon_trolle"
+  },
+  "trolle_edron_z10w": {
+   "miasto": "edron",
+   "jaskinia": "edron_trolle_z10w",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "Troll, Bear, Swamp Troll, Frost Troll (13 potworów, pętla 79 pól); 26.10 (rodziny): mapa piętra wygenerowana offline z mapy klienta; typ przejścia niezweryfikowany na żywo (zejście dziurą z9 -> z10 i lina z10 -> z9; jak z9z przy dopisaniu); powrót do depo: wyjście w wyprawa.PLANY_PK dopisane 26.10 (generuj_powroty_rodziny.py, test_powroty_rodziny.py); auto false do pierwszego udanego przejścia na żywo jedną postacią, potem `auto: true`",
+   "rodzina": "edron_trolle"
+  },
+  "gobliny_edron_z10_zachod": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z10_zachod",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "Goblin (18); gobliny Edronu wyłączone (Karol 21.10: za mało defa); 26.10 (rodziny): mapa piętra wygenerowana offline z mapy klienta; typ przejścia niezweryfikowany na żywo (zejście dziurą z9 -> z10 i lina z10 -> z9; jak z9z przy dopisaniu); powrót do depo: wyjście w wyprawa.PLANY_PK dopisane 26.10 (generuj_powroty_rodziny.py, test_powroty_rodziny.py); auto false do pierwszego udanego przejścia na żywo jedną postacią, potem `auto: true`",
+   "rodzina": "edron_gobliny"
+  },
+  "gobliny_edron_z10_wschod": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z10_wschod",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "Goblin (19) + Wasp (2, trucizna); gobliny Edronu wyłączone (Karol 21.10); 26.10 (rodziny): mapa piętra wygenerowana offline z mapy klienta; typ przejścia niezweryfikowany na żywo (zejście dziurą z9 -> z10 i lina z10 -> z9; jak z9z przy dopisaniu); powrót do depo: wyjście w wyprawa.PLANY_PK dopisane 26.10 (generuj_powroty_rodziny.py, test_powroty_rodziny.py); auto false do pierwszego udanego przejścia na żywo jedną postacią, potem `auto: true`",
+   "rodzina": "edron_gobliny"
+  },
+  "gobliny_edron_z10_poludnie": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z10_poludnie",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "Goblin (11); gobliny Edronu wyłączone (Karol 21.10); 26.10 (rodziny): mapa piętra wygenerowana offline z mapy klienta; typ przejścia niezweryfikowany na żywo (zejście dziurą z9 -> z10 i lina z10 -> z9; jak z9z przy dopisaniu); powrót do depo: wyjście w wyprawa.PLANY_PK dopisane 26.10 (generuj_powroty_rodziny.py, test_powroty_rodziny.py); auto false do pierwszego udanego przejścia na żywo jedną postacią, potem `auto: true`",
+   "rodzina": "edron_gobliny"
+  },
+  "rook_raty_z10_zachod": {
+   "miasto": "rook",
+   "jaskinia": "rook_raty_z10_zachod",
+   "poziom": [
+    1,
+    7
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "Rat + Cave Rat (16); 26.10 (rodziny): mapa piętra wygenerowana offline z mapy klienta; typ przejścia niezweryfikowany na żywo (zejście z z9); auto false: brak planu powrotu do depo w wyprawa.PLANY_PK (z10 -> z9 = dziura, w górę tylko liną, Rookgaard zwykle bez liny: WROC/wyprawa = 'brak drogi'), do decyzji Karola",
+   "rodzina": "rook_raty"
+  },
+  "abdendriel_trolle_z9": {
+   "miasto": "abdendriel",
+   "jaskinia": "abdendriel_trolle_z9",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "26.10: wpis dopisany dla rodziny `abdendriel_trolle` (spoty_nadzorca.json nie znał Ab'Dendriel; 23.10 poprzedni be-dev zostawił wybór spotów w Ab Karolowi). auto false = nadzorca tego spotu NIE wybiera (ani zmiana spotu po 3. spotkaniu gracza); włączenie = `auto: true` po decyzji Karola",
+   "rodzina": "abdendriel_trolle"
+  },
+  "abdendriel_trolle_z10": {
+   "miasto": "abdendriel",
+   "jaskinia": "abdendriel_trolle_z10",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "26.10: wpis dopisany dla rodziny `abdendriel_trolle` (spoty_nadzorca.json nie znał Ab'Dendriel; 23.10 poprzedni be-dev zostawił wybór spotów w Ab Karolowi). auto false = nadzorca tego spotu NIE wybiera (ani zmiana spotu po 3. spotkaniu gracza); włączenie = `auto: true` po decyzji Karola",
+   "rodzina": "abdendriel_trolle"
+  },
+  "abdendriel_trolle_z11": {
+   "miasto": "abdendriel",
+   "jaskinia": "abdendriel_trolle_z11",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "26.10: wpis dopisany dla rodziny `abdendriel_trolle` (spoty_nadzorca.json nie znał Ab'Dendriel; 23.10 poprzedni be-dev zostawił wybór spotów w Ab Karolowi). auto false = nadzorca tego spotu NIE wybiera (ani zmiana spotu po 3. spotkaniu gracza); włączenie = `auto: true` po decyzji Karola",
+   "rodzina": "abdendriel_trolle"
+  },
+  "abdendriel_trolle_z12": {
+   "miasto": "abdendriel",
+   "jaskinia": "abdendriel_trolle_z12",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "26.10: wpis dopisany dla rodziny `abdendriel_trolle` (spoty_nadzorca.json nie znał Ab'Dendriel; 23.10 poprzedni be-dev zostawił wybór spotów w Ab Karolowi). auto false = nadzorca tego spotu NIE wybiera (ani zmiana spotu po 3. spotkaniu gracza); włączenie = `auto: true` po decyzji Karola",
+   "rodzina": "abdendriel_trolle"
+  },
+  "abdendriel_trolle_z10_z9": {
+   "miasto": "abdendriel",
+   "jaskinia": "abdendriel_trolle_z10",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "ta sama pętla co abdendriel_trolle_z10, dojście z depo (24.10); 26.10: wpis dopisany dla rodziny `abdendriel_trolle` (spoty_nadzorca.json nie znał Ab'Dendriel; 23.10 poprzedni be-dev zostawił wybór spotów w Ab Karolowi). auto false = nadzorca tego spotu NIE wybiera (ani zmiana spotu po 3. spotkaniu gracza); włączenie = `auto: true` po decyzji Karola",
+   "rodzina": "abdendriel_trolle"
+  },
+  "abdendriel_trolle_z11_z9": {
+   "miasto": "abdendriel",
+   "jaskinia": "abdendriel_trolle_z11",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "ta sama pętla co abdendriel_trolle_z11, dojście z depo (25.10); 26.10: wpis dopisany dla rodziny `abdendriel_trolle` (spoty_nadzorca.json nie znał Ab'Dendriel; 23.10 poprzedni be-dev zostawił wybór spotów w Ab Karolowi). auto false = nadzorca tego spotu NIE wybiera (ani zmiana spotu po 3. spotkaniu gracza); włączenie = `auto: true` po decyzji Karola",
+   "rodzina": "abdendriel_trolle"
+  },
+  "abdendriel_trolle_z12_z9": {
+   "miasto": "abdendriel",
+   "jaskinia": "abdendriel_trolle_z12",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "ta sama pętla co abdendriel_trolle_z12, dojście z depo (25.10); 26.10: wpis dopisany dla rodziny `abdendriel_trolle` (spoty_nadzorca.json nie znał Ab'Dendriel; 23.10 poprzedni be-dev zostawił wybór spotów w Ab Karolowi). auto false = nadzorca tego spotu NIE wybiera (ani zmiana spotu po 3. spotkaniu gracza); włączenie = `auto: true` po decyzji Karola",
+   "rodzina": "abdendriel_trolle"
+  },
+  "abdendriel_gobliny": {
+   "miasto": "abdendriel",
+   "jaskinia": "abdendriel_gobliny_z6",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "gobliny pod Ab na z6 (25.10, niepotwierdzone na żywo: schody (32622,31790) i depo); 26.10: wpis dopisany dla rodziny `abdendriel_trolle` (spoty_nadzorca.json nie znał Ab'Dendriel; 23.10 poprzedni be-dev zostawił wybór spotów w Ab Karolowi). auto false = nadzorca tego spotu NIE wybiera (ani zmiana spotu po 3. spotkaniu gracza); włączenie = `auto: true` po decyzji Karola",
+   "rodzina": "abdendriel_gobliny"
+  },
+  "rook_raty_z8_kieszen": {
+   "miasto": "rook",
+   "jaskinia": "rook_raty_z8_kieszen",
+   "poziom": [
+    1,
+    7
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "26.10: wpis dla rodziny rook_raty; mapa bez dojścia (start tylko, gdy postać już stoi w kieszeni z dziurami), nadzorca jej nie wybiera",
+   "rodzina": "rook_raty"
+  },
+  "rook_raty_z9_z_kieszeni": {
+   "miasto": "rook",
+   "jaskinia": "rook_raty_z9",
+   "poziom": [
+    1,
+    7
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "26.10: wpis dla rodziny rook_raty; pętla jak rook_raty_z9, dojście z kieszeni z8 (start tylko, gdy postać stoi w kieszeni), nadzorca jej nie wybiera",
+   "rodzina": "rook_raty"
+  },
+  "stoj_uh_edron_horn": {
+   "miasto": "edron",
+   "jaskinia": "edron_horn",
+   "poziom": [
+    1,
+    999
+   ],
+   "poziom_zrodlo": "domyslne",
+   "waga": 1.0,
+   "auto": false,
+   "powod": "nie poluje: stoi na statku Horn of Plenty i robi UH (stanowisko, 23.10); wpis dla spójności tabeli z mapy.json, nadzorca nie wybiera",
+   "rodzina": "edron_horn"
+  },
+  "trolle_edron__z__trolle_edron_z10w": {
+   "miasto": "edron",
+   "jaskinia": "edron_trolle_z8",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "karol",
+   "rodzina": "edron_trolle",
+   "waga": 0.5,
+   "auto": false,
+   "baza": "trolle_edron",
+   "powod": "wariant-łącznik spotu trolle_edron (dojście z pętli trolle_edron_z10w); EFEKTYWNE auto i powód dziedziczy po trolle_edron w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "trolle_edron_z9w__z__trolle_edron_z10w": {
+   "miasto": "edron",
+   "jaskinia": "edron_trolle_z9w",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "karol",
+   "rodzina": "edron_trolle",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "trolle_edron_z9w",
+   "powod": "wariant-łącznik spotu trolle_edron_z9w (dojście z pętli trolle_edron_z10w); EFEKTYWNE auto i powód dziedziczy po trolle_edron_z9w w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "trolle_edron_z9z__z__trolle_edron_z10w": {
+   "miasto": "edron",
+   "jaskinia": "edron_trolle_z9z",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "karol",
+   "rodzina": "edron_trolle",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "trolle_edron_z9z",
+   "powod": "wariant-łącznik spotu trolle_edron_z9z (dojście z pętli trolle_edron_z10w); EFEKTYWNE auto i powód dziedziczy po trolle_edron_z9z w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "trolle_edron__z__trolle_edron_z9w": {
+   "miasto": "edron",
+   "jaskinia": "edron_trolle_z8",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "karol",
+   "rodzina": "edron_trolle",
+   "waga": 0.5,
+   "auto": false,
+   "baza": "trolle_edron",
+   "powod": "wariant-łącznik spotu trolle_edron (dojście z pętli trolle_edron_z9w); EFEKTYWNE auto i powód dziedziczy po trolle_edron w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "trolle_edron_z9z__z__trolle_edron_z9w": {
+   "miasto": "edron",
+   "jaskinia": "edron_trolle_z9z",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "karol",
+   "rodzina": "edron_trolle",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "trolle_edron_z9z",
+   "powod": "wariant-łącznik spotu trolle_edron_z9z (dojście z pętli trolle_edron_z9w); EFEKTYWNE auto i powód dziedziczy po trolle_edron_z9z w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "trolle_edron__z__trolle_edron_z9z": {
+   "miasto": "edron",
+   "jaskinia": "edron_trolle_z8",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "karol",
+   "rodzina": "edron_trolle",
+   "waga": 0.5,
+   "auto": false,
+   "baza": "trolle_edron",
+   "powod": "wariant-łącznik spotu trolle_edron (dojście z pętli trolle_edron_z9z); EFEKTYWNE auto i powód dziedziczy po trolle_edron w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "trolle_edron_z10w__z__trolle_edron_z9z": {
+   "miasto": "edron",
+   "jaskinia": "edron_trolle_z10w",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_trolle",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "trolle_edron_z10w",
+   "powod": "wariant-łącznik spotu trolle_edron_z10w (dojście z pętli trolle_edron_z9z); EFEKTYWNE auto i powód dziedziczy po trolle_edron_z10w w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "trolle_edron_z9w__z__trolle_edron_z9z": {
+   "miasto": "edron",
+   "jaskinia": "edron_trolle_z9w",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "karol",
+   "rodzina": "edron_trolle",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "trolle_edron_z9w",
+   "powod": "wariant-łącznik spotu trolle_edron_z9w (dojście z pętli trolle_edron_z9z); EFEKTYWNE auto i powód dziedziczy po trolle_edron_z9w w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "gobliny_edron_z10_poludnie__z__gobliny_edron": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z10_poludnie",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron_z10_poludnie",
+   "powod": "wariant-łącznik spotu gobliny_edron_z10_poludnie (dojście z pętli gobliny_edron); EFEKTYWNE auto i powód dziedziczy po gobliny_edron_z10_poludnie w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)"
+  },
+  "gobliny_edron_z10_wschod__z__gobliny_edron": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z10_wschod",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron_z10_wschod",
+   "powod": "wariant-łącznik spotu gobliny_edron_z10_wschod (dojście z pętli gobliny_edron); EFEKTYWNE auto i powód dziedziczy po gobliny_edron_z10_wschod w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)"
+  },
+  "gobliny_edron_z10_zachod__z__gobliny_edron": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z10_zachod",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron_z10_zachod",
+   "powod": "wariant-łącznik spotu gobliny_edron_z10_zachod (dojście z pętli gobliny_edron); EFEKTYWNE auto i powód dziedziczy po gobliny_edron_z10_zachod w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)"
+  },
+  "gobliny_edron_z9__z__gobliny_edron": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z9",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron_z9",
+   "powod": "wariant-łącznik spotu gobliny_edron_z9 (dojście z pętli gobliny_edron); EFEKTYWNE auto i powód dziedziczy po gobliny_edron_z9 w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)"
+  },
+  "gobliny_edron__z__gobliny_edron_z10_poludnie": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z8",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron",
+   "powod": "wariant-łącznik spotu gobliny_edron (dojście z pętli gobliny_edron_z10_poludnie); EFEKTYWNE auto i powód dziedziczy po gobliny_edron w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "gobliny_edron_z10_wschod__z__gobliny_edron_z10_poludnie": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z10_wschod",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron_z10_wschod",
+   "powod": "wariant-łącznik spotu gobliny_edron_z10_wschod (dojście z pętli gobliny_edron_z10_poludnie); EFEKTYWNE auto i powód dziedziczy po gobliny_edron_z10_wschod w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "gobliny_edron_z10_zachod__z__gobliny_edron_z10_poludnie": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z10_zachod",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron_z10_zachod",
+   "powod": "wariant-łącznik spotu gobliny_edron_z10_zachod (dojście z pętli gobliny_edron_z10_poludnie); EFEKTYWNE auto i powód dziedziczy po gobliny_edron_z10_zachod w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "gobliny_edron_z9__z__gobliny_edron_z10_poludnie": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z9",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron_z9",
+   "powod": "wariant-łącznik spotu gobliny_edron_z9 (dojście z pętli gobliny_edron_z10_poludnie); EFEKTYWNE auto i powód dziedziczy po gobliny_edron_z9 w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "gobliny_edron__z__gobliny_edron_z10_wschod": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z8",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron",
+   "powod": "wariant-łącznik spotu gobliny_edron (dojście z pętli gobliny_edron_z10_wschod); EFEKTYWNE auto i powód dziedziczy po gobliny_edron w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "gobliny_edron_z10_poludnie__z__gobliny_edron_z10_wschod": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z10_poludnie",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron_z10_poludnie",
+   "powod": "wariant-łącznik spotu gobliny_edron_z10_poludnie (dojście z pętli gobliny_edron_z10_wschod); EFEKTYWNE auto i powód dziedziczy po gobliny_edron_z10_poludnie w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "gobliny_edron_z10_zachod__z__gobliny_edron_z10_wschod": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z10_zachod",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron_z10_zachod",
+   "powod": "wariant-łącznik spotu gobliny_edron_z10_zachod (dojście z pętli gobliny_edron_z10_wschod); EFEKTYWNE auto i powód dziedziczy po gobliny_edron_z10_zachod w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "gobliny_edron_z9__z__gobliny_edron_z10_wschod": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z9",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron_z9",
+   "powod": "wariant-łącznik spotu gobliny_edron_z9 (dojście z pętli gobliny_edron_z10_wschod); EFEKTYWNE auto i powód dziedziczy po gobliny_edron_z9 w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "gobliny_edron__z__gobliny_edron_z10_zachod": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z8",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron",
+   "powod": "wariant-łącznik spotu gobliny_edron (dojście z pętli gobliny_edron_z10_zachod); EFEKTYWNE auto i powód dziedziczy po gobliny_edron w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "gobliny_edron_z10_poludnie__z__gobliny_edron_z10_zachod": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z10_poludnie",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron_z10_poludnie",
+   "powod": "wariant-łącznik spotu gobliny_edron_z10_poludnie (dojście z pętli gobliny_edron_z10_zachod); EFEKTYWNE auto i powód dziedziczy po gobliny_edron_z10_poludnie w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "gobliny_edron_z10_wschod__z__gobliny_edron_z10_zachod": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z10_wschod",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron_z10_wschod",
+   "powod": "wariant-łącznik spotu gobliny_edron_z10_wschod (dojście z pętli gobliny_edron_z10_zachod); EFEKTYWNE auto i powód dziedziczy po gobliny_edron_z10_wschod w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "gobliny_edron_z9__z__gobliny_edron_z10_zachod": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z9",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron_z9",
+   "powod": "wariant-łącznik spotu gobliny_edron_z9 (dojście z pętli gobliny_edron_z10_zachod); EFEKTYWNE auto i powód dziedziczy po gobliny_edron_z9 w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "gobliny_edron__z__gobliny_edron_z9": {
+   "miasto": "edron",
+   "jaskinia": "edron_gobliny_z8",
+   "poziom": [
+    6,
+    20
+   ],
+   "poziom_zrodlo": "domyslne",
+   "rodzina": "edron_gobliny",
+   "waga": 1.0,
+   "auto": false,
+   "baza": "gobliny_edron",
+   "powod": "wariant-łącznik spotu gobliny_edron (dojście z pętli gobliny_edron_z9); EFEKTYWNE auto i powód dziedziczy po gobliny_edron w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "trolle_edron_patrol__z__trolle_edron_z10w": {
+   "miasto": "edron",
+   "jaskinia": "edron_trolle_z8",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "karol",
+   "rodzina": "edron_trolle",
+   "waga": 0.5,
+   "auto": false,
+   "baza": "trolle_edron_patrol",
+   "powod": "wariant-łącznik spotu trolle_edron_patrol (dojście z pętli trolle_edron_z10w); EFEKTYWNE auto i powód dziedziczy po trolle_edron_patrol w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "trolle_edron_patrol__z__trolle_edron_z9w": {
+   "miasto": "edron",
+   "jaskinia": "edron_trolle_z8",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "karol",
+   "rodzina": "edron_trolle",
+   "waga": 0.5,
+   "auto": false,
+   "baza": "trolle_edron_patrol",
+   "powod": "wariant-łącznik spotu trolle_edron_patrol (dojście z pętli trolle_edron_z9w); EFEKTYWNE auto i powód dziedziczy po trolle_edron_patrol w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
+  },
+  "trolle_edron_patrol__z__trolle_edron_z9z": {
+   "miasto": "edron",
+   "jaskinia": "edron_trolle_z8",
+   "poziom": [
+    8,
+    30
+   ],
+   "poziom_zrodlo": "karol",
+   "rodzina": "edron_trolle",
+   "waga": 0.5,
+   "auto": false,
+   "baza": "trolle_edron_patrol",
+   "powod": "wariant-łącznik spotu trolle_edron_patrol (dojście z pętli trolle_edron_z9z); EFEKTYWNE auto i powód dziedziczy po trolle_edron_patrol w spoty.wczytaj (nowy kod); `auto: false` w pliku to zabezpieczenie dla STAREGO kodu spoty.py w żywym procesie (bez obsługi `baza` wybrałby wariant z z7 i dojście byłoby śmieciem)",
+   "wymaga_dodatkowo": [
+    "lina"
+   ]
   }
  }
 }

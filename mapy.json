@@ -1,314 +1,670 @@
 {
- "_opis": "Mapa = tylko miejsce i moby (gdzie i kogo bijemy). Zachowanie bota to osobny moduł: tryby.json. Mieszanie: MAPA=raty TRYB=sredni,runy ./uruchom.sh",
- "raty": {
-  "opis": "Thais, kanały: szczury (trasa thais_szczury_opt), start z z7 przechodzi dojście thais_dojscie_kratka (kratka (32370,32213); stare thais_dojscie przez świątynię prowadzi na z6, 21.10)",
-  "trasa": "thais_szczury_opt",
-  "potwory": "Rat",
-  "prog_hp": 30,
-  "dojscie": "thais_dojscie_kratka"
- },
- "trolle": {
-  "opis": "Troll cave z8+z9: pętla troll_cave (jak uruchom_trolle.sh), dojście z depo przy starcie z z7",
-  "trasa": "troll_cave",
-  "potwory": "Troll",
-  "prog_hp": 30,
-  "dojscie": "depo_troll_cave"
- },
- "trolle_pelny": {
-  "opis": "Troll cave: trasa troll_pelny (z8); dojście z depo kończy przy wejściu, bot idzie do najbliższego punktu trasy",
-  "trasa": "troll_pelny",
-  "potwory": "Troll",
-  "prog_hp": 30,
-  "dojscie": "depo_troll_cave"
- },
- "trolle_nowe": {
-  "opis": "Troll cave: nowa część (troll_nowa_czesc, z8)",
-  "trasa": "troll_nowa_czesc",
-  "potwory": "Troll,Orc,Orc Spearman,Orc Warrior",
-  "prog_hp": 30,
-  "dojscie": "depo_troll_cave"
- },
- "trolle_patrol": {
-  "opis": "Troll cave: patrol po miejscach z trasy/miejsca_troll.json (z8+z9)",
-  "trasa": "patrol:troll",
-  "potwory": "Troll,Orc,Orc Spearman,Orc Warrior",
-  "prog_hp": 30,
-  "dojscie": "depo_troll_cave"
- },
- "trolle_edron": {
-  "opis": "Edron troll cave z8: pętla edron_trolle_petla (nagrana 15.10), dojście z depo edron_depo_trolle",
-  "trasa": "edron_trolle_petla",
-  "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
-  "prog_hp": 30,
-  "dojscie": "edron_depo_trolle",
-  "dojscie_z_dowolnego_pietra": true
- },
- "trolle_edron_patrol": {
-  "opis": "Edron troll cave z8: patrol po spawnach z trasy/miejsca_edron.json (wymaga TRYB_PATROL=1), trasa awaryjna pętla edron_trolle_petla, dojście z depo edron_depo_trolle",
-  "trasa": "patrol:edron",
-  "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
-  "prog_hp": 30,
-  "dojscie": "edron_depo_trolle",
-  "dojscie_z_dowolnego_pietra": true
- },
- "rook": {
-  "opis": "Rookgaard, kanały z11: patrol po miejscach z trasy/miejsca.json (trasa awaryjna kanaly2), szczury; bez dojścia: postać musi stać w kanałach",
-  "trasa": "patrol",
-  "potwory": "Rat,Cave Rat",
-  "prog_hp": 30
- },
- "rook_raty_z8": {
-  "opis": "Rookgaard, jaskinia szczurów z8 tuż pod miastem (872 pola, 34 szczury): pętla rook_raty_z8_petla z mapy klienta (20.10, generuj_trasy_rook.py). Dojście z miasta (z7) trasą rook_raty_z8_dojscie do wejścia (32046,32221,z7): wejście wywnioskowane z mapy, typ przejścia niezweryfikowany w grze; na z8 start na miejscu",
-  "trasa": "rook_raty_z8_petla",
-  "potwory": "Rat,Cave Rat",
-  "prog_hp": 30,
-  "dojscie": "rook_raty_z8_dojscie"
- },
- "ph_raty_z8": {
-  "opis": "Port Hope, jaskinia z8 na pn-wsch od miasta (644 pola, 34 potwory: cave rat, bug, spider; spot niszowy pod runy, ser na jedzenie): pętla ph_raty_z8_petla z mapy klienta (20.10, generuj_trasy_ph.py). Dojście ze środka miasta (z7) 68 pól trasą ph_raty_z8_dojscie do wejścia (32662,32741,z7): wejście wywnioskowane z mapy, typ przejścia niezweryfikowany w grze. Uwaga: w jaskini dziura w dół na z9 (32654,32706). Wasp i Snake na liście, bo przy dojściu mogą zalecieć i trują (trucizna 25/20, bot nie leczy trucizny): zabić od razu",
-  "trasa": "ph_raty_z8_petla",
-  "potwory": "Cave Rat,Bug,Spider,Wasp,Snake",
-  "prog_hp": 30,
-  "dojscie": "ph_raty_z8_dojscie"
- },
- "rook_kanaly_z11": {
-  "opis": "Rookgaard, kanały z11 (774 pola, ok. 35 szczurów): pętla rook_kanaly_z11_petla z mapy klienta (20.10). Dojście z depo w mieście (z7) trasą rook_kanaly_z11_dojscie = odwrócone nagranie do_miasta (przejścia z7-z8-z9-z10-z11 sprawdzone w grze); na z11 start na miejscu",
-  "trasa": "rook_kanaly_z11_petla",
-  "potwory": "Rat,Cave Rat",
-  "prog_hp": 30,
-  "dojscie": "rook_kanaly_z11_dojscie"
- },
- "rook_raty_z9": {
-  "opis": "Rookgaard, jaskinia szczurów z9 (432 pola, 27 szczurów, pętla 283 pola): pętla rook_raty_z9_petla z mapy klienta (20.10, generuj_trasy_rook_raty2.py). Dojście z depo w mieście (z7): schody w depo (32027,32197), kieszeń z8, kratka (32029,32195,z8), trasą rook_raty_z9_dojscie; drogę wskazał Karol, bot jeszcze jej sam nie przeszedł; na z9 start na miejscu",
-  "trasa": "rook_raty_z9_petla",
-  "potwory": "Rat,Cave Rat",
-  "prog_hp": 30,
-  "dojscie": "rook_raty_z9_dojscie"
- },
- "rook_raty_z9_do_smierci": {
-  "opis": "BEZ UCIECZKI (decyzja Karola 20.10, Bober lvl 1: walczy do śmierci): Rookgaard, jaskinia szczurów z9 (432 pola, 27 szczurów, pętla 283 pola): pętla rook_raty_z9_petla z mapy klienta (20.10, generuj_trasy_rook_raty2.py). Dojście z depo w mieście (z7): schody w depo (32027,32197), kieszeń z8, kratka (32029,32195,z8), trasą rook_raty_z9_dojscie; drogę wskazał Karol, bot jeszcze jej sam nie przeszedł; na z9 start na miejscu",
-  "trasa": "rook_raty_z9_petla",
-  "potwory": "Rat,Cave Rat",
-  "prog_hp": -100,
-  "dojscie": "rook_raty_z9_dojscie"
- },
- "rook_raty_z10": {
-  "opis": "Rookgaard, jaskinia z10 pod z9 (332 pola, 19 szczurów + 3 jaskiniowe, pętla 122 pola): pętla rook_raty_z10_petla z mapy klienta (20.10, drugie piętro tego samego spota co rook_raty_z9). Dojście jak do z9 plus zejście (32038,32212,z9) trasą rook_raty_z10_dojscie; bot jeszcze jej sam nie przeszedł; na z10 start na miejscu",
-  "trasa": "rook_raty_z10_petla",
-  "potwory": "Rat,Cave Rat",
-  "prog_hp": 30,
-  "dojscie": "rook_raty_z10_dojscie"
- },
- "wilki": {
-  "opis": "Thais, wilki przy mieście (z7): pętla wilki_thais wokół (32480,32166), bez dojścia",
-  "trasa": "wilki_thais",
-  "potwory": "Wolf,Rat",
-  "prog_hp": 30
- },
- "gobliny_edron": {
-  "opis": "Edron jaskinia goblinów z8: pętla gobliny_edron_z8_petla wygenerowana z mapy klienta 17.10 (12 przystanków, ok. 39 goblinów), start przy linie (33107,31846). Dojście z depo/powierzchni (z7) trasą gobliny_edron_z_depo (18.10); na z8 start na miejscu.",
-  "trasa": "gobliny_edron_z8_petla",
-  "potwory": "Goblin",
-  "prog_hp": 30,
-  "dojscie": "gobliny_edron_z_depo",
-  "dojscie_z_dowolnego_pietra": true
- },
- "stoj_trade": {
-  "opis": "Stoi w miejscu i sprzedaje na Trade (jeden punkt, bez chodzenia)",
-  "trasa": "stoj_trade",
-  "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
-  "prog_hp": 30
- },
- "stoj_runy_thais": {
-  "opis": "Thais: stoi poza PZ na (32339,32221,7), je ham, robi runy (UH, a poniżej lvl 11 HMM) i obsługuje się przez serwis; ucieczka do PZ tylko przy ataku/wrogu/czaszce/niskim HP (22.10, SPEC_stoj_runy_1022 F1). PZ niezmierzone: cele ucieczki to pola depo.",
-  "trasa": "stoj_runy_thais",
-  "potwory": "Stanowisko Brak Celow",
-  "prog_hp": 50,
-  "stanowisko": {
-   "miasto": "thais",
-   "pola": [
-    [
-     32339,
-     32221,
-     7
-    ]
-   ],
-   "pz": [
-    [
-     32348,
-     32225,
-     7
-    ],
-    [
-     32343,
-     32226,
-     7
-    ],
-    [
-     32341,
-     32226,
-     7
-    ]
-   ],
-   "depo": [
-    32348,
-    32225,
-    7
-   ],
-   "pz_zmierzone": false
+  "_opis": "Mapa = tylko miejsce i moby (gdzie i kogo bijemy). Zachowanie bota to osobny moduł: tryby.json. Mieszanie: MAPA=raty TRYB=sredni,runy ./uruchom.sh",
+  "raty": {
+    "opis": "Thais, kanały: szczury (trasa thais_szczury_opt), start z z7 przechodzi dojście thais_dojscie_kratka (kratka (32370,32213); stare thais_dojscie przez świątynię prowadzi na z6, 21.10)",
+    "trasa": "thais_szczury_opt",
+    "potwory": "Rat",
+    "prog_hp": 30,
+    "dojscie": "thais_dojscie_kratka"
+  },
+  "trolle": {
+    "opis": "Troll cave z8+z9: pętla troll_cave (jak uruchom_trolle.sh), dojście z depo przy starcie z z7",
+    "trasa": "troll_cave",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "depo_troll_cave"
+  },
+  "trolle_pelny": {
+    "opis": "Troll cave: trasa troll_pelny (z8); dojście z depo kończy przy wejściu, bot idzie do najbliższego punktu trasy",
+    "trasa": "troll_pelny",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "depo_troll_cave"
+  },
+  "trolle_nowe": {
+    "opis": "Troll cave: nowa część (troll_nowa_czesc, z8)",
+    "trasa": "troll_nowa_czesc",
+    "potwory": "Troll,Orc,Orc Spearman,Orc Warrior",
+    "prog_hp": 30,
+    "dojscie": "depo_troll_cave"
+  },
+  "trolle_patrol": {
+    "opis": "Troll cave: patrol po miejscach z trasy/miejsca_troll.json (z8+z9)",
+    "trasa": "patrol:troll",
+    "potwory": "Troll,Orc,Orc Spearman,Orc Warrior",
+    "prog_hp": 30,
+    "dojscie": "depo_troll_cave"
+  },
+  "trolle_edron": {
+    "opis": "Edron troll cave z8: pętla edron_trolle_petla (nagrana 15.10), dojście z depo edron_depo_trolle",
+    "trasa": "edron_trolle_petla",
+    "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
+    "prog_hp": 30,
+    "dojscie": "edron_depo_trolle",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "trolle_edron_patrol": {
+    "opis": "Edron troll cave z8: patrol po spawnach z trasy/miejsca_edron.json (wymaga TRYB_PATROL=1), trasa awaryjna pętla edron_trolle_petla, dojście z depo edron_depo_trolle",
+    "trasa": "patrol:edron",
+    "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
+    "prog_hp": 30,
+    "dojscie": "edron_depo_trolle",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "rook": {
+    "opis": "Rookgaard, kanały z11: patrol po miejscach z trasy/miejsca.json (trasa awaryjna kanaly2), szczury; bez dojścia: postać musi stać w kanałach",
+    "trasa": "patrol",
+    "potwory": "Rat,Cave Rat",
+    "prog_hp": 30
+  },
+  "rook_raty_z8": {
+    "opis": "Rookgaard, jaskinia szczurów z8 tuż pod miastem (872 pola, 34 szczury): pętla rook_raty_z8_petla z mapy klienta (20.10, generuj_trasy_rook.py). Dojście z miasta (z7) trasą rook_raty_z8_dojscie do wejścia (32046,32221,z7): wejście wywnioskowane z mapy, typ przejścia niezweryfikowany w grze; na z8 start na miejscu",
+    "trasa": "rook_raty_z8_petla",
+    "potwory": "Rat,Cave Rat",
+    "prog_hp": 30,
+    "dojscie": "rook_raty_z8_dojscie"
+  },
+  "ph_raty_z8": {
+    "opis": "Port Hope, jaskinia z8 na pn-wsch od miasta (644 pola, 34 potwory: cave rat, bug, spider; spot niszowy pod runy, ser na jedzenie): pętla ph_raty_z8_petla z mapy klienta (20.10, generuj_trasy_ph.py). Dojście ze środka miasta (z7) 68 pól trasą ph_raty_z8_dojscie do wejścia (32662,32741,z7): wejście wywnioskowane z mapy, typ przejścia niezweryfikowany w grze. Uwaga: w jaskini dziura w dół na z9 (32654,32706). Wasp i Snake na liście, bo przy dojściu mogą zalecieć i trują (trucizna 25/20, bot nie leczy trucizny): zabić od razu",
+    "trasa": "ph_raty_z8_petla",
+    "potwory": "Cave Rat,Bug,Spider,Wasp,Snake",
+    "prog_hp": 30,
+    "dojscie": "ph_raty_z8_dojscie"
+  },
+  "rook_kanaly_z11": {
+    "opis": "Rookgaard, kanały z11 (774 pola, ok. 35 szczurów): pętla rook_kanaly_z11_petla z mapy klienta (20.10). Dojście z depo w mieście (z7) trasą rook_kanaly_z11_dojscie = odwrócone nagranie do_miasta (przejścia z7-z8-z9-z10-z11 sprawdzone w grze); na z11 start na miejscu",
+    "trasa": "rook_kanaly_z11_petla",
+    "potwory": "Rat,Cave Rat",
+    "prog_hp": 30,
+    "dojscie": "rook_kanaly_z11_dojscie"
+  },
+  "rook_raty_z9": {
+    "opis": "Rookgaard, jaskinia szczurów z9 (432 pola, 27 szczurów, pętla 283 pola): pętla rook_raty_z9_petla z mapy klienta (20.10, generuj_trasy_rook_raty2.py). Dojście z depo w mieście (z7): schody w depo (32027,32197), kieszeń z8, kratka (32029,32195,z8), trasą rook_raty_z9_dojscie; drogę wskazał Karol, bot jeszcze jej sam nie przeszedł; na z9 start na miejscu",
+    "trasa": "rook_raty_z9_petla",
+    "potwory": "Rat,Cave Rat",
+    "prog_hp": 30,
+    "dojscie": "rook_raty_z9_dojscie"
+  },
+  "rook_raty_z9_do_smierci": {
+    "opis": "BEZ UCIECZKI (decyzja Karola 20.10, Bober lvl 1: walczy do śmierci): Rookgaard, jaskinia szczurów z9 (432 pola, 27 szczurów, pętla 283 pola): pętla rook_raty_z9_petla z mapy klienta (20.10, generuj_trasy_rook_raty2.py). Dojście z depo w mieście (z7): schody w depo (32027,32197), kieszeń z8, kratka (32029,32195,z8), trasą rook_raty_z9_dojscie; drogę wskazał Karol, bot jeszcze jej sam nie przeszedł; na z9 start na miejscu",
+    "trasa": "rook_raty_z9_petla",
+    "potwory": "Rat,Cave Rat",
+    "prog_hp": -100,
+    "dojscie": "rook_raty_z9_dojscie"
+  },
+  "rook_raty_z10": {
+    "opis": "Rookgaard, jaskinia z10 pod z9 (332 pola, 19 szczurów + 3 jaskiniowe, pętla 122 pola): pętla rook_raty_z10_petla z mapy klienta (20.10, drugie piętro tego samego spota co rook_raty_z9). Dojście jak do z9 plus zejście (32038,32212,z9) trasą rook_raty_z10_dojscie; bot jeszcze jej sam nie przeszedł; na z10 start na miejscu",
+    "trasa": "rook_raty_z10_petla",
+    "potwory": "Rat,Cave Rat",
+    "prog_hp": 30,
+    "dojscie": "rook_raty_z10_dojscie"
+  },
+  "wilki": {
+    "opis": "Thais, wilki przy mieście (z7): pętla wilki_thais wokół (32480,32166), bez dojścia",
+    "trasa": "wilki_thais",
+    "potwory": "Wolf,Rat",
+    "prog_hp": 30
+  },
+  "gobliny_edron": {
+    "opis": "Edron jaskinia goblinów z8: pętla gobliny_edron_z8_petla wygenerowana z mapy klienta 17.10 (12 przystanków, ok. 39 goblinów), start przy linie (33107,31846). Dojście z depo/powierzchni (z7) trasą gobliny_edron_z_depo (18.10); na z8 start na miejscu.",
+    "trasa": "gobliny_edron_z8_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "gobliny_edron_z_depo",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "stoj_trade": {
+    "opis": "Stoi w miejscu i sprzedaje na Trade (jeden punkt, bez chodzenia)",
+    "trasa": "stoj_trade",
+    "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
+    "prog_hp": 30
+  },
+  "stoj_runy_thais": {
+    "opis": "Thais: stoi poza PZ na (32339,32221,7), je ham, robi runy (UH, a poniżej lvl 11 HMM) i obsługuje się przez serwis; ucieczka do PZ tylko przy ataku/wrogu/czaszce/niskim HP (22.10, SPEC_stoj_runy_1022 F1). PZ niezmierzone: cele ucieczki to pola depo.",
+    "trasa": "stoj_runy_thais",
+    "potwory": "Stanowisko Brak Celow",
+    "prog_hp": 50,
+    "stanowisko": {
+      "miasto": "thais",
+      "pola": [
+        [
+          32339,
+          32221,
+          7
+        ]
+      ],
+      "pz": [
+        [
+          32348,
+          32225,
+          7
+        ],
+        [
+          32343,
+          32226,
+          7
+        ],
+        [
+          32341,
+          32226,
+          7
+        ]
+      ],
+      "depo": [
+        32348,
+        32225,
+        7
+      ],
+      "pz_zmierzone": false
+    }
+  },
+  "gobliny_edron_z9": {
+    "opis": "Edron jaskinia goblinów z9 (-2): pętla gobliny_edron_z9_petla; dojście z depo/powierzchni trasą z_depo + z8 do dziury (33092,31837) i zejście na z9 (19.10)",
+    "trasa": "gobliny_edron_z9_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "gobliny_edron_z9_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "rook_bugi_z8": {
+    "opis": "Rookgaard, jaskinia bugów z8 za pocztą (144 pola, 11 bugów w 5 spawnach, pętla 93 pola): pętla rook_bugi_z8_petla z mapy klienta (20.10, generuj_trasy_rook_bugi.py). Bez dojścia: postać wchodzi ręcznie schodami w dół z7 (32077,32151) lub (32056,32146) i bot startuje na miejscu; wejścia z mapy, niezweryfikowane botem",
+    "trasa": "rook_bugi_z8_petla",
+    "potwory": "Bug",
+    "prog_hp": 30
+  },
+  "rook_bugi_z10": {
+    "opis": "Rookgaard, jaskinia bugów z10 pod środkiem miasta (165 pól, 9 bugów w 4 przystankach, pętla 85 pól): pętla rook_bugi_z10_petla z mapy klienta (20.10, generuj_trasy_rook_bugi_z10.py). Dojście rook_bugi_z10_dojscie z depo (z7) przez schody (32050,32187,z7), kieszeń z8, schody (32061,32197,z8) i (32056,32199,z9); od najbliższego punktu także z kieszeni z8 / z9 (start z z8 wymaga dojscie_z_dowolnego_pietra). Przejścia z mapy, niezweryfikowane botem",
+    "trasa": "rook_bugi_z10_petla",
+    "potwory": "Bug",
+    "prog_hp": 30,
+    "dojscie": "rook_bugi_z10_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "rook_cave_raty_z9_glab": {
+    "opis": "Rookgaard, głęboka część jaskini z9 (obszar x:32021-32086, y:32207-32249, 533 pola): 7 spawnów Cave Rat (21.10). Trasa BFS-owa przez spawny (201 pkt), wygenerowana z pozycji Bobera (32055,32223,9). Obszar oddzielony ścianą od rook_raty_z9_petla — inne wejście z z8 ok. (32022-32023,32207). Bez depo: bot walczy do śmierci (prog_hp=-100) bo wyjście z tego obszaru przez drabinę niezapisane.",
+    "trasa": "rook_cave_raty_z9_glab_petla",
+    "potwory": "Cave Rat,Rat",
+    "prog_hp": -100,
+    "dojscie": "rook_raty_z9_dojscie"
+  },
+  "rook_raty_z8_do_smierci": {
+    "opis": "BEZ UCIECZKI (decyzja Karola 20.10, Bober lvl 1: walczy do śmierci), jaskinia szczurów z8 tuż pod miastem - Bober stoi już w tej jaskini (872 pola, 34 szczury); Rookgaard, jaskinia szczurów z8 tuż pod miastem (872 pola, 34 szczury): pętla rook_raty_z8_petla z mapy klienta (20.10, generuj_trasy_rook.py). Dojście z miasta (z7) trasą rook_raty_z8_dojscie do wejścia (32046,32221,z7): wejście wywnioskowane z mapy, typ przejścia niezweryfikowany w grze; na z8 start na miejscu",
+    "trasa": "rook_raty_z8_petla",
+    "potwory": "Rat,Cave Rat",
+    "prog_hp": -100,
+    "dojscie": "rook_raty_z8_dojscie"
+  },
+  "trolle_edron_z9w": {
+    "opis": "Edron troll cave, wschodnia jaskinia z9 (309 pól, 15 trolli w 5 spawnach, pętla 129 pól): trolle_edron_z9w_petla z mapy klienta (generuj_trasy_edron_wschod.py). Dojście trolle_edron_z9w_dojscie = edron_depo_trolle + z8 do SCHODÓW (33119,31740) (kolor 210) i zejście na z9; z8 omija znany ogień z buforem 1. 21.10 17:14 NIE (33115,31744): to OGIEŃ, nie zejście (invincible HP 91% → 58%). Sprawdzone na żywo 21.10 17:24–17:28 (Kolanosh lvl 8): depo → z9 krokiem po schodach (33119,31740), pierwszy troll 17:27:58; po drodze 2 przejścia liną (z11→z10, z9→z8), więc postać MUSI mieć rope",
+    "trasa": "trolle_edron_z9w_petla",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "trolle_edron_z9w_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "thais_pn_z8": {
+    "opis": "Thais północ, jaskinia trolli z8 (1000 pól, ok. 107 pól na N od świątyni): pętla thais_pn_z8_petla z mapy klienta (21.10, generuj_trasy_thais_pn.py), 8 przystanków, 33 potwory (trolle, szczury, cave raty, pająki, bugi). Omija poison spidery (strefa 6 pól wokół (32326,32155)) i zejścia do cyklopów na z9. Dojście thais_pn_z8_dojscie z depo Thais (z7) przez zejście (32347,32123,z7) = ZASYPANA DZIURA, trzeba ŁOPATY w plecaku (pietra.ZASYPANE, przeszło 21.10 16:36), dalej po z8 do pętli >= 23 pola od poison spiderów; żółte pola nad jaskinią (np. 32345,32146) to schody W GÓRĘ na z6. Start postaci na z7 w Thais, zawsze z RETRONIC_POSTAC",
+    "trasa": "thais_pn_z8_petla",
+    "potwory": "Troll,Rat,Cave Rat,Spider,Bug",
+    "prog_hp": 30,
+    "dojscie": "thais_pn_z8_dojscie"
+  },
+  "thais_pn_z9": {
+    "opis": "Thais północ, jaskinia trolli z9, zachodnia sala (257 pól, 16 trolli w 5 spawnach, pętla 109 pól): thais_pn_z9_petla z mapy klienta (21.10, generuj_trasy_thais_pn.py). Dojście thais_pn_z9_dojscie (23.10, generuj_trasy_thais_pn_z9.py; wg nagrania Karola 23.10 trasy/gebelish_thais_pn_nowy_spot_1023.json) z depo Thais (z7): ŁOPATA na zasypanej dziurze (32347,32123,z7), z8 na wschód y=32123 do dziury (32356,32122,z8) (nauczona, wejście dozwolone tylko z trasy), z9 KORYTARZEM TRZECH POISON SPIDERÓW (spawn (32352,32122), 12 pól, DOJŚCIE PRZECHODZI PRZEZ NIE; tu zginął kutangen 21.10) do dziury (32343,32122,z9), kieszeń z10 i LINA (pole liny (32339,32122,z10), stoimy obok) z powrotem na z9 do pętli; 183 punkty, 189 pól. Trzeba ŁOPATY i LINY w plecaku, najlepiej poziom z zapasem na jad (Poison Spider). Start na z9 w zachodniej sali (np. (32337,32122,9)) dołącza do pętli od razu (<= 10 pól, dojście pomijane). Poison spidery z9 są poza składową pętli (ściany x=32341..32342), ogień: żaden punkt dojścia ani pętli na ogniu ani obok (bufor 1). Powrót do depo: wyprawa.PLANY_PK thais_pn_z9 (dziura, lina z10, lina z9, lina z8 -> z7), NIEZWERYFIKOWANY na żywo (liny (32343,32122,z10) i (32356,32122,z9) tylko z mapy)",
+    "trasa": "thais_pn_z9_petla",
+    "potwory": "Troll,Rat,Cave Rat,Spider,Bug",
+    "prog_hp": 30,
+    "dojscie": "thais_pn_z9_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "trolle_edron_z9z": {
+    "opis": "Edron jaskinia trolli z9 ZACHÓD (668 pól, 30 potworów w 7 spawnach: Troll + Bear, pętla 343 pola): trolle_edron_z9z_petla z mapy klienta (generuj_trasy_edron_z9z.py, 21.10), osobna składowa od trolle_edron (z8) i od trolle_edron_z9w (z9 wschód); wskazówka: nagranie edron_nowy_spot (17.10, bot jej nie chodził). Dojście trolle_edron_z9z_dojscie = edron_depo_trolle + z8 (70 pól po jaskini trolli z8, omija znany ogień z buforem 1) do zejścia (33081,31742,z8) (kolor 210; w nagraniu schodzi się krokiem, powrót liną z z9) i lądowanie (33081,31742,z9); typ zejścia NIEZWERYFIKOWANY na żywo. Pominięte: 2 spawny na ogniu (33096,31707), (33097,31743) i zachodni zaułek za ogniem (33048,31728), (33050,31726). Po drodze 4 przejścia liną (jak edron_depo_trolle), więc postać MUSI mieć rope",
+    "trasa": "trolle_edron_z9z_petla",
+    "potwory": "Troll,Bear",
+    "prog_hp": 30,
+    "dojscie": "trolle_edron_z9z_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "trolle_kazordoon_z8": {
+    "opis": "Kazordoon jaskinia trolli z8 (z8: 444 pola z kieszenią przy dziurze, 18 trolli w 8 spawnach): pętla trolle_kazordoon_z8_petla 307 pól (24.10 12:51: bufor nowego ognia z8 przeciął korytarz y=31973, obieg idzie w obie strony tą samą drogą) (generuj_trasy_kazordoon_trolle.py, 24.10; Karol: pętla zaczyna się przy wejściu do dziury): start i koniec na (32663,31961,z8) obok pola liny, najpierw kieszeń z trollami (spawn (32658,31960), 3 trolle), przez drzwi (32657,31965,z8) do dotychczasowej pętli (7 przystanków, 15 trolli), ta sama droga drzwiami z powrotem; razem 18 trolli w 8 spawnach. Pętla omija pole schodów na z9 (32648,32003,z8) z buforem 1 (z9 pod tą jaskinią to groźna część questa, NIE schodzimy; pole jest też w dziury_nauczone.json). Dojście trolle_kazordoon_z8_dojscie = WSPÓLNY odcinek od depo Thais (32348,32225,z7) do lądowania pod dziurą w z8 (32663,31962,z8) = pole liny powrotu (595 pól; ten sam początek ma dojście z9, test testy/test_kazordoon_trolle.py) Po drodze (22.10, korekta Karola: z Thais, bez miasta Kazordoon i bez grobli z dwarfami): brama północna Thais (32367,32179,z7), droga na północ, MOST nad wodą (rampa (32548,32076,z7)->(32549,32076,z6), pomost z6 x 32549-32553, rampa (32554,32076,z6)->(32555,32076,z7); lądowanie rampy NIEZWERYFIKOWANE w grze), wschodni brzeg z7 (A* z preferencją szarej drogi, kolor 129), korytarz x=32659 do (32659,31967,z7), OBEJŚCIE (32661,31966) (24.10 12:51: (32659,31966,z7) wygląda w mapie na drzwi, ale w grze się NIE otwierają, trasa ich nie używa), dziura (32663,31962,z7->z8), drzwi (32657,31965,z8); obok trasy snake (32662,31974) i trolle na z7 (jaskinia zaczyna się pod powierzchnią), wilki >= 10 pól - wymaga poziomu i defa. Powrót (trasy trolle_kazordoon_z8_do_depo / z9_do_depo, nie w mapy.json) do depo Thais (serwis Thais obsłuży spot) idzie liną: MUSI mieć rope (jedno przejście: z8->z7 w (32663,31961)->(32663,31963)), pole liny wolne, stoi się OBOK pola liny; dalej obejście (32661,31966,z7) i korytarz x=32659 (bez drzwi (32659,31966), które się nie otwierają), powierzchnia, most, brama, depo. Dziura (32663,31962,z7) mogła zostać zasypana: może trzeba łopaty (NIE w pietra.ZASYPANE bez dowodu z gry). Ciemna jaskinia: światło (spell/pochodnia). Depo Thais (32348,32225,z7) znane z serwisu Thais; typy przejść (schody/dziury) NIEZWERYFIKOWANE na żywo, brak wpisów w przejscia_nauczone.json. Znany ogień z buforem 1 traktowany jak ściana (zero punktów na ogniu). Trasa Thais -> miasto Kazordoon (thais_kazordoon_tam/_powrot) zostaje osobno, ten spot jej nie używa. Spot auto:false.",
+    "trasa": "trolle_kazordoon_z8_petla",
+    "potwory": "Troll,Wasp,Snake",
+    "prog_hp": 30,
+    "dojscie": "trolle_kazordoon_z8_dojscie"
+  },
+  "trolle_kazordoon_z9": {
+    "opis": "UWAGA 24.10 (Karol): z9 pod tą jaskinią to bardzo niebezpieczna część questa, NIE schodzimy tam; wariant zostaje w plikach, ale nie do użycia. Kazordoon jaskinia trolli z9 (z9: 900 pól w składowej, 1084 z potworami nie-trolle; 19 trolli w 9 spawnach): pętla trolle_kazordoon_z9_petla 207 pól z mapy klienta (generuj_trasy_kazordoon_trolle.py, 22.10), 9 przystanków; 4 strefy zakazane (promień 6) wokół minotaur archer (32656,31970), minotaur mage (32654,31970), rotworm (32660,31997), snake (32643,32025) - pętla ich nie dotyka, najbliższy inny potwór >= 10 pól. Dojście trolle_kazordoon_z9_dojscie = WSPÓLNY odcinek od depo Thais (32348,32225,z7) do rozwidlenia w z8 (32647,32003,z8) (662 pól, te same punkty co drugi spot, test testy/test_kazordoon_trolle.py) + schody z8 (32648,32003) i lądowanie (32648,32004,z9); powrót ze z9 najpierw schodami w górę (32648,32003,z9)->(32648,32004,z8). Po drodze (22.10, korekta Karola: z Thais, bez miasta Kazordoon i bez grobli z dwarfami): brama północna Thais (32367,32179,z7), droga na północ, MOST nad wodą (rampa (32548,32076,z7)->(32549,32076,z6), pomost z6 x 32549-32553, rampa (32554,32076,z6)->(32555,32076,z7); lądowanie rampy NIEZWERYFIKOWANE w grze), wschodni brzeg z7 (A* z preferencją szarej drogi, kolor 129), korytarz x=32659 do (32659,31967,z7), OBEJŚCIE (32661,31966) (24.10 12:51: (32659,31966,z7) wygląda w mapie na drzwi, ale w grze się NIE otwierają, trasa ich nie używa), dziura (32663,31962,z7->z8), drzwi (32657,31965,z8); obok trasy snake (32662,31974) i trolle na z7 (jaskinia zaczyna się pod powierzchnią), wilki >= 10 pól - wymaga poziomu i defa. Powrót (trasy trolle_kazordoon_z8_do_depo / z9_do_depo, nie w mapy.json) do depo Thais (serwis Thais obsłuży spot) idzie liną: MUSI mieć rope (jedno przejście: z8->z7 w (32663,31961)->(32663,31963)), pole liny wolne, stoi się OBOK pola liny; dalej obejście (32661,31966,z7) i korytarz x=32659 (bez drzwi (32659,31966), które się nie otwierają), powierzchnia, most, brama, depo. Dziura (32663,31962,z7) mogła zostać zasypana: może trzeba łopaty (NIE w pietra.ZASYPANE bez dowodu z gry). Ciemna jaskinia: światło (spell/pochodnia). Depo Thais (32348,32225,z7) znane z serwisu Thais; typy przejść (schody/dziury) NIEZWERYFIKOWANE na żywo, brak wpisów w przejscia_nauczone.json. Znany ogień z buforem 1 traktowany jak ściana (zero punktów na ogniu). Trasa Thais -> miasto Kazordoon (thais_kazordoon_tam/_powrot) zostaje osobno, ten spot jej nie używa. Spot auto:false.",
+    "trasa": "trolle_kazordoon_z9_petla",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "trolle_kazordoon_z9_dojscie"
+  },
+  "stoj_uh_edron_horn": {
+    "opis": "Edron, statek Horn of Plenty (z3): invincible stoi w miejscu i robi UH (Karol 23.10 ~15:55: 'niech sobie stoi'). Pole = pozycja z gry 15:58; PZ i depo = to samo pole (niezmierzone), bez wypraw.",
+    "trasa": "stoj_uh_edron_horn",
+    "potwory": "Stanowisko Brak Celow",
+    "prog_hp": 50,
+    "stanowisko": {
+      "miasto": "edron",
+      "pola": [
+        [
+          33165,
+          31781,
+          3
+        ]
+      ],
+      "pz": [
+        [
+          33165,
+          31781,
+          3
+        ]
+      ],
+      "depo": [
+        33165,
+        31781,
+        3
+      ],
+      "pz_zmierzone": false
+    }
+  },
+  "abdendriel_trolle_z9": {
+    "opis": "Ab'Dendriel, jaskinia trolli z9 (składowa 679 pól, 27 trolli w 8 przystankach, pętla 267 pól): abdendriel_trolle_z9_petla, start pętli = lądowanie po linie (32668,31625,z9). Dojście abdendriel_trolle_z9_dojscie (23.10, generuj_trasy_abdendriel_trolle.py) WYGENEROWANE Z MAPY KLIENTA, NIEPRZEJŚTE NA ŻYWO: start = ŚWIĄTYNIA Ab'Dendriel (32732,31634,z7), bo pozycji depo nie ma w danych; z7 zasypana dziura (32696,31621,z7) (trójka (32695..97,31621), kolor 24: ŁOPATA, niepotwierdzone), z8 dziura (32709,31593,z8) lub (32706,31587), kieszeń z9, LINA na polu liny (32700,31580,z9) (stanie obok), z8, dziura (32711,31577,z8), z9, dziura (32713,31585,z9) na z10, potem LINA na polu liny (32668,31624,z10) (stanie obok, NIE na (32668,31625,z10) - flaga 2) na z9; 304 punkty, 297 pól. Potrzebna LINA i ŁOPATA w plecaku. TRUJĄCE POLA: stałych pól trucizny nie da się ustalić z mapy klienta; trasa omija z buforem 1 pole 11 kandydatów (z8: 5, z9: 6) (pola flagi 2 w kolorze podłogi, trasy/trucizna_stale.json, tożsamość niepotwierdzona), żaden punkt pętli ani dojścia nie leży na nich ani obok. Brak wpisu powrotu do depo w wyprawa.PLANY_PK (otwarte). Trolle ze spawnów CipSoft 7.4, poziom z zapasem na ciosy trolli (do ok. 15) i skalę wyprawy.",
+    "trasa": "abdendriel_trolle_z9_petla",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "abdendriel_trolle_z9_dojscie"
+  },
+  "abdendriel_trolle_z10": {
+    "opis": "Ab'Dendriel, jaskinia trolli z10 (składowa 1243 pól, 34 trolli w 12 przystankach, pętla 775 pól): abdendriel_trolle_z10_petla, start pętli = lądowanie po dziurze (32713,31585,z10). Na z10 nie znaleziono kandydatów na pola trucizny. Dojście abdendriel_trolle_z10_dojscie (23.10, generuj_trasy_abdendriel_trolle.py) WYGENEROWANE Z MAPY KLIENTA, NIEPRZEJŚTE NA ŻYWO: start = ŚWIĄTYNIA Ab'Dendriel (32732,31634,z7), bo pozycji depo nie ma w danych; z7 zasypana dziura (32696,31621,z7) (trójka (32695..97,31621), kolor 24: ŁOPATA, niepotwierdzone), z8 dziura (32709,31593,z8) lub (32706,31587), kieszeń z9, LINA na polu liny (32700,31580,z9) (stanie obok), z8, dziura (32711,31577,z8), z9, dziura (32713,31585,z9) na z10 (koniec dojścia = start pętli); 226 punktów, 220 pól. Potrzebna LINA i ŁOPATA w plecaku. TRUJĄCE POLA: stałych pól trucizny nie da się ustalić z mapy klienta; trasa omija z buforem 1 pole 11 kandydatów (z8: 5, z9: 6; pola flagi 2 w kolorze podłogi, trasy/trucizna_stale.json, tożsamość niepotwierdzona), żaden punkt pętli ani dojścia nie leży na nich ani obok. Brak wpisu powrotu do depo w wyprawa.PLANY_PK (otwarte). Trolle ze spawnów CipSoft 7.4, poziom z zapasem na ciosy trolli (do ok. 15) i skalę wyprawy.",
+    "trasa": "abdendriel_trolle_z10_petla",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "abdendriel_trolle_z10_dojscie"
+  },
+  "abdendriel_trolle_z11": {
+    "opis": "Ab'Dendriel, jaskinia trolli z11 (składowa 1509 pól, 26 trolli w 11 przystankach, pętla 961 pól): abdendriel_trolle_z11_petla, start pętli = lądowanie po dziurze z10 (32668,31625,z11) (pole liny tej dziury, zejść z niego). Na z11 nie znaleziono kandydatów na pola trucizny. Dojście abdendriel_trolle_z11_dojscie (23.10, generuj_trasy_abdendriel_trolle.py) WYGENEROWANE Z MAPY KLIENTA, NIEPRZEJŚTE NA ŻYWO: start = ŚWIĄTYNIA Ab'Dendriel (32732,31634,z7), bo pozycji depo nie ma w danych; z7 zasypana dziura (32696,31621,z7) (trójka (32695..97,31621), kolor 24: ŁOPATA, niepotwierdzone), z8 dziura (32709,31593,z8) lub (32706,31587), kieszeń z9, LINA na polu liny (32700,31580,z9) (stanie obok), z8, dziura (32711,31577,z8), z9, dziura (32713,31585,z9) na z10 (start (32713,31585,z10)), potem dojście po z10 do DZIURY (32668,31625,z10) -> z11 (kierunek W DÓŁ wg wzorca dziura + pole liny; przejscia_pieter pisze W GÓRĘ, niepotwierdzone na żywo; koniec dojścia = start pętli); 304 punktów, 297 pól. Potrzebna LINA i ŁOPATA w plecaku. TRUJĄCE POLA: stałych pól trucizny nie da się ustalić z mapy klienta; w składowej z11 i na całej trasie dojścia nie ma pól flagi 2 w kolorze podłogi poza kandydatami na z8 i z9 (11 kandydatów: z8 5, z9 6, trasy/trucizna_stale.json, tożsamość niepotwierdzona), bufor 1 pole = ściana, żaden punkt pętli ani dojścia nie leży na nich ani obok (na z11 brak kandydatów). Brak wpisu powrotu do depo w wyprawa.PLANY_PK (otwarte). Trolle ze spawnów CipSoft 7.4, poziom z zapasem na ciosy trolli (do ok. 15) i skalę wyprawy.",
+    "trasa": "abdendriel_trolle_z11_petla",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "abdendriel_trolle_z11_dojscie"
+  },
+  "abdendriel_trolle_z12": {
+    "opis": "Ab'Dendriel, jaskinia trolli z12 (składowa 359 pól, 11 trolli w 6 przystankach, pętla 257 pól): abdendriel_trolle_z12_petla, start pętli = lądowanie po dziurze z11 (32668,31624,z12) (pole liny tej dziury, zejść z niego). Na z12 nie znaleziono kandydatów na pola trucizny. Składowa z12 nie ma żadnego pola flagi 2, wejście tylko przez dziurę z z11; wyjście w górę wyłącznie liną z pola (32668,31624,z12) (stanie obok), brak planu powrotu. Dojście abdendriel_trolle_z12_dojscie (23.10, generuj_trasy_abdendriel_trolle.py) WYGENEROWANE Z MAPY KLIENTA, NIEPRZEJŚTE NA ŻYWO: start = ŚWIĄTYNIA Ab'Dendriel (32732,31634,z7), bo pozycji depo nie ma w danych; z7 zasypana dziura (32696,31621,z7) (trójka (32695..97,31621), kolor 24: ŁOPATA, niepotwierdzone), z8 dziura (32709,31593,z8) lub (32706,31587), kieszeń z9, LINA na polu liny (32700,31580,z9) (stanie obok), z8, dziura (32711,31577,z8), z9, dziura (32713,31585,z9) na z10 (start (32713,31585,z10)), dziura (32668,31625,z10) -> z11, dziura (32668,31624,z11) -> z12 (kierunek W DÓŁ wg wzorca dziura + pole liny; przejscia_pieter pisze W GÓRĘ, niepotwierdzone na żywo; koniec dojścia = start pętli); 306 punktów, 298 pól. Potrzebna LINA i ŁOPATA w plecaku. TRUJĄCE POLA: stałych pól trucizny nie da się ustalić z mapy klienta; w składowej z12 i na całej trasie dojścia nie ma pól flagi 2 w kolorze podłogi poza kandydatami na z8 i z9 (11 kandydatów: z8 5, z9 6, trasy/trucizna_stale.json, tożsamość niepotwierdzona), bufor 1 pole = ściana, żaden punkt pętli ani dojścia nie leży na nich ani obok (na z11 i z12 brak kandydatów). Brak wpisu powrotu do depo w wyprawa.PLANY_PK (otwarte). Trolle ze spawnów CipSoft 7.4, poziom z zapasem na ciosy trolli (do ok. 15) i skalę wyprawy.",
+    "trasa": "abdendriel_trolle_z12_petla",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "abdendriel_trolle_z12_dojscie"
+  },
+  "trolle_kazordoon_z7": {
+    "opis": "Kazordoon, POWIERZCHNIA z7 (24.10, Karol: jaskinię trolli z8 zajął inny gracz): wschodni brzeg z7 przy drodze Thais -> Kazordoon, pętla trolle_kazordoon_z7_petla 196 pól (generuj_trasy_kazordoon_powierzchnia.py) w prostokącie x 32645..32668, y 31949..31990, start i koniec (32660,31985,z7) przy skręcie wspólnej drogi na północ ku drzwiom (32659,31966). 6 przystanków, 24 potwory ze spawnów CipSoft: trolle 15 ((32661,31965) x5 = przystanek (32661,31966), (32656,31963) x5 w budynku, (32668,31967) x2, (32666,31949) x3) i węże 9 ((32662,31974) x5, (32645,31972) x4 w wąskim zaułku na zachodzie). Osy (po 1 szt., (32694,31965), (32688,31989), (32682,31940)) leżą 26+ pól od pętli: poza pętlą, ale 'Wasp' jest w potworach mapy (CELE_PIERWSZE 'Wasp,Snake'). Dojście trolle_kazordoon_z7_dojscie (566 pkt) = DOKŁADNIE PREFIKS dojść z8/z9 (ten sam wspólny odcinek depo Thais (32348,32225,z7) -> brama -> droga -> most Thais (pomost z6 32549..32553) -> wschodni brzeg z7), urwany w (32660,31985,z7); jedna droga + odgałęzienie, bez dublowania (test testy/test_kazordoon_powierzchnia.py). BEZ dziury, liny i łopaty: zero przejść w dół/górę poza dwiema rampami mostu Thais. Powrót trolle_kazordoon_z7_do_depo (568 pkt, jawny, nie odwrócone dojście): z pętli tą samą drogą po z7 -> most -> brama -> depo Thais; wpis w wyprawa.PLANY_PK (zasięg 400). STREFY ZAKAZANE (ściana dla pętli, dojścia i powrotu): dziura z7 (32663,31962) i lądowanie liny (32663,31963) z buforem 2 (promień Chebyshev; zapas Karola 'dziura i pole liny NIE na pętli', bo troll goniący przy samym buforze wypchnąłby bota w dziurę), ogień z trasy/ogien_*.json z buforem 1 (nowy ogień (32664,31963) i (32653,31962) z 24.10 10:51), dziury_nauczone; promień 6 wokół spawnów groźniejszych niż troll (hp > 50 albo atak > 10): niedźwiedź (32666,31930), pająk jadowity (32704,31986), wilki (32640,32011), skorpiony, bestie dalej; pętla trzyma 19+ pól odstępu od najbliższego (niedźwiedź, od północnego przystanku trolli), dwarfy z grobli z6 (32616..32624,31964..31974) i minotaury leżą na innych piętrach/daleko. NIESPRAWDZONE NA ŻYWO: lądowanie ramp mostu Thais (jak w dojściach z8/z9), bezpieczeństwo walki 15 trolli + węże + osy na lvl 10 (poziom [8,30] domyślny, jak z8), czy ten sam spot nie jest zajęty przez innego gracza, pole (32661,31966) przystanku przy bufie dziury (4 pola od dziury). Spot auto:false. Start: RETRONIC_POSTAC.",
+    "trasa": "trolle_kazordoon_z7_petla",
+    "potwory": "Troll,Wasp,Snake",
+    "prog_hp": 30,
+    "dojscie": "trolle_kazordoon_z7_dojscie"
+  },
+  "abdendriel_trolle_z10_z9": {
+    "trasa": "abdendriel_trolle_z10_petla",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "abdendriel_depo_do_z10",
+    "dojscie_z_dowolnego_pietra": true,
+    "opis": "24.10 (Karol: z9 zajęty, zejdź niżej): pętla z10 jak abdendriel_trolle_z10, dojście abdendriel_depo_do_z10 (86 pkt, generuj_powrot_abdendriel.py --zapisz) = DROGA POWROTU Z JASKINI ODWRÓCONA (jedna geometria, bez dublowania): od depo (32679,31687,z8) korytarzem i schodami (32654,31670,8) -> z9, przez DRZWI NA KLUCZ 2970 (32655,31655,9) i (32658,31645,9), po jaskini z9 do dziury (32668,31624,9) -> z10 (32668,31624,10). Start z depo, z korytarza z8, z z9 albo z jaskini: dojscie_z_dowolnego_pietra bierze najbliższy punkt także z z8 (do 24.10 19:12 dojście zaczynało się w z9 i start z depo kończył się \"BEZ kandydatów\"). Wyjście serwisu Ab'Dendriel (serwis_abdendriel) = punkt (32658,31644,9) tej samej drogi. Dziura (32668,31625,z10) na z11 w dziury_nauczone (ściana). Dawne abdendriel_z9_do_z10 (17 pkt, od z9) wycofane. NIEPRZEJŚTE NA ŻYWO od depo (drzwi na klucz przejdzie dopiero żywy start)."
+  },
+  "abdendriel_trolle_z12_z9": {
+    "opis": "25.10 (Karol: marinarra na sam dół): pętla z12 jak abdendriel_trolle_z12, dojście abdendriel_depo_do_z12 (92 pkt: z depo/z8/z9 przez dziury z9->z10->z11->z12), dojscie_z_dowolnego_pietra. Wyjście w górę tylko liną z (32668,31624,12).",
+    "trasa": "abdendriel_trolle_z12_petla",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "abdendriel_depo_do_z12",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "abdendriel_gobliny": {
+    "opis": "25.10 (Karol: gobliny pod Ab na z6): pętla z6 po 7 spawnach goblinów (21 sztuk, składowa 2918 pól, pętla 356 pól), dojście abdendriel_gobliny_dojscie (172 pkt: z depo/z8 schodami w górę (32654,31674,z8), z7 przez miasto i pola na SW do schodów (32622,31790,z7), lądowanie z6 (32621,31790)), dojscie_z_dowolnego_pietra. OFFLINE z mapy klienta; schody (32622,31790) i depo (32679,31687,z8) NIEPOTWIERDZONE na żywo. Powrót: abdendriel_gobliny_do_depo (wpis PLANY_PK czeka na lead: patrz STAN.md).",
+    "trasa": "abdendriel_gobliny_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "abdendriel_gobliny_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "abdendriel_trolle_z11_z9": {
+    "opis": "25.10 (Karol: Hammburger na z11, test drzwi na klucz w Ab'Dendriel): pętla z11 jak abdendriel_trolle_z11, dojście abdendriel_depo_do_z11 (90 pkt: z depo/z8/z9 przez dwoje drzwi i dziury z9->z10->z11, prefiks dojścia do z12), dojscie_z_dowolnego_pietra. Powrót: plan abdendriel_trolle_z12 (ma punkty 'do' na z11).",
+    "trasa": "abdendriel_trolle_z11_petla",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "abdendriel_depo_do_z11",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "rook_raty_z8_kieszen": {
+    "opis": "Rookgaard, kieszeń z dziurami w jaskini szczurów z8 (25.10, Pomszta: Karol uznał spot za bardzo dobry). Pętla z faktycznie przejść i zabójstw (telemetria + log), BEZ dojścia: wejście nieznane, postać wpadła. Start bota tylko gdy postać już stoi w kieszeni.",
+    "trasa": "rook_raty_z8_kieszen_petla",
+    "potwory": "Rat,Cave Rat",
+    "prog_hp": "30"
+  },
+  "rook_raty_z9_z_kieszeni": {
+    "opis": "Rookgaard, jaskinia szczurów z9 (jak rook_raty_z9) z dojściem Z KIESZENI z8: kieszeń -> pole przejścia (32021,32166,z8) -> z9 -> pętla. 25.10, Karol: połączyć kieszeń z z9. Typ przejścia NIEZWERYFIKOWANY, powrotu z z9 do kieszeni brak. Start bota tylko gdy postać stoi w kieszeni.",
+    "trasa": "rook_raty_z9_petla",
+    "potwory": "Rat,Cave Rat",
+    "prog_hp": 30,
+    "dojscie": "rook_raty_z8_kieszen_do_z9"
+  },
+  "trolle_edron_z10w": {
+    "opis": "Edron troll cave, wschodnia jaskinia z10 (składowa 260 pól, 13 potworów: Troll 7, Bear 3, Swamp Troll 2, Frost Troll 1; 3 przystanki + 4 przystanki pokrycia, pętla 79 pól): trolle_edron_z10w_pelna_petla z mapy klienta (generuj_rodziny_pietra.py, 26.10; stara trolle_edron_z10w_petla miała 35 pól i dojście przez (33127,31726,z9) = PRZESZKODA, nie przejście). Dojście trolle_edron_z10w_pelna_dojscie = trolle_edron_z9w_dojscie (sprawdzone na żywo 21.10, 169 pkt) + z9 18 pól do schodów (33128,31729,z9) (kolor 210) i lądowanie (33128,31729,z10); typ przejścia NIEZWERYFIKOWANY na żywo (z mapy klienta, kolor 210, flaga 2). MUSI mieć rope (jak z9w). Powrót do depo: wyjście liną z10 -> z9 z pola (33128,31729,z10) (wpis w wyprawa.PLANY_PK['edron'], trasa trolle_edron_z10w_pelna_do_depo, generuj_powroty_rodziny.py, testy/test_powroty_rodziny.py); lina z10 -> z9 NIEZWERYFIKOWANA na żywo",
+    "trasa": "trolle_edron_z10w_pelna_petla",
+    "potwory": "Troll,Bear,Swamp Troll,Frost Troll",
+    "prog_hp": 30,
+    "dojscie": "trolle_edron_z10w_pelna_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z10_zachod": {
+    "opis": "Edron jaskinia goblinów, z10 zachód (składowa 241 pól, 18 goblinów, 5 przystanków + 3 pokrycia, pętla 135 pól): gobliny_edron_z10_zachod_petla (generuj_rodziny_pietra.py, 26.10). Dojście gobliny_edron_z10_zachod_dojscie = gobliny_edron_z9_dojscie (188 pkt, kończy na z9 (33092,31836)) + z9 47 pól (omija ogień z buforem 1) do przejścia (33063,31822,z9) i lądowanie na z10; typ przejścia NIEZWERYFIKOWANY na żywo (z mapy klienta, kolor 210, flaga 2). MUSI mieć rope (jak gobliny_edron_z9). Powrót do depo: wyjście liną z10 -> z9 z pola (33063,31822,z10) (wpis w wyprawa.PLANY_PK['gobliny_edron'], trasa gobliny_edron_z10_zachod_do_depo); lina z10 -> z9 NIEZWERYFIKOWANA na żywo",
+    "trasa": "gobliny_edron_z10_zachod_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "gobliny_edron_z10_zachod_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z10_wschod": {
+    "opis": "Edron jaskinia goblinów, z10 wschód (składowa 224 pola, 19 goblinów + 2 Wasp, 5 przystanków + 5 pokrycia, pętla 151 pól): gobliny_edron_z10_wschod_petla (generuj_rodziny_pietra.py, 26.10). Wasp na liście, bo trują (trucizna, bot jej nie leczy): zabić od razu. Dojście gobliny_edron_z10_wschod_dojscie = gobliny_edron_z9_dojscie + z9 32 pola do przejścia (33102,31822,z9) i lądowanie na z10; typ przejścia NIEZWERYFIKOWANY na żywo (z mapy klienta, kolor 210, flaga 2). MUSI mieć rope. Powrót do depo: wyjście liną z10 -> z9 z pola (33102,31822,z10) (wpis w wyprawa.PLANY_PK['gobliny_edron'], trasa gobliny_edron_z10_wschod_do_depo); lina z10 -> z9 NIEZWERYFIKOWANA na żywo",
+    "trasa": "gobliny_edron_z10_wschod_petla",
+    "potwory": "Goblin,Wasp",
+    "prog_hp": 30,
+    "dojscie": "gobliny_edron_z10_wschod_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z10_poludnie": {
+    "opis": "Edron jaskinia goblinów, z10 południe (składowa 125 pól, 11 goblinów w 3 przystankach + 2 pokrycia, pętla 95 pól; najmniejsza z trzech kieszeni z10, tuż nad progiem 10 potworów): gobliny_edron_z10_poludnie_petla (generuj_rodziny_pietra.py, 26.10). Dojście gobliny_edron_z10_poludnie_dojscie = gobliny_edron_z9_dojscie + z9 41 pól do przejścia (33069,31848,z9) i lądowanie na z10; typ przejścia NIEZWERYFIKOWANY na żywo (z mapy klienta, kolor 210, flaga 2). MUSI mieć rope. Powrót do depo: wyjście liną z10 -> z9 z pola (33069,31848,z10) (wpis w wyprawa.PLANY_PK['gobliny_edron'], trasa gobliny_edron_z10_poludnie_do_depo); lina z10 -> z9 NIEZWERYFIKOWANA na żywo",
+    "trasa": "gobliny_edron_z10_poludnie_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "gobliny_edron_z10_poludnie_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "rook_raty_z10_zachod": {
+    "opis": "Rookgaard, jaskinia szczurów z10 zachód (składowa 201 pól, 11 Rat + 5 Cave Rat, 5 przystanków + 2 pokrycia, pętla 118 pól): rook_raty_z10_zachod_petla (generuj_rodziny_pietra.py, 26.10; trzecie piętro rodziny rook_raty obok rook_raty_z9 i rook_raty_z10). Dojście rook_raty_z10_zachod_dojscie = rook_raty_z9_dojscie (schody w depo (32027,32197), kieszeń z8, kratka (32029,32195,z8), 57 pkt, bot jeszcze jej sam nie przeszedł) + z9 43 pola po jaskini z9 do przejścia (32021,32180,z9) i lądowanie na z10; typ przejścia NIEZWERYFIKOWANY na żywo (z mapy klienta, kolor 210, flaga 2). Start z z7 (bez dojscie_z_dowolnego_pietra, jak rook_raty_z9). Powrót do depo: BRAK planu w wyprawa.PLANY_PK i brak trasy (z10 -> z9 to dziura: w górę tylko liną, a Rookgaard zwykle bez liny; nie generowano, żeby nie zgadywać), więc WROC/wyprawa z tej pętli = 'brak drogi'",
+    "trasa": "rook_raty_z10_zachod_petla",
+    "potwory": "Rat,Cave Rat",
+    "prog_hp": 30,
+    "dojscie": "rook_raty_z10_zachod_dojscie"
+  },
+  "trolle_edron__z__trolle_edron_z10w": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to trolle_edron z dojściem z innego piętra): dojście edron_trolle_lacznik_trolle_edron_z10w_trolle_edron (77 pkt) z pętli trolle_edron_z10w (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli trolle_edron_z10w do miejsca, od którego działa dojście trolle_edron). Przejścia: lina z10 -> z9 przy (33128, 31729); lina z9 -> z8 przy (33119, 31740). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak trolle_edron",
+    "trasa": "edron_trolle_petla",
+    "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
+    "prog_hp": 30,
+    "dojscie": "edron_trolle_lacznik_trolle_edron_z10w_trolle_edron",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "trolle_edron_z9w__z__trolle_edron_z10w": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to trolle_edron_z9w z dojściem z innego piętra): dojście edron_trolle_lacznik_trolle_edron_z10w_trolle_edron_z9w (21 pkt) z pętli trolle_edron_z10w (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli trolle_edron_z10w do miejsca, od którego działa dojście trolle_edron_z9w). Przejścia: lina z10 -> z9 przy (33128, 31729). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak trolle_edron_z9w",
+    "trasa": "trolle_edron_z9w_petla",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "edron_trolle_lacznik_trolle_edron_z10w_trolle_edron_z9w",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "trolle_edron_z9z__z__trolle_edron_z10w": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to trolle_edron_z9z z dojściem z innego piętra): dojście edron_trolle_lacznik_trolle_edron_z10w_trolle_edron_z9z (78 pkt) z pętli trolle_edron_z10w (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli trolle_edron_z10w do miejsca, od którego działa dojście trolle_edron_z9z). Przejścia: lina z10 -> z9 przy (33128, 31729); lina z9 -> z8 przy (33119, 31740). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak trolle_edron_z9z",
+    "trasa": "trolle_edron_z9z_petla",
+    "potwory": "Troll,Bear",
+    "prog_hp": 30,
+    "dojscie": "edron_trolle_lacznik_trolle_edron_z10w_trolle_edron_z9z",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "trolle_edron__z__trolle_edron_z9w": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to trolle_edron z dojściem z innego piętra): dojście edron_trolle_lacznik_trolle_edron_z9w_trolle_edron (58 pkt) z pętli trolle_edron_z9w (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli trolle_edron_z9w do miejsca, od którego działa dojście trolle_edron). Przejścia: lina z9 -> z8 przy (33119, 31740). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak trolle_edron",
+    "trasa": "edron_trolle_petla",
+    "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
+    "prog_hp": 30,
+    "dojscie": "edron_trolle_lacznik_trolle_edron_z9w_trolle_edron",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "trolle_edron_z9z__z__trolle_edron_z9w": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to trolle_edron_z9z z dojściem z innego piętra): dojście edron_trolle_lacznik_trolle_edron_z9w_trolle_edron_z9z (59 pkt) z pętli trolle_edron_z9w (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli trolle_edron_z9w do miejsca, od którego działa dojście trolle_edron_z9z). Przejścia: lina z9 -> z8 przy (33119, 31740). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak trolle_edron_z9z",
+    "trasa": "trolle_edron_z9z_petla",
+    "potwory": "Troll,Bear",
+    "prog_hp": 30,
+    "dojscie": "edron_trolle_lacznik_trolle_edron_z9w_trolle_edron_z9z",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "trolle_edron__z__trolle_edron_z9z": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to trolle_edron z dojściem z innego piętra): dojście edron_trolle_lacznik_trolle_edron_z9z_trolle_edron (77 pkt) z pętli trolle_edron_z9z (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli trolle_edron_z9z do miejsca, od którego działa dojście trolle_edron). Przejścia: lina z9 -> z8 przy (33081, 31742). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak trolle_edron",
+    "trasa": "edron_trolle_petla",
+    "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
+    "prog_hp": 30,
+    "dojscie": "edron_trolle_lacznik_trolle_edron_z9z_trolle_edron",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "trolle_edron_z10w__z__trolle_edron_z9z": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to trolle_edron_z10w z dojściem z innego piętra): dojście edron_trolle_lacznik_trolle_edron_z9z_trolle_edron_z10w (149 pkt) z pętli trolle_edron_z9z (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli trolle_edron_z9z do miejsca, od którego działa dojście trolle_edron_z10w). Przejścia: lina z9 -> z8 przy (33081, 31742). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak trolle_edron_z10w",
+    "trasa": "trolle_edron_z10w_pelna_petla",
+    "potwory": "Troll,Bear,Swamp Troll,Frost Troll",
+    "prog_hp": 30,
+    "dojscie": "edron_trolle_lacznik_trolle_edron_z9z_trolle_edron_z10w",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "trolle_edron_z9w__z__trolle_edron_z9z": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to trolle_edron_z9w z dojściem z innego piętra): dojście edron_trolle_lacznik_trolle_edron_z9z_trolle_edron_z9w (136 pkt) z pętli trolle_edron_z9z (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli trolle_edron_z9z do miejsca, od którego działa dojście trolle_edron_z9w). Przejścia: lina z9 -> z8 przy (33081, 31742). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak trolle_edron_z9w",
+    "trasa": "trolle_edron_z9w_petla",
+    "potwory": "Troll",
+    "prog_hp": 30,
+    "dojscie": "edron_trolle_lacznik_trolle_edron_z9z_trolle_edron_z9w",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z10_poludnie__z__gobliny_edron": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron_z10_poludnie z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_gobliny_edron_z10_poludnie (208 pkt) z pętli gobliny_edron (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron do miejsca, od którego działa dojście gobliny_edron_z10_poludnie). Przejścia: bez zmiany piętra liną (przejście schodami/podajniki po tym samym piętrze). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron_z10_poludnie",
+    "trasa": "gobliny_edron_z10_poludnie_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_gobliny_edron_z10_poludnie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z10_wschod__z__gobliny_edron": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron_z10_wschod z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_gobliny_edron_z10_wschod (201 pkt) z pętli gobliny_edron (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron do miejsca, od którego działa dojście gobliny_edron_z10_wschod). Przejścia: bez zmiany piętra liną (przejście schodami/podajniki po tym samym piętrze). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron_z10_wschod",
+    "trasa": "gobliny_edron_z10_wschod_petla",
+    "potwory": "Goblin,Wasp",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_gobliny_edron_z10_wschod",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z10_zachod__z__gobliny_edron": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron_z10_zachod z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_gobliny_edron_z10_zachod (214 pkt) z pętli gobliny_edron (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron do miejsca, od którego działa dojście gobliny_edron_z10_zachod). Przejścia: bez zmiany piętra liną (przejście schodami/podajniki po tym samym piętrze). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron_z10_zachod",
+    "trasa": "gobliny_edron_z10_zachod_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_gobliny_edron_z10_zachod",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z9__z__gobliny_edron": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron_z9 z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_gobliny_edron_z9 (176 pkt) z pętli gobliny_edron (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron do miejsca, od którego działa dojście gobliny_edron_z9). Przejścia: bez zmiany piętra liną (przejście schodami/podajniki po tym samym piętrze). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron_z9",
+    "trasa": "gobliny_edron_z9_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_gobliny_edron_z9",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron__z__gobliny_edron_z10_poludnie": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_z10_poludnie_gobliny_edron (71 pkt) z pętli gobliny_edron_z10_poludnie (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron_z10_poludnie do miejsca, od którego działa dojście gobliny_edron). Przejścia: lina z10 -> z9 przy (33069, 31848); lina z9 -> z8 przy (33092, 31837). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron",
+    "trasa": "gobliny_edron_z8_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_z10_poludnie_gobliny_edron",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z10_wschod__z__gobliny_edron_z10_poludnie": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron_z10_wschod z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_z10_poludnie_gobliny_edron_z10_wschod (61 pkt) z pętli gobliny_edron_z10_poludnie (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron_z10_poludnie do miejsca, od którego działa dojście gobliny_edron_z10_wschod). Przejścia: lina z10 -> z9 przy (33069, 31848). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron_z10_wschod",
+    "trasa": "gobliny_edron_z10_wschod_petla",
+    "potwory": "Goblin,Wasp",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_z10_poludnie_gobliny_edron_z10_wschod",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z10_zachod__z__gobliny_edron_z10_poludnie": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron_z10_zachod z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_z10_poludnie_gobliny_edron_z10_zachod (66 pkt) z pętli gobliny_edron_z10_poludnie (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron_z10_poludnie do miejsca, od którego działa dojście gobliny_edron_z10_zachod). Przejścia: lina z10 -> z9 przy (33069, 31848). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron_z10_zachod",
+    "trasa": "gobliny_edron_z10_zachod_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_z10_poludnie_gobliny_edron_z10_zachod",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z9__z__gobliny_edron_z10_poludnie": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron_z9 z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_z10_poludnie_gobliny_edron_z9 (44 pkt) z pętli gobliny_edron_z10_poludnie (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron_z10_poludnie do miejsca, od którego działa dojście gobliny_edron_z9). Przejścia: lina z10 -> z9 przy (33069, 31848). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron_z9",
+    "trasa": "gobliny_edron_z9_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_z10_poludnie_gobliny_edron_z9",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron__z__gobliny_edron_z10_wschod": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_z10_wschod_gobliny_edron (62 pkt) z pętli gobliny_edron_z10_wschod (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron_z10_wschod do miejsca, od którego działa dojście gobliny_edron). Przejścia: lina z10 -> z9 przy (33102, 31822); lina z9 -> z8 przy (33092, 31837). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron",
+    "trasa": "gobliny_edron_z8_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_z10_wschod_gobliny_edron",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z10_poludnie__z__gobliny_edron_z10_wschod": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron_z10_poludnie z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_z10_wschod_gobliny_edron_z10_poludnie (59 pkt) z pętli gobliny_edron_z10_wschod (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron_z10_wschod do miejsca, od którego działa dojście gobliny_edron_z10_poludnie). Przejścia: lina z10 -> z9 przy (33102, 31822). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron_z10_poludnie",
+    "trasa": "gobliny_edron_z10_poludnie_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_z10_wschod_gobliny_edron_z10_poludnie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z10_zachod__z__gobliny_edron_z10_wschod": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron_z10_zachod z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_z10_wschod_gobliny_edron_z10_zachod (52 pkt) z pętli gobliny_edron_z10_wschod (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron_z10_wschod do miejsca, od którego działa dojście gobliny_edron_z10_zachod). Przejścia: lina z10 -> z9 przy (33102, 31822). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron_z10_zachod",
+    "trasa": "gobliny_edron_z10_zachod_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_z10_wschod_gobliny_edron_z10_zachod",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z9__z__gobliny_edron_z10_wschod": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron_z9 z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_z10_wschod_gobliny_edron_z9 (35 pkt) z pętli gobliny_edron_z10_wschod (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron_z10_wschod do miejsca, od którego działa dojście gobliny_edron_z9). Przejścia: lina z10 -> z9 przy (33102, 31822). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron_z9",
+    "trasa": "gobliny_edron_z9_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_z10_wschod_gobliny_edron_z9",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron__z__gobliny_edron_z10_zachod": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_z10_zachod_gobliny_edron (77 pkt) z pętli gobliny_edron_z10_zachod (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron_z10_zachod do miejsca, od którego działa dojście gobliny_edron). Przejścia: lina z10 -> z9 przy (33063, 31822); lina z9 -> z8 przy (33092, 31837). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron",
+    "trasa": "gobliny_edron_z8_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_z10_zachod_gobliny_edron",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z10_poludnie__z__gobliny_edron_z10_zachod": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron_z10_poludnie z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_z10_zachod_gobliny_edron_z10_poludnie (42 pkt) z pętli gobliny_edron_z10_zachod (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron_z10_zachod do miejsca, od którego działa dojście gobliny_edron_z10_poludnie). Przejścia: lina z10 -> z9 przy (33063, 31822). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron_z10_poludnie",
+    "trasa": "gobliny_edron_z10_poludnie_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_z10_zachod_gobliny_edron_z10_poludnie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z10_wschod__z__gobliny_edron_z10_zachod": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron_z10_wschod z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_z10_zachod_gobliny_edron_z10_wschod (56 pkt) z pętli gobliny_edron_z10_zachod (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron_z10_zachod do miejsca, od którego działa dojście gobliny_edron_z10_wschod). Przejścia: lina z10 -> z9 przy (33063, 31822). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron_z10_wschod",
+    "trasa": "gobliny_edron_z10_wschod_petla",
+    "potwory": "Goblin,Wasp",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_z10_zachod_gobliny_edron_z10_wschod",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron_z9__z__gobliny_edron_z10_zachod": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron_z9 z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_z10_zachod_gobliny_edron_z9 (50 pkt) z pętli gobliny_edron_z10_zachod (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron_z10_zachod do miejsca, od którego działa dojście gobliny_edron_z9). Przejścia: lina z10 -> z9 przy (33063, 31822). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron_z9",
+    "trasa": "gobliny_edron_z9_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_z10_zachod_gobliny_edron_z9",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "gobliny_edron__z__gobliny_edron_z9": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to gobliny_edron z dojściem z innego piętra): dojście edron_gobliny_lacznik_gobliny_edron_z9_gobliny_edron (28 pkt) z pętli gobliny_edron_z9 (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli gobliny_edron_z9 do miejsca, od którego działa dojście gobliny_edron). Przejścia: lina z9 -> z8 przy (33092, 31837). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak gobliny_edron",
+    "trasa": "gobliny_edron_z8_petla",
+    "potwory": "Goblin",
+    "prog_hp": 30,
+    "dojscie": "edron_gobliny_lacznik_gobliny_edron_z9_gobliny_edron",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "trolle_edron_patrol__z__trolle_edron_z10w": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to trolle_edron_patrol z dojściem z innego piętra): dojście edron_trolle_lacznik_trolle_edron_z10w_trolle_edron_patrol (77 pkt) z pętli trolle_edron_z10w (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli trolle_edron_z10w do miejsca, od którego działa dojście trolle_edron_patrol). Przejścia: lina z10 -> z9 przy (33128, 31729); lina z9 -> z8 przy (33119, 31740). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak trolle_edron_patrol",
+    "trasa": "patrol:edron",
+    "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
+    "prog_hp": 30,
+    "dojscie": "edron_trolle_lacznik_trolle_edron_z10w_trolle_edron_patrol",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "trolle_edron_patrol__z__trolle_edron_z9w": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to trolle_edron_patrol z dojściem z innego piętra): dojście edron_trolle_lacznik_trolle_edron_z9w_trolle_edron_patrol (58 pkt) z pętli trolle_edron_z9w (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli trolle_edron_z9w do miejsca, od którego działa dojście trolle_edron_patrol). Przejścia: lina z9 -> z8 przy (33119, 31740). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak trolle_edron_patrol",
+    "trasa": "patrol:edron",
+    "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
+    "prog_hp": 30,
+    "dojscie": "edron_trolle_lacznik_trolle_edron_z9w_trolle_edron_patrol",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "trolle_edron_patrol__z__trolle_edron_z9z": {
+    "opis": "WARIANT NADZORCY (nie wybieraj ręcznie; to trolle_edron_patrol z dojściem z innego piętra): dojście edron_trolle_lacznik_trolle_edron_z9z_trolle_edron_patrol (77 pkt) z pętli trolle_edron_z9z (26.10, rodziny_dojscie.py: łącznik od miejsca na pętli trolle_edron_z9z do miejsca, od którego działa dojście trolle_edron_patrol). Przejścia: lina z9 -> z8 przy (33081, 31742). NIEZWERYFIKOWANE na żywo (z mapy klienta i znanych pól lin); pętla i potwory jak trolle_edron_patrol",
+    "trasa": "patrol:edron",
+    "potwory": "Troll,Bear,Swamp Troll,Frost Troll,Rat",
+    "prog_hp": 30,
+    "dojscie": "edron_trolle_lacznik_trolle_edron_z9z_trolle_edron_patrol",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "abdendriel_zachod_z8": {
+    "opis": "Ab'Dendriel, daleka jaskinia na zachód, z8, wilki 19 + węże 5 w 9 przystankach (41 potworów), pętla 683 pola; start = lądowanie po zasypanej dziurze z7 (32490,31697) (wskazał Karol: (32491,31694,z7)), potrzebna ŁOPATA (wejście) i LINA (powrót). Dojście abdendriel_zachod_z8_dojscie (254 pkt, 27.10, generuj_trasy_abdendriel_zachod.py) Z MAPY KLIENTA, NIEPRZEJŚTE NA ŻYWO: z DEPO Ab'Dendriel (32679,31687,z8; ZASTĘPCZE, niepomierzone, jak trolle/gobliny) nagraniem Karola i schodami w górę (32654,31674,z8) na z7, po z7 ok. 225 pól na zachód do zasypanej dziury (32490,31697), lądowanie z8 = start pętli; dojscie_z_dowolnego_pietra (start z depo na z8). Powrót abdendriel_zachod_z8_do_depo (254 pkt, plan PLANY_PK abdendriel_zachod_z8): stanie (32490,31696,z8) obok pola liny (32490,31697), LINA na z7 (32490,31698), z7 do schodów w dół (32654,31674,z7), z8, nagranie odwrócone do depo; obie liny i schody w dół NIEZWERYFIKOWANE na żywo. OMIJA rotwormy (spawny na północy y<31630 i (32553,31680,z8), strefa 12 pól, pętle ich nie dotykają) i poison spidery (5 spawnów, strefa 6 pól). Wpis spoty_nadzorca.json: brak (osobna decyzja Karola). Spawny CipSoft 7.4.",
+    "trasa": "abdendriel_zachod_z8_petla",
+    "potwory": "Wolf,Snake",
+    "prog_hp": 35,
+    "dojscie": "abdendriel_zachod_z8_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "abdendriel_zachod_z9": {
+    "opis": "Ab'Dendriel, daleka jaskinia na zachód, z9, trolle ok. 16 w 14 przystankach (38 potworów), pętla 1261 pól (przeliczona 27.10: bez ognia, dziur i przeszkód z buforem 1; przystanki za ogniem i dziurami odpadły; przed 27.10: 19 przystanków, 50 potworów, 1163 pola); start = lądowanie po dziurze z8 (32480,31721), ŁOPATA na wejściu z7 (32490,31697), potrzebna LINA (powrót). Dojście abdendriel_zachod_z9_dojscie (302 pkt, 27.10, generuj_trasy_abdendriel_zachod.py) Z MAPY KLIENTA, NIEPRZEJŚTE NA ŻYWO: z DEPO Ab'Dendriel (32679,31687,z8; ZASTĘPCZE, niepomierzone, jak trolle/gobliny) nagraniem Karola i schodami w górę (32654,31674,z8) na z7, po z7 ok. 225 pól na zachód do zasypanej dziury (32490,31697), lądowanie z8 (32490,31697), po z8 do dziury (32480,31721) -> z9 = start pętli; dojscie_z_dowolnego_pietra (start z depo na z8). Powrót abdendriel_zachod_z9_do_depo (305 pkt, plan PLANY_PK abdendriel_zachod_z9): stanie (32480,31720,z9) obok pola liny (32480,31721), LINA na z8 (32480,31722), z8 do (32490,31696), LINA na z7 (32490,31698), z7 do schodów w dół, z8, nagranie odwrócone do depo; obie liny i schody w dół NIEZWERYFIKOWANE na żywo. OMIJA rotwormy (spawny na północy y<31630 i (32553,31680,z8), strefa 12 pól, pętle ich nie dotykają) i poison spidery (5 spawnów, strefa 6 pól). Wpis spoty_nadzorca.json: brak (osobna decyzja Karola). Spawny CipSoft 7.4.",
+    "trasa": "abdendriel_zachod_z9_petla",
+    "potwory": "Troll,Wolf,Snake",
+    "prog_hp": 35,
+    "dojscie": "abdendriel_zachod_z9_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "abdendriel_zachod_z9_polnoc": {
+    "opis": "Ab'Dendriel, daleka jaskinia na zachód, z9, WARIANT pełnej pętli abdendriel_zachod_z9 do porównania na żywo (27.10, Karol: pełna pętla = 49% marszu, 43% walki, 99 zabić/h, ok. 1880 exp/h; generuj_trasy_abdendriel_zachod_ns.py), pętla PÓŁNOCNA: trolle ok. 17 w 7 przystankach, pętla 709 pól (41,7 pola na potwora; pełna 33,2). Pominięty (32410,31671) (2 trolle, pokój z wąskim przejściem przez przeszkody: pomija się go, bo skraca cykl o 36%). Start i koniec = lądowanie po dziurze z8 (32480,31721,z9), ŁOPATA na wejściu z7 (32490,31697), potrzebna LINA (powrót). Dojście abdendriel_zachod_z9_dojscie i powrót (plan PLANY_PK abdendriel_zachod_z9, wybierany po pozycji) wspólne z pełną pętlą, NIEPRZEJŚTE NA ŻYWO (depo ZASTĘPCZE (32679,31687,z8), obie liny, schody w dół z7). Ta sama polityka co pełna: ogień (stały + epizody hp, bufor 1), dziury z dziury_omijaj z buforem 1 (odstęp >= 2), pełny skan przeszkód z buforem 1, strefy rotwormów/poison spiderów, Held-Karp. Podział przystanków celowanych wg y z progiem 31696 (północ y < 31696, południe y >= 31696); północny pokój (32436,31573) (dziury, ogień) wykluczony jak w pełnej. Wpis spoty_nadzorca.json: brak (osobna decyzja Karola). Spawny CipSoft 7.4.",
+    "trasa": "abdendriel_zachod_z9_polnoc_petla",
+    "potwory": "Troll,Wolf,Snake",
+    "prog_hp": 35,
+    "dojscie": "abdendriel_zachod_z9_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "abdendriel_zachod_z9_poludnie": {
+    "opis": "Ab'Dendriel, daleka jaskinia na zachód, z9, WARIANT pełnej pętli abdendriel_zachod_z9 do porównania na żywo (27.10, Karol: pełna pętla = 49% marszu, 43% walki, 99 zabić/h, ok. 1880 exp/h; generuj_trasy_abdendriel_zachod_ns.py), pętla POŁUDNIOWA: trolle ok. 22 w 7 przystankach, pętla 823 pola (37,4 pola na potwora; pełna 33,2). Start i koniec = lądowanie po dziurze z8 (32480,31721,z9), ŁOPATA na wejściu z7 (32490,31697), potrzebna LINA (powrót). Dojście abdendriel_zachod_z9_dojscie i powrót (plan PLANY_PK abdendriel_zachod_z9, wybierany po pozycji) wspólne z pełną pętlą, NIEPRZEJŚTE NA ŻYWO (depo ZASTĘPCZE (32679,31687,z8), obie liny, schody w dół z7). Ta sama polityka co pełna: ogień (stały + epizody hp, bufor 1), dziury z dziury_omijaj z buforem 1 (odstęp >= 2), pełny skan przeszkód z buforem 1, strefy rotwormów/poison spiderów, Held-Karp. Podział przystanków celowanych wg y z progiem 31696 (północ y < 31696, południe y >= 31696); północny pokój (32436,31573) (dziury, ogień) wykluczony jak w pełnej. Wpis spoty_nadzorca.json: brak (osobna decyzja Karola). Spawny CipSoft 7.4.",
+    "trasa": "abdendriel_zachod_z9_poludnie_petla",
+    "potwory": "Troll,Wolf,Snake",
+    "prog_hp": 35,
+    "dojscie": "abdendriel_zachod_z9_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "abdendriel_zachod_z9_polnoc_v2": {
+    "opis": "Ab'Dendriel, daleka jaskinia na zachód, z9, KOPIA ROZŁĄCZNA pętli północnej (27.10, generuj_trasy_abdendriel_zachod_ns2.py): pętla PÓŁNOCNA v2 BEZ wschodniego ramienia do (32531,31691): trolle ok. 15 w 6 przystankach, pętla 545 pól (36,3 pola na potwora; stara północna 709 pól/17 potworów). Start i koniec = lądowanie po dziurze z8 (32480,31721,z9), ŁOPATA na wejściu z7 (32490,31697), potrzebna LINA (powrót). Dojście abdendriel_zachod_z9_dojscie i powrót (plan PLANY_PK abdendriel_zachod_z9, wybierany po pozycji) wspólne z pełną pętlą, NIEPRZEJŚTE NA ŻYWO (depo ZASTĘPCZE (32679,31687,z8), obie liny, schody w dół z7). Ta sama polityka co pełna: ogień (stały + epizody hp, bufor 1), dziury z dziury_omijaj z buforem 1 (odstęp >= 2), pełny skan przeszkód z buforem 1, strefy rotwormów/poison spiderów, Held-Karp. Pętle _v2 są ROZŁĄCZNE (dla dwóch postaci naraz): wspólne pola obu = tylko lądowanie (32480,31720..31721), poza nim 0; stare _polnoc/_poludnie (bez v2) ZOSTAJĄ bez zmian. Przeliczone 27.10 ~11:55 na ogniu: ogien_stale sha1 10740061fe79, ogien_efektywny 0fd1c9ea4cc8, dziury_omijaj 7a4499af78d5; stały ogień (32437,31695,z9) i (32463,31705,z9) odciął pokoje zachodnie (32398,31707), (32406,31727), (32427,31696) (10 trolli), bez (32437,31695) południowa v2 miałaby 825 pól/24 potwory. Wpis spoty_nadzorca.json: brak. Spawny CipSoft 7.4.",
+    "trasa": "abdendriel_zachod_z9_polnoc_v2_petla",
+    "potwory": "Troll,Wolf,Snake",
+    "prog_hp": 35,
+    "dojscie": "abdendriel_zachod_z9_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "abdendriel_zachod_z9_poludnie_v2": {
+    "opis": "Ab'Dendriel, daleka jaskinia na zachód, z9, KOPIA ROZŁĄCZNA pętli południowej (27.10, generuj_trasy_abdendriel_zachod_ns2.py): pętla POŁUDNIOWA v2 Z wschodnim przystankiem (32531,31691) (ramię przeniesione z północnej): trolle ok. 14 w 5 przystankach, pętla 495 pól (35,4 pola na potwora; stara południowa 823 pola/22 potwory). Start i koniec = lądowanie po dziurze z8 (32480,31721,z9), ŁOPATA na wejściu z7 (32490,31697), potrzebna LINA (powrót). Dojście abdendriel_zachod_z9_dojscie i powrót (plan PLANY_PK abdendriel_zachod_z9, wybierany po pozycji) wspólne z pełną pętlą, NIEPRZEJŚTE NA ŻYWO (depo ZASTĘPCZE (32679,31687,z8), obie liny, schody w dół z7). Ta sama polityka co pełna: ogień (stały + epizody hp, bufor 1), dziury z dziury_omijaj z buforem 1 (odstęp >= 2), pełny skan przeszkód z buforem 1, strefy rotwormów/poison spiderów, Held-Karp. Pętle _v2 są ROZŁĄCZNE (dla dwóch postaci naraz): wspólne pola obu = tylko lądowanie (32480,31720..31721), poza nim 0; stare _polnoc/_poludnie (bez v2) ZOSTAJĄ bez zmian. Przeliczone 27.10 ~11:55 na ogniu: ogien_stale sha1 10740061fe79, ogien_efektywny 0fd1c9ea4cc8, dziury_omijaj 7a4499af78d5; stały ogień (32437,31695,z9) i (32463,31705,z9) odciął pokoje zachodnie (32398,31707), (32406,31727), (32427,31696) (10 trolli), bez (32437,31695) południowa v2 miałaby 825 pól/24 potwory. Wpis spoty_nadzorca.json: brak. Spawny CipSoft 7.4.",
+    "trasa": "abdendriel_zachod_z9_poludnie_v2_petla",
+    "potwory": "Troll,Wolf,Snake",
+    "prog_hp": 35,
+    "dojscie": "abdendriel_zachod_z9_dojscie",
+    "dojscie_z_dowolnego_pietra": true
+  },
+  "abdendriel_zachod_z9_poludnie_v5": {
+    "opis": "Ab'Dendriel, daleka jaskinia na zachód, z9, południowa v5 (27.10, generuj_trasy_abdendriel_zachod_ns5.py), kolejność wg Karola 3,1,2,4,6,7,8,5: trolle 24 w 8 przystankach, pętla 463 pola (19,3 pola na potwora), 38% przejazdów tam i z powrotem; wyjątki bufora 0 (same pola nadal ścianą): ogień (32437,31695), (32408,31726), dziura (32496,31732) + pola ognia (32495..32496,31734..31735) + przeszkody (32495,31731), (32497,31731), (32496,31730); trasa mija je o jedno pole, na nie nie wchodzi (test c0). Wspólne z północną v2 tylko lądowanie (32480,31721). Start = lądowanie po dziurze z8, ŁOPATA na wejściu z7 (32490,31697), LINA (powrót). Dojście i powrót jak pełna pętla. NIEPOTWIERDZONE NA ŻYWO przy dziurze i ogniu. Spawny CipSoft 7.4.",
+    "trasa": "abdendriel_zachod_z9_poludnie_v5_petla",
+    "potwory": "Troll,Wolf,Snake",
+    "prog_hp": 35,
+    "dojscie": "abdendriel_zachod_z9_dojscie",
+    "dojscie_z_dowolnego_pietra": true
   }
- },
- "gobliny_edron_z9": {
-  "opis": "Edron jaskinia goblinów z9 (-2): pętla gobliny_edron_z9_petla; dojście z depo/powierzchni trasą z_depo + z8 do dziury (33092,31837) i zejście na z9 (19.10)",
-  "trasa": "gobliny_edron_z9_petla",
-  "potwory": "Goblin",
-  "prog_hp": 30,
-  "dojscie": "gobliny_edron_z9_dojscie",
-  "dojscie_z_dowolnego_pietra": true
- },
- "rook_bugi_z8": {
-  "opis": "Rookgaard, jaskinia bugów z8 za pocztą (144 pola, 11 bugów w 5 spawnach, pętla 93 pola): pętla rook_bugi_z8_petla z mapy klienta (20.10, generuj_trasy_rook_bugi.py). Bez dojścia: postać wchodzi ręcznie schodami w dół z7 (32077,32151) lub (32056,32146) i bot startuje na miejscu; wejścia z mapy, niezweryfikowane botem",
-  "trasa": "rook_bugi_z8_petla",
-  "potwory": "Bug",
-  "prog_hp": 30
- },
- "rook_bugi_z10": {
-  "opis": "Rookgaard, jaskinia bugów z10 pod środkiem miasta (165 pól, 9 bugów w 4 przystankach, pętla 85 pól): pętla rook_bugi_z10_petla z mapy klienta (20.10, generuj_trasy_rook_bugi_z10.py). Dojście rook_bugi_z10_dojscie z depo (z7) przez schody (32050,32187,z7), kieszeń z8, schody (32061,32197,z8) i (32056,32199,z9); od najbliższego punktu także z kieszeni z8 / z9 (start z z8 wymaga dojscie_z_dowolnego_pietra). Przejścia z mapy, niezweryfikowane botem",
-  "trasa": "rook_bugi_z10_petla",
-  "potwory": "Bug",
-  "prog_hp": 30,
-  "dojscie": "rook_bugi_z10_dojscie",
-  "dojscie_z_dowolnego_pietra": true
- },
- "rook_cave_raty_z9_glab": {
-  "opis": "Rookgaard, głęboka część jaskini z9 (obszar x:32021-32086, y:32207-32249, 533 pola): 7 spawnów Cave Rat (21.10). Trasa BFS-owa przez spawny (201 pkt), wygenerowana z pozycji Bobera (32055,32223,9). Obszar oddzielony ścianą od rook_raty_z9_petla — inne wejście z z8 ok. (32022-32023,32207). Bez depo: bot walczy do śmierci (prog_hp=-100) bo wyjście z tego obszaru przez drabinę niezapisane.",
-  "trasa": "rook_cave_raty_z9_glab_petla",
-  "potwory": "Cave Rat,Rat",
-  "prog_hp": -100,
-  "dojscie": "rook_raty_z9_dojscie"
- },
- "rook_raty_z8_do_smierci": {
-  "opis": "BEZ UCIECZKI (decyzja Karola 20.10, Bober lvl 1: walczy do śmierci), jaskinia szczurów z8 tuż pod miastem - Bober stoi już w tej jaskini (872 pola, 34 szczury); Rookgaard, jaskinia szczurów z8 tuż pod miastem (872 pola, 34 szczury): pętla rook_raty_z8_petla z mapy klienta (20.10, generuj_trasy_rook.py). Dojście z miasta (z7) trasą rook_raty_z8_dojscie do wejścia (32046,32221,z7): wejście wywnioskowane z mapy, typ przejścia niezweryfikowany w grze; na z8 start na miejscu",
-  "trasa": "rook_raty_z8_petla",
-  "potwory": "Rat,Cave Rat",
-  "prog_hp": -100,
-  "dojscie": "rook_raty_z8_dojscie"
- },
- "trolle_edron_z9w": {
-  "opis": "Edron troll cave, wschodnia jaskinia z9 (309 pól, 15 trolli w 5 spawnach, pętla 129 pól): trolle_edron_z9w_petla z mapy klienta (generuj_trasy_edron_wschod.py). Dojście trolle_edron_z9w_dojscie = edron_depo_trolle + z8 do SCHODÓW (33119,31740) (kolor 210) i zejście na z9; z8 omija znany ogień z buforem 1. 21.10 17:14 NIE (33115,31744): to OGIEŃ, nie zejście (invincible HP 91% → 58%). Sprawdzone na żywo 21.10 17:24–17:28 (Kolanosh lvl 8): depo → z9 krokiem po schodach (33119,31740), pierwszy troll 17:27:58; po drodze 2 przejścia liną (z11→z10, z9→z8), więc postać MUSI mieć rope",
-  "trasa": "trolle_edron_z9w_petla",
-  "potwory": "Troll",
-  "prog_hp": 30,
-  "dojscie": "trolle_edron_z9w_dojscie",
-  "dojscie_z_dowolnego_pietra": true
- },
- "thais_pn_z8": {
-  "opis": "Thais północ, jaskinia trolli z8 (1000 pól, ok. 107 pól na N od świątyni): pętla thais_pn_z8_petla z mapy klienta (21.10, generuj_trasy_thais_pn.py), 8 przystanków, 33 potwory (trolle, szczury, cave raty, pająki, bugi). Omija poison spidery (strefa 6 pól wokół (32326,32155)) i zejścia do cyklopów na z9. Dojście thais_pn_z8_dojscie z depo Thais (z7) przez zejście (32347,32123,z7) = ZASYPANA DZIURA, trzeba ŁOPATY w plecaku (pietra.ZASYPANE, przeszło 21.10 16:36), dalej po z8 do pętli >= 23 pola od poison spiderów; żółte pola nad jaskinią (np. 32345,32146) to schody W GÓRĘ na z6. Start postaci na z7 w Thais, zawsze z RETRONIC_POSTAC",
-  "trasa": "thais_pn_z8_petla",
-  "potwory": "Troll,Rat,Cave Rat,Spider,Bug",
-  "prog_hp": 30,
-  "dojscie": "thais_pn_z8_dojscie"
- },
- "thais_pn_z9": {
-  "opis": "Thais północ, jaskinia trolli z9, zachodnia sala (257 pól, 16 trolli w 5 spawnach, pętla 109 pól): thais_pn_z9_petla z mapy klienta (21.10, generuj_trasy_thais_pn.py). Dojście thais_pn_z9_dojscie (23.10, generuj_trasy_thais_pn_z9.py; wg nagrania Karola 23.10 trasy/gebelish_thais_pn_nowy_spot_1023.json) z depo Thais (z7): ŁOPATA na zasypanej dziurze (32347,32123,z7), z8 na wschód y=32123 do dziury (32356,32122,z8) (nauczona, wejście dozwolone tylko z trasy), z9 KORYTARZEM TRZECH POISON SPIDERÓW (spawn (32352,32122), 12 pól, DOJŚCIE PRZECHODZI PRZEZ NIE; tu zginął kutangen 21.10) do dziury (32343,32122,z9), kieszeń z10 i LINA (pole liny (32339,32122,z10), stoimy obok) z powrotem na z9 do pętli; 183 punkty, 189 pól. Trzeba ŁOPATY i LINY w plecaku, najlepiej poziom z zapasem na jad (Poison Spider). Start na z9 w zachodniej sali (np. (32337,32122,9)) dołącza do pętli od razu (<= 10 pól, dojście pomijane). Poison spidery z9 są poza składową pętli (ściany x=32341..32342), ogień: żaden punkt dojścia ani pętli na ogniu ani obok (bufor 1). Powrót do depo: wyprawa.PLANY_PK thais_pn_z9 (dziura, lina z10, lina z9, lina z8 -> z7), NIEZWERYFIKOWANY na żywo (liny (32343,32122,z10) i (32356,32122,z9) tylko z mapy)",
-  "trasa": "thais_pn_z9_petla",
-  "potwory": "Troll,Rat,Cave Rat,Spider,Bug",
-  "prog_hp": 30,
-  "dojscie": "thais_pn_z9_dojscie",
-  "dojscie_z_dowolnego_pietra": true
- },
- "trolle_edron_z9z": {
-  "opis": "Edron jaskinia trolli z9 ZACHÓD (668 pól, 30 potworów w 7 spawnach: Troll + Bear, pętla 343 pola): trolle_edron_z9z_petla z mapy klienta (generuj_trasy_edron_z9z.py, 21.10), osobna składowa od trolle_edron (z8) i od trolle_edron_z9w (z9 wschód); wskazówka: nagranie edron_nowy_spot (17.10, bot jej nie chodził). Dojście trolle_edron_z9z_dojscie = edron_depo_trolle + z8 (70 pól po jaskini trolli z8, omija znany ogień z buforem 1) do zejścia (33081,31742,z8) (kolor 210; w nagraniu schodzi się krokiem, powrót liną z z9) i lądowanie (33081,31742,z9); typ zejścia NIEZWERYFIKOWANY na żywo. Pominięte: 2 spawny na ogniu (33096,31707), (33097,31743) i zachodni zaułek za ogniem (33048,31728), (33050,31726). Po drodze 4 przejścia liną (jak edron_depo_trolle), więc postać MUSI mieć rope",
-  "trasa": "trolle_edron_z9z_petla",
-  "potwory": "Troll,Bear",
-  "prog_hp": 30,
-  "dojscie": "trolle_edron_z9z_dojscie",
-  "dojscie_z_dowolnego_pietra": true
- },
- "trolle_kazordoon_z8": {
-  "opis": "Kazordoon jaskinia trolli z8 (z8: 444 pola z kieszenią przy dziurze, 18 trolli w 8 spawnach): pętla trolle_kazordoon_z8_petla 307 pól (24.10 12:51: bufor nowego ognia z8 przeciął korytarz y=31973, obieg idzie w obie strony tą samą drogą) (generuj_trasy_kazordoon_trolle.py, 24.10; Karol: pętla zaczyna się przy wejściu do dziury): start i koniec na (32663,31961,z8) obok pola liny, najpierw kieszeń z trollami (spawn (32658,31960), 3 trolle), przez drzwi (32657,31965,z8) do dotychczasowej pętli (7 przystanków, 15 trolli), ta sama droga drzwiami z powrotem; razem 18 trolli w 8 spawnach. Pętla omija pole schodów na z9 (32648,32003,z8) z buforem 1 (z9 pod tą jaskinią to groźna część questa, NIE schodzimy; pole jest też w dziury_nauczone.json). Dojście trolle_kazordoon_z8_dojscie = WSPÓLNY odcinek od depo Thais (32348,32225,z7) do lądowania pod dziurą w z8 (32663,31962,z8) = pole liny powrotu (595 pól; ten sam początek ma dojście z9, test testy/test_kazordoon_trolle.py) Po drodze (22.10, korekta Karola: z Thais, bez miasta Kazordoon i bez grobli z dwarfami): brama północna Thais (32367,32179,z7), droga na północ, MOST nad wodą (rampa (32548,32076,z7)->(32549,32076,z6), pomost z6 x 32549-32553, rampa (32554,32076,z6)->(32555,32076,z7); lądowanie rampy NIEZWERYFIKOWANE w grze), wschodni brzeg z7 (A* z preferencją szarej drogi, kolor 129), korytarz x=32659 do (32659,31967,z7), OBEJŚCIE (32661,31966) (24.10 12:51: (32659,31966,z7) wygląda w mapie na drzwi, ale w grze się NIE otwierają, trasa ich nie używa), dziura (32663,31962,z7->z8), drzwi (32657,31965,z8); obok trasy snake (32662,31974) i trolle na z7 (jaskinia zaczyna się pod powierzchnią), wilki >= 10 pól - wymaga poziomu i defa. Powrót (trasy trolle_kazordoon_z8_do_depo / z9_do_depo, nie w mapy.json) do depo Thais (serwis Thais obsłuży spot) idzie liną: MUSI mieć rope (jedno przejście: z8->z7 w (32663,31961)->(32663,31963)), pole liny wolne, stoi się OBOK pola liny; dalej obejście (32661,31966,z7) i korytarz x=32659 (bez drzwi (32659,31966), które się nie otwierają), powierzchnia, most, brama, depo. Dziura (32663,31962,z7) mogła zostać zasypana: może trzeba łopaty (NIE w pietra.ZASYPANE bez dowodu z gry). Ciemna jaskinia: światło (spell/pochodnia). Depo Thais (32348,32225,z7) znane z serwisu Thais; typy przejść (schody/dziury) NIEZWERYFIKOWANE na żywo, brak wpisów w przejscia_nauczone.json. Znany ogień z buforem 1 traktowany jak ściana (zero punktów na ogniu). Trasa Thais -> miasto Kazordoon (thais_kazordoon_tam/_powrot) zostaje osobno, ten spot jej nie używa. Spot auto:false.",
-  "trasa": "trolle_kazordoon_z8_petla",
-  "potwory": "Troll,Wasp,Snake",
-  "prog_hp": 30,
-  "dojscie": "trolle_kazordoon_z8_dojscie"
- },
- "trolle_kazordoon_z9": {
-  "opis": "UWAGA 24.10 (Karol): z9 pod tą jaskinią to bardzo niebezpieczna część questa, NIE schodzimy tam; wariant zostaje w plikach, ale nie do użycia. Kazordoon jaskinia trolli z9 (z9: 900 pól w składowej, 1084 z potworami nie-trolle; 19 trolli w 9 spawnach): pętla trolle_kazordoon_z9_petla 207 pól z mapy klienta (generuj_trasy_kazordoon_trolle.py, 22.10), 9 przystanków; 4 strefy zakazane (promień 6) wokół minotaur archer (32656,31970), minotaur mage (32654,31970), rotworm (32660,31997), snake (32643,32025) - pętla ich nie dotyka, najbliższy inny potwór >= 10 pól. Dojście trolle_kazordoon_z9_dojscie = WSPÓLNY odcinek od depo Thais (32348,32225,z7) do rozwidlenia w z8 (32647,32003,z8) (662 pól, te same punkty co drugi spot, test testy/test_kazordoon_trolle.py) + schody z8 (32648,32003) i lądowanie (32648,32004,z9); powrót ze z9 najpierw schodami w górę (32648,32003,z9)->(32648,32004,z8). Po drodze (22.10, korekta Karola: z Thais, bez miasta Kazordoon i bez grobli z dwarfami): brama północna Thais (32367,32179,z7), droga na północ, MOST nad wodą (rampa (32548,32076,z7)->(32549,32076,z6), pomost z6 x 32549-32553, rampa (32554,32076,z6)->(32555,32076,z7); lądowanie rampy NIEZWERYFIKOWANE w grze), wschodni brzeg z7 (A* z preferencją szarej drogi, kolor 129), korytarz x=32659 do (32659,31967,z7), OBEJŚCIE (32661,31966) (24.10 12:51: (32659,31966,z7) wygląda w mapie na drzwi, ale w grze się NIE otwierają, trasa ich nie używa), dziura (32663,31962,z7->z8), drzwi (32657,31965,z8); obok trasy snake (32662,31974) i trolle na z7 (jaskinia zaczyna się pod powierzchnią), wilki >= 10 pól - wymaga poziomu i defa. Powrót (trasy trolle_kazordoon_z8_do_depo / z9_do_depo, nie w mapy.json) do depo Thais (serwis Thais obsłuży spot) idzie liną: MUSI mieć rope (jedno przejście: z8->z7 w (32663,31961)->(32663,31963)), pole liny wolne, stoi się OBOK pola liny; dalej obejście (32661,31966,z7) i korytarz x=32659 (bez drzwi (32659,31966), które się nie otwierają), powierzchnia, most, brama, depo. Dziura (32663,31962,z7) mogła zostać zasypana: może trzeba łopaty (NIE w pietra.ZASYPANE bez dowodu z gry). Ciemna jaskinia: światło (spell/pochodnia). Depo Thais (32348,32225,z7) znane z serwisu Thais; typy przejść (schody/dziury) NIEZWERYFIKOWANE na żywo, brak wpisów w przejscia_nauczone.json. Znany ogień z buforem 1 traktowany jak ściana (zero punktów na ogniu). Trasa Thais -> miasto Kazordoon (thais_kazordoon_tam/_powrot) zostaje osobno, ten spot jej nie używa. Spot auto:false.",
-  "trasa": "trolle_kazordoon_z9_petla",
-  "potwory": "Troll",
-  "prog_hp": 30,
-  "dojscie": "trolle_kazordoon_z9_dojscie"
- },
- "stoj_uh_edron_horn": {
-  "opis": "Edron, statek Horn of Plenty (z3): invincible stoi w miejscu i robi UH (Karol 23.10 ~15:55: 'niech sobie stoi'). Pole = pozycja z gry 15:58; PZ i depo = to samo pole (niezmierzone), bez wypraw.",
-  "trasa": "stoj_uh_edron_horn",
-  "potwory": "Stanowisko Brak Celow",
-  "prog_hp": 50,
-  "stanowisko": {
-   "miasto": "edron",
-   "pola": [
-    [
-     33165,
-     31781,
-     3
-    ]
-   ],
-   "pz": [
-    [
-     33165,
-     31781,
-     3
-    ]
-   ],
-   "depo": [
-    33165,
-    31781,
-    3
-   ],
-   "pz_zmierzone": false
-  }
- },
- "abdendriel_trolle_z9": {
-  "opis": "Ab'Dendriel, jaskinia trolli z9 (składowa 679 pól, 27 trolli w 8 przystankach, pętla 267 pól): abdendriel_trolle_z9_petla, start pętli = lądowanie po linie (32668,31625,z9). Dojście abdendriel_trolle_z9_dojscie (23.10, generuj_trasy_abdendriel_trolle.py) WYGENEROWANE Z MAPY KLIENTA, NIEPRZEJŚTE NA ŻYWO: start = ŚWIĄTYNIA Ab'Dendriel (32732,31634,z7), bo pozycji depo nie ma w danych; z7 zasypana dziura (32696,31621,z7) (trójka (32695..97,31621), kolor 24: ŁOPATA, niepotwierdzone), z8 dziura (32709,31593,z8) lub (32706,31587), kieszeń z9, LINA na polu liny (32700,31580,z9) (stanie obok), z8, dziura (32711,31577,z8), z9, dziura (32713,31585,z9) na z10, potem LINA na polu liny (32668,31624,z10) (stanie obok, NIE na (32668,31625,z10) - flaga 2) na z9; 304 punkty, 297 pól. Potrzebna LINA i ŁOPATA w plecaku. TRUJĄCE POLA: stałych pól trucizny nie da się ustalić z mapy klienta; trasa omija z buforem 1 pole 11 kandydatów (z8: 5, z9: 6) (pola flagi 2 w kolorze podłogi, trasy/trucizna_stale.json, tożsamość niepotwierdzona), żaden punkt pętli ani dojścia nie leży na nich ani obok. Brak wpisu powrotu do depo w wyprawa.PLANY_PK (otwarte). Trolle ze spawnów CipSoft 7.4, poziom z zapasem na ciosy trolli (do ok. 15) i skalę wyprawy.",
-  "trasa": "abdendriel_trolle_z9_petla",
-  "potwory": "Troll",
-  "prog_hp": 30,
-  "dojscie": "abdendriel_trolle_z9_dojscie"
- },
- "abdendriel_trolle_z10": {
-  "opis": "Ab'Dendriel, jaskinia trolli z10 (składowa 1243 pól, 34 trolli w 12 przystankach, pętla 775 pól): abdendriel_trolle_z10_petla, start pętli = lądowanie po dziurze (32713,31585,z10). Na z10 nie znaleziono kandydatów na pola trucizny. Dojście abdendriel_trolle_z10_dojscie (23.10, generuj_trasy_abdendriel_trolle.py) WYGENEROWANE Z MAPY KLIENTA, NIEPRZEJŚTE NA ŻYWO: start = ŚWIĄTYNIA Ab'Dendriel (32732,31634,z7), bo pozycji depo nie ma w danych; z7 zasypana dziura (32696,31621,z7) (trójka (32695..97,31621), kolor 24: ŁOPATA, niepotwierdzone), z8 dziura (32709,31593,z8) lub (32706,31587), kieszeń z9, LINA na polu liny (32700,31580,z9) (stanie obok), z8, dziura (32711,31577,z8), z9, dziura (32713,31585,z9) na z10 (koniec dojścia = start pętli); 226 punktów, 220 pól. Potrzebna LINA i ŁOPATA w plecaku. TRUJĄCE POLA: stałych pól trucizny nie da się ustalić z mapy klienta; trasa omija z buforem 1 pole 11 kandydatów (z8: 5, z9: 6; pola flagi 2 w kolorze podłogi, trasy/trucizna_stale.json, tożsamość niepotwierdzona), żaden punkt pętli ani dojścia nie leży na nich ani obok. Brak wpisu powrotu do depo w wyprawa.PLANY_PK (otwarte). Trolle ze spawnów CipSoft 7.4, poziom z zapasem na ciosy trolli (do ok. 15) i skalę wyprawy.",
-  "trasa": "abdendriel_trolle_z10_petla",
-  "potwory": "Troll",
-  "prog_hp": 30,
-  "dojscie": "abdendriel_trolle_z10_dojscie"
- },
- "abdendriel_trolle_z11": {
-  "opis": "Ab'Dendriel, jaskinia trolli z11 (składowa 1509 pól, 26 trolli w 11 przystankach, pętla 961 pól): abdendriel_trolle_z11_petla, start pętli = lądowanie po dziurze z10 (32668,31625,z11) (pole liny tej dziury, zejść z niego). Na z11 nie znaleziono kandydatów na pola trucizny. Dojście abdendriel_trolle_z11_dojscie (23.10, generuj_trasy_abdendriel_trolle.py) WYGENEROWANE Z MAPY KLIENTA, NIEPRZEJŚTE NA ŻYWO: start = ŚWIĄTYNIA Ab'Dendriel (32732,31634,z7), bo pozycji depo nie ma w danych; z7 zasypana dziura (32696,31621,z7) (trójka (32695..97,31621), kolor 24: ŁOPATA, niepotwierdzone), z8 dziura (32709,31593,z8) lub (32706,31587), kieszeń z9, LINA na polu liny (32700,31580,z9) (stanie obok), z8, dziura (32711,31577,z8), z9, dziura (32713,31585,z9) na z10 (start (32713,31585,z10)), potem dojście po z10 do DZIURY (32668,31625,z10) -> z11 (kierunek W DÓŁ wg wzorca dziura + pole liny; przejscia_pieter pisze W GÓRĘ, niepotwierdzone na żywo; koniec dojścia = start pętli); 304 punktów, 297 pól. Potrzebna LINA i ŁOPATA w plecaku. TRUJĄCE POLA: stałych pól trucizny nie da się ustalić z mapy klienta; w składowej z11 i na całej trasie dojścia nie ma pól flagi 2 w kolorze podłogi poza kandydatami na z8 i z9 (11 kandydatów: z8 5, z9 6, trasy/trucizna_stale.json, tożsamość niepotwierdzona), bufor 1 pole = ściana, żaden punkt pętli ani dojścia nie leży na nich ani obok (na z11 brak kandydatów). Brak wpisu powrotu do depo w wyprawa.PLANY_PK (otwarte). Trolle ze spawnów CipSoft 7.4, poziom z zapasem na ciosy trolli (do ok. 15) i skalę wyprawy.",
-  "trasa": "abdendriel_trolle_z11_petla",
-  "potwory": "Troll",
-  "prog_hp": 30,
-  "dojscie": "abdendriel_trolle_z11_dojscie"
- },
- "abdendriel_trolle_z12": {
-  "opis": "Ab'Dendriel, jaskinia trolli z12 (składowa 359 pól, 11 trolli w 6 przystankach, pętla 257 pól): abdendriel_trolle_z12_petla, start pętli = lądowanie po dziurze z11 (32668,31624,z12) (pole liny tej dziury, zejść z niego). Na z12 nie znaleziono kandydatów na pola trucizny. Składowa z12 nie ma żadnego pola flagi 2, wejście tylko przez dziurę z z11; wyjście w górę wyłącznie liną z pola (32668,31624,z12) (stanie obok), brak planu powrotu. Dojście abdendriel_trolle_z12_dojscie (23.10, generuj_trasy_abdendriel_trolle.py) WYGENEROWANE Z MAPY KLIENTA, NIEPRZEJŚTE NA ŻYWO: start = ŚWIĄTYNIA Ab'Dendriel (32732,31634,z7), bo pozycji depo nie ma w danych; z7 zasypana dziura (32696,31621,z7) (trójka (32695..97,31621), kolor 24: ŁOPATA, niepotwierdzone), z8 dziura (32709,31593,z8) lub (32706,31587), kieszeń z9, LINA na polu liny (32700,31580,z9) (stanie obok), z8, dziura (32711,31577,z8), z9, dziura (32713,31585,z9) na z10 (start (32713,31585,z10)), dziura (32668,31625,z10) -> z11, dziura (32668,31624,z11) -> z12 (kierunek W DÓŁ wg wzorca dziura + pole liny; przejscia_pieter pisze W GÓRĘ, niepotwierdzone na żywo; koniec dojścia = start pętli); 306 punktów, 298 pól. Potrzebna LINA i ŁOPATA w plecaku. TRUJĄCE POLA: stałych pól trucizny nie da się ustalić z mapy klienta; w składowej z12 i na całej trasie dojścia nie ma pól flagi 2 w kolorze podłogi poza kandydatami na z8 i z9 (11 kandydatów: z8 5, z9 6, trasy/trucizna_stale.json, tożsamość niepotwierdzona), bufor 1 pole = ściana, żaden punkt pętli ani dojścia nie leży na nich ani obok (na z11 i z12 brak kandydatów). Brak wpisu powrotu do depo w wyprawa.PLANY_PK (otwarte). Trolle ze spawnów CipSoft 7.4, poziom z zapasem na ciosy trolli (do ok. 15) i skalę wyprawy.",
-  "trasa": "abdendriel_trolle_z12_petla",
-  "potwory": "Troll",
-  "prog_hp": 30,
-  "dojscie": "abdendriel_trolle_z12_dojscie"
- },
- "trolle_kazordoon_z7": {
-  "opis": "Kazordoon, POWIERZCHNIA z7 (24.10, Karol: jaskinię trolli z8 zajął inny gracz): wschodni brzeg z7 przy drodze Thais -> Kazordoon, pętla trolle_kazordoon_z7_petla 196 pól (generuj_trasy_kazordoon_powierzchnia.py) w prostokącie x 32645..32668, y 31949..31990, start i koniec (32660,31985,z7) przy skręcie wspólnej drogi na północ ku drzwiom (32659,31966). 6 przystanków, 24 potwory ze spawnów CipSoft: trolle 15 ((32661,31965) x5 = przystanek (32661,31966), (32656,31963) x5 w budynku, (32668,31967) x2, (32666,31949) x3) i węże 9 ((32662,31974) x5, (32645,31972) x4 w wąskim zaułku na zachodzie). Osy (po 1 szt., (32694,31965), (32688,31989), (32682,31940)) leżą 26+ pól od pętli: poza pętlą, ale 'Wasp' jest w potworach mapy (CELE_PIERWSZE 'Wasp,Snake'). Dojście trolle_kazordoon_z7_dojscie (566 pkt) = DOKŁADNIE PREFIKS dojść z8/z9 (ten sam wspólny odcinek depo Thais (32348,32225,z7) -> brama -> droga -> most Thais (pomost z6 32549..32553) -> wschodni brzeg z7), urwany w (32660,31985,z7); jedna droga + odgałęzienie, bez dublowania (test testy/test_kazordoon_powierzchnia.py). BEZ dziury, liny i łopaty: zero przejść w dół/górę poza dwiema rampami mostu Thais. Powrót trolle_kazordoon_z7_do_depo (568 pkt, jawny, nie odwrócone dojście): z pętli tą samą drogą po z7 -> most -> brama -> depo Thais; wpis w wyprawa.PLANY_PK (zasięg 400). STREFY ZAKAZANE (ściana dla pętli, dojścia i powrotu): dziura z7 (32663,31962) i lądowanie liny (32663,31963) z buforem 2 (promień Chebyshev; zapas Karola 'dziura i pole liny NIE na pętli', bo troll goniący przy samym buforze wypchnąłby bota w dziurę), ogień z trasy/ogien_*.json z buforem 1 (nowy ogień (32664,31963) i (32653,31962) z 24.10 10:51), dziury_nauczone; promień 6 wokół spawnów groźniejszych niż troll (hp > 50 albo atak > 10): niedźwiedź (32666,31930), pająk jadowity (32704,31986), wilki (32640,32011), skorpiony, bestie dalej; pętla trzyma 19+ pól odstępu od najbliższego (niedźwiedź, od północnego przystanku trolli), dwarfy z grobli z6 (32616..32624,31964..31974) i minotaury leżą na innych piętrach/daleko. NIESPRAWDZONE NA ŻYWO: lądowanie ramp mostu Thais (jak w dojściach z8/z9), bezpieczeństwo walki 15 trolli + węże + osy na lvl 10 (poziom [8,30] domyślny, jak z8), czy ten sam spot nie jest zajęty przez innego gracza, pole (32661,31966) przystanku przy bufie dziury (4 pola od dziury). Spot auto:false. Start: RETRONIC_POSTAC.",
-  "trasa": "trolle_kazordoon_z7_petla",
-  "potwory": "Troll,Wasp,Snake",
-  "prog_hp": 30,
-  "dojscie": "trolle_kazordoon_z7_dojscie"
- },
- "abdendriel_trolle_z10_z9": {
-  "trasa": "abdendriel_trolle_z10_petla",
-  "potwory": "Troll",
-  "prog_hp": 30,
-  "dojscie": "abdendriel_z9_do_z10",
-  "dojscie_z_dowolnego_pietra": true,
-  "opis": "24.10 (Karol: z9 zajęty, zejdź niżej): pętla z10 jak abdendriel_trolle_z10, dojście z jaskini z9 (komponent pętli abdendriel_trolle_z9) dziurą (32668,31624,z9) -> z10 (32668,31624,10); 17 pkt z mapy klienta, start z pozycji Marinarry 11:12. Dziura (32668,31625,z10) na z11 w dziury_nauczone (ściana). NIEPRZEJŚTE NA ŻYWO."
- }
 }

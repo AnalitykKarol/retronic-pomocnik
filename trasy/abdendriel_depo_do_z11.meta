@@ -1,0 +1,61 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "depo Ab'Dendriel (32679, 31687) z8 (ZASTĘPCZE, NIEPOMIERZONE), początek nagrania „depo -> trolle”; z dowolnego punktu tej drogi dojście bierze najbliższy punkt"
+  },
+  {
+   "idx": 24,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "SCHODY W DÓŁ (32654, 31670) z8 (flaga 2 na z8 i z9, kolor 210) obok pola stania (32655, 31670); lądowanie (x, y+1) = (32654, 31671) z9. Nagranie Karola 24.10 11:05 przeszło tędy w tę stronę"
+  },
+  {
+   "idx": 25,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z9 (32654,31671) tuż pod schodami w górę (32654,31670,z9): NIE iść na północ po x=32654, idź na x=32655"
+  },
+  {
+   "idx": 42,
+   "typ": "drzwi",
+   "komentarz": "drzwi (32655, 31655) z9 od południa: ściana w mapie, nagranie przeszło przez nie; DRZWI_TRASA; na klucz 2970",
+   "klucz": 2970
+  },
+  {
+   "idx": 55,
+   "typ": "drzwi",
+   "komentarz": "drzwi (32658, 31645) z9 od południa: ściana w mapie, nagranie przeszło przez nie; DRZWI_TRASA; na klucz 2970",
+   "klucz": 2970
+  },
+  {
+   "idx": 56,
+   "typ": "wyjscie_serwisu",
+   "komentarz": "(32658, 31644) z9: pierwsze pole jaskini ZA obojgiem drzwi = pole, na którym serwis kończy krok wyjscie (generuj_serwis_abdendriel)"
+  },
+  {
+   "idx": 86,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "DZIURA (32668, 31624) z9 -> z10 (flaga 2; pod nią pole liny (32668, 31624) z10); pole liny z9 (32668, 31625) tuż obok. Jak w dawnym abdendriel_z9_do_z10"
+  },
+  {
+   "idx": 87,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z10 (32668, 31624); następny punkt (32668,31625,10) = DZIURA z10 -> z11 (celowo, dojście na z12)"
+  },
+  {
+   "idx": 88,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "DZIURA z10 (32668, 31625) -> z11 (jak w abdendriel_trolle_z12_dojscie idx 302-303), NIEPOTWIERDZONE na żywo"
+  },
+  {
+   "idx": 89,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z11 (32668, 31625) = pole liny, zejść z niego"
+  },
+  {
+   "idx": 89,
+   "typ": "koniec",
+   "komentarz": "start pętli abdendriel_trolle_z11_petla (lądowanie z11 = pole liny, zejść z niego); 25.10: prefiks abdendriel_depo_do_z12"
+  }
+ ]
+}

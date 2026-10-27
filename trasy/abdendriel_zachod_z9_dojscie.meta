@@ -1,0 +1,39 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "depo Ab'Dendriel (32679, 31687) z8 (ZASTĘPCZE, NIEPOMIERZONE), początek nagrania „depo -> trolle”; dojście z mapy klienta 27.10, NIEPRZEJŚTE NA ŻYWO; z dowolnego punktu tej drogi dojście bierze najbliższy punkt"
+  },
+  {
+   "idx": 25,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "SCHODY W GÓRĘ (32654, 31674) z8 (flaga 2, kolor 210) na północ od pola stania (32654, 31675) (krok na północ); lądowanie (x, y-1) = (32654, 31673) z7. Nagranie Karola 24.10 11:05 przeszło tędy"
+  },
+  {
+   "idx": 26,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z7 (32654, 31673) tuż nad schodami w dół (32654, 31674) z7: NIE schodzić z powrotem"
+  },
+  {
+   "idx": 252,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "z7 (32490, 31697) kolor 24 flaga 2 = ZASYPANA DZIURA -> ŁOPATA (niepotwierdzone na żywo; po otwartej dziurze zwykły krok); wskazał Karol 26.10 (32491,31694). Dojście z7: A* od lądowania schodów (32654, 31673) (225 pól) do pola obok dziury (32491, 31698)"
+  },
+  {
+   "idx": 253,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z8 (32490, 31697) (składowa 1656 pól, wilki/węże); to pole liny tej dziury, pętla zaczyna się na nim"
+  },
+  {
+   "idx": 300,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "DZIURA z8 (32480, 31721) (kolor 210, flaga 2; pod nią z9 ten sam (x,y) = pole liny) -> z9 trolle; niepotwierdzone na żywo"
+  },
+  {
+   "idx": 301,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z9 (32480, 31721) (składowa 2343 pól); pole liny tej dziury, zejść z niego"
+  }
+ ]
+}

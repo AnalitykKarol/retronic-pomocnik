@@ -1,0 +1,129 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "początek nagrania"
+  },
+  {
+   "idx": 8,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 7"
+  },
+  {
+   "idx": 9,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 8 -> 7 (w górę), z (33170,31812)"
+  },
+  {
+   "idx": 17,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 7, potem piętro 8"
+  },
+  {
+   "idx": 18,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 7 -> 8 (w dół), z (33166,31827)"
+  },
+  {
+   "idx": 25,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 9"
+  },
+  {
+   "idx": 26,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 8 -> 9 (w dół), z (33168,31824)"
+  },
+  {
+   "idx": 38,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 10"
+  },
+  {
+   "idx": 39,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 9 -> 10 (w dół), z (33152,31820)"
+  },
+  {
+   "idx": 44,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 10, potem piętro 11"
+  },
+  {
+   "idx": 45,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 10 -> 11 (w dół), z (33147,31823)"
+  },
+  {
+   "idx": 68,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 11, potem piętro 10"
+  },
+  {
+   "idx": 69,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 11 -> 10 (w górę), z (33132,31805)"
+  },
+  {
+   "idx": 74,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 10, potem piętro 9"
+  },
+  {
+   "idx": 75,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 10 -> 9 (w górę), z (33129,31809)"
+  },
+  {
+   "idx": 79,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 9, potem piętro 8"
+  },
+  {
+   "idx": 80,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 9 -> 8 (w górę), z (33130,31806)"
+  },
+  {
+   "idx": 84,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 8, potem piętro 7"
+  },
+  {
+   "idx": 85,
+   "typ": "schody_w_gore",
+   "komentarz": "zmiana piętra 8 -> 7 (w górę), z (33128,31809)"
+  },
+  {
+   "idx": 110,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "ostatnie pole na piętrze 7, potem piętro 8"
+  },
+  {
+   "idx": 111,
+   "typ": "schody_w_dol",
+   "komentarz": "zmiana piętra 7 -> 8 (w dół), z (33117,31776)"
+  },
+  {
+   "idx": 167,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "przejście z8 (33115,31744) do wschodniej jaskini z9 (kolor 210, flaga 2, z mapy 21.10); typ NIEZWERYFIKOWANY"
+  },
+  {
+   "idx": 168,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z9 (33119, 31740) we wschodniej składowej; po zejściu wejdź w pętlę trolle_edron_z9w_petla"
+  },
+  {
+   "idx": 187,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "przejście z9 (33128, 31729) (kolor 210, flaga 2, z mapy 26.10; rodzina pięter) do składowej z10 (260 pól); typ NIEZWERYFIKOWANY na żywo, droga omija znany ogień (bufor 1)"
+  },
+  {
+   "idx": 188,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z10 (33128, 31729); po zejściu wejdź w pętlę trolle_edron_z10w_pelna_petla"
+  }
+ ]
+}

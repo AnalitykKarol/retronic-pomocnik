@@ -2,6 +2,7 @@
 """Generator tras wypadu do miasta (do_miasta / z_miasta) z pełnej mapy (mapa.py) i nagranych tras łowiska.
 
   generuj_trase_miasta.py troll    [--zapisz]   troll_cave (z8/z9) -> Thais, sklep Gorna (z7) i z powrotem
+  generuj_trase_miasta.py troll_v2 [--zapisz]   25.10: KRÓTSZE do_miasta z jaskini trolli (patrz niżej); zapis tylko trasy/troll_do_miasta_v2.json/.meta
   generuj_trase_miasta.py kanaly   [--zapisz]   kanały Thais (z8, lądowanie dziury (32360,32242)) -> Gorn i z powrotem
   generuj_trase_miasta.py thais_pn [--zapisz]   Thais północ, jaskinia trolli z8 (odwrócone thais_pn_z8_dojscie) -> Gorn i z powrotem
 
@@ -15,6 +16,19 @@ Model przejść (potwierdzony na nagraniach do_miasta/z_miasta/troll_cave i w pi
 Trasa troll_do_miasta zaczyna się od ODWRÓCONEJ trasy troll_cave (z poprawionymi przejściami), więc działa z każdego
 pola jaskini (z8 i z9), a kończy się przy Gornie (sprzedaje torch). UWAGA: pozycja Gorna (Home z danych Tibiantis)
 i przejścia po minimapie są niezweryfikowane na żywo; pierwszy wypad obserwować.
+
+troll_v2 (25.10, Wydra: wyprawa z jaskini szła okrężnie, ok. 43 pkt kręcenia po z9, trzy zbędne zejścia w dziury z8 -> z9 i z powrotem drabinami,
+wyjście z z9 na z7 dopiero po ok. 2:40): odwrócone nagranie troll_cave zawiera pętle polowania (kieszenie z9 pod (32482,32296), (32474,32286),
+(32476,32272)), a wypad idzie planem od najbliższego punktu do końca, więc każdą z nich przechodził. v2 = droga A* z mapy pełnej, BEZ nagrania:
+  1. kieszeń z9 "gniazdo" (32471,32270,z9) (najwięcej zabić wg miejsca troll) -> drabina (32476,32272,z9) -> z8 (32476,32273);
+  2. z8 do dziury (32478,32269) (JEDYNE zejście w dół na trasie, nie do ominięcia: z8 pod jaskinią jest rozcięte na dwie części, północna
+     z wyjściem i południowa z halą łączą się tylko przez z9) -> korytarz z9 -> drabina (32484,32265,z9) -> z8 (32484,32266) -> pole (32493,32260,z8);
+  3. dalej bez zmian droga do Gorna (to samo wyjście liną (32493,32260,z8) -> z7 i ta sama droga po z7 co w troll_do_miasta).
+Drabiny w górę: zawsze z pola drabiny (stoimy na R, "wlasne"), tak jak w nagraniu i w zbuduj_etapy/log wypadu (GrafDrabiny).
+Plan zaczyna się w kieszeni z9 "gniazdo" (pole z najwyższym udziałem zabić), więc stamtąd idzie bez dojścia; pozostałe części jaskini
+(hala z8 na południe, kieszenie z9 (32482,32296) / (32474,32286), część wschodnia) łączą się z planem tak, jak wcześniej wschodnia część:
+wypad.py bierze najbliższy osiągalny punkt planu na piętrze postaci, a gdy takiego nie ma (kieszeń z9), dojście drogą patrolu (_dojscie_start,
+WYPRAWA_DOJSCIE_PATROLEM=1). Pierwszy punkt z7 = (32493,32260,7) jak dotąd (wyprawa._do_depo_odwrocona bierze go jako wejście na z7).
 """
 import heapq
 import json
@@ -27,6 +41,7 @@ sys.path.insert(0, str(KATALOG))
 import mapa as _mapa  # noqa: E402
 
 TRASY = KATALOG / "trasy"
+TROLL_STUB_START = (32471, 32270, 9)   # troll_v2: początek planu = gniazdo z9 pod schodami (32476,32272) (miejsca_troll #5, 42% zabić)
 GORN_HOME = (32377, 32200, 7)          # NPC Gorn (Tibiantis: Home, promień 3); sprzedaje torch
 KOSZT_W_DOL, KOSZT_W_GORE = 6, 8
 RUCHY = ((1, 0, 1), (-1, 0, 1), (0, 1, 1), (0, -1, 1), (1, 1, 3), (1, -1, 3), (-1, 1, 3), (-1, -1, 3))
@@ -94,6 +109,21 @@ class Graf:
                     h = max(abs(q[0] - cel[0]), abs(q[1] - cel[1])) + (0 if q[2] == cel[2] else 0)
                     heapq.heappush(pq, (nc + h, nc, q))
         return None
+
+
+class GrafDrabiny(Graf):
+    """Jak Graf, ale w górę tylko z pola drabiny R (stoimy NA R i robimy Use na własnym polu: "wlasne" w wypad.zbuduj_etapy),
+    nie z pola obok. Tak przechodzi to nagranie troll_cave i tak wykonuje wypad drabinę z9 -> z8 w jaskini trolli
+    (log 25.10: "drabina próba 1/6 (wlasne) z (32484, 32265, 9)")."""
+
+    def sasiedzi(self, p):
+        x, y, z = p
+        for q, c, t in super().sasiedzi(p):
+            if t == "gora":
+                # lądowanie (R.x, R.y+1, z-1): R = (q.x, q.y-1, z) musi być polem p (stoimy na R)
+                if (q[0], q[1] - 1) != (x, y):
+                    continue
+            yield q, c, t
 
 
 def rzadko(sciezka, co=3):
@@ -190,6 +220,18 @@ def zbuduj(nazwa, m):
             raise SystemExit("brak drogi powrotnej z Gorna do troll_cave")
         z = scal(rzadko(powrot))
         prefiks = "troll"
+    elif nazwa == "troll_v2":
+        troll = [tuple(p) for p in json.loads((TRASY / "troll_cave.json").read_text())]
+        wejscie = troll[0]                       # (32493,32260,z8): pole pod liną wyjścia na z7, jak w troll_do_miasta
+        jaskinia = GrafDrabiny(m).astar(TROLL_STUB_START, wejscie)
+        if jaskinia is None:
+            raise SystemExit(f"brak drogi z {TROLL_STUB_START} do {wejscie} w jaskini trolli")
+        cel, droga = stoisko(g, GORN_HOME, wejscie)
+        if droga is None:
+            raise SystemExit("brak drogi z troll_cave do Gorna")
+        do = scal(rzadko(jaskinia), rzadko(droga))
+        z = None                                 # powrót (troll_z_miasta) bez zmian, zostaje plik żywy
+        prefiks = "troll"
     elif nazwa == "kanaly":
         wejscie = (32360, 32242, 8)
         cel, droga = stoisko(g, GORN_HOME, wejscie)
@@ -244,19 +286,22 @@ def zbuduj(nazwa, m):
 
 
 def main(argv):
-    if not argv or argv[0] not in ("troll", "kanaly", "thais_pn"):
+    if not argv or argv[0] not in ("troll", "troll_v2", "kanaly", "thais_pn"):
         print(__doc__)
         return 1
     m = _mapa.Mapa()
     prefiks, do, z, cel, ostrz = zbuduj(argv[0], m)
-    print(f"{prefiks}: do_miasta {len(do)} pkt (z{do[0][2]} -> z{do[-1][2]}), z_miasta {len(z)} pkt, stoisko {cel}")
+    print(f"{prefiks}: do_miasta {len(do)} pkt (z{do[0][2]} -> z{do[-1][2]}), z_miasta "
+          + (f"{len(z)} pkt" if z else "bez zmian") + f", stoisko {cel}")
     for o in ostrz:
         print("UWAGA:", o)
-    for nazwa, pts in (("do_miasta", do), ("z_miasta", z)):
+    v2 = argv[0] == "troll_v2"
+    for nazwa, pts in (("do_miasta", do), ("z_miasta", z or [])):
         zm = [(i, pts[i], pts[i + 1]) for i in range(len(pts) - 1) if pts[i][2] != pts[i + 1][2]]
         print(f"  {nazwa}: przejścia pięter {[(i, a, b) for i, a, b in zm]}")
     if "--zapisz" in argv:
-        for sufiks, pts in (("do_miasta", do), ("z_miasta", z)):
+        # troll_v2 zapisuje WYŁĄCZNIE troll_do_miasta_v2.*: plików żywych (troll_do_miasta.*, troll_z_miasta.*) nie rusza
+        for sufiks, pts in ((("do_miasta_v2", do),) if v2 else (("do_miasta", do), ("z_miasta", z))):
             plik = TRASY / f"{prefiks}_{sufiks}.json"
             plik.write_text(json.dumps([list(p) for p in pts]))
             (TRASY / f"{prefiks}_{sufiks}.meta").write_text(json.dumps(opisz_przejscia(pts), ensure_ascii=False, indent=1))

@@ -1,0 +1,24 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "łącznik z innego piętra rodziny: start przy pętli źródła (podajnik) albo przy stoisku liny"
+  },
+  {
+   "idx": 71,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "stoję (33081, 31741, 9) obok pola liny (33081, 31742, 9), potem piętro 8"
+  },
+  {
+   "idx": 72,
+   "typ": "schody_w_gore",
+   "komentarz": "LINA: z9 (33081, 31741) -> z8 (33081, 31743), pole liny (33081, 31742) (NIEZWERYFIKOWANA na żywo, wzorzec jak istniejące wyjścia liną z dziur)"
+  },
+  {
+   "idx": 113,
+   "typ": "opis",
+   "komentarz": "od tego punktu: dojście spotu docelowego (od jego punktu 115, 36 pkt)"
+  }
+ ]
+}

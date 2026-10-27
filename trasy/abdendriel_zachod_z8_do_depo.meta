@@ -1,0 +1,34 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "z8 pole stania (32490, 31696) obok pola liny (32490, 31697) (start pętli z8; bot dojdzie tu z dowolnego punktu pętli po z8); powrót z mapy klienta 27.10, NIEZWERYFIKOWANY na żywo"
+  },
+  {
+   "idx": 0,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "LINA na polu (32490, 31697) z8 (pole liny pod zasypaną dziurą z7 (32490, 31697), lądowanie dojścia): stoimy OBOK na (32490, 31696) (północ), pole liny wolne; lądowanie (x, y+1) = (32490, 31698) z7, tuż pod dziurą. NIEZWERYFIKOWANE na żywo; potrzebna LINA w plecaku"
+  },
+  {
+   "idx": 1,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z7 (32490, 31698) tuż pod zasypaną dziurą z7 (32490, 31697): NIE wchodzić na dziurę"
+  },
+  {
+   "idx": 227,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "SCHODY W DÓŁ (32654, 31674) z7 (flaga 2 na z7 i z8) na południe od pola stania (32654, 31673); lądowanie z8 (x, y+1) = (32654, 31675). Nagranie Karola (pkt 26 -> 27) zeszło tędy; NIEZWERYFIKOWANE w pętli powrotu"
+  },
+  {
+   "idx": 228,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z8 (32654, 31675); obok schody w górę (32654, 31674): NIE wchodzić, idź korytarzem x=32655"
+  },
+  {
+   "idx": 253,
+   "typ": "koniec",
+   "komentarz": "(32679, 31687) z8 = początek nagrania „depo -> trolle”; położenie depo NIEPOMIERZONE (zastępcza decyzja)"
+  }
+ ]
+}

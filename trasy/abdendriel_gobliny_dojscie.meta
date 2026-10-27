@@ -1,0 +1,34 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "depo Ab'Dendriel (32679, 31687) z8 (ZASTĘPCZE, NIEPOMIERZONE), początek nagrania „depo -> trolle”; z dowolnego punktu tej drogi dojście bierze najbliższy punkt"
+  },
+  {
+   "idx": 25,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "SCHODY W GÓRĘ (32654, 31674) z8 (flaga 2, kolor 210) na południe od pola stania (32654, 31675) (krok na północ); lądowanie (x, y-1) = (32654, 31673) z7. Nagranie Karola 24.10 11:05 przeszło tędy"
+  },
+  {
+   "idx": 26,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z7 (32654, 31673) tuż nad schodami w dół (32654, 31674) z7: NIE schodzić z powrotem"
+  },
+  {
+   "idx": 172,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "SCHODY W GÓRĘ (32622, 31790) z7 (flaga 2, kolor 210; od zachodu ściana, wejście od wschodu) na zachód od pola stania (32623, 31790); lądowanie z6 po stronie chodliwej = (32621, 31790). NIEZWERYFIKOWANE na żywo"
+  },
+  {
+   "idx": 173,
+   "typ": "schody_w_gore",
+   "komentarz": "lądowanie z6 (32621, 31790) = start pętli abdendriel_gobliny_petla (składowa 2918 pól)"
+  },
+  {
+   "idx": 173,
+   "typ": "koniec",
+   "komentarz": "start pętli abdendriel_gobliny (pętla zaczyna się w punkcie lądowania)"
+  }
+ ]
+}

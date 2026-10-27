@@ -1,0 +1,34 @@
+{
+ "specjalne": [
+  {
+   "idx": 50,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "schody w depo z7 (kolor 210, flaga 2), wskazane przez Karola 20.10; typ NIEZWERYFIKOWANY przez bota"
+  },
+  {
+   "idx": 51,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z8 (32027, 32198) w kieszeni z kratką (z mapy)"
+  },
+  {
+   "idx": 55,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "KRATKA z8 (32029,32195): w mapie zwykłe pole bez flagi 2, bot używa jej jak kratki kanału (Ctrl+klik)"
+  },
+  {
+   "idx": 56,
+   "typ": "kratka_w_dol",
+   "komentarz": "lądowanie z9 (32029, 32195) dokładnie pod kratką; po zejściu wejdź w pętlę rook_raty_z9_petla"
+  },
+  {
+   "idx": 100,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "przejście z9 (32021, 32180) (kolor 210, flaga 2, z mapy 26.10; rodzina pięter) do składowej z10 (202 pól); typ NIEZWERYFIKOWANY na żywo, droga omija znany ogień (bufor 1)"
+  },
+  {
+   "idx": 101,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z10 (32021, 32180); po zejściu wejdź w pętlę rook_raty_z10_zachod_petla"
+  }
+ ]
+}

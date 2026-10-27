@@ -1,0 +1,14 @@
+{
+ "specjalne": [
+  {
+   "idx": 23,
+   "typ": "przed_zmiana_pietra",
+   "komentarz": "pole przejścia z8 w kieszeni (32021,32166; flaga 2, kolor 210), typ (dziura/schody) NIEZWERYFIKOWANY w grze"
+  },
+  {
+   "idx": 24,
+   "typ": "schody_w_dol",
+   "komentarz": "lądowanie z9 (32021,32166) dokładnie pod polem przejścia; potem A* po z9 do startu pętli rook_raty_z9_petla"
+  }
+ ]
+}

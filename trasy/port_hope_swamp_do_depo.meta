@@ -1,0 +1,14 @@
+{
+ "specjalne": [
+  {
+   "idx": 0,
+   "typ": "start",
+   "komentarz": "wejście do jaskini swamp trolli (z7)"
+  },
+  {
+   "idx": 191,
+   "typ": "koniec",
+   "komentarz": "depo Port Hope (32632,32743,z7)"
+  }
+ ]
+}
